@@ -1,5 +1,5 @@
 import type {
-  GameState,
+  Workspace,
   MergeMethod,
   PullDetail,
   PullSummary,
@@ -13,15 +13,15 @@ export interface Capabilities {
 }
 
 export interface Loaded {
-  state: GameState;
+  state: Workspace;
   /** Commit sha (or content hash) the state was read at. */
   version: string;
 }
 
 export interface PullData {
   detail: PullDetail;
-  base: GameState;
-  head: GameState;
+  base: Workspace;
+  head: Workspace;
 }
 
 export interface PullProvider {

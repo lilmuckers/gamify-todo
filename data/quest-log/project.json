@@ -1,5 +1,6 @@
 {
-  "$schema": "../schema/quest.schema.json",
+  "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
+  "id": "quest-log",
   "title": "Quest Log",
   "description": "Building a gamified project tracker, tracked in itself.",
   "goals": [
@@ -15,6 +16,8 @@
   "worldOrder": [
     "foundations",
     "publishing",
-    "mobile"
+    "mobile",
+    "another-trhing",
+    "test-world"
   ]
 }

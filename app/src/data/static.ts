@@ -1,4 +1,4 @@
-import { fromFiles, GAME_PATH, worldPath, type Overworld } from '@quest/shared';
+import { fromFiles } from '@quest/shared';
 import { BASE_URL } from '../config';
 import type { DataSource, Loaded } from './source';
 
@@ -13,20 +13,19 @@ async function hash(s: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Read-only: the JSON files deployed alongside the site. */
+/**
+ * Read-only: the JSON files deployed alongside the site. Static hosting can't
+ * list folders, so the build writes data/index.json with every data path.
+ */
 export class StaticSource implements DataSource {
   id = 'static';
   label = 'Read-only';
   caps = { canEdit: false, canReviewPRs: false, canPublish: false };
 
   async load(): Promise<Loaded> {
-    const files: Record<string, string> = { [GAME_PATH]: await text(GAME_PATH) };
-    const overworld = JSON.parse(files[GAME_PATH]) as Overworld;
-    await Promise.all(
-      overworld.worldOrder.map(async (id) => {
-        files[worldPath(id)] = await text(worldPath(id));
-      }),
-    );
+    const index = JSON.parse(await text('data/index.json')) as { files: string[] };
+    const files: Record<string, string> = {};
+    await Promise.all(index.files.map(async (p) => (files[p] = await text(p))));
     const version = await hash(Object.keys(files).sort().map((k) => files[k]).join('\0'));
     return { state: fromFiles(files), version };
   }

@@ -7,8 +7,8 @@ import {
   OpConflict,
   polishPoints,
   replay,
-  validateState,
-  type GameState,
+  validateWorkspace,
+  type Workspace,
   type Issue,
   type Op,
   type OpBody,
@@ -36,7 +36,7 @@ export interface DispatchResult {
 }
 
 interface Snapshot {
-  state: GameState;
+  state: Workspace;
   version: string;
   at: string;
 }
@@ -55,9 +55,9 @@ const MAX_ATTEMPTS = 3;
  * so offline edits survive reloads and merge cleanly with remote changes.
  */
 export class Store {
-  state?: GameState;
+  state?: Workspace;
   /** Last state known to be on the remote. */
-  base?: GameState;
+  base?: Workspace;
   version?: string;
   outbox: Op[] = [];
   conflicts: Conflict[] = [];
@@ -88,8 +88,9 @@ export class Store {
     return this.source.caps;
   }
 
+  // v2: project-folder data layout; older caches are ignored.
   private key(name: string) {
-    return `${this.source.id}:${name}`;
+    return `v2:${this.source.id}:${name}`;
   }
 
   subscribe(fn: () => void): () => void {
@@ -107,11 +108,11 @@ export class Store {
     return 'synced';
   }
 
-  private setBase(base: GameState, version: string) {
+  private setBase(base: Workspace, version: string) {
     this.base = base;
     this.version = version;
     this.state = replay(base, this.outbox).state;
-    this.issues = validateState(this.state);
+    this.issues = validateWorkspace(this.state);
   }
 
   async start(): Promise<void> {
@@ -177,7 +178,7 @@ export class Store {
     if (!this.caps.canEdit) return { ok: false, error: 'Read-only mode' };
     if (!this.state) return { ok: false, error: 'Still loading' };
     const op = makeOp(body);
-    let next: GameState;
+    let next: Workspace;
     try {
       next = applyOp(this.state, op);
     } catch (err) {
@@ -185,13 +186,13 @@ export class Store {
       throw err;
     }
     const before = this.issues.length;
-    const issues = validateState(next);
+    const issues = validateWorkspace(next);
     if (issues.length > before) {
       const known = new Set(this.issues.map((i) => i.file + i.path + i.message));
       const fresh = issues.find((i) => !known.has(i.file + i.path + i.message)) ?? issues[0];
       return { ok: false, error: `${fresh.path}: ${fresh.message}` };
     }
-    const polish = 'levelId' in op ? this.polishDelta(this.state, next, op.worldId, op.levelId) : 0;
+    const polish = 'levelId' in op ? this.polishDelta(this.state, next, op.projectId, op.worldId, op.levelId) : 0;
     this.state = next;
     this.issues = issues;
     this.outbox.push(op);
@@ -202,9 +203,10 @@ export class Store {
     return { ok: true, polish };
   }
 
-  private polishDelta(a: GameState, b: GameState, worldId: string, levelId: string) {
-    const la = a.worlds[worldId]?.levels.find((l) => l.id === levelId);
-    const lb = b.worlds[worldId]?.levels.find((l) => l.id === levelId);
+  private polishDelta(a: Workspace, b: Workspace, projectId: string, worldId: string, levelId: string) {
+    const find = (ws: Workspace) => ws.projects[projectId]?.worlds[worldId]?.levels.find((l) => l.id === levelId);
+    const la = find(a);
+    const lb = find(b);
     return la && lb ? polishPoints(lb) - polishPoints(la) : 0;
   }
 
@@ -246,8 +248,8 @@ export class Store {
         const r = replay(remote.state, batch);
         let version = remote.version;
         if (r.applied.length) {
-          const remoteOk = validateState(remote.state).length === 0;
-          const issues = validateState(r.state);
+          const remoteOk = validateWorkspace(remote.state).length === 0;
+          const issues = validateWorkspace(r.state);
           if (remoteOk && issues.length) {
             this.status = 'error';
             this.error = `Queued edits would make data invalid: ${issues[0].path} ${issues[0].message}`;
@@ -259,7 +261,7 @@ export class Store {
             try {
               version = await this.source.commit(
                 changes,
-                commitMessage(r.applied, remote.state),
+                commitMessage(r.applied, r.state),
                 remote.version,
               );
             } catch (err) {

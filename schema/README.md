@@ -1,124 +1,46 @@
 # Quest Log data format
 
-Quest Log tracks a project as a platformer game. All state lives in plain JSON files validated by
-[`quest.schema.json`](quest.schema.json) (JSON Schema draft 2020-12).
+All Quest Log state is plain JSON in a `data/` folder of a GitHub repository — this one, or any
+repo of your own. Files are validated by the JSON Schemas here (draft 2020-12,
+`additionalProperties: false` throughout).
 
-Published schema URL: `https://lilmuckers.github.io/gamify-todo/schema/quest.schema.json`
+| File | Schema |
+|---|---|
+| `data/<project-id>/project.json` | [`project.schema.json`](project.schema.json) |
+| `data/<project-id>/<world-id>/world.json` | [`world.schema.json`](world.schema.json) |
+| `data/<project-id>/<world-id>/<level-id>.json` | [`level.schema.json`](level.schema.json) |
 
-## Files
-
-| File | Schema definition | Holds |
-|---|---|---|
-| `data/game.json` | `#/$defs/Overworld` | Project title, key goals, order of worlds |
-| `data/worlds/<world-id>.json` | `#/$defs/World` | One themed world and its levels |
-
-Every world file must be listed in `game.json` → `worldOrder`, and the file name must equal the world `id`.
-
-## Hierarchy
+All three reference the definitions in [`quest.schema.json`](quest.schema.json). They are published
+at `https://tasks.patrick-mckinley.com/schema/`, and data files point there with `$schema`, so
+editors autocomplete them wherever they live.
 
 ```
-Overworld (data/game.json)        key project goals
-└── World (data/worlds/<id>.json) one theme/topic, e.g. "Payments"
-    └── Level                     ONE key deliverable, with a time-box
-        ├── successCriteria[]     checks; MVP ones raise the flagpole
-        └── items[]               tasks, blockers, dependencies, risks…
+data/
+  <project-id>/            one folder per unrelated project (house renovation, desk build, work launch…)
+    project.json           goals + worldOrder
+    <world-id>/            one folder per theme inside the project
+      world.json           theme, goalIds, levelOrder
+      <level-id>.json      one key deliverable: time-box, success criteria, items
 ```
 
-## Item types
+Why one file per level: an edit (say, ticking off a task) rewrites one small file, so commits,
+diffs, pull requests and concurrent edits stay small and rarely conflict.
 
-| `type` | Means | In the game |
-|---|---|---|
-| `task` | Work you do | `?` block — done pops a coin |
-| `deliverable` | Intermediate output / milestone inside the level | Checkpoint flag |
-| `blocker` | Something stopping progress | Brick wall — hero cannot pass |
-| `dependency` | Something needed from elsewhere (`levelRef` or `link`) | Pipe with a plant while unmet |
-| `risk` | Might go wrong; `done` = mitigated/accepted | Patrolling critter |
-| `decision` | Open question needing an answer | Signpost — hero waits |
-| `stretch` | Nice-to-have polish | Floating coins — never blocks, never earns stars |
+## Rules beyond the schema
 
-`status` is one of `todo`, `doing`, `done`, `dropped`. Dropping is encouraged: cutting scope is how you
-ship.
+Checked by `npm run validate`, the app, and CI:
 
-## Good-enough rules
-
-- A level is **cleared** when every criterion with `"mvp": true` has `"done": true`. Nothing else gates it.
-- Once cleared, leftover items stop blocking. Stars: ★ cleared, ★ within `timeboxDays`, ★ no polishing
-  after clearing.
-- Keep MVP criteria to the 1–3 checks that make the deliverable useful. Put everything else in
-  non-MVP criteria or `stretch` items.
-
-## Rules the schema can't express (checked by `npm run validate`)
-
-- Ids are unique within scope (worlds globally; levels per world; items and criteria per level).
-- `dependsOn` only names items in the same level, with no cycles.
-- `levelRef` (`"<world-id>/<level-id>"`), `goalIds` and `unlocksAfter` point at things that exist.
-- Every level has at least one MVP criterion.
-
-## Fields the app maintains
-
-Omit these when generating new data: `startedAt`, `clearedAt`, `stats`. The app sets them as you play.
+- Folder and file names equal the ids inside them; `world` is reserved as a level id.
+- `worldOrder` / `levelOrder` list exactly the worlds / levels that exist.
+- Ids are unique in scope; `dependsOn` stays within a level with no cycles.
+- `levelRef`, `goalIds` and `unlocksAfter` point at things in the same project.
+- Every level has at least one criterion with `"mvp": true`.
+- `startedAt`, `clearedAt` and `stats` are maintained by the app.
 
 ## Generating data with an LLM
 
-Paste this prompt into ChatGPT, Claude or similar, followed by your project notes:
-
-```text
-You write JSON for "Quest Log", a project tracker shown as a Mario-style platformer.
-Follow the JSON Schema at https://lilmuckers.github.io/gamify-todo/schema/quest.schema.json
-exactly (draft 2020-12, additionalProperties false everywhere).
-
-Output one file per code block, labelled with its path:
-- data/game.json            (an Overworld: title, goals, worldOrder)
-- data/worlds/<id>.json     (one World per theme, containing its levels)
-
-Rules:
-- Ids are lowercase kebab-case, unique in scope, and world file names equal world ids.
-- Each level is ONE deliverable with timeboxDays (1-90) and 1-3 MVP successCriteria (mvp: true).
-  Extra quality bars go in non-MVP criteria or "stretch" items.
-- Item types: task, deliverable, blocker, dependency, risk, decision, stretch.
-  New items have status "todo". Use dependsOn (same-level item ids, no cycles) for ordering and
-  levelRef "<world-id>/<level-id>" for dependencies on other levels.
-- Do not include startedAt, clearedAt or stats.
-- Prefer small levels (under ~10 items). Bias hard towards "good enough to ship".
-
-My project:
-<describe your project, goals and known work here>
-```
-
-Validate the result locally with `npm run validate`, or open a pull request: it shows up in the
-app's Warp Zone for review, and CI validates it.
-
-## Example
-
-See [`examples/game.json`](examples/game.json) and [`examples/world.json`](examples/world.json).
-
-A minimal world:
-
-```json
-{
-  "$schema": "../../schema/quest.schema.json",
-  "id": "onboarding",
-  "name": "Onboarding",
-  "theme": "grass",
-  "goalIds": ["ship-v1"],
-  "levels": [
-    {
-      "id": "signup",
-      "name": "Sign-up flow",
-      "deliverable": "New users can create an account",
-      "timeboxDays": 5,
-      "successCriteria": [
-        { "id": "can-signup", "text": "A new user can sign up and log in", "mvp": true, "done": false },
-        { "id": "social-login", "text": "Google login works", "mvp": false, "done": false }
-      ],
-      "items": [
-        { "id": "form", "type": "task", "title": "Build sign-up form", "status": "todo" },
-        { "id": "email-provider", "type": "decision", "title": "Pick email provider", "status": "todo" },
-        { "id": "verify-email", "type": "task", "title": "Send verification email", "status": "todo", "dependsOn": ["email-provider"] },
-        { "id": "spam-signups", "type": "risk", "title": "Bot sign-ups", "status": "todo", "mvp": false },
-        { "id": "confetti", "type": "stretch", "title": "Confetti on success", "status": "todo" }
-      ]
-    }
-  ]
-}
-```
+[`skills/quest-log/SKILL.md`](../skills/quest-log/SKILL.md) (published at
+`https://tasks.patrick-mckinley.com/skills/quest-log/SKILL.md`) is written for LLMs: the full field
+reference, worked examples, how to change data safely, and how to read and commit through the
+GitHub API with a personal access token or open a pull request for review in the Warp Zone.
+Point your assistant at it, or install it as a skill.

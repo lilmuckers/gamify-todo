@@ -30,8 +30,9 @@ describe('GitHubClient', () => {
         return {
           json: {
             tree: [
-              { path: 'data/game.json', sha: 'g1', type: 'blob' },
-              { path: 'data/worlds/a.json', sha: 'w1', type: 'blob' },
+              { path: 'data/p/project.json', sha: 'g1', type: 'blob' },
+              { path: 'data/p/w/world.json', sha: 'w1', type: 'blob' },
+              { path: 'data/p/w/deep/nope.json', sha: 'x', type: 'blob' },
               { path: 'README.md', sha: 'x', type: 'blob' },
             ],
           },
@@ -41,7 +42,7 @@ describe('GitHubClient', () => {
     });
     const gh = new GitHubClient('tok', repo, fn);
     const files = await gh.readDataAt('abc');
-    expect(files).toEqual({ 'data/game.json': '{"g":1}', 'data/worlds/a.json': '{"w":1}' });
+    expect(files).toEqual({ 'data/p/project.json': '{"g":1}', 'data/p/w/world.json': '{"w":1}' });
     expect(calls.every((c) => c.auth === 'Bearer tok' && c.url.startsWith('https://api.github.com/'))).toBe(true);
   });
 
@@ -54,27 +55,27 @@ describe('GitHubClient', () => {
       if (url.endsWith('/git/refs/heads/main')) return { status: refStatus, json: { message: 'Update is not a fast forward' } };
     });
     const gh = new GitHubClient('tok', repo, fn);
-    const sha = await gh.commitFiles({ 'data/game.json': '{}', 'data/worlds/old.json': null }, 'msg', 'parent');
+    const sha = await gh.commitFiles({ 'data/p/project.json': '{}', 'data/p/old/world.json': null }, 'msg', 'parent');
     expect(sha).toBe('c1');
     const tree = calls.find((c) => c.url.endsWith('/git/trees'))!.body;
     expect(tree.base_tree).toBe('tree0');
-    expect(tree.tree).toContainEqual({ path: 'data/worlds/old.json', mode: '100644', type: 'blob', sha: null });
+    expect(tree.tree).toContainEqual({ path: 'data/p/old/world.json', mode: '100644', type: 'blob', sha: null });
     expect(calls.find((c) => c.method === 'PATCH')!.body).toEqual({ sha: 'c1', force: false });
 
     refStatus = 422;
-    await expect(gh.commitFiles({ 'data/game.json': '{}' }, 'msg', 'parent')).rejects.toBeInstanceOf(ConflictError);
+    await expect(gh.commitFiles({ 'data/p/project.json': '{}' }, 'msg', 'parent')).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('lists only PRs touching data files', async () => {
     const pr = (n: number) => ({ number: n, title: `PR ${n}`, user: { login: 'u' }, html_url: '', draft: false, updated_at: '', head: { sha: 's', ref: 'b', repo: { full_name: 'o/r' } }, base: { ref: 'main' } });
     const { fn } = fakeFetch((url) => {
       if (url.includes('/pulls?')) return { json: [pr(1), pr(2)] };
-      if (url.includes('/pulls/1/files')) return { json: [{ filename: 'data/worlds/x.json' }, { filename: 'README.md' }] };
+      if (url.includes('/pulls/1/files')) return { json: [{ filename: 'data/p/w/x.json' }, { filename: 'README.md' }] };
       if (url.includes('/pulls/2/files')) return { json: [{ filename: 'app/src/main.ts' }] };
     });
     const list = await new GitHubClient('tok', repo, fn).listDataPulls();
     expect(list.map((p) => p.number)).toEqual([1]);
-    expect(list[0].dataFiles).toEqual(['data/worlds/x.json']);
+    expect(list[0].dataFiles).toEqual(['data/p/w/x.json']);
   });
 
   it('parses repo references', () => {

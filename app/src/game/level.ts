@@ -15,6 +15,7 @@ import { toast } from '../ui/toast';
 import { GROUND_Y, QuestScene, tex, WORLD_H } from './common';
 
 export interface LevelParams {
+  projectId: string;
   worldId: string;
   levelId: string;
   pr?: number;

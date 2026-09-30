@@ -3,11 +3,10 @@ import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import {
-  fromFiles,
   GitHubClient,
   GitHubError,
   parseRepo,
-  validateState,
+  validateFiles,
   type MergeMethod,
   type ReviewEvent,
 } from '@quest/shared';
@@ -89,12 +88,7 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
           if (c === null) delete next[p];
           else next[p] = c;
         }
-        let issues;
-        try {
-          issues = validateState(fromFiles(next));
-        } catch (err) {
-          return reply.code(400).send({ error: `Unparseable data: ${(err as Error).message}` });
-        }
+        const issues = validateFiles(next);
         if (issues.length)
           return reply.code(400).send({ error: `Invalid data: ${issues[0].file}${issues[0].path} ${issues[0].message}`, issues });
         await repo.write(changes);

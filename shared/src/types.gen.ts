@@ -2,9 +2,9 @@
 // GENERATED from schema/quest.schema.json by `npm run schema:gen`. Do not edit.
 
 /**
- * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. A project is an Overworld (data/game.json) made of Worlds (data/worlds/<world-id>.json). Each World holds Levels. Each Level is ONE key deliverable with success criteria and the project items (tasks, blockers, dependencies, risks...) needed to ship it. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
+ * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
  */
-export type QuestLogData = Overworld | World;
+export type QuestLogData = Project | World | Level;
 /**
  * Short human-readable name. Imperative for tasks ('Write API docs'), noun phrase for deliverables ('Public beta').
  */
@@ -14,7 +14,7 @@ export type Title = string;
  */
 export type Notes = string;
 /**
- * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Unique within its scope: world ids across the project, level ids within a world, item and criterion ids within a level. Never reuse or rename once created.
+ * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
  */
 export type Id = string;
 /**
@@ -31,13 +31,17 @@ export type ItemType = "task" | "deliverable" | "blocker" | "dependency" | "risk
 export type Status = "todo" | "doing" | "done" | "dropped";
 
 /**
- * Top-level project file, stored at data/game.json. Lists the project goals and the order worlds appear on the map.
+ * A project: one self-contained effort, stored at data/<project-id>/project.json. Its map (the overworld) shows its key goals and its worlds in order. Projects never reference each other.
  */
-export interface Overworld {
+export interface Project {
   /**
    * Pointer to this schema for editor tooling.
    */
   $schema?: string;
+  /**
+   * Project id. Must equal the project folder name: data/<id>/project.json.
+   */
+  id: string;
   title: Title;
   description?: Notes;
   /**
@@ -47,7 +51,7 @@ export interface Overworld {
    */
   goals: Goal[];
   /**
-   * World ids in the order they appear on the Overworld path. Every file in data/worlds/ must be listed here, and every id here must have a file data/worlds/<id>.json.
+   * World ids in the order they appear on the overworld path. Every world folder data/<project-id>/<world-id>/ must be listed here, and every id here must have data/<project-id>/<world-id>/world.json.
    */
   worldOrder: Id[];
 }
@@ -60,37 +64,47 @@ export interface Goal {
   description?: Notes;
 }
 /**
- * A themed group of levels, stored at data/worlds/<id>.json. A world has one key theme or topic (e.g. 'Payments', 'Onboarding').
+ * A themed group of levels inside a project (e.g. 'Kitchen', 'Payments'), stored at data/<project-id>/<world-id>/world.json. Its levels are separate files in the same folder.
  */
 export interface World {
   /**
    * Pointer to this schema for editor tooling.
    */
   $schema?: string;
-  id: Id;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  id: string;
   name: Title;
   description?: Notes;
   theme: Theme;
   /**
-   * Ids of Overworld goals this world contributes to.
+   * Ids of goals in this project's project.json that this world contributes to.
    */
   goalIds: Id[];
   /**
-   * Optional ids of other worlds that should be cleared first. Purely visual (world is shown locked), never prevents editing.
+   * Optional ids of other worlds IN THE SAME PROJECT that should be cleared first. Purely visual (world is shown locked), never prevents editing.
    */
   unlocksAfter?: Id[];
   /**
-   * Levels in play order. Each level = one key deliverable.
+   * Level ids in play order. Each id must have a file data/<project-id>/<world-id>/<level-id>.json, and every level file in the folder must be listed here.
    *
    * @maxItems 50
    */
-  levels: Level[];
+  levelOrder: Id[];
 }
 /**
- * One key deliverable. The level is CLEARED when every MVP success criterion is done. Keep MVP criteria to the minimum that makes the deliverable useful.
+ * One key deliverable, stored at data/<project-id>/<world-id>/<level-id>.json. The level is CLEARED when every MVP success criterion is done. Keep MVP criteria to the minimum that makes the deliverable useful.
  */
 export interface Level {
-  id: Id;
+  /**
+   * Pointer to this schema for editor tooling.
+   */
+  $schema?: string;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  id: string;
   name: Title;
   /**
    * One sentence: what exists when this level is cleared.
@@ -155,11 +169,11 @@ export interface Item {
    */
   mvp?: boolean;
   /**
-   * Ids of other items IN THE SAME LEVEL that must come first. Determines left-to-right placement. Must not form cycles.
+   * Ids of other items IN THE SAME LEVEL FILE that must come first. Determines left-to-right placement. Must not form cycles.
    */
   dependsOn?: Id[];
   /**
-   * For dependency items: another level this depends on, as '<world-id>/<level-id>'. Rendered as a warp pipe to that level.
+   * For dependency items: another level IN THE SAME PROJECT this depends on, as '<world-id>/<level-id>'. Rendered as a warp pipe to that level.
    */
   levelRef?: string;
   /**

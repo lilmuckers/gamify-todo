@@ -1,19 +1,27 @@
 import Phaser from 'phaser';
 import { isWorldLocked, orderedWorlds, suggestNext, worldTotals } from '@quest/shared';
 import { go } from '../router';
-import { TILE } from '../sprites/render';
+import { TILE, type ThemeKey } from '../sprites/render';
 import { islandTexture, QuestScene, WORLD_H } from './common';
 
 const SPACING = 8 * TILE;
 
-/** Sea of islands, one per world, joined by a path. */
-export class OverworldScene extends QuestScene {
+interface Island {
+  key: string;
+  theme: ThemeKey;
+  locked: boolean;
+  label: string;
+  labelColor?: string;
+  name: string;
+  stats?: string;
+  here?: boolean;
+  onClick: () => void;
+}
+
+/** Sea of islands joined by a path. Subclasses decide what the islands are. */
+abstract class IslandScene extends QuestScene {
   private layer?: Phaser.GameObjects.Container;
   private sig = '';
-
-  constructor() {
-    super('overworld');
-  }
 
   init() {
     super.init();
@@ -22,6 +30,8 @@ export class OverworldScene extends QuestScene {
   }
 
   create() {
+    // Fades in after the console boot sequence (and harmlessly otherwise).
+    this.cameras.main.fadeIn(300);
     this.enableScrolling();
     this.render();
     this.watch(() => this.render());
@@ -33,18 +43,16 @@ export class OverworldScene extends QuestScene {
     this.render();
   }
 
+  protected abstract islands(): Island[] | undefined;
+
   private render() {
-    const state = this.app.state;
-    if (!state) return;
-    const worlds = orderedWorlds(state);
-    const next = suggestNext(state);
-    const warp = this.app.caps.canReviewPRs;
-    const prCount = this.app.pulls.list?.length;
-    const sig = JSON.stringify([worlds.map((w) => [w.id, w.name, w.theme, worldTotals(w), isWorldLocked(state, w)]), next, warp, prCount]);
+    const islands = this.islands();
+    if (!islands) return;
+    const sig = JSON.stringify(islands.map(({ onClick: _, ...i }) => i));
     if (sig === this.sig) return;
     this.sig = sig;
 
-    const count = worlds.length + (warp ? 1 : 0);
+    const count = Math.max(1, islands.length);
     const width = count * SPACING + 6 * TILE;
     this.setupCamera(width, Math.min(width, 4 * SPACING + 2 * TILE));
     const startX = Math.max(4 * TILE, (this.viewWidth - (count - 1) * SPACING) / 2);
@@ -54,15 +62,14 @@ export class OverworldScene extends QuestScene {
 
     // Sea with drifting wave marks.
     this.cameras.main.setBackgroundColor('#2a6ec1');
-    const pad = WORLD_H;
     const waves = this.add.graphics();
     waves.fillStyle(0x5c94fc, 1);
     const rand = new Phaser.Math.RandomDataGenerator(['sea']);
-    for (let i = 0; i < W / 5; i++) waves.fillRect(rand.between(0, W), rand.between(-pad, WORLD_H + pad), rand.between(4, 10), 2);
+    for (let i = 0; i < W / 5; i++) waves.fillRect(rand.between(0, W), rand.between(-WORLD_H, 2 * WORLD_H), rand.between(4, 10), 2);
     layer.add(waves);
     this.tweens.add({ targets: waves, x: 6, yoyo: true, repeat: -1, duration: 2200, ease: 'Sine.inOut' });
 
-    const pos = Array.from({ length: count }, (_, i) => ({ x: startX + i * SPACING, y: i % 2 ? 90 : 150 }));
+    const pos = islands.map((_, i) => ({ x: startX + i * SPACING, y: i % 2 ? 90 : 150 }));
     const path = this.add.graphics();
     path.fillStyle(0xead4aa, 1);
     for (let i = 0; i < pos.length - 1; i++) {
@@ -73,37 +80,64 @@ export class OverworldScene extends QuestScene {
     }
     layer.add(path);
 
+    if (!islands.length) layer.add(this.text(this.viewWidth / 2, WORLD_H / 2, this.emptyText(), 6, '#ffffff', 200).setOrigin(0.5));
+
     let focusX = pos[0]?.x ?? 0;
-    worlds.forEach((w, i) => {
+    islands.forEach((isl, i) => {
       const { x, y } = pos[i];
-      const locked = isWorldLocked(state, w);
-      const img = this.add.image(x, y, islandTexture(this, w.theme, locked));
-      this.clickable(img, () => go({ view: 'world', worldId: w.id }));
+      const img = this.add.image(x, y, islandTexture(this, isl.theme, isl.locked));
+      this.clickable(img, isl.onClick);
       img.on('pointerover', () => img.setScale(1.08));
       img.on('pointerout', () => img.setScale(1));
       layer.add(img);
-      const t = worldTotals(w);
-      layer.add(this.text(x, y - 38, `WORLD ${i + 1}`, 4, '#fee761').setOrigin(0.5, 1));
-      layer.add(this.text(x, y + 26, w.name, 5, '#ffffff', 90).setOrigin(0.5, 0));
-      layer.add(this.add.image(x - 22, y + 43, 'star').setScale(0.5));
-      layer.add(this.text(x - 14, y + 40, `${t.stars}/${t.maxStars}  LV ${t.cleared}/${t.levels}`, 4, '#ffffff').setOrigin(0, 0));
-      if (next?.worldId === w.id || (!next && i === 0)) focusX = x;
-      if (next?.worldId === w.id) {
+      layer.add(this.text(x, y - 38, isl.label, 4, isl.labelColor ?? '#fee761').setOrigin(0.5, 1));
+      layer.add(this.text(x, y + 26, isl.name, 5, '#ffffff', 100).setOrigin(0.5, 0));
+      if (isl.stats) {
+        layer.add(this.add.image(x - 22, y + 45, 'star').setScale(0.5));
+        layer.add(this.text(x - 14, y + 42, isl.stats, 4, '#ffffff').setOrigin(0, 0));
+      }
+      if (isl.here) {
+        focusX = x;
         const hero = this.add.image(x + 18, y - 4, 'hero').setOrigin(0.5, 1);
         layer.add(hero);
         this.tweens.add({ targets: hero, y: y - 8, yoyo: true, repeat: -1, duration: 400 });
       }
     });
-
-    if (warp) {
-      const { x, y } = pos[count - 1];
-      const img = this.add.image(x, y, islandTexture(this, 'warp', false));
-      this.clickable(img, () => go({ view: 'prs' }));
-      layer.add(img);
-      layer.add(this.text(x, y - 38, 'WARP ZONE', 4, '#f6757a').setOrigin(0.5, 1));
-      layer.add(this.text(x, y + 26, prCount === undefined ? 'Review PRs' : `${prCount} PR${prCount === 1 ? '' : 's'} to review`, 5, '#ffffff', 90).setOrigin(0.5, 0));
-      void this.app.loadPulls();
-    }
     this.cameras.main.centerOnX(focusX);
+  }
+
+  protected emptyText() {
+    return 'Nothing here yet';
+  }
+}
+
+/** One project's map: an island per world. */
+export class OverworldScene extends IslandScene {
+  constructor() {
+    super('overworld');
+  }
+
+  protected islands(): Island[] | undefined {
+    const state = this.app.state;
+    const pid = this.app.projectId;
+    if (!state || !pid) return;
+    const next = suggestNext(state);
+    return orderedWorlds(state).map((w, i) => {
+      const t = worldTotals(w);
+      return {
+        key: w.id,
+        theme: w.theme,
+        locked: isWorldLocked(state, w),
+        label: `WORLD ${i + 1}`,
+        name: w.name,
+        stats: `${t.stars}/${t.maxStars}  LV ${t.cleared}/${t.levels}`,
+        here: next?.worldId === w.id,
+        onClick: () => go({ view: 'world', projectId: pid, worldId: w.id }),
+      };
+    });
+  }
+
+  protected emptyText() {
+    return this.app.caps.canEdit ? 'No worlds yet: add one in the panel' : 'No worlds yet';
   }
 }

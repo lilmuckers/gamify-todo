@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { mkdir, readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
+import { dirname, join, relative, sep } from 'node:path';
 import { simpleGit, type SimpleGit } from 'simple-git';
-import { GAME_PATH, WORLD_PATH_RE } from '@quest/shared';
+import { DATA_ROOT, isDataPath } from '@quest/shared';
 
-export const isDataPath = (p: string) => p === GAME_PATH || WORLD_PATH_RE.test(p);
+export { isDataPath };
 
 /** The mounted git repo: reads/writes data files and commits them. */
 export class Repo {
@@ -15,15 +15,18 @@ export class Repo {
     this.git = simpleGit(dir);
   }
 
+  /** Every .json under data/ (including stray ones, so validation can flag them). */
   async readFiles(): Promise<Record<string, string>> {
     const files: Record<string, string> = {};
-    files[GAME_PATH] = await readFile(join(this.dir, GAME_PATH), 'utf8');
-    const worlds = join(this.dir, 'data/worlds');
-    if (existsSync(worlds))
-      for (const name of (await readdir(worlds)).sort()) {
-        const rel = `data/worlds/${name}`;
-        if (isDataPath(rel)) files[rel] = await readFile(join(this.dir, rel), 'utf8');
+    const walk = async (dir: string) => {
+      for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+        const abs = join(dir, entry.name);
+        if (entry.isDirectory()) await walk(abs);
+        else if (entry.name.endsWith('.json')) files[relative(this.dir, abs).split(sep).join('/')] = await readFile(abs, 'utf8');
       }
+    };
+    const root = join(this.dir, DATA_ROOT);
+    if (existsSync(root)) await walk(root);
     return files;
   }
 
@@ -37,7 +40,12 @@ export class Repo {
   async write(changes: Record<string, string | null>) {
     for (const [rel, content] of Object.entries(changes)) {
       const abs = join(this.dir, rel);
-      if (content === null) await rm(abs, { force: true });
+      if (content === null) {
+        await rm(abs, { force: true });
+        // Drop now-empty world/project folders.
+        for (let d = dirname(abs); relative(this.dir, d).split(sep).length > 1; d = dirname(d))
+          await rmdir(d).catch(() => undefined);
+      }
       else {
         await mkdir(dirname(abs), { recursive: true });
         await writeFile(abs, content);

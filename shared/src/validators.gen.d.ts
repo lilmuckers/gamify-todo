@@ -5,5 +5,6 @@ interface CompiledValidator {
   errors?: ErrorObject[] | null;
 }
 
-export const validateOverworld: CompiledValidator;
+export const validateProject: CompiledValidator;
 export const validateWorld: CompiledValidator;
+export const validateLevel: CompiledValidator;

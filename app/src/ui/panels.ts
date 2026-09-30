@@ -5,6 +5,7 @@ import {
   layoutLevel,
   levelNodeState,
   nudges,
+  orderedProjects,
   orderedWorlds,
   parseLevelRef,
   scoreLevel,
@@ -25,6 +26,55 @@ import { mergeDialog, reviewDialog } from './review';
 
 const link = (label: string, to: string, cls = 'link') => h('a', { href: to, class: cls }, label);
 
+function projectsPanel(app: App) {
+  const ws = app.workspace!;
+  const projects = orderedProjects(ws);
+  const edit = app.caps.canEdit;
+  return h(
+    'div',
+    { class: 'panel-inner' },
+    h('div', { class: 'title-row' }, h('h2', null, 'Select project'), edit && smallBtn('+ Project', () => projectForm(app, true))),
+    h('p', { class: 'muted' }, 'Each project is a separate map with its own goals, worlds and levels.'),
+    projects.length === 0 &&
+      h(
+        'p',
+        { class: 'note info' },
+        edit ? 'No projects yet. Create one to start your quest.' : 'No projects here yet.',
+      ),
+    h(
+      'ul',
+      { class: 'list' },
+      projects.map((p) => {
+        const t = totals(p);
+        const next = suggestNext(p);
+        const nextLevel = next && p.worlds[next.worldId]?.levels.find((l) => l.id === next.levelId);
+        return h(
+          'li',
+          null,
+          h(
+            'div',
+            { class: 'row' },
+            link(p.overworld.title, href({ view: 'overworld', projectId: p.overworld.id })),
+            h('span', { class: 'grow' }),
+            h('small', null, `★${t.stars}/${t.maxStars}`),
+          ),
+          p.overworld.description && h('small', { class: 'muted' }, p.overworld.description),
+          h('div', { class: 'bar' }, h('i', { style: `width:${t.levels ? (100 * t.levelsCleared) / t.levels : 0}%` })),
+          h(
+            'small',
+            { class: 'muted' },
+            `${Object.keys(p.worlds).length} world(s) · ${t.levelsCleared}/${t.levels} levels · ${t.xp} XP`,
+            nextLevel ? ` · next: ${nextLevel.name}` : '',
+          ),
+        );
+      }),
+    ),
+    app.caps.canReviewPRs &&
+      h('a', { class: 'btn warp block', href: href({ view: 'prs' }) }, icon('warp-pipe', 'grass', 'icon'), ' Warp Zone: review PRs'),
+    syncFooter(app),
+  );
+}
+
 type Kid = Node | string | null | false | undefined | Kid[];
 
 function section(title: string, action: HTMLElement | null, ...children: Kid[]) {
@@ -43,9 +93,13 @@ function badge(change: EntryDiff['change'] | undefined) {
 
 export function renderPanel(app: App): HTMLElement {
   const r = app.route;
-  if (!app.state && r.view !== 'prs' && r.view !== 'pr' && r.view !== 'pr-level')
+  if (!app.workspace && r.view !== 'prs' && r.view !== 'pr' && r.view !== 'pr-level')
     return h('div', { class: 'panel-inner' }, h('p', { class: 'muted' }, app.store.error ?? 'Loading…'));
+  if (app.projectId && !app.state && r.view !== 'pr-level')
+    return h('div', { class: 'panel-inner' }, h('p', null, 'Project not found. '), link('All projects', '#/'));
   switch (r.view) {
+    case 'projects':
+      return projectsPanel(app);
     case 'overworld':
       return overworldPanel(app);
     case 'world':
@@ -68,9 +122,11 @@ function overworldPanel(app: App) {
   const worlds = orderedWorlds(s);
   const nextLevel = next && s.worlds[next.worldId]?.levels.find((l) => l.id === next.levelId);
 
+  const pid = app.projectId!;
   return h(
     'div',
     { class: 'panel-inner' },
+    h('nav', { class: 'crumbs' }, link('All projects', '#/')),
     h(
       'div',
       { class: 'title-row' },
@@ -89,7 +145,7 @@ function overworldPanel(app: App) {
     nextLevel &&
       h(
         'a',
-        { class: 'btn primary block', href: href({ view: 'level', ...next! }) },
+        { class: 'btn primary block', href: href({ view: 'level', projectId: pid, ...next! }) },
         `▶ Next: ${nextLevel.name}`,
       ),
     section(
@@ -128,7 +184,7 @@ function overworldPanel(app: App) {
             h(
               'div',
               { class: 'row' },
-              link(`${i + 1}. ${w.name}`, href({ view: 'world', worldId: w.id })),
+              link(`${i + 1}. ${w.name}`, href({ view: 'world', projectId: pid, worldId: w.id })),
               locked && h('small', { class: 'muted' }, '🔒'),
               h('span', { class: 'grow' }),
               h('small', null, `${wt.cleared}/${wt.levels}`),
@@ -156,7 +212,7 @@ function move(app: App, worldId: string, delta: number) {
   const j = i + delta;
   if (i < 0 || j < 0 || j >= order.length) return;
   [order[i], order[j]] = [order[j], order[i]];
-  app.dispatch({ kind: 'updateOverworld', patch: { worldOrder: order } });
+  app.dispatch({ projectId: app.projectId!, kind: 'updateProject', patch: { worldOrder: order } });
 }
 
 function worldPanel(app: App, worldId: string) {
@@ -166,10 +222,11 @@ function worldPanel(app: App, worldId: string) {
   const edit = app.caps.canEdit;
   const wt = worldTotals(w);
   const goals = s.overworld.goals.filter((g) => w.goalIds.includes(g.id));
+  const pid = app.projectId!;
   return h(
     'div',
     { class: 'panel-inner' },
-    h('nav', { class: 'crumbs' }, link('Overworld', '#/')),
+    h('nav', { class: 'crumbs' }, link('All projects', '#/'), ' › ', link(s.overworld.title, href({ view: 'overworld', projectId: pid }))),
     h('div', { class: 'title-row' }, h('h2', null, w.name), edit && smallBtn('Edit', () => worldForm(app, w))),
     w.description && h('p', { class: 'muted' }, w.description),
     h('p', null, stars(wt.stars, wt.maxStars || 3), ' ', h('small', null, `${wt.cleared}/${wt.levels} levels cleared`)),
@@ -193,15 +250,15 @@ function worldPanel(app: App, worldId: string) {
               'div',
               { class: 'row' },
               icon({ cleared: 'node-clear', 'in-progress': 'node-active', open: 'node', locked: 'node-lock' }[st], 'grass', 'icon sm'),
-              link(l.name, href({ view: 'level', worldId: w.id, levelId: l.id })),
+              link(l.name, href({ view: 'level', projectId: pid, worldId: w.id, levelId: l.id })),
               h('span', { class: 'grow' }),
               sc.cleared ? stars(sc.stars) : h('small', { class: 'muted' }, `${sc.mvpDone}/${sc.mvpTotal} MVP`),
               edit &&
                 h(
                   'span',
                   { class: 'row tight' },
-                  smallBtn('↑', () => app.dispatch({ kind: 'moveLevel', worldId: w.id, levelId: l.id, index: i - 1 }), 'ghost'),
-                  smallBtn('↓', () => app.dispatch({ kind: 'moveLevel', worldId: w.id, levelId: l.id, index: i + 1 }), 'ghost'),
+                  smallBtn('↑', () => app.dispatch({ projectId: pid, kind: 'moveLevel', worldId: w.id, levelId: l.id, index: i - 1 }), 'ghost'),
+                  smallBtn('↓', () => app.dispatch({ projectId: pid, kind: 'moveLevel', worldId: w.id, levelId: l.id, index: i + 1 }), 'ghost'),
                 ),
             ),
             h('small', { class: 'muted' }, l.deliverable),
@@ -221,7 +278,7 @@ function timerBlock(app: App, world: World, level: Level, readonly: boolean) {
       'div',
       { class: 'timer idle' },
       h('span', null, `⏱ ${level.timeboxDays}-day time-box, not started`),
-      edit && smallBtn('Start clock', () => app.dispatch({ kind: 'startLevel', worldId: world.id, levelId: level.id })),
+      edit && smallBtn('Start clock', () => app.dispatch({ projectId: app.projectId!, kind: 'startLevel', worldId: world.id, levelId: level.id })),
     );
   const pct = Math.max(0, Math.min(100, (t.remainingFraction ?? 0) * 100));
   const label =
@@ -245,9 +302,9 @@ function levelPanel(app: App) {
     if (r.view === 'pr-level') return pullPanel(app, r.pr);
     return h('div', { class: 'panel-inner' }, h('p', null, 'Level not found. '), link('Back to map', '#/'));
   }
-  const { world, level, diff, readonly } = cur;
+  const { projectId, world, level, diff, readonly } = cur;
   const edit = !readonly && app.caps.canEdit;
-  const at = { worldId: world.id, levelId: level.id };
+  const at = { projectId, worldId: world.id, levelId: level.id };
   const sc = scoreLevel(level);
   const lay = layoutLevel(level);
   const order = new Map(lay.entities.map((e, i) => [e.itemId, i]));
@@ -257,7 +314,11 @@ function levelPanel(app: App) {
   const back =
     r.view === 'pr-level'
       ? link(`Warp World #${r.pr}`, href({ view: 'pr', pr: r.pr }))
-      : link(world.name, href({ view: 'world', worldId: world.id }));
+      : link(world.name, href({ view: 'world', projectId, worldId: world.id }));
+  const projectTitle =
+    r.view === 'pr-level'
+      ? (app.pullView(r.pr)?.data?.head.projects[projectId] ?? app.pullView(r.pr)?.data?.base.projects[projectId])?.overworld.title
+      : app.state?.overworld.title;
 
   const critList = h(
     'ul',
@@ -327,7 +388,7 @@ function levelPanel(app: App) {
           item.notes && h('p', { class: 'notes' }, item.notes),
           item.dependsOn?.length &&
             h('small', null, 'After: ', item.dependsOn.map((id) => level.items.find((i) => i.id === id)?.title ?? id).join(', ')),
-          ref && h('div', null, link(`↪ Warp to ${item.levelRef}`, href({ view: 'level', ...ref }))),
+          ref && h('div', null, link(`↪ Warp to ${item.levelRef}`, href({ view: 'level', projectId, ...ref }))),
           item.link && h('div', null, h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer', class: 'link' }, item.link)),
           d?.fields.length &&
             h(
@@ -372,7 +433,13 @@ function levelPanel(app: App) {
   return h(
     'div',
     { class: 'panel-inner' },
-    h('nav', { class: 'crumbs' }, link('Overworld', '#/'), ' › ', back),
+    h(
+      'nav',
+      { class: 'crumbs' },
+      r.view === 'pr-level'
+        ? [link('Warp Zone', href({ view: 'prs' })), ' › ', back, ` › ${projectTitle ?? projectId}`]
+        : [link(projectTitle ?? projectId, href({ view: 'overworld', projectId })), ' › ', back],
+    ),
     h('div', { class: 'title-row' }, h('h2', null, level.name), badge(diff?.change), edit && smallBtn('Edit', () => levelForm(app, world, level))),
     h('p', { class: 'deliverable' }, '🎯 ', level.deliverable),
     level.description && h('p', { class: 'muted' }, level.description),
@@ -416,7 +483,7 @@ function pullsPanel(app: App) {
   return h(
     'div',
     { class: 'panel-inner' },
-    h('nav', { class: 'crumbs' }, link('Overworld', '#/')),
+    h('nav', { class: 'crumbs' }, link('All projects', '#/')),
     h('div', { class: 'title-row' }, h('h2', null, 'Warp Zone'), smallBtn('↻', () => void app.loadPulls(true), 'ghost')),
     h('p', { class: 'muted' }, 'Open pull requests that change quest data. Each one is a Warp World to explore before merging.'),
     p.loading && h('p', null, 'Scanning pipes…'),
@@ -440,7 +507,7 @@ function pullsPanel(app: App) {
 export function pullPanel(app: App, n: number) {
   const v = app.pullView(n);
   const wrap = (...c: (Node | string | null | false | undefined)[]) =>
-    h('div', { class: 'panel-inner' }, h('nav', { class: 'crumbs' }, link('Overworld', '#/'), ' › ', link('Warp Zone', href({ view: 'prs' }))), ...c);
+    h('div', { class: 'panel-inner' }, h('nav', { class: 'crumbs' }, link('All projects', '#/'), ' › ', link('Warp Zone', href({ view: 'prs' }))), ...c);
   if (!v || v.loading) return wrap(h('p', null, 'Warping…'));
   if (v.error || !v.data || !v.diff)
     return wrap(h('p', { class: 'note alert' }, v.error ?? 'Failed to load'), smallBtn('Retry', () => void app.loadPull(n, true)));
@@ -449,7 +516,11 @@ export function pullPanel(app: App, n: number) {
   const valid = (v.issues ?? []).length === 0;
   const mergeable = detail.mergeable !== false && valid;
   const checks = detail.checks;
-  const worldName = (id: string) => head.worlds[id]?.name ?? base.worlds[id]?.name ?? id;
+  const projectOf = (pid: string) => head.projects[pid] ?? base.projects[pid];
+  const worldName = (pid: string, wid: string) =>
+    head.projects[pid]?.worlds[wid]?.name ?? base.projects[pid]?.worlds[wid]?.name ?? wid;
+  const levelName = (pid: string, wid: string, lid: string) =>
+    (head.projects[pid]?.worlds[wid] ?? base.projects[pid]?.worlds[wid])?.levels.find((x) => x.id === lid)?.name ?? lid;
   return wrap(
     h('h2', null, `#${detail.number} ${detail.title}`),
     h('p', { class: 'muted' }, `${detail.author} wants to merge ${detail.headRef} → ${detail.baseRef}`),
@@ -469,36 +540,39 @@ export function pullPanel(app: App, n: number) {
     section(
       `Changes · ${d.count}`,
       null,
-      d.overworld.length > 0 && h('p', null, `Project: ${d.overworld.map((f) => f.field).join(', ')} changed`),
-      Object.values(d.goals).map((g) => h('p', null, badge(g.change), ` goal ${g.id}`)),
       h(
         'ul',
         { class: 'list' },
-        Object.values(d.worlds).map((w) =>
+        Object.entries(d.projects).map(([pid, pd]) =>
           h(
             'li',
             null,
-            h('div', { class: 'row' }, badge(w.change), h('strong', null, worldName(w.id))),
-            h(
-              'ul',
-              { class: 'list nested' },
-              d.levels
-                .filter((l) => l.worldId === w.id)
-                .map((l) =>
-                  h(
-                    'li',
-                    null,
-                    badge(l.change),
-                    ' ',
-                    link(
-                      head.worlds[w.id]?.levels.find((x) => x.id === l.levelId)?.name ??
-                        base.worlds[w.id]?.levels.find((x) => x.id === l.levelId)?.name ??
-                        l.levelId,
-                      href({ view: 'pr-level', pr: n, worldId: w.id, levelId: l.levelId }),
+            h('div', { class: 'row' }, badge(pd.change), h('strong', null, projectOf(pid)?.overworld.title ?? pid)),
+            pd.diff.overworld.length > 0 &&
+              h('small', { class: 'muted' }, `project.json: ${pd.diff.overworld.map((f) => f.field).join(', ')} changed`),
+            Object.values(pd.diff.goals).map((g) => h('small', null, badge(g.change), ` goal ${g.id}`)),
+            Object.values(pd.diff.worlds).map((w) =>
+              h(
+                'div',
+                { class: 'nested-world' },
+                h('div', { class: 'row' }, badge(w.change), worldName(pid, w.id)),
+                h(
+                  'ul',
+                  { class: 'list nested' },
+                  pd.diff.levels
+                    .filter((l) => l.worldId === w.id)
+                    .map((l) =>
+                      h(
+                        'li',
+                        null,
+                        badge(l.change),
+                        ' ',
+                        link(levelName(pid, w.id, l.levelId), href({ view: 'pr-level', pr: n, projectId: pid, worldId: w.id, levelId: l.levelId })),
+                        h('small', { class: 'muted' }, ` ${Object.keys(l.items).length} item(s), ${Object.keys(l.criteria).length} criteria`),
+                      ),
                     ),
-                    h('small', { class: 'muted' }, ` ${Object.keys(l.items).length} item(s), ${Object.keys(l.criteria).length} criteria`),
-                  ),
                 ),
+              ),
             ),
           ),
         ),

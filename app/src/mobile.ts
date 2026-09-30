@@ -1,8 +1,9 @@
-import { isWorldLocked, orderedWorlds, suggestNext, worldTotals } from '@quest/shared';
+import { isWorldLocked, orderedProjects, orderedWorlds, seeded, suggestNext, totals, worldTotals } from '@quest/shared';
 import type { App } from './app';
 import { go, href } from './router';
 import { island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
+import { carpetCanvas, cartridge } from './sprites/cartridge';
 import { h, icon, mount } from './ui/dom';
 import { renderHud } from './ui/hud';
 import { renderPanel } from './ui/panels';
@@ -31,6 +32,26 @@ export function mountMobile(app: App, root: HTMLElement) {
 function renderVisual(app: App, scroll?: number): HTMLElement | null {
   const r = app.route;
   const state = app.state;
+  if (r.view === 'projects' && app.workspace) {
+    // Cartridges on the carpet, each tilted by its own seed.
+    return h(
+      'div',
+      { class: 'cart-floor', style: `background-image:url(${carpetCanvas().toDataURL()})` },
+      orderedProjects(app.workspace).map((p) => {
+        const t = totals(p);
+        const id = p.overworld.id;
+        const tilt = (seeded(id)() - 0.5) * 16;
+        const art = cartridge({ seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) });
+        return h(
+          'a',
+          { class: 'cart', href: href({ view: 'overworld', projectId: id }), style: `--tilt:${tilt.toFixed(1)}deg` },
+          h('img', { src: art.toDataURL(), class: 'pixel', alt: '' }),
+          h('b', null, p.overworld.title),
+          h('small', null, `★${t.stars}/${t.maxStars}`),
+        );
+      }),
+    );
+  }
   if (r.view === 'overworld' && state) {
     const next = suggestNext(state);
     return h(
@@ -40,7 +61,7 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
         const t = worldTotals(w);
         return h(
           'a',
-          { class: 'island', href: href({ view: 'world', worldId: w.id }) },
+          { class: 'island', href: href({ view: 'world', projectId: r.projectId, worldId: w.id }) },
           h('img', { src: island(w.theme, isWorldLocked(state, w)).toDataURL(), class: 'pixel', alt: '' }),
           h('b', null, `${i + 1}. ${w.name}`),
           h('small', null, `★${t.stars}/${t.maxStars}${next?.worldId === w.id ? ' · ▶' : ''}`),
@@ -73,13 +94,16 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
 
 function renderNav(app: App, nav: HTMLElement) {
   const state = app.state;
+  const pid = app.projectId;
   const next = state && suggestNext(state);
   mount(
     nav,
-    h('a', { href: href({ view: 'overworld' }), class: app.route.view === 'overworld' ? 'on' : '' }, icon('node', 'grass', 'icon sm'), h('span', null, 'Map')),
+    h('a', { href: href({ view: 'projects' }), class: app.route.view === 'projects' ? 'on' : '' }, icon('node-clear', 'grass', 'icon sm'), h('span', null, 'Projects')),
+    pid &&
+      h('a', { href: href({ view: 'overworld', projectId: pid }), class: app.route.view === 'overworld' ? 'on' : '' }, icon('node', 'grass', 'icon sm'), h('span', null, 'Map')),
     h(
       'button',
-      { type: 'button', disabled: !next, onclick: () => next && go({ view: 'level', ...next }) },
+      { type: 'button', disabled: !next, onclick: () => next && pid && go({ view: 'level', projectId: pid, ...next }) },
       icon('hero', 'grass', 'icon sm'),
       h('span', null, 'Next'),
     ),

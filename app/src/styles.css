@@ -972,3 +972,61 @@ a:focus-visible {
 .is-mobile .hud-name {
   display: none;
 }
+
+.hud-project {
+  color: var(--gold-hi);
+  text-decoration: none;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.is-mobile .hud-project {
+  max-width: 120px;
+}
+
+.nested-world {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 8px;
+}
+
+.cart-floor {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 14px;
+  padding: 16px;
+  background-size: 128px;
+  image-rendering: pixelated;
+  border-bottom: 3px solid var(--ink);
+}
+
+.cart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  text-decoration: none;
+  text-align: center;
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform 0.15s;
+}
+
+.cart:active,
+.cart:hover {
+  transform: rotate(0deg) scale(1.08);
+}
+
+.cart img {
+  width: 88px;
+  height: 104px;
+  filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.45));
+}
+
+.cart b {
+  font: 8px/1.5 var(--pixel);
+  text-shadow: 1px 1px 0 var(--ink);
+}

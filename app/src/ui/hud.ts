@@ -75,7 +75,9 @@ export function renderHud(app: App, el: HTMLElement) {
 
   mount(
     el,
-    h('a', { class: 'hud-home', href: href({ view: 'overworld' }), title: 'Overworld' }, icon('hero', 'grass', 'icon'), h('span', null, 'QUEST LOG')),
+    h('a', { class: 'hud-home', href: href({ view: 'projects' }), title: 'All projects' }, icon('hero', 'grass', 'icon'), h('span', null, 'QUEST LOG')),
+    app.state &&
+      h('a', { class: 'hud-project', href: href({ view: 'overworld', projectId: app.projectId! }), title: 'Project map' }, app.state.overworld.title),
     middle,
     h('span', { class: 'grow' }),
     t && h('span', { class: 'hud-stat', title: 'Experience' }, `${t.xp} XP`),

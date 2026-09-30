@@ -1,0 +1,11 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "another-trhing",
+  "name": "another trhing",
+  "theme": "desert",
+  "goalIds": [],
+  "unlocksAfter": [
+    "publishing"
+  ],
+  "levelOrder": []
+}

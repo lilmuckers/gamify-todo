@@ -1,11 +1,34 @@
-import type { GameState, Overworld, World } from './model';
+import type { GameState, Level, Project, World, WorldFile, Workspace } from './model';
 
-export const GAME_PATH = 'data/game.json';
-export const worldPath = (id: string) => `data/worlds/${id}.json`;
-export const WORLD_PATH_RE = /^data\/worlds\/([a-z0-9]+(?:-[a-z0-9]+)*)\.json$/;
+export const DATA_ROOT = 'data';
+/** Published schema location; data files point here so they validate anywhere. */
+export const SCHEMA_BASE = 'https://tasks.patrick-mckinley.com/schema/';
 
-const GAME_SCHEMA_REF = '../schema/quest.schema.json';
-const WORLD_SCHEMA_REF = '../../schema/quest.schema.json';
+const SLUG = '[a-z0-9]+(?:-[a-z0-9]+)*';
+const PROJECT_RE = new RegExp(`^${DATA_ROOT}/(${SLUG})/project\\.json$`);
+const WORLD_RE = new RegExp(`^${DATA_ROOT}/(${SLUG})/(${SLUG})/world\\.json$`);
+const LEVEL_RE = new RegExp(`^${DATA_ROOT}/(${SLUG})/(${SLUG})/(${SLUG})\\.json$`);
+
+export const projectPath = (p: string) => `${DATA_ROOT}/${p}/project.json`;
+export const worldPath = (p: string, w: string) => `${DATA_ROOT}/${p}/${w}/world.json`;
+export const levelPath = (p: string, w: string, l: string) => `${DATA_ROOT}/${p}/${w}/${l}.json`;
+
+export type DataFile =
+  | { kind: 'project'; projectId: string }
+  | { kind: 'world'; projectId: string; worldId: string }
+  | { kind: 'level'; projectId: string; worldId: string; levelId: string };
+
+/** What a repo path holds, or undefined if it isn't a Quest Log data file. */
+export function classifyPath(path: string): DataFile | undefined {
+  let m = PROJECT_RE.exec(path);
+  if (m) return { kind: 'project', projectId: m[1] };
+  m = WORLD_RE.exec(path);
+  if (m) return { kind: 'world', projectId: m[1], worldId: m[2] };
+  m = LEVEL_RE.exec(path);
+  if (m) return { kind: 'level', projectId: m[1], worldId: m[2], levelId: m[3] };
+}
+
+export const isDataPath = (path: string) => classifyPath(path) !== undefined;
 
 // Keys first in this order, remaining keys alphabetical — keeps diffs readable.
 const KEY_ORDER = [
@@ -32,9 +55,9 @@ const KEY_ORDER = [
   'notes',
   'goals',
   'worldOrder',
+  'levelOrder',
   'successCriteria',
   'items',
-  'levels',
   'stats',
 ];
 const rank = new Map(KEY_ORDER.map((k, i) => [k, i]));
@@ -42,9 +65,7 @@ const rank = new Map(KEY_ORDER.map((k, i) => [k, i]));
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).filter(
-      ([, v]) => v !== undefined,
-    );
+    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined);
     entries.sort(([a], [b]) => {
       const ra = rank.get(a) ?? Infinity;
       const rb = rank.get(b) ?? Infinity;
@@ -59,19 +80,32 @@ export function stringify(value: unknown): string {
   return JSON.stringify(canonical(value), null, 2) + '\n';
 }
 
-/** Map of repo path → file content for the whole state. */
-export function toFiles(state: GameState): Record<string, string> {
+const schemaRef = (kind: 'project' | 'world' | 'level') => `${SCHEMA_BASE}${kind}.schema.json`;
+
+/** Files for one project. */
+export function projectFiles(projectId: string, state: GameState): Record<string, string> {
   const files: Record<string, string> = {
-    [GAME_PATH]: stringify({ ...state.overworld, $schema: GAME_SCHEMA_REF }),
+    [projectPath(projectId)]: stringify({ ...state.overworld, $schema: schemaRef('project') }),
   };
   for (const world of Object.values(state.worlds)) {
-    files[worldPath(world.id)] = stringify({ ...world, $schema: WORLD_SCHEMA_REF });
+    const { levels, ...rest } = world;
+    const file: WorldFile = { ...rest, $schema: schemaRef('world'), levelOrder: levels.map((l) => l.id) };
+    files[worldPath(projectId, world.id)] = stringify(file);
+    for (const level of levels)
+      files[levelPath(projectId, world.id, level.id)] = stringify({ ...level, $schema: schemaRef('level') });
   }
   return files;
 }
 
+/** Map of repo path → file content for the whole workspace. */
+export function toFiles(ws: Workspace): Record<string, string> {
+  const files: Record<string, string> = {};
+  for (const [id, state] of Object.entries(ws.projects)) Object.assign(files, projectFiles(id, state));
+  return files;
+}
+
 /** Files to write (string) or delete (null) to go from `prev` to `next`. */
-export function changedFiles(prev: GameState, next: GameState): Record<string, string | null> {
+export function changedFiles(prev: Workspace, next: Workspace): Record<string, string | null> {
   const a = toFiles(prev);
   const b = toFiles(next);
   const out: Record<string, string | null> = {};
@@ -80,27 +114,52 @@ export function changedFiles(prev: GameState, next: GameState): Record<string, s
   return out;
 }
 
-export function fromFiles(files: Record<string, string>): GameState {
-  const game = files[GAME_PATH];
-  if (!game) throw new Error(`Missing ${GAME_PATH}`);
-  const overworld = JSON.parse(game) as Overworld;
-  const worlds: Record<string, World> = {};
-  for (const [path, content] of Object.entries(files)) {
-    const m = WORLD_PATH_RE.exec(path);
-    if (!m) continue;
-    const world = JSON.parse(content) as World;
-    worlds[m[1]] = world;
-  }
-  return normalizeState({ overworld, worlds });
+function strip<T extends { $schema?: string }>(o: T): Omit<T, '$schema'> {
+  const { $schema: _, ...rest } = o;
+  return rest;
 }
 
-/** Strips `$schema` pointers so in-memory state compares cleanly. */
-export function normalizeState(state: GameState): GameState {
-  const { $schema: _o, ...overworld } = state.overworld;
-  const worlds: Record<string, World> = {};
-  for (const [id, w] of Object.entries(state.worlds)) {
-    const { $schema: _w, ...rest } = w;
-    worlds[id] = rest as World;
+/**
+ * Builds the in-memory workspace. Lenient: files that can't be placed (a world
+ * without project.json, unparseable JSON) are skipped; validateFiles reports them.
+ */
+export function fromFiles(files: Record<string, string>): Workspace {
+  const parse = <T>(path: string): T | undefined => {
+    try {
+      return JSON.parse(files[path]) as T;
+    } catch {
+      return undefined;
+    }
+  };
+  const projects: Record<string, GameState> = {};
+  const worldFiles: Record<string, Record<string, WorldFile>> = {};
+  const levels: Record<string, Record<string, Record<string, Level>>> = {};
+  for (const path of Object.keys(files)) {
+    const f = classifyPath(path);
+    if (!f) continue;
+    if (f.kind === 'project') {
+      const p = parse<Project>(path);
+      if (p) projects[f.projectId] = { overworld: strip(p) as Project, worlds: {} };
+    } else if (f.kind === 'world') {
+      const w = parse<WorldFile>(path);
+      if (w) (worldFiles[f.projectId] ??= {})[f.worldId] = w;
+    } else if (f.levelId !== 'world') {
+      const l = parse<Level>(path);
+      if (l) ((levels[f.projectId] ??= {})[f.worldId] ??= {})[f.levelId] = strip(l) as Level;
+    }
   }
-  return { overworld: overworld as Overworld, worlds };
+  for (const [pid, state] of Object.entries(projects)) {
+    for (const [wid, wf] of Object.entries(worldFiles[pid] ?? {})) {
+      const { levelOrder, $schema: _, ...rest } = wf;
+      const pool = { ...levels[pid]?.[wid] };
+      const ordered: Level[] = [];
+      for (const lid of Array.isArray(levelOrder) ? levelOrder : []) {
+        if (pool[lid]) ordered.push(pool[lid]);
+        delete pool[lid];
+      }
+      ordered.push(...Object.keys(pool).sort().map((k) => pool[k]));
+      state.worlds[wid] = { ...(rest as Omit<World, 'levels'>), levels: ordered };
+    }
+  }
+  return { projects };
 }

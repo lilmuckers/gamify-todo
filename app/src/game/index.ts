@@ -4,21 +4,27 @@ import type { Route } from '../router';
 import { BootScene } from './boot';
 import { LevelScene } from './level';
 import { OverworldScene } from './overworld';
+import { ProjectsScene } from './projects';
 import { WorldScene } from './world';
 
 function sceneFor(route: Route): { key: string; params: object } {
   switch (route.view) {
-    case 'overworld':
+    case 'projects':
     case 'prs':
-      return { key: 'overworld', params: {} };
+      return { key: 'projects', params: {} };
+    case 'overworld':
+      return { key: 'overworld', params: { projectId: route.projectId } };
     case 'world':
-      return { key: 'world', params: { worldId: route.worldId } };
+      return { key: 'world', params: { projectId: route.projectId, worldId: route.worldId } };
     case 'pr':
       return { key: 'world', params: { pr: route.pr } };
     case 'level':
-      return { key: 'level', params: { worldId: route.worldId, levelId: route.levelId } };
+      return { key: 'level', params: { projectId: route.projectId, worldId: route.worldId, levelId: route.levelId } };
     case 'pr-level':
-      return { key: 'level', params: { worldId: route.worldId, levelId: route.levelId, pr: route.pr } };
+      return {
+        key: 'level',
+        params: { projectId: route.projectId, worldId: route.worldId, levelId: route.levelId, pr: route.pr },
+      };
   }
 }
 
@@ -31,18 +37,20 @@ export function startGame(app: App, parent: HTMLElement) {
     roundPixels: true,
     backgroundColor: '#5c94fc',
     scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth, height: parent.clientHeight },
-    scene: [BootScene, OverworldScene, WorldScene, LevelScene],
+    scene: [BootScene, ProjectsScene, OverworldScene, WorldScene, LevelScene],
     banner: false,
     input: { mouse: { preventDefaultWheel: true } },
   });
   game.registry.set('app', app);
+  // Dev only: lets tooling inspect or step the game.
+  if (import.meta.env.DEV) (window as unknown as { __questGame?: Phaser.Game }).__questGame = game;
 
   let current = '';
   const sync = () => {
     const { key, params } = sceneFor(app.route);
     const sig = `${key}:${JSON.stringify(params)}`;
     // Level/world scenes need data loaded before they can build.
-    if (!app.state && key !== 'world') return;
+    if (!app.workspace && key !== 'world' && !app.route.view.startsWith('pr')) return;
     if (sig === current) return;
     current = sig;
     for (const s of game.scene.getScenes(true)) if (s.scene.key !== 'boot') game.scene.stop(s.scene.key);

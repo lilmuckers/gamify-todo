@@ -1,39 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
-import { validateState, fromFiles } from '../src/index';
-import { level, state } from './fixtures';
+import { validateFiles, validateWorkspace, toFiles } from '../src/index';
+import { readDataDir } from '../scripts/read-data';
+import { level, workspace } from './fixtures';
 
-const messages = (s: ReturnType<typeof state>) => validateState(s).map((i) => i.message).join('\n');
+const messages = (ws: ReturnType<typeof workspace>) => validateWorkspace(ws).map((i) => i.message).join('\n');
+const fileMessages = (files: Record<string, string>) => validateFiles(files).map((i) => `${i.file}: ${i.message}`).join('\n');
 
-describe('validateState', () => {
+describe('validateWorkspace', () => {
   it('accepts the fixture', () => {
-    expect(validateState(state())).toEqual([]);
+    expect(validateWorkspace(workspace())).toEqual([]);
   });
 
-  it('accepts the committed seed data', () => {
-    const files: Record<string, string> = { 'data/game.json': readFileSync('data/game.json', 'utf8') };
-    for (const f of readdirSync('data/worlds'))
-      files[`data/worlds/${f}`] = readFileSync(`data/worlds/${f}`, 'utf8');
-    expect(validateState(fromFiles(files))).toEqual([]);
+  it('accepts the committed data', () => {
+    expect(validateFiles(readDataDir(process.cwd()))).toEqual([]);
   });
 
   it('rejects unknown properties', () => {
-    const s = state();
-    (s.worlds.w.levels[0].items[0] as any).priority = 'high';
-    expect(messages(s)).toMatch(/additional properties: priority/);
+    const ws = workspace();
+    (ws.projects.p.worlds.w.levels[0].items[0] as any).priority = 'high';
+    expect(messages(ws)).toMatch(/additional properties: priority/);
   });
 
   it('rejects bad ids and enum values', () => {
-    const s = state();
-    s.worlds.w.levels[0].items[0].id = 'Bad Id';
-    (s.worlds.w.levels[0].items[1] as any).type = 'bug';
-    const m = messages(s);
+    const ws = workspace();
+    ws.projects.p.worlds.w.levels[0].items[0].id = 'Bad Id';
+    (ws.projects.p.worlds.w.levels[0].items[1] as any).type = 'bug';
+    const m = messages(ws);
     expect(m).toMatch(/pattern/);
     expect(m).toMatch(/const|oneOf/);
   });
 
   it('rejects dangling dependsOn and cycles', () => {
-    const s = state(
+    const ws = workspace(
       level({
         items: [
           { id: 'a', type: 'task', title: 'A', status: 'todo', dependsOn: ['b'] },
@@ -42,24 +40,55 @@ describe('validateState', () => {
         ],
       }),
     );
-    const m = messages(s);
+    const m = messages(ws);
     expect(m).toMatch(/unknown item "ghost"/);
     expect(m).toMatch(/dependency cycle/);
   });
 
-  it('requires an MVP criterion and known references', () => {
-    const s = state(level({ successCriteria: [{ id: 'x', text: 'x', mvp: false, done: false }] }));
-    s.worlds.w.goalIds = ['nope'];
-    s.worlds.w.levels[0].items[0].levelRef = 'w/missing';
-    const m = messages(s);
+  it('requires an MVP criterion and known references within the project', () => {
+    const ws = workspace(level({ successCriteria: [{ id: 'x', text: 'x', mvp: false, done: false }] }));
+    ws.projects.p.worlds.w.goalIds = ['nope'];
+    ws.projects.p.worlds.w.levels[0].items[0].levelRef = 'w/missing';
+    const m = messages(ws);
     expect(m).toMatch(/at least one criterion/);
     expect(m).toMatch(/unknown goal "nope"/);
     expect(m).toMatch(/unknown level "w\/missing"/);
   });
 
-  it('requires worldOrder and files to agree', () => {
-    const s = state();
-    s.overworld.worldOrder.push('ghost');
-    expect(messages(s)).toMatch(/no world file for "ghost"/);
+  it('reserves the level id "world"', () => {
+    const ws = workspace(level({ id: 'world' }));
+    expect(messages(ws)).toMatch(/reserved/);
+  });
+});
+
+describe('validateFiles (folder structure)', () => {
+  const good = () => toFiles(workspace());
+
+  it('requires ids to match paths', () => {
+    const files = good();
+    files['data/p/w/lvl.json'] = files['data/p/w/lvl.json'].replace('"id": "lvl"', '"id": "other"');
+    expect(fileMessages(files)).toMatch(/lvl\.json: id "other" must match its file name "lvl"/);
+  });
+
+  it('requires order lists to match files and parents to exist', () => {
+    const files = good();
+    files['data/p/w/extra.json'] = files['data/p/w/lvl.json'].replace('"id": "lvl"', '"id": "extra"');
+    files['data/p/orphan/stray.json'] = '{}';
+    files['data/q/w/world.json'] = files['data/p/w/world.json'];
+    delete files['data/p/w/lvl.json'];
+    const m = fileMessages(files);
+    expect(m).toMatch(/no data\/p\/w\/lvl\.json/);
+    expect(m).toMatch(/level "extra" missing from levelOrder/);
+    expect(m).toMatch(/no data\/p\/orphan\/world\.json for this level/);
+    expect(m).toMatch(/no data\/q\/project\.json for this world/);
+  });
+
+  it('flags stray files and bad JSON', () => {
+    const files = good();
+    files['data/notes.json'] = '{}';
+    files['data/p/w/lvl.json'] = '{nope';
+    const m = fileMessages(files);
+    expect(m).toMatch(/notes\.json: unexpected file/);
+    expect(m).toMatch(/invalid JSON/);
   });
 });

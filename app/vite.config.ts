@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process';
-import { cpSync, createReadStream, existsSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { cpSync, createReadStream, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { extname, join, relative, resolve, sep } from 'node:path';
+import { isDataPath } from '../shared/src/serialize';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -23,26 +24,55 @@ const repo = process.env.VITE_GH_REPO ?? detectRepo();
 // and at the root of a custom domain (routing is hash-based). Override with VITE_BASE.
 const base = process.env.VITE_BASE ?? (target === 'pages' ? './' : '/');
 
-/** Serves /data and /schema from the repo in dev; copies them into the Pages build. */
+/** Every data file path under data/, for the static site's manifest. */
+function dataIndex(): string {
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir).sort()) {
+      const abs = join(dir, name);
+      if (statSync(abs).isDirectory()) walk(abs);
+      else {
+        const rel = relative(repoRoot, abs).split(sep).join('/');
+        if (isDataPath(rel)) files.push(rel);
+      }
+    }
+  };
+  if (existsSync(join(repoRoot, 'data'))) walk(join(repoRoot, 'data'));
+  return JSON.stringify({ files }, null, 2) + '\n';
+}
+
+/**
+ * Serves data/, schema/ and skills/ from the repo in dev and copies them into the
+ * Pages build, plus data/index.json (static hosting can't list folders).
+ */
 function repoData(): Plugin {
-  const dirs = ['data', 'schema'];
+  const dirs = ['data', 'schema', 'skills'];
+  const types: Record<string, string> = { '.json': 'application/json', '.md': 'text/markdown; charset=utf-8' };
   return {
     name: 'quest-repo-data',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = decodeURIComponent((req.url ?? '').split('?')[0]);
+        if (url === '/data/index.json') {
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'no-cache');
+          return res.end(dataIndex());
+        }
         const dir = dirs.find((d) => url.startsWith(`/${d}/`));
         if (!dir) return next();
         const file = join(repoRoot, url);
         if (!file.startsWith(join(repoRoot, dir)) || !existsSync(file) || !statSync(file).isFile()) return next();
-        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Type', types[extname(file)] ?? 'application/octet-stream');
         res.setHeader('Cache-Control', 'no-cache');
         createReadStream(file).pipe(res);
       });
     },
     closeBundle() {
       if (target !== 'pages') return;
-      for (const d of dirs) cpSync(join(repoRoot, d), join(__dirname, 'dist', d), { recursive: true });
+      for (const d of dirs)
+        if (existsSync(join(repoRoot, d))) cpSync(join(repoRoot, d), join(__dirname, 'dist', d), { recursive: true });
+      mkdirSync(join(__dirname, 'dist', 'data'), { recursive: true });
+      writeFileSync(join(__dirname, 'dist', 'data', 'index.json'), dataIndex());
     },
   };
 }

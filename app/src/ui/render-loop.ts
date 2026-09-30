@@ -1,7 +1,8 @@
 import type { App } from '../app';
 
 /**
- * Re-renders HUD + panel on app changes, batched per frame. Skips the panel
+ * Re-renders HUD + panel on app changes, batched per task (not per frame, so
+ * hidden tabs still update). Skips the panel
  * while the user is typing in it (re-rendering would wipe the input) and keeps
  * its scroll position; scrolls the selected item into view.
  */
@@ -34,7 +35,7 @@ export function scheduler(app: App, panel: HTMLElement, render: () => HTMLElemen
   const schedule = () => {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(run);
+    setTimeout(run, 0);
   };
   panel.addEventListener('focusout', () => {
     if (deferred) {

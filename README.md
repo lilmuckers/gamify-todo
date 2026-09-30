@@ -1,7 +1,8 @@
 # Quest Log
 
-A project tracker you play. Your project is a Mario-style **overworld**; themes are **worlds**; each
-key deliverable is a **level**. Inside a level, project items become the course: tasks are `?` blocks,
+A project tracker you play. Each **project** (a house renovation, a furniture build, a work
+launch — completely separate efforts) is its own Mario-style **overworld**; themes inside it are
+**worlds**; each key deliverable is a **level**. Inside a level, project items become the course: tasks are `?` blocks,
 blockers are brick walls, dependencies are pipes, risks are critters, decisions are signposts and
 stretch goals are floating coins. A hero auto-walks to whatever is blocking you next.
 
@@ -25,7 +26,23 @@ The game is built to beat perfectionism:
 | Local editor | Docker | Writes `data/` and commits in your checkout; **Publish** pushes | ✓ with `GITHUB_TOKEN` |
 | Mobile | Pages, installed as a PWA | Compact touch UI, works offline, syncs when back online | ✓ |
 
-All state lives in [`data/`](data) as JSON, validated by the JSON Schema in [`schema/`](schema).
+All state lives in [`data/`](data) as JSON, one file per project, world and level, validated by the
+JSON Schemas in [`schema/`](schema):
+
+```
+data/<project>/project.json
+data/<project>/<world>/world.json
+data/<project>/<world>/<level>.json
+```
+
+Ticking off a task rewrites one small level file, so commits and pull requests stay minimal.
+
+### Use your own repo (no fork or clone needed)
+
+You don't need write access to this repo. Create any GitHub repo (with a README so it has a first
+commit), open the site, go to **⚙ Settings**, and enter `owner/repo` (and optionally a branch) plus
+a fine-grained token for that repo. The app reads and writes `data/` in your repo and reviews its
+PRs. A token without push rights gives a read-only view.
 
 ### GitHub Pages
 
@@ -72,7 +89,7 @@ for a phone the Pages PWA is the better route.
 
 ## Reviewing pull requests: the Warp Zone
 
-Open pull requests that touch `data/` appear in the **Warp Zone** (the purple pipe on the overworld).
+Open pull requests that touch `data/` appear in the **Warp Zone** (the purple cartridge on the project select screen).
 Each is a **Warp World** showing only the changed levels: new items glow green, changed items are
 marked `!` with a field-by-field diff, removed items are ghosted. The review panel shows schema
 validity (checked in the browser), CI status and mergeability, and lets you approve, comment,
@@ -81,14 +98,20 @@ request changes or merge (merge is disabled if the data is invalid or the PR isn
 [`validate.yml`](.github/workflows/validate.yml) runs on every PR, so data written by hand or by an
 LLM is checked before you look at it.
 
-## Writing data with other tools
+## Writing data with other tools and LLMs
+
+[`skills/quest-log/SKILL.md`](skills/quest-log/SKILL.md) (also served at
+`https://tasks.patrick-mckinley.com/skills/quest-log/SKILL.md`) tells an LLM exactly how to plan
+projects into this structure and how to read, commit, or open a PR through the GitHub API with a
+personal access token. A test keeps its examples valid.
+
 
 [`schema/quest.schema.json`](schema/quest.schema.json) is the contract: JSON Schema 2020-12,
 `additionalProperties: false` throughout, a description on every field and enum value. Data files
 reference it with `$schema`, so VS Code autocompletes them.
-[`schema/README.md`](schema/README.md) explains the model and includes a copy-paste prompt for
-ChatGPT/Claude. Rules JSON Schema can't express (unique ids, references, dependency cycles, at least
-one MVP criterion) are checked by `npm run validate`.
+[`schema/README.md`](schema/README.md) explains the model. Rules JSON Schema can't express (paths
+match ids, order lists match files, unique ids, references, dependency cycles, at least one MVP
+criterion) are checked by `npm run validate`.
 
 ## Development
 
@@ -107,12 +130,13 @@ npm run schema:gen           # regenerate types + validators after editing the s
 Layout:
 
 ```
-schema/   JSON Schema, authoring guide, examples
+schema/   JSON Schemas (quest + per-file project/world/level) and a guide
+skills/   SKILL.md for LLMs working with the data
 shared/   Generated types and Ajv validators, ops log + replay, scoring, level layout,
           PR diffing, GitHub client — used by app and server
 app/      Vite + Phaser 3 front end (desktop game view, mobile view, PWA)
 server/   Fastify API for the Docker editor (git commit/push, PR proxy)
-data/     The quest itself
+data/     The quests: one folder per project
 ```
 
 Edits are **ops** (`setItemStatus`, `addItem`, …) rather than whole-file writes. That makes offline
