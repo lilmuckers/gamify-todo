@@ -1,25 +1,26 @@
 import {
-  diffStates,
+  diffWorkspaces,
   findLevel,
   reviewLevel,
-  validateState,
+  validateWorkspace,
   type GameState,
   type Issue,
   type Level,
   type LevelDiff,
   type OpBody,
   type PullSummary,
-  type StateDiff,
+  type WorkspaceDiff,
   type World,
+  type Workspace,
 } from '@quest/shared';
 import type { PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
-import { currentRoute, type Route } from './router';
+import { currentRoute, routeProject, type Route } from './router';
 import { toast } from './ui/toast';
 
 export interface PullView {
   data?: PullData;
-  diff?: StateDiff;
+  diff?: WorkspaceDiff;
   issues?: Issue[];
   loading: boolean;
   error?: string;
@@ -56,8 +57,19 @@ export class App {
     for (const fn of this.listeners) fn();
   }
 
-  get state(): GameState | undefined {
+  get workspace(): Workspace | undefined {
     return this.store.state;
+  }
+
+  /** Project the current route is inside. */
+  get projectId(): string | undefined {
+    return routeProject(this.route);
+  }
+
+  /** State of the current project (undefined on the project list or while loading). */
+  get state(): GameState | undefined {
+    const id = this.projectId;
+    return id ? this.store.state?.projects[id] : undefined;
   }
 
   get caps() {
@@ -113,8 +125,8 @@ export class App {
       this.pullViews.set(n, {
         loading: false,
         data,
-        diff: diffStates(data.base, data.head),
-        issues: validateState(data.head),
+        diff: diffWorkspaces(data.base, data.head),
+        issues: validateWorkspace(data.head),
       });
     } catch (err) {
       this.pullViews.set(n, { loading: false, error: (err as Error).message });
@@ -128,24 +140,28 @@ export class App {
   }
 
   /** Level being viewed on the current route, with review ghosts in PR mode. */
-  currentLevel(): { world: World; level: Level; diff?: LevelDiff; readonly: boolean } | undefined {
+  currentLevel():
+    | { projectId: string; world: World; level: Level; diff?: LevelDiff; readonly: boolean }
+    | undefined {
     const r = this.route;
     if (r.view === 'level' && this.state) {
       const world = this.state.worlds[r.worldId];
       const level = findLevel(this.state, r.worldId, r.levelId);
-      if (world && level) return { world, level, readonly: !this.caps.canEdit };
+      if (world && level) return { projectId: r.projectId, world, level, readonly: !this.caps.canEdit };
     }
     if (r.view === 'pr-level') {
       const v = this.pullViews.get(r.pr);
       if (!v?.data || !v.diff) return;
-      const { base, head } = v.data;
-      const world = head.worlds[r.worldId] ?? base.worlds[r.worldId];
-      const before = findLevel(base, r.worldId, r.levelId);
-      const after = findLevel(head, r.worldId, r.levelId);
-      if (!before && !after) return;
-      const level = reviewLevel(before, after);
-      const diff = v.diff.levels.find((l) => l.worldId === r.worldId && l.levelId === r.levelId);
-      if (world) return { world, level, diff, readonly: true };
+      const base = v.data.base.projects[r.projectId];
+      const head = v.data.head.projects[r.projectId];
+      const world = head?.worlds[r.worldId] ?? base?.worlds[r.worldId];
+      const before = base && findLevel(base, r.worldId, r.levelId);
+      const after = head && findLevel(head, r.worldId, r.levelId);
+      if (!world || (!before && !after)) return;
+      const diff = v.diff.levels.find(
+        (l) => l.projectId === r.projectId && l.worldId === r.worldId && l.levelId === r.levelId,
+      );
+      return { projectId: r.projectId, world, level: reviewLevel(before, after), diff, readonly: true };
     }
   }
 }

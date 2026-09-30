@@ -1,33 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { diffStates, reviewLevel, clone } from '../src/index';
-import { state } from './fixtures';
+import { diffWorkspaces, reviewLevel, clone } from '../src/index';
+import { workspace } from './fixtures';
 
-describe('diffStates', () => {
-  it('finds added worlds, and added/modified/removed items', () => {
-    const base = state();
+describe('diffWorkspaces', () => {
+  it('finds added projects/worlds and added/modified/removed items', () => {
+    const base = workspace();
     const head = clone(base);
-    const lvl = head.worlds.w.levels[0];
+    const p = head.projects.p;
+    const lvl = p.worlds.w.levels[0];
     lvl.items[0].status = 'done';
     lvl.items = lvl.items.filter((i) => i.id !== 'c');
     lvl.items.push({ id: 'new', type: 'risk', title: 'New', status: 'todo' });
-    head.worlds.x = { id: 'x', name: 'X', theme: 'ice', goalIds: [], levels: [] };
-    head.overworld.worldOrder.push('x');
+    p.worlds.x = { id: 'x', name: 'X', theme: 'ice', goalIds: [], levels: [] };
+    p.overworld.worldOrder.push('x');
+    head.projects.house = { overworld: { id: 'house', title: 'House', goals: [], worldOrder: [] }, worlds: {} };
 
-    const d = diffStates(base, head);
-    expect(d.worlds.x.change).toBe('added');
-    expect(d.worlds.w.change).toBe('modified');
+    const d = diffWorkspaces(base, head);
+    expect(d.projects.house.change).toBe('added');
+    expect(d.projects.p.change).toBe('modified');
+    expect(d.projects.p.diff.worlds.x.change).toBe('added');
     const ld = d.levels.find((l) => l.levelId === 'lvl')!;
-    expect(ld.items.a.change).toBe('modified');
+    expect(ld.projectId).toBe('p');
     expect(ld.items.a.fields[0]).toMatchObject({ field: 'status', before: 'todo', after: 'done' });
     expect(ld.items.c.change).toBe('removed');
     expect(ld.items.new.change).toBe('added');
-    expect(d.overworld[0].field).toBe('worldOrder');
 
-    const shown = reviewLevel(base.worlds.w.levels[0], lvl);
-    expect(shown.items.map((i) => i.id)).toContain('c');
+    expect(reviewLevel(base.projects.p.worlds.w.levels[0], lvl).items.map((i) => i.id)).toContain('c');
   });
 
-  it('reports nothing for identical states', () => {
-    expect(diffStates(state(), state()).count).toBe(0);
+  it('reports nothing for identical workspaces', () => {
+    expect(diffWorkspaces(workspace(), workspace()).count).toBe(0);
   });
 });

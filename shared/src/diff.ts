@@ -1,4 +1,4 @@
-import type { GameState, Level, World } from './model';
+import type { GameState, Level, World, Workspace } from './model';
 import { stringify } from './serialize';
 
 export type Change = 'added' | 'removed' | 'modified';
@@ -16,6 +16,7 @@ export interface EntryDiff {
 }
 
 export interface LevelDiff {
+  projectId: string;
   worldId: string;
   levelId: string;
   change: Change;
@@ -68,7 +69,7 @@ function diffList<T extends { id: string }>(
   return out;
 }
 
-function diffLevel(worldId: string, a: Level | undefined, b: Level | undefined): LevelDiff | undefined {
+function diffLevel(projectId: string, worldId: string, a: Level | undefined, b: Level | undefined): LevelDiff | undefined {
   const base = a ?? ({ items: [], successCriteria: [] } as unknown as Level);
   const head = b ?? ({ items: [], successCriteria: [] } as unknown as Level);
   const skip = ['items', 'successCriteria', 'stats'];
@@ -83,10 +84,10 @@ function diffLevel(worldId: string, a: Level | undefined, b: Level | undefined):
         ? 'modified'
         : undefined;
   if (!change) return;
-  return { worldId, levelId: (b ?? a)!.id, change, fields, items, criteria };
+  return { projectId, worldId, levelId: (b ?? a)!.id, change, fields, items, criteria };
 }
 
-export function diffStates(base: GameState, head: GameState): StateDiff {
+export function diffStates(base: GameState, head: GameState, projectId = ''): StateDiff {
   const overworld = fieldChanges(base.overworld, head.overworld, ['goals']);
   const goals = diffList(base.overworld.goals, head.overworld.goals);
   const worlds: Record<string, EntryDiff> = {};
@@ -100,6 +101,7 @@ export function diffStates(base: GameState, head: GameState): StateDiff {
     const worldLevels: LevelDiff[] = [];
     for (const lid of levelIds) {
       const d = diffLevel(
+        projectId,
         id,
         a?.levels.find((l) => l.id === lid),
         b?.levels.find((l) => l.id === lid),
@@ -124,6 +126,31 @@ export function diffStates(base: GameState, head: GameState): StateDiff {
       0,
     );
   return { overworld, goals, worlds, levels, count };
+}
+
+export interface WorkspaceDiff {
+  /** Per-project diffs, only for projects that changed. */
+  projects: Record<string, { change: Change; diff: StateDiff }>;
+  /** Every changed level across projects. */
+  levels: LevelDiff[];
+  count: number;
+}
+
+const EMPTY: GameState = { overworld: { id: '', title: '', goals: [], worldOrder: [] }, worlds: {} };
+
+export function diffWorkspaces(base: Workspace, head: Workspace): WorkspaceDiff {
+  const out: WorkspaceDiff = { projects: {}, levels: [], count: 0 };
+  const ids = new Set([...Object.keys(base.projects), ...Object.keys(head.projects)]);
+  for (const id of ids) {
+    const a = base.projects[id];
+    const b = head.projects[id];
+    const diff = diffStates(a ?? EMPTY, b ?? EMPTY, id);
+    if (a && b && !diff.count) continue;
+    out.projects[id] = { change: !a ? 'added' : !b ? 'removed' : 'modified', diff };
+    out.levels.push(...diff.levels);
+    out.count += Math.max(1, diff.count);
+  }
+  return out;
 }
 
 /**

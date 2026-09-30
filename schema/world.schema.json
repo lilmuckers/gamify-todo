@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "title": "Quest Log world",
+  "description": "A themed group of levels inside a project (e.g. 'Kitchen', 'Payments'), stored at data/<project-id>/<world-id>/world.json. Its levels are separate files in the same folder.",
+  "$ref": "quest.schema.json#/$defs/World"
+}

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { simpleGit } from 'simple-git';
@@ -36,24 +36,42 @@ async function game() {
 describe('server', () => {
   it('serves data files with a version', async () => {
     const g = await game();
-    expect(Object.keys(g.files)).toContain('data/game.json');
+    expect(Object.keys(g.files)).toContain('data/quest-log/project.json');
+    expect(Object.keys(g.files)).toContain('data/quest-log/foundations/schema.json');
     expect(g.version).toMatch(/^[0-9a-f]{40}$/);
   });
 
   it('writes, validates and commits changes', async () => {
     const g = await game();
-    const game_ = JSON.parse(g.files['data/game.json']);
+    const game_ = JSON.parse(g.files['data/quest-log/project.json']);
     game_.title = 'Renamed Quest';
     const r = await app.inject({
       method: 'POST',
       url: '/api/commit',
       headers: H,
-      payload: { changes: { 'data/game.json': JSON.stringify(game_, null, 2) + '\n' }, message: 'quest: rename', baseVersion: g.version },
+      payload: { changes: { 'data/quest-log/project.json': JSON.stringify(game_, null, 2) + '\n' }, message: 'quest: rename', baseVersion: g.version },
     });
     expect(r.statusCode).toBe(200);
-    expect(readFileSync(join(dir, 'data/game.json'), 'utf8')).toContain('Renamed Quest');
+    expect(readFileSync(join(dir, 'data/quest-log/project.json'), 'utf8')).toContain('Renamed Quest');
     const log = await simpleGit(dir).log({ maxCount: 1 });
     expect(log.latest?.message).toBe('quest: rename');
+  });
+
+  it('creates and deletes whole project folders', async () => {
+    let g = await game();
+    const project = { id: 'house', title: 'House', goals: [], worldOrder: [] };
+    const add = await app.inject({
+      method: 'POST', url: '/api/commit', headers: H,
+      payload: { changes: { 'data/house/project.json': JSON.stringify(project) }, message: 'quest: add house', baseVersion: g.version },
+    });
+    expect(add.statusCode).toBe(200);
+    g = await game();
+    const del = await app.inject({
+      method: 'POST', url: '/api/commit', headers: H,
+      payload: { changes: { 'data/house/project.json': null }, message: 'quest: drop house', baseVersion: g.version },
+    });
+    expect(del.statusCode).toBe(200);
+    expect(existsSync(join(dir, 'data/house'))).toBe(false);
   });
 
   it('rejects stale versions with 409', async () => {
@@ -72,7 +90,7 @@ describe('server', () => {
       method: 'POST',
       url: '/api/commit',
       headers: H,
-      payload: { changes: { 'data/game.json': '{"title":"x"}' }, message: 'x', baseVersion: g.version },
+      payload: { changes: { 'data/quest-log/project.json': '{"title":"x"}' }, message: 'x', baseVersion: g.version },
     });
     expect(bad.statusCode).toBe(400);
     const escape = await app.inject({

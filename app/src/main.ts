@@ -1,7 +1,7 @@
 import '@fontsource/press-start-2p/latin-400.css';
 import './styles.css';
 import { App } from './app';
-import { repoRef, TARGET, tokenStore, uiPrefs } from './config';
+import { chosenBranch, rememberBranch, repoRef, TARGET, tokenStore, uiPrefs } from './config';
 import { GitHubSource } from './data/github';
 import { browserKV } from './data/kv';
 import { LocalApiSource } from './data/local';
@@ -13,7 +13,10 @@ async function createSource(): Promise<DataSource> {
   if (TARGET === 'local') return new LocalApiSource().init();
   const token = tokenStore.get();
   const repo = repoRef();
-  return token && repo ? new GitHubSource(token, repo) : new StaticSource();
+  if (!token || !repo) return new StaticSource();
+  const source = await new GitHubSource(token, repo).init(chosenBranch());
+  rememberBranch(source.client.repo.branch);
+  return source;
 }
 
 function useMobile(): boolean {

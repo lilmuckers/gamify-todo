@@ -972,3 +972,23 @@ a:focus-visible {
 .is-mobile .hud-name {
   display: none;
 }
+
+.hud-project {
+  color: var(--gold-hi);
+  text-decoration: none;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.is-mobile .hud-project {
+  max-width: 120px;
+}
+
+.nested-world {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 8px;
+}

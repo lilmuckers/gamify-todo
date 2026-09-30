@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "title": "Quest Log level",
+  "description": "One key deliverable, stored at data/<project-id>/<world-id>/<level-id>.json. The level is CLEARED when every MVP success criterion is done. Keep MVP criteria to the minimum that makes the deliverable useful.",
+  "$ref": "quest.schema.json#/$defs/Level"
+}

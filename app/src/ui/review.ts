@@ -58,7 +58,7 @@ export function mergeDialog(app: App, pr: PullDetail) {
         toast(`Merged #${pr.number}! Warp complete.`, 'win');
         app.forgetPull(pr.number);
         await app.store.refresh();
-        go({ view: 'overworld' });
+        go({ view: 'projects' });
       },
     },
   ]);

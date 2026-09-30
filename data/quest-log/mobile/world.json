@@ -1,0 +1,16 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "mobile",
+  "name": "Mobile",
+  "description": "Installable PWA with offline sync.",
+  "theme": "water",
+  "goalIds": [
+    "anywhere"
+  ],
+  "unlocksAfter": [
+    "publishing"
+  ],
+  "levelOrder": [
+    "pwa"
+  ]
+}

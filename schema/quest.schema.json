@@ -1,26 +1,39 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lilmuckers.github.io/gamify-todo/schema/quest.schema.json",
+  "$id": "https://tasks.patrick-mckinley.com/schema/quest.schema.json",
   "title": "Quest Log data",
-  "description": "Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. A project is an Overworld (data/game.json) made of Worlds (data/worlds/<world-id>.json). Each World holds Levels. Each Level is ONE key deliverable with success criteria and the project items (tasks, blockers, dependencies, risks...) needed to ship it. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.",
+  "description": "Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.",
   "oneOf": [
-    { "$ref": "#/$defs/Overworld" },
-    { "$ref": "#/$defs/World" }
+    {
+      "$ref": "#/$defs/Project"
+    },
+    {
+      "$ref": "#/$defs/World"
+    },
+    {
+      "$ref": "#/$defs/Level"
+    }
   ],
   "$defs": {
     "Id": {
       "type": "string",
-      "description": "Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Unique within its scope: world ids across the project, level ids within a world, item and criterion ids within a level. Never reuse or rename once created.",
+      "description": "Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.",
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "minLength": 1,
       "maxLength": 64,
-      "examples": ["launch-beta", "auth-service", "write-docs"]
+      "examples": [
+        "launch-beta",
+        "auth-service",
+        "write-docs"
+      ]
     },
     "Timestamp": {
       "type": "string",
       "format": "date-time",
       "description": "ISO 8601 date-time in UTC, e.g. 2026-10-01T09:00:00Z.",
-      "examples": ["2026-10-01T09:00:00Z"]
+      "examples": [
+        "2026-10-01T09:00:00Z"
+      ]
     },
     "Title": {
       "type": "string",
@@ -37,33 +50,67 @@
       "type": "object",
       "description": "A key project goal shown on the Overworld. Worlds reference goals they contribute to.",
       "additionalProperties": false,
-      "required": ["id", "title"],
+      "required": [
+        "id",
+        "title"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/Id" },
-        "title": { "$ref": "#/$defs/Title" },
-        "description": { "$ref": "#/$defs/Notes" }
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "title": {
+          "$ref": "#/$defs/Title"
+        },
+        "description": {
+          "$ref": "#/$defs/Notes"
+        }
       },
-      "examples": [{ "id": "ship-v1", "title": "Ship v1 to paying customers" }]
+      "examples": [
+        {
+          "id": "ship-v1",
+          "title": "Ship v1 to paying customers"
+        }
+      ]
     },
-    "Overworld": {
+    "Project": {
       "type": "object",
-      "description": "Top-level project file, stored at data/game.json. Lists the project goals and the order worlds appear on the map.",
+      "description": "A project: one self-contained effort, stored at data/<project-id>/project.json. Its map (the overworld) shows its key goals and its worlds in order. Projects never reference each other.",
       "additionalProperties": false,
-      "required": ["title", "goals", "worldOrder"],
+      "required": [
+        "id",
+        "title",
+        "goals",
+        "worldOrder"
+      ],
       "properties": {
-        "$schema": { "type": "string", "description": "Pointer to this schema for editor tooling." },
-        "title": { "$ref": "#/$defs/Title" },
-        "description": { "$ref": "#/$defs/Notes" },
+        "$schema": {
+          "type": "string",
+          "description": "Pointer to this schema for editor tooling."
+        },
+        "id": {
+          "$ref": "#/$defs/Id",
+          "description": "Project id. Must equal the project folder name: data/<id>/project.json."
+        },
+        "title": {
+          "$ref": "#/$defs/Title"
+        },
+        "description": {
+          "$ref": "#/$defs/Notes"
+        },
         "goals": {
           "type": "array",
           "description": "Key project goals. Keep to 1-5.",
-          "items": { "$ref": "#/$defs/Goal" },
+          "items": {
+            "$ref": "#/$defs/Goal"
+          },
           "maxItems": 20
         },
         "worldOrder": {
           "type": "array",
-          "description": "World ids in the order they appear on the Overworld path. Every file in data/worlds/ must be listed here, and every id here must have a file data/worlds/<id>.json.",
-          "items": { "$ref": "#/$defs/Id" },
+          "description": "World ids in the order they appear on the overworld path. Every world folder data/<project-id>/<world-id>/ must be listed here, and every id here must have data/<project-id>/<world-id>/world.json.",
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
           "uniqueItems": true
         }
       }
@@ -71,61 +118,124 @@
     "Theme": {
       "description": "Visual theme of a world. Pick one matching the world's topic mood.",
       "oneOf": [
-        { "const": "grass", "description": "Green hills. Default, general work." },
-        { "const": "desert", "description": "Sand and pyramids. Long slogs, infrastructure." },
-        { "const": "water", "description": "Ocean. Research, exploration, discovery." },
-        { "const": "ice", "description": "Snow. Cleanup, hardening, maintenance." },
-        { "const": "sky", "description": "Clouds. Vision, design, big ideas." },
-        { "const": "castle", "description": "Lava castle. Launches, final pushes, high-stakes work." }
+        {
+          "const": "grass",
+          "description": "Green hills. Default, general work."
+        },
+        {
+          "const": "desert",
+          "description": "Sand and pyramids. Long slogs, infrastructure."
+        },
+        {
+          "const": "water",
+          "description": "Ocean. Research, exploration, discovery."
+        },
+        {
+          "const": "ice",
+          "description": "Snow. Cleanup, hardening, maintenance."
+        },
+        {
+          "const": "sky",
+          "description": "Clouds. Vision, design, big ideas."
+        },
+        {
+          "const": "castle",
+          "description": "Lava castle. Launches, final pushes, high-stakes work."
+        }
       ]
     },
     "World": {
       "type": "object",
-      "description": "A themed group of levels, stored at data/worlds/<id>.json. A world has one key theme or topic (e.g. 'Payments', 'Onboarding').",
+      "description": "A themed group of levels inside a project (e.g. 'Kitchen', 'Payments'), stored at data/<project-id>/<world-id>/world.json. Its levels are separate files in the same folder.",
       "additionalProperties": false,
-      "required": ["id", "name", "theme", "goalIds", "levels"],
+      "required": [
+        "id",
+        "name",
+        "theme",
+        "goalIds",
+        "levelOrder"
+      ],
       "properties": {
-        "$schema": { "type": "string", "description": "Pointer to this schema for editor tooling." },
-        "id": { "$ref": "#/$defs/Id" },
-        "name": { "$ref": "#/$defs/Title" },
-        "description": { "$ref": "#/$defs/Notes" },
-        "theme": { "$ref": "#/$defs/Theme" },
+        "$schema": {
+          "type": "string",
+          "description": "Pointer to this schema for editor tooling."
+        },
+        "id": {
+          "$ref": "#/$defs/Id",
+          "description": "World id. Must equal the world folder name."
+        },
+        "name": {
+          "$ref": "#/$defs/Title"
+        },
+        "description": {
+          "$ref": "#/$defs/Notes"
+        },
+        "theme": {
+          "$ref": "#/$defs/Theme"
+        },
         "goalIds": {
           "type": "array",
-          "description": "Ids of Overworld goals this world contributes to.",
-          "items": { "$ref": "#/$defs/Id" },
+          "description": "Ids of goals in this project's project.json that this world contributes to.",
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
           "uniqueItems": true
         },
         "unlocksAfter": {
           "type": "array",
-          "description": "Optional ids of other worlds that should be cleared first. Purely visual (world is shown locked), never prevents editing.",
-          "items": { "$ref": "#/$defs/Id" },
+          "description": "Optional ids of other worlds IN THE SAME PROJECT that should be cleared first. Purely visual (world is shown locked), never prevents editing.",
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
           "uniqueItems": true
         },
-        "levels": {
+        "levelOrder": {
           "type": "array",
-          "description": "Levels in play order. Each level = one key deliverable.",
-          "items": { "$ref": "#/$defs/Level" },
+          "description": "Level ids in play order. Each id must have a file data/<project-id>/<world-id>/<level-id>.json, and every level file in the folder must be listed here.",
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "uniqueItems": true,
           "maxItems": 50
         }
       }
     },
     "Level": {
       "type": "object",
-      "description": "One key deliverable. The level is CLEARED when every MVP success criterion is done. Keep MVP criteria to the minimum that makes the deliverable useful.",
+      "description": "One key deliverable, stored at data/<project-id>/<world-id>/<level-id>.json. The level is CLEARED when every MVP success criterion is done. Keep MVP criteria to the minimum that makes the deliverable useful.",
       "additionalProperties": false,
-      "required": ["id", "name", "deliverable", "timeboxDays", "successCriteria", "items"],
+      "required": [
+        "id",
+        "name",
+        "deliverable",
+        "timeboxDays",
+        "successCriteria",
+        "items"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/Id" },
-        "name": { "$ref": "#/$defs/Title" },
+        "$schema": {
+          "type": "string",
+          "description": "Pointer to this schema for editor tooling."
+        },
+        "id": {
+          "$ref": "#/$defs/Id",
+          "description": "Level id. Must equal the file name without .json. 'world' is reserved (it is the world.json file)."
+        },
+        "name": {
+          "$ref": "#/$defs/Title"
+        },
         "deliverable": {
           "type": "string",
           "minLength": 1,
           "maxLength": 280,
           "description": "One sentence: what exists when this level is cleared.",
-          "examples": ["A signup page that creates accounts in production"]
+          "examples": [
+            "A signup page that creates accounts in production"
+          ]
         },
-        "description": { "$ref": "#/$defs/Notes" },
+        "description": {
+          "$ref": "#/$defs/Notes"
+        },
         "timeboxDays": {
           "type": "integer",
           "minimum": 1,
@@ -145,69 +255,133 @@
           "minItems": 1,
           "maxItems": 20,
           "description": "Checks that decide the level is done. At least one must have mvp=true. MVP criteria raise the flagpole; non-MVP criteria are bonus coins.",
-          "items": { "$ref": "#/$defs/Criterion" }
+          "items": {
+            "$ref": "#/$defs/Criterion"
+          }
         },
         "items": {
           "type": "array",
           "maxItems": 200,
           "description": "Project items placed along the level, left to right by dependency order.",
-          "items": { "$ref": "#/$defs/Item" }
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
         },
-        "stats": { "$ref": "#/$defs/LevelStats" }
+        "stats": {
+          "$ref": "#/$defs/LevelStats"
+        }
       }
     },
     "Criterion": {
       "type": "object",
       "description": "A success criterion: an observable check that the deliverable is good enough.",
       "additionalProperties": false,
-      "required": ["id", "text", "mvp", "done"],
+      "required": [
+        "id",
+        "text",
+        "mvp",
+        "done"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/Id" },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
         "text": {
           "type": "string",
           "minLength": 1,
           "maxLength": 280,
           "description": "Observable, testable statement.",
-          "examples": ["A new user can sign up and log in"]
+          "examples": [
+            "A new user can sign up and log in"
+          ]
         },
         "mvp": {
           "type": "boolean",
           "description": "true = required to clear the level. false = nice-to-have bonus."
         },
-        "done": { "type": "boolean", "description": "Whether the criterion is currently met." }
+        "done": {
+          "type": "boolean",
+          "description": "Whether the criterion is currently met."
+        }
       }
     },
     "ItemType": {
       "description": "What kind of project item this is. Determines how it looks and behaves in the level.",
       "oneOf": [
-        { "const": "task", "description": "A piece of work you do. Shown as a ? block; completing it pops a coin." },
-        { "const": "deliverable", "description": "An intermediate output or milestone inside the level. Shown as a checkpoint flag." },
-        { "const": "blocker", "description": "Something stopping progress that must be resolved. Shown as a brick wall; the hero cannot pass until done or dropped." },
-        { "const": "dependency", "description": "Something you need from another team, level or external party. Shown as a pipe with a plant while unmet. Use 'link' or 'levelRef' to point at it." },
-        { "const": "risk", "description": "Something that might go wrong. Shown as a patrolling critter; 'done' means mitigated or accepted." },
-        { "const": "decision", "description": "An open question needing a decision. Shown as a signpost; the hero waits until decided." },
-        { "const": "stretch", "description": "Nice-to-have extra. Shown as floating coins. Never blocks, never earns stars. Put polish here." }
+        {
+          "const": "task",
+          "description": "A piece of work you do. Shown as a ? block; completing it pops a coin."
+        },
+        {
+          "const": "deliverable",
+          "description": "An intermediate output or milestone inside the level. Shown as a checkpoint flag."
+        },
+        {
+          "const": "blocker",
+          "description": "Something stopping progress that must be resolved. Shown as a brick wall; the hero cannot pass until done or dropped."
+        },
+        {
+          "const": "dependency",
+          "description": "Something you need from another team, level or external party. Shown as a pipe with a plant while unmet. Use 'link' or 'levelRef' to point at it."
+        },
+        {
+          "const": "risk",
+          "description": "Something that might go wrong. Shown as a patrolling critter; 'done' means mitigated or accepted."
+        },
+        {
+          "const": "decision",
+          "description": "An open question needing a decision. Shown as a signpost; the hero waits until decided."
+        },
+        {
+          "const": "stretch",
+          "description": "Nice-to-have extra. Shown as floating coins. Never blocks, never earns stars. Put polish here."
+        }
       ]
     },
     "Status": {
       "description": "Current state of an item.",
       "oneOf": [
-        { "const": "todo", "description": "Not started." },
-        { "const": "doing", "description": "In progress." },
-        { "const": "done", "description": "Finished (for risks: mitigated; for decisions: decided; for blockers/dependencies: resolved)." },
-        { "const": "dropped", "description": "Deliberately cut from scope. Counts as out of the way; cutting scope is encouraged." }
+        {
+          "const": "todo",
+          "description": "Not started."
+        },
+        {
+          "const": "doing",
+          "description": "In progress."
+        },
+        {
+          "const": "done",
+          "description": "Finished (for risks: mitigated; for decisions: decided; for blockers/dependencies: resolved)."
+        },
+        {
+          "const": "dropped",
+          "description": "Deliberately cut from scope. Counts as out of the way; cutting scope is encouraged."
+        }
       ]
     },
     "Item": {
       "type": "object",
       "description": "A project item placed in a level.",
       "additionalProperties": false,
-      "required": ["id", "type", "title", "status"],
+      "required": [
+        "id",
+        "type",
+        "title",
+        "status"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/Id" },
-        "type": { "$ref": "#/$defs/ItemType" },
-        "title": { "$ref": "#/$defs/Title" },
-        "status": { "$ref": "#/$defs/Status" },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "type": {
+          "$ref": "#/$defs/ItemType"
+        },
+        "title": {
+          "$ref": "#/$defs/Title"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
         "mvp": {
           "type": "boolean",
           "default": true,
@@ -215,22 +389,28 @@
         },
         "dependsOn": {
           "type": "array",
-          "description": "Ids of other items IN THE SAME LEVEL that must come first. Determines left-to-right placement. Must not form cycles.",
-          "items": { "$ref": "#/$defs/Id" },
+          "description": "Ids of other items IN THE SAME LEVEL FILE that must come first. Determines left-to-right placement. Must not form cycles.",
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
           "uniqueItems": true
         },
         "levelRef": {
           "type": "string",
-          "description": "For dependency items: another level this depends on, as '<world-id>/<level-id>'. Rendered as a warp pipe to that level.",
+          "description": "For dependency items: another level IN THE SAME PROJECT this depends on, as '<world-id>/<level-id>'. Rendered as a warp pipe to that level.",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$",
-          "examples": ["backend/auth-api"]
+          "examples": [
+            "backend/auth-api"
+          ]
         },
         "link": {
           "type": "string",
           "format": "uri",
           "description": "Optional URL to a ticket, doc or PR."
         },
-        "notes": { "$ref": "#/$defs/Notes" }
+        "notes": {
+          "$ref": "#/$defs/Notes"
+        }
       }
     },
     "LevelStats": {
@@ -251,8 +431,13 @@
         "itemEdits": {
           "type": "object",
           "description": "Map of item id to number of edits made after that item was done.",
-          "propertyNames": { "$ref": "#/$defs/Id" },
-          "additionalProperties": { "type": "integer", "minimum": 0 }
+          "propertyNames": {
+            "$ref": "#/$defs/Id"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     }

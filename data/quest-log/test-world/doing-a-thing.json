@@ -1,0 +1,16 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "doing-a-thing",
+  "name": "Doing a thing",
+  "deliverable": "A thing is done",
+  "timeboxDays": 5,
+  "successCriteria": [
+    {
+      "id": "users-have-fun",
+      "mvp": true,
+      "text": "Users have fun",
+      "done": false
+    }
+  ],
+  "items": []
+}

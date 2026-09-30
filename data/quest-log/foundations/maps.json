@@ -1,0 +1,36 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "maps",
+  "name": "World Maps",
+  "deliverable": "Overworld and world maps to navigate between levels",
+  "timeboxDays": 4,
+  "successCriteria": [
+    {
+      "id": "navigate",
+      "mvp": true,
+      "text": "Can reach every level from the overworld",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "overworld",
+      "title": "Overworld islands",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "world-map",
+      "title": "World node map",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "level-dep",
+      "title": "Level view",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "foundations/level-view"
+    }
+  ]
+}

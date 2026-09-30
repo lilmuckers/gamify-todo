@@ -1,4 +1,4 @@
-import type { Criterion, GameState, Goal, Item, ItemStatus, Level, Overworld, World } from './model';
+import type { Criterion, GameState, Goal, Item, ItemStatus, Level, Project, World, Workspace } from './model';
 import { clone } from './model';
 import { isCleared } from './scoring';
 
@@ -11,9 +11,10 @@ type ItemPatch = Partial<Omit<Item, 'id'>>;
 type CriterionPatch = Partial<Omit<Criterion, 'id'>>;
 type LevelPatch = Partial<Pick<Level, 'name' | 'deliverable' | 'description' | 'timeboxDays'>>;
 type WorldPatch = Partial<Pick<World, 'name' | 'description' | 'theme' | 'goalIds' | 'unlocksAfter'>>;
-type OverworldPatch = Partial<Pick<Overworld, 'title' | 'description' | 'worldOrder'>>;
+type ProjectPatch = Partial<Pick<Project, 'title' | 'description' | 'worldOrder'>>;
 
-export type OpBody =
+/** Ops that act inside one project. */
+type ProjectOpBody =
   | ({ kind: 'setItemStatus'; itemId: string; status: ItemStatus } & LevelAddr)
   | ({ kind: 'addItem'; item: Item } & LevelAddr)
   | ({ kind: 'updateItem'; itemId: string; patch: ItemPatch } & LevelAddr)
@@ -30,10 +31,17 @@ export type OpBody =
   | { kind: 'addWorld'; world: World }
   | { kind: 'updateWorld'; worldId: string; patch: WorldPatch }
   | { kind: 'deleteWorld'; worldId: string }
-  | { kind: 'updateOverworld'; patch: OverworldPatch }
+  | { kind: 'updateProject'; patch: ProjectPatch }
   | { kind: 'addGoal'; goal: Goal }
   | { kind: 'updateGoal'; goalId: string; patch: Partial<Omit<Goal, 'id'>> }
   | { kind: 'deleteGoal'; goalId: string };
+
+export type OpBody =
+  | (ProjectOpBody & { projectId: string })
+  | { kind: 'addProject'; projectId: string; project: Project }
+  | { kind: 'deleteProject'; projectId: string };
+
+type ProjectOp = ProjectOpBody & { projectId: string; opId: string; at: string };
 
 export type Op = OpBody & { opId: string; at: string };
 
@@ -68,7 +76,7 @@ function need<T>(value: T | undefined, what: string, op: Op): T {
   return value;
 }
 
-function applyLevelOp(level: Level, op: Op & LevelAddr) {
+function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
   const findItem = (id: string) =>
     need(level.items.find((i) => i.id === id), `item "${id}"`, op);
   const findCriterion = (id: string) =>
@@ -148,8 +156,21 @@ function applyLevelOp(level: Level, op: Op & LevelAddr) {
   if (!nowCleared && level.clearedAt) delete level.clearedAt;
 }
 
-/** Applies one op to a copy of `state`. Throws OpConflict if the target is gone. */
-export function applyOp(state: GameState, op: Op): GameState {
+/** Applies one op to a copy of the workspace. Throws OpConflict if the target is gone. */
+export function applyOp(ws: Workspace, op: Op): Workspace {
+  if (op.kind === 'addProject') {
+    if (ws.projects[op.projectId]) throw new OpConflict(`project id "${op.projectId}" already taken`, op);
+    return { projects: { ...ws.projects, [op.projectId]: { overworld: clone(op.project), worlds: {} } } };
+  }
+  const state = need(ws.projects[op.projectId], `project "${op.projectId}"`, op);
+  if (op.kind === 'deleteProject') {
+    const { [op.projectId]: _, ...rest } = ws.projects;
+    return { projects: rest };
+  }
+  return { projects: { ...ws.projects, [op.projectId]: applyProjectOp(state, op) } };
+}
+
+function applyProjectOp(state: GameState, op: ProjectOp): GameState {
   const next = clone(state);
   const world = (id: string) => need(next.worlds[id], `world "${id}"`, op);
 
@@ -174,7 +195,7 @@ export function applyOp(state: GameState, op: Op): GameState {
       }
       return next;
     }
-    case 'updateOverworld':
+    case 'updateProject':
       Object.assign(next.overworld, clone(op.patch));
       return next;
     case 'addGoal':
@@ -226,13 +247,13 @@ export function applyOp(state: GameState, op: Op): GameState {
 }
 
 export interface ReplayResult {
-  state: GameState;
+  state: Workspace;
   applied: Op[];
   conflicts: { op: Op; message: string }[];
 }
 
 /** Replays ops on top of `state`, skipping (and reporting) ones that no longer apply. */
-export function replay(state: GameState, ops: Op[]): ReplayResult {
+export function replay(state: Workspace, ops: Op[]): ReplayResult {
   const applied: Op[] = [];
   const conflicts: ReplayResult['conflicts'] = [];
   let current = state;
@@ -248,14 +269,14 @@ export function replay(state: GameState, ops: Op[]): ReplayResult {
   return { state: current, applied, conflicts };
 }
 
-function itemTitle(state: GameState, op: Op & LevelAddr & { itemId: string }): string {
-  const level = state.worlds[op.worldId]?.levels.find((l) => l.id === op.levelId);
+function itemTitle(ws: Workspace, op: { projectId: string; itemId: string } & LevelAddr): string {
+  const level = ws.projects[op.projectId]?.worlds[op.worldId]?.levels.find((l) => l.id === op.levelId);
   return level?.items.find((i) => i.id === op.itemId)?.title ?? op.itemId;
 }
 
 /** Human summary of an op, for commit messages and the pending list. */
-export function describeOp(op: Op, state?: GameState): string {
-  const where = 'levelId' in op ? ` (${op.worldId}/${op.levelId})` : '';
+export function describeOp(op: Op, state?: Workspace): string {
+  const where = 'levelId' in op ? ` (${op.projectId}/${op.worldId}/${op.levelId})` : ` (${op.projectId})`;
   const title = (id: string) =>
     state && 'levelId' in op ? itemTitle(state, { ...op, itemId: id } as any) : id;
   switch (op.kind) {
@@ -284,25 +305,29 @@ export function describeOp(op: Op, state?: GameState): string {
     case 'moveLevel':
       return `reorder level${where}`;
     case 'addLevel':
-      return `add level "${op.level.name}" to ${op.worldId}`;
+      return `add level "${op.level.name}" to ${op.projectId}/${op.worldId}`;
     case 'addWorld':
-      return `add world "${op.world.name}"`;
+      return `add world "${op.world.name}"${where}`;
     case 'updateWorld':
-      return `edit world ${op.worldId}`;
+      return `edit world ${op.worldId}${where}`;
     case 'deleteWorld':
-      return `delete world ${op.worldId}`;
-    case 'updateOverworld':
-      return 'edit overworld';
+      return `delete world ${op.worldId}${where}`;
+    case 'updateProject':
+      return `edit project${where}`;
     case 'addGoal':
-      return `add goal "${op.goal.title}"`;
+      return `add goal "${op.goal.title}"${where}`;
     case 'updateGoal':
-      return `edit goal ${op.goalId}`;
+      return `edit goal ${op.goalId}${where}`;
     case 'deleteGoal':
-      return `delete goal ${op.goalId}`;
+      return `delete goal ${op.goalId}${where}`;
+    case 'addProject':
+      return `add project "${op.project.title}"`;
+    case 'deleteProject':
+      return `delete project ${op.projectId}`;
   }
 }
 
-export function commitMessage(ops: Op[], state?: GameState): string {
+export function commitMessage(ops: Op[], state?: Workspace): string {
   if (ops.length === 1) return `quest: ${describeOp(ops[0], state)}`;
   return `quest: ${ops.length} updates\n\n${ops.map((o) => `- ${describeOp(o, state)}`).join('\n')}`;
 }

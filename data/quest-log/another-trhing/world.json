@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schema/quest.schema.json",
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
   "id": "another-trhing",
   "name": "another trhing",
   "theme": "desert",
@@ -7,5 +7,5 @@
   "unlocksAfter": [
     "publishing"
   ],
-  "levels": []
+  "levelOrder": []
 }

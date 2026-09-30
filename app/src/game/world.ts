@@ -6,6 +6,7 @@ import { TILE, type ThemeKey } from '../sprites/render';
 import { GROUND_Y, QuestScene, tex } from './common';
 
 export interface WorldParams {
+  projectId?: string;
   worldId?: string;
   pr?: number;
 }
@@ -59,17 +60,18 @@ export class WorldScene extends QuestScene {
       const v = this.app.pullView(p.pr);
       if (!v?.diff || !v.data) return { theme: 'warp', nodes: [] };
       const { head, base } = v.data;
+      const find = (ws: typeof head, d: LevelDiff) =>
+        ws.projects[d.projectId]?.worlds[d.worldId]?.levels.find((x) => x.id === d.levelId);
       return {
         theme: 'warp',
         nodes: v.diff.levels.map((d) => {
-          const l = (head.worlds[d.worldId]?.levels.find((x) => x.id === d.levelId) ??
-            base.worlds[d.worldId]?.levels.find((x) => x.id === d.levelId)) as Level;
+          const l = (find(head, d) ?? find(base, d)) as Level;
           return {
-            key: `${d.worldId}/${d.levelId}`,
+            key: `${d.projectId}/${d.worldId}/${d.levelId}`,
             name: l.name,
             sprite: d.change === 'removed' ? 'node-lock' : d.change === 'added' ? 'node-clear' : 'node-active',
             change: d.change,
-            onClick: () => go({ view: 'pr-level', pr: p.pr!, worldId: d.worldId, levelId: d.levelId }),
+            onClick: () => go({ view: 'pr-level', pr: p.pr!, projectId: d.projectId, worldId: d.worldId, levelId: d.levelId }),
           };
         }),
       };
@@ -89,7 +91,7 @@ export class WorldScene extends QuestScene {
           sprite: NODE_TEX[levelNodeState(w, i)],
           stars: sc.cleared ? sc.stars : undefined,
           here: l.id === active,
-          onClick: () => go({ view: 'level', worldId: w.id, levelId: l.id }),
+          onClick: () => go({ view: 'level', projectId: p.projectId!, worldId: w.id, levelId: l.id }),
         };
       }),
     };

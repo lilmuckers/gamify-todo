@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ConflictError, applyOp, makeOp, type GameState } from '@quest/shared';
+import { ConflictError, applyOp, makeOp, type Workspace } from '@quest/shared';
 import { Store, type KV } from '../src/data/store';
 import type { DataSource } from '../src/data/source';
-import { state as fixture } from '../../shared/test/fixtures';
+import { at, lvlOf, workspace as fixture } from '../../shared/test/fixtures';
 
 function memoryKV(): KV & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>();
@@ -14,7 +14,7 @@ function memoryKV(): KV & { data: Map<string, unknown> } {
 }
 
 /** Fake remote with a version counter and optional forced conflicts. */
-function fakeRemote(initial: GameState) {
+function fakeRemote(initial: Workspace) {
   let remote = { state: structuredClone(initial), version: 'v0' };
   let n = 0;
   const commits: string[] = [];
@@ -38,13 +38,12 @@ function fakeRemote(initial: GameState) {
   return {
     source,
     commits,
-    set: (s: GameState) => (remote = { state: s, version: `v${++n}` }),
+    set: (s: Workspace) => (remote = { state: s, version: `v${++n}` }),
     get: () => remote,
     failTimes: (k: number) => (failNext = k),
   };
 }
 
-const at = { worldId: 'w', levelId: 'lvl' };
 const opts = (online: { v: boolean }) => ({ online: () => online.v, debounceMs: 60_000, retryMs: 60_000 });
 
 describe('Store', () => {
@@ -85,7 +84,7 @@ describe('Store', () => {
     const started = s2.start();
     await started;
     expect(s2.outbox).toHaveLength(2);
-    expect(s2.state!.worlds.w.levels[0].items.find((i) => i.id === 'a')?.status).toBe('done');
+    expect(lvlOf(s2.state!).items.find((i) => i.id === 'a')?.status).toBe('done');
 
     online.v = true;
     await s2.sync();

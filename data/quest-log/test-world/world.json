@@ -1,0 +1,15 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "test-world",
+  "name": "Test World",
+  "theme": "castle",
+  "goalIds": [
+    "anywhere"
+  ],
+  "unlocksAfter": [
+    "mobile"
+  ],
+  "levelOrder": [
+    "doing-a-thing"
+  ]
+}

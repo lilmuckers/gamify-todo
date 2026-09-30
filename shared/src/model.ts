@@ -1,15 +1,28 @@
-import type { Overworld, World, Level, Item, Criterion, Goal } from './types.gen';
+import type { Project, World as WorldFile, Level, Item, Criterion, Goal } from './types.gen';
 
-export type { Overworld, World, Level, Item, Criterion, Goal };
+export type { Project, WorldFile, Level, Item, Criterion, Goal };
+/** The project file is what the overworld map shows. */
+export type Overworld = Project;
+/** In memory, a world carries its level files, in levelOrder. */
+export type World = Omit<WorldFile, 'levelOrder' | '$schema'> & { levels: Level[] };
 export type ItemType = Item['type'];
 export type ItemStatus = Item['status'];
 export type Theme = World['theme'];
 export type LevelStats = NonNullable<Level['stats']>;
 
-/** Whole project in memory: game.json plus every world file, keyed by world id. */
+/** One project in memory: project.json plus its worlds (with levels), keyed by world id. */
 export interface GameState {
-  overworld: Overworld;
+  overworld: Project;
   worlds: Record<string, World>;
+}
+
+/** Every project in the data folder, keyed by project id. Projects are independent. */
+export interface Workspace {
+  projects: Record<string, GameState>;
+}
+
+export function orderedProjects(ws: Workspace): GameState[] {
+  return Object.values(ws.projects).sort((a, b) => a.overworld.title.localeCompare(b.overworld.title));
 }
 
 export const ITEM_TYPES: ItemType[] = [

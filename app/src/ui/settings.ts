@@ -1,6 +1,6 @@
 import { describeOp, GitHubClient, parseRepo } from '@quest/shared';
 import type { App } from '../app';
-import { repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
+import { chosenBranch, repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
 import { h, relTime } from './dom';
 import { confirmDialog, openModal } from './modal';
 import { toast } from './toast';
@@ -10,9 +10,19 @@ export function settingsDialog(app: App) {
   const body = h('div', { class: 'settings' });
 
   if (TARGET === 'pages') {
-    const repo = h('input', { type: 'text', value: repoRef() ? `${repoRef()!.owner}/${repoRef()!.repo}` : '', placeholder: 'owner/repo' });
+    const cur = repoRef();
+    const repo = h('input', { type: 'text', value: cur ? `${cur.owner}/${cur.repo}` : '', placeholder: 'owner/repo' });
+    const branch = h('input', { type: 'text', value: chosenBranch() ?? '', placeholder: 'default branch' });
     const token = h('input', { type: 'password', value: '', placeholder: tokenStore.get() ? '•••••• (saved)' : 'github_pat_…', autocomplete: 'off' });
-    const status = h('small', { class: 'muted' }, tokenStore.get() ? 'Connected: edits commit straight to GitHub.' : 'Not connected: read-only.');
+    const status = h(
+      'small',
+      { class: 'muted' },
+      !tokenStore.get()
+        ? 'Not connected: read-only view of this site’s data.'
+        : app.caps.canEdit
+          ? `Connected to ${s.source.label}: edits commit straight to GitHub.`
+          : `Connected to ${s.source.label} read-only (token cannot push).`,
+    );
     const save = h(
       'button',
       {
@@ -21,14 +31,15 @@ export function settingsDialog(app: App) {
         onclick: async () => {
           const ref = parseRepo(repo.value);
           const t = token.value.trim() || tokenStore.get();
-          if (!ref || !t) return toast('Need repo (owner/repo) and a token', 'warn');
+          if (!ref || !t) return toast('Need a repo (owner/repo) and a token', 'warn');
           status.textContent = 'Checking…';
           try {
-            const who = await new GitHubClient(t, { ...ref, branch: repoRef()?.branch ?? 'main' }).whoami();
-            if (!who.canPush) throw new Error(`${who.login} cannot push to ${ref.owner}/${ref.repo}`);
-            setRepo(`${ref.owner}/${ref.repo}`);
+            const who = await new GitHubClient(t, { ...ref, branch: branch.value.trim() || 'main' }).whoami();
+            if (who.empty) throw new Error(`${ref.owner}/${ref.repo} has no commits yet. Add a README on GitHub first.`);
+            setRepo(`${ref.owner}/${ref.repo}`, branch.value);
             tokenStore.set(t);
-            toast(`Connected as ${who.login}`, 'win');
+            toast(who.canPush ? `Connected as ${who.login}` : `Connected read-only: ${who.login} cannot push there`, who.canPush ? 'win' : 'warn');
+            location.hash = '#/';
             location.reload();
           } catch (err) {
             status.textContent = `✗ ${(err as Error).message}`;
@@ -57,15 +68,18 @@ export function settingsDialog(app: App) {
       h(
         'p',
         { class: 'muted' },
-        'Paste a fine-grained personal access token scoped to only this repository with ',
+        'Keep your quests in any GitHub repo you own — no need to fork or clone this project. Create a repo (with a README so it has a first commit), then paste a fine-grained personal access token scoped to only that repo with ',
         h('b', null, 'Contents: read & write'),
         ', ',
         h('b', null, 'Pull requests: read & write'),
         ' and ',
         h('b', null, 'Checks: read'),
-        '. It is stored in this browser’s localStorage only and sent nowhere except api.github.com. Anyone with access to this browser profile can read it.',
+        '. Data goes in data/<project>/… (see the ',
+        h('a', { href: 'skills/quest-log/SKILL.md', target: '_blank', class: 'link' }, 'skill guide'),
+        '). The token is stored in this browser’s localStorage only and sent nowhere except api.github.com. Anyone with access to this browser profile can read it.',
       ),
       h('label', { class: 'field' }, h('span', null, 'Repository'), repo),
+      h('label', { class: 'field' }, h('span', null, 'Branch (optional)'), branch),
       h('label', { class: 'field' }, h('span', null, 'Token'), token),
       status,
       h('div', { class: 'actions' }, save, disconnect),

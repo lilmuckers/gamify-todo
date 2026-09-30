@@ -1,0 +1,17 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "publishing",
+  "name": "Publishing",
+  "description": "Get the state onto GitHub Pages and edit it locally.",
+  "theme": "sky",
+  "goalIds": [
+    "ship-v1"
+  ],
+  "unlocksAfter": [
+    "foundations"
+  ],
+  "levelOrder": [
+    "pages",
+    "docker-edit"
+  ]
+}

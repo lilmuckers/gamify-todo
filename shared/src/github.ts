@@ -1,4 +1,4 @@
-import { GAME_PATH, WORLD_PATH_RE } from './serialize';
+import { isDataPath } from './serialize';
 
 export interface RepoRef {
   owner: string;
@@ -53,8 +53,6 @@ export interface ChecksSummary {
 export type MergeMethod = 'merge' | 'squash' | 'rebase';
 export type ReviewEvent = 'APPROVE' | 'COMMENT' | 'REQUEST_CHANGES';
 
-const isDataPath = (p: string) => p === GAME_PATH || WORLD_PATH_RE.test(p);
-
 export class GitHubClient {
   private blobCache = new Map<string, string>();
 
@@ -99,13 +97,18 @@ export class GitHubClient {
     return (accept.includes('raw') ? await res.text() : await res.json()) as T;
   }
 
-  /** Checks the token works and can see the repo. Returns the login. */
-  async whoami(): Promise<{ login: string; canPush: boolean }> {
+  /** Checks the token works and can see the repo. */
+  async whoami(): Promise<{ login: string; canPush: boolean; defaultBranch: string; empty: boolean }> {
     const [user, repo] = await Promise.all([
       this.request<{ login: string }>('GET', 'https://api.github.com/user'),
-      this.request<{ permissions?: { push?: boolean } }>('GET', ''),
+      this.request<{ permissions?: { push?: boolean }; default_branch: string; size: number }>('GET', ''),
     ]);
-    return { login: user.login, canPush: !!repo.permissions?.push };
+    return {
+      login: user.login,
+      canPush: !!repo.permissions?.push,
+      defaultBranch: repo.default_branch,
+      empty: repo.size === 0,
+    };
   }
 
   async headSha(branch = this.repo.branch): Promise<string> {

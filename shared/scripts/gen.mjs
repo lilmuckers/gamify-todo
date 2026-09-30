@@ -30,8 +30,9 @@ const id = schema.$id;
 const validators =
   banner +
   standaloneCode(ajv, {
-    validateOverworld: `${id}#/$defs/Overworld`,
+    validateProject: `${id}#/$defs/Project`,
     validateWorld: `${id}#/$defs/World`,
+    validateLevel: `${id}#/$defs/Level`,
   });
 
 // Ajv's "esm" output still require()s runtime helpers; point them at our ESM shim.

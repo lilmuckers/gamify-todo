@@ -9,6 +9,8 @@ const DEFAULT_BRANCH = (import.meta.env.VITE_GH_BRANCH as string | undefined) ??
 
 const TOKEN_KEY = 'quest.github.token';
 const REPO_KEY = 'quest.github.repo';
+const BRANCH_KEY = 'quest.github.branch';
+const RESOLVED_BRANCH_KEY = 'quest.github.branch.resolved';
 const UI_KEY = 'quest.ui';
 
 function read(key: string): string | undefined {
@@ -34,13 +36,29 @@ export const tokenStore = {
   set: (token: string | undefined) => write(TOKEN_KEY, token?.trim()),
 };
 
+/**
+ * Repo holding the quest data: the one the user chose in Settings (their own
+ * repo works; no need to fork this project), else the repo this site deploys from.
+ */
 export function repoRef(): RepoRef | undefined {
   const saved = read(REPO_KEY);
-  return parseRepo(saved ?? DEFAULT_REPO ?? '', DEFAULT_BRANCH);
+  return parseRepo(saved ?? DEFAULT_REPO ?? '', read(BRANCH_KEY) || read(RESOLVED_BRANCH_KEY) || DEFAULT_BRANCH);
 }
 
-export function setRepo(value: string | undefined) {
+/** Branch explicitly chosen in Settings; empty = the repo's default branch. */
+export function chosenBranch(): string | undefined {
+  return read(BRANCH_KEY) || undefined;
+}
+
+export function setRepo(value: string | undefined, branch?: string) {
   write(REPO_KEY, value?.trim());
+  write(BRANCH_KEY, branch?.trim());
+  write(RESOLVED_BRANCH_KEY, undefined);
+}
+
+/** Remembers the default branch so offline starts use the right one. */
+export function rememberBranch(branch: string) {
+  write(RESOLVED_BRANCH_KEY, branch);
 }
 
 export interface UiPrefs {
