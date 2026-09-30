@@ -1,0 +1,22 @@
+# Local editor: http://localhost:8080
+#   docker compose up --build
+# Edits are written to ./data and committed in this repo. "Publish" pushes.
+services:
+  quest:
+    build: .
+    # Loopback only: the API can commit, push and merge PRs.
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - .:/repo
+      # SSH remotes: reuse your keys (read-only). Remove if you use HTTPS + GITHUB_TOKEN.
+      - ~/.ssh:/root/.ssh:ro
+      # Commit identity (user.name / user.email).
+      - ~/.gitconfig:/root/.gitconfig:ro
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Add your LAN hostname/IP here to open the editor from other devices.
+      ALLOWED_HOSTS: localhost,127.0.0.1
+    restart: unless-stopped

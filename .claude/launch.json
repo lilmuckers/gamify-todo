@@ -1,0 +1,66 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "app-pages",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "app",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173,
+      "url": "http://localhost:5173"
+    },
+    {
+      "name": "server",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "tsx",
+        "server/src/index.ts"
+      ],
+      "port": 8787,
+      "env": {
+        "PORT": "8787"
+      }
+    },
+    {
+      "name": "app-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "app",
+        "--",
+        "--port",
+        "5174",
+        "--strictPort"
+      ],
+      "port": 5174,
+      "env": {
+        "VITE_TARGET": "local"
+      }
+    },
+    {
+      "name": "app-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "-w",
+        "app",
+        "--",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "port": 4173
+    }
+  ]
+}
