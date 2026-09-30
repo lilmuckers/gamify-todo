@@ -1,0 +1,13 @@
+{
+  "$schema": "../../schema/quest.schema.json",
+  "id": "test-world",
+  "name": "Test World",
+  "theme": "castle",
+  "goalIds": [
+    "anywhere"
+  ],
+  "unlocksAfter": [
+    "mobile"
+  ],
+  "levels": []
+}

@@ -15,6 +15,7 @@
   "worldOrder": [
     "foundations",
     "publishing",
-    "mobile"
+    "mobile",
+    "test-world"
   ]
 }
