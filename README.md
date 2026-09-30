@@ -94,7 +94,7 @@ one MVP criterion) are checked by `npm run validate`.
 
 ```bash
 npm install
-npm run dev                  # Pages-mode app at http://localhost:5173/<repo>/
+npm run dev                  # Pages-mode app at http://localhost:5173/
 npm run dev:server           # API on :8787 against this checkout (commits here!)
 VITE_TARGET=local npm run dev   # local-editor app, proxies /api to :8787
 npm test                     # vitest: shared model, store sync, server, GitHub client
