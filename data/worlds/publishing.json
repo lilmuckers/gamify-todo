@@ -73,7 +73,7 @@
           "id": "git",
           "title": "Git commit + push",
           "type": "task",
-          "status": "todo",
+          "status": "done",
           "dependsOn": [
             "api"
           ]
