@@ -48,7 +48,7 @@
       "id": "phaser-perf",
       "title": "Phaser bundle too big for mobile",
       "type": "risk",
-      "status": "todo",
+      "status": "done",
       "mvp": false
     },
     {
