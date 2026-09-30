@@ -19,8 +19,9 @@ function detectRepo(): string | undefined {
 }
 
 const repo = process.env.VITE_GH_REPO ?? detectRepo();
-// Project pages live under /<repo>/; override with VITE_BASE for custom domains.
-const base = process.env.VITE_BASE ?? (target === 'pages' && repo ? `/${repo.split('/')[1]}/` : '/');
+// Pages builds use relative URLs so the same build works at /<repo>/ on github.io
+// and at the root of a custom domain (routing is hash-based). Override with VITE_BASE.
+const base = process.env.VITE_BASE ?? (target === 'pages' ? './' : '/');
 
 /** Serves /data and /schema from the repo in dev; copies them into the Pages build. */
 function repoData(): Plugin {
@@ -29,7 +30,7 @@ function repoData(): Plugin {
     name: 'quest-repo-data',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const url = decodeURIComponent((req.url ?? '').split('?')[0]).replace(base, '/');
+        const url = decodeURIComponent((req.url ?? '').split('?')[0]);
         const dir = dirs.find((d) => url.startsWith(`/${d}/`));
         if (!dir) return next();
         const file = join(repoRoot, url);
