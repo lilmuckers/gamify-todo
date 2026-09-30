@@ -12,6 +12,7 @@ import {
 import { THEMES } from '../sprites/pixels';
 import { TILE, type ThemeKey } from '../sprites/render';
 import { toast } from '../ui/toast';
+import { itemForm, STATUS_LABEL, TYPE_INFO } from '../ui/forms';
 import { GROUND_Y, QuestScene, tex, WORLD_H } from './common';
 
 export interface LevelParams {
@@ -50,6 +51,8 @@ export class LevelScene extends QuestScene {
   private following = true;
   private busy?: Promise<void>;
   private tooltip?: Phaser.GameObjects.Container;
+  /** Speech bubble with an item's details and quick actions. */
+  private bubble?: { itemId: string; box: Phaser.GameObjects.Container; status: Item['status'] };
   private skyGfx?: Phaser.GameObjects.Graphics;
   /** Parallax layers live outside `stage`: containers ignore child scrollFactor. */
   private parallax: Phaser.GameObjects.Image[] = [];
@@ -94,6 +97,17 @@ export class LevelScene extends QuestScene {
     });
     this.idle();
     this.watch(() => this.refresh());
+
+    // Clicking empty space, or Esc, closes the bubble; Enter completes the item.
+    this.input.on('pointerup', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+      if (!this.dragged && over.length === 0) this.closeBubble();
+    });
+    const typing = () => !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
+    this.input.keyboard?.on('keydown-ESC', () => !typing() && this.closeBubble());
+    this.input.keyboard?.on('keydown-ENTER', () => {
+      if (typing() || !this.bubble || !this.canEdit()) return;
+      this.setStatus(this.bubble.itemId, 'done');
+    });
   }
 
   protected onResize() {
@@ -109,6 +123,12 @@ export class LevelScene extends QuestScene {
     if (sig === this.sig) return;
     const changed = this.diffStatuses(cur.level);
     this.build(cur.world, cur.level, cur.diff);
+    // Keep an open bubble in step with the item (it moves when the layout does).
+    if (this.bubble) {
+      const item = cur.level.items.find((i) => i.id === this.bubble!.itemId);
+      if (!item || item.status === 'done') this.closeBubble();
+      else this.openBubble(item.id, false);
+    }
     void this.animate(cur.level, changed);
   }
 
@@ -281,10 +301,15 @@ export class LevelScene extends QuestScene {
     const hit = this.add.zone(0, e.kind === 'pipe' && view.top ? -TILE : 0, e.w * TILE, (e.h + (e.kind === 'pipe' ? 1 : 0)) * TILE).setOrigin(0, 0);
     root.add(hit);
     this.clickable(hit, () => {
-      const sel = this.app.selection;
-      this.app.select(sel?.kind === 'item' && sel.id === item.id ? undefined : { kind: 'item', id: item.id });
+      if (this.bubble?.itemId === item.id) {
+        this.closeBubble();
+        this.app.select(undefined);
+        return;
+      }
+      this.openBubble(item.id);
+      this.app.select({ kind: 'item', id: item.id });
     });
-    hit.on('pointerover', () => this.showTooltip(view));
+    hit.on('pointerover', () => this.bubble?.itemId !== item.id && this.showTooltip(view));
     hit.on('pointerout', () => this.tooltip?.destroy());
     stage.add(root);
     this.views.set(item.id, view);
@@ -299,6 +324,137 @@ export class LevelScene extends QuestScene {
     const bg = this.add.rectangle(0, 2, b.width + 8, b.height + 6, 0x1a1c2c, 0.9).setOrigin(0.5, 1).setStrokeStyle(1, 0xfee761);
     const x = Phaser.Math.Clamp(e.x * TILE + (e.w * TILE) / 2, this.cameras.main.scrollX + b.width / 2 + 6, this.cameras.main.scrollX + this.viewWidth - b.width / 2 - 6);
     this.tooltip = this.add.container(x, GROUND_Y - (e.y + e.h) * TILE - 18, [bg, t]).setDepth(100);
+  }
+
+  // ---- Speech bubble ----
+
+  private canEdit() {
+    const cur = this.current();
+    return !!cur && !cur.readonly && this.app.caps.canEdit;
+  }
+
+  private setStatus(itemId: string, status: Item['status']) {
+    const cur = this.current();
+    if (!cur) return;
+    if (status === 'done') this.closeBubble();
+    this.app.dispatch({
+      kind: 'setItemStatus',
+      projectId: cur.projectId,
+      worldId: cur.world.id,
+      levelId: cur.level.id,
+      itemId,
+      status,
+    });
+  }
+
+  private closeBubble() {
+    this.bubble?.box.destroy();
+    this.bubble = undefined;
+  }
+
+  private openBubble(itemId: string, pop = true) {
+    const cur = this.current();
+    const v = this.views.get(itemId);
+    this.bubble?.box.destroy();
+    this.bubble = undefined;
+    if (!cur || !v) return;
+    this.tooltip?.destroy();
+    const { item, entity: e } = v;
+    const edit = this.canEdit();
+    const W = 132;
+    const PAD = 6;
+    const INK = '#1a1c2c';
+    const box = this.add.container(0, 0).setDepth(150);
+    const say = (y: number, str: string, size: number, color = INK) => {
+      const t = this.text(-W / 2 + PAD, y, str, size, color, W - 2 * PAD).setOrigin(0, 0).setStroke('#ffffff', 0).setAlign('left');
+      box.add(t);
+      return y + t.displayHeight + 3;
+    };
+
+    // Content, top to bottom.
+    const info = TYPE_INFO[item.type];
+    const optional = item.type === 'stretch' || item.mvp === false;
+    let y = say(0, item.title, 5);
+    y = say(y, `${info.label.toUpperCase()} · ${STATUS_LABEL[item.status].toUpperCase()}${optional ? ' · OPTIONAL' : ''}`, 3.5, '#5a6988');
+    if (item.notes) y = say(y, item.notes.length > 160 ? `${item.notes.slice(0, 157)}...` : item.notes, 4);
+    if (item.dependsOn?.length) {
+      const names = item.dependsOn.map((id) => cur.level.items.find((i) => i.id === id)?.title ?? id);
+      y = say(y, `After: ${names.join(', ')}`, 3.5, '#5a6988');
+    }
+    if (item.levelRef) y = say(y, `Needs level ${item.levelRef}`, 3.5, '#5a6988');
+
+    // Buttons.
+    const buttons: [string, number, () => void][] = [];
+    if (edit) {
+      if (item.status === 'done' || item.status === 'dropped')
+        buttons.push([item.status === 'done' ? 'REOPEN' : 'RESTORE', 0x8b9bb4, () => this.setStatus(item.id, 'todo')]);
+      else {
+        buttons.push(['DONE!', 0x63c74d, () => this.setStatus(item.id, 'done')]);
+        if (item.status === 'todo') buttons.push(['START', 0xfeae34, () => this.setStatus(item.id, 'doing')]);
+      }
+      buttons.push([
+        'EDIT',
+        0xc0cbdc,
+        () => {
+          this.closeBubble();
+          itemForm(this.app, cur.world.id, cur.level, item);
+        },
+      ]);
+    }
+    buttons.push(['X', 0xe4a672, () => this.closeBubble()]);
+    let bx = -W / 2 + PAD;
+    let by = y + 1;
+    let bh = 0;
+    for (const [label, color, run] of buttons) {
+      const t = this.text(0, 0, label, 4.5, INK).setStroke('#ffffff', 0).setOrigin(0.5);
+      const bw = t.displayWidth + 8;
+      bh = t.displayHeight + 6;
+      // Wrap to a new row rather than overflow the bubble.
+      if (bx > -W / 2 + PAD && bx + bw > W / 2 - PAD) {
+        bx = -W / 2 + PAD;
+        by += bh + 4;
+      }
+      const rect = this.add.rectangle(bx, by, bw, bh, color).setOrigin(0).setStrokeStyle(1, 0x1a1c2c);
+      t.setPosition(bx + bw / 2, by + bh / 2);
+      this.clickable(rect, run);
+      rect.on('pointerover', () => rect.setFillStyle(Phaser.Display.Color.IntegerToColor(color).brighten(15).color));
+      rect.on('pointerout', () => rect.setFillStyle(color));
+      box.add([rect, t]);
+      bx += bw + 4;
+    }
+    const H = by + bh + PAD;
+
+    // Place above the item (tail pointing down), or below it near the top.
+    const cam = this.cameras.main;
+    const view = cam.worldView;
+    const cx = e.x * TILE + (e.w * TILE) / 2;
+    const top = GROUND_Y - (e.y + e.h) * TILE - (e.kind === 'pipe' && item.status !== 'done' ? TILE : 0);
+    const bottom = GROUND_Y - e.y * TILE;
+    const TAIL = 8;
+    const above = top - TAIL - H - PAD > view.y + 2;
+    const boxX = Phaser.Math.Clamp(cx, view.x + W / 2 + 3, view.x + view.width - W / 2 - 3);
+    const boxY = above ? top - TAIL - H + PAD : bottom + TAIL + PAD;
+    box.setPosition(boxX, boxY);
+
+    const g = this.add.graphics();
+    g.fillStyle(0xffffff, 1).lineStyle(1.5, 0x1a1c2c, 1);
+    g.fillRoundedRect(-W / 2, -PAD, W, H, 5).strokeRoundedRect(-W / 2, -PAD, W, H, 5);
+    const tx = Phaser.Math.Clamp(cx - boxX, -W / 2 + 10, W / 2 - 10);
+    const edge = above ? H - PAD : -PAD;
+    const tip = above ? edge + TAIL : edge - TAIL;
+    g.fillTriangle(tx - 5, edge, tx + 5, edge, tx, tip);
+    g.lineBetween(tx - 5, edge, tx, tip).lineBetween(tx + 5, edge, tx, tip);
+    g.lineStyle(2, 0xffffff, 1).lineBetween(tx - 4, edge, tx + 4, edge);
+    // Swallow clicks on the bubble itself so they don't close it.
+    const hit = this.add.zone(-W / 2, -PAD, W, H).setOrigin(0).setInteractive();
+    box.addAt(g, 0);
+    box.addAt(hit, 1);
+
+    if (pop) {
+      box.setScale(0.6).setAlpha(0);
+      this.tweens.add({ targets: box, scale: 1, alpha: 1, duration: 120, ease: 'Back.out' });
+    }
+    this.bubble = { itemId, box, status: item.status };
   }
 
   // ---- Animation ----
