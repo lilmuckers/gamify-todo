@@ -82,7 +82,7 @@
           "id": "ssh-mount",
           "title": "SSH keys in container",
           "type": "risk",
-          "status": "todo"
+          "status": "done"
         }
       ]
     }
