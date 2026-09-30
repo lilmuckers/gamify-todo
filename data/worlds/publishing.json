@@ -16,6 +16,7 @@
       "name": "GitHub Pages",
       "deliverable": "Read-only site deployed from main",
       "timeboxDays": 2,
+      "startedAt": "2026-09-30T22:32:11.606Z",
       "successCriteria": [
         {
           "id": "deployed",
@@ -29,7 +30,7 @@
           "id": "workflow",
           "title": "Pages workflow",
           "type": "task",
-          "status": "todo",
+          "status": "doing",
           "link": "https://tasks.patrick-mckinley.com"
         },
         {
