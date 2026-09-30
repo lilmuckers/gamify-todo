@@ -6,3 +6,4 @@ export * from './ops';
 export * from './layout';
 export * from './diff';
 export * from './github';
+export * from './worldmap';

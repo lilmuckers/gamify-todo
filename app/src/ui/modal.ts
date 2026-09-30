@@ -7,10 +7,24 @@ export interface ModalAction {
   run?: () => boolean | void | Promise<boolean | void>;
 }
 
+let open = 0;
+
+/** True while any modal is showing; the game ignores input meanwhile. */
+export const modalOpen = () => open > 0;
+
+function setOpen(delta: number) {
+  open = Math.max(0, open + delta);
+  document.dispatchEvent(new CustomEvent('quest:modal', { detail: open > 0 }));
+}
+
 export function openModal(title: string, body: Node, actions: ModalAction[] = [{ label: 'Close' }]) {
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
     overlay.remove();
     document.removeEventListener('keydown', onKey);
+    setOpen(-1);
   };
   const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
   const buttons = actions.map((a) =>
@@ -38,6 +52,7 @@ export function openModal(title: string, body: Node, actions: ModalAction[] = [{
   const overlay = h('div', { class: 'overlay', onclick: (e: Event) => e.target === overlay && close() }, dialog);
   document.body.append(overlay);
   document.addEventListener('keydown', onKey);
+  setOpen(1);
   (dialog.querySelector('input, textarea, select') as HTMLElement | null)?.focus();
   return close;
 }

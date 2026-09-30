@@ -39,9 +39,14 @@ export function startGame(app: App, parent: HTMLElement) {
     scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth, height: parent.clientHeight },
     scene: [BootScene, ProjectsScene, OverworldScene, WorldScene, LevelScene],
     banner: false,
-    input: { mouse: { preventDefaultWheel: true } },
+    // Only listen on the canvas: window-level listeners let clicks on DOM
+    // modals fall through to whatever game object sits underneath.
+    input: { windowEvents: false, mouse: { preventDefaultWheel: true } },
   });
   game.registry.set('app', app);
+  document.addEventListener('quest:modal', (e) => {
+    game.input.enabled = !(e as CustomEvent<boolean>).detail;
+  });
   // Dev only: lets tooling inspect or step the game.
   if (import.meta.env.DEV) (window as unknown as { __questGame?: Phaser.Game }).__questGame = game;
 

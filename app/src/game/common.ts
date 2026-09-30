@@ -93,8 +93,10 @@ export abstract class QuestScene extends Phaser.Scene {
       this.cameras.main.scrollX += (Math.abs(dx) > Math.abs(dy) ? dx : dy) / this.zoom;
     });
     const keys = this.input.keyboard;
-    keys?.on('keydown-LEFT', () => (onUserScroll?.(), (this.cameras.main.scrollX -= 48)));
-    keys?.on('keydown-RIGHT', () => (onUserScroll?.(), (this.cameras.main.scrollX += 48)));
+    // Leave arrow keys alone while the user is typing in a form field.
+    const typing = () => !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
+    keys?.on('keydown-LEFT', () => typing() || (onUserScroll?.(), (this.cameras.main.scrollX -= 48)));
+    keys?.on('keydown-RIGHT', () => typing() || (onUserScroll?.(), (this.cameras.main.scrollX += 48)));
     this.scale.on('resize', this.onResize, this);
     this.events.once('shutdown', () => this.scale.off('resize', this.onResize, this));
   }
