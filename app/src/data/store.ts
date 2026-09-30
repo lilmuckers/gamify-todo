@@ -261,7 +261,7 @@ export class Store {
             try {
               version = await this.source.commit(
                 changes,
-                commitMessage(r.applied, remote.state),
+                commitMessage(r.applied, r.state),
                 remote.version,
               );
             } catch (err) {
