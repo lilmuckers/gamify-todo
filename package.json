@@ -1,0 +1,26 @@
+{
+  "name": "quest-log",
+  "private": true,
+  "type": "module",
+  "workspaces": ["shared", "app", "server"],
+  "scripts": {
+    "schema:gen": "node shared/scripts/gen.mjs",
+    "schema:check": "node shared/scripts/gen.mjs --check",
+    "validate": "tsx shared/scripts/validate-data.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p shared && tsc -p app && tsc -p server",
+    "dev": "npm run dev -w app",
+    "dev:server": "npm run dev -w server",
+    "build:pages": "npm run build:pages -w app",
+    "build:local": "npm run build:local -w app"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "json-schema-to-typescript": "^15.0.4",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0",
+    "@types/node": "^22.0.0"
+  }
+}

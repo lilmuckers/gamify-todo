@@ -1,0 +1,66 @@
+{
+  "$schema": "../quest.schema.json",
+  "id": "foundations",
+  "name": "Foundations",
+  "description": "Data model and the core game view.",
+  "theme": "grass",
+  "goalIds": ["ship-v1"],
+  "levels": [
+    {
+      "id": "schema",
+      "name": "Data Schema",
+      "deliverable": "A strict JSON Schema other tools can author data against",
+      "timeboxDays": 3,
+      "startedAt": "2026-09-28T09:00:00Z",
+      "clearedAt": "2026-09-29T17:00:00Z",
+      "successCriteria": [
+        { "id": "validates", "text": "Seed data validates in CI", "mvp": true, "done": true },
+        { "id": "llm-guide", "text": "Authoring guide with an LLM prompt", "mvp": true, "done": true },
+        { "id": "vscode", "text": "VS Code autocompletes data files", "mvp": false, "done": true }
+      ],
+      "items": [
+        { "id": "draft-schema", "type": "task", "title": "Draft JSON Schema", "status": "done" },
+        { "id": "id-format", "type": "decision", "title": "Pick id format", "status": "done", "notes": "Kebab-case slugs." },
+        { "id": "semantic-checks", "type": "task", "title": "Semantic validator", "status": "done", "dependsOn": ["draft-schema"] },
+        { "id": "json-examples", "type": "stretch", "title": "Extra examples", "status": "todo" }
+      ]
+    },
+    {
+      "id": "level-view",
+      "name": "Level View",
+      "deliverable": "A level renders items as a side-scrolling platformer with an auto-walking hero",
+      "timeboxDays": 5,
+      "startedAt": "2026-09-29T09:00:00Z",
+      "successCriteria": [
+        { "id": "renders", "text": "Every item type has a distinct sprite", "mvp": true, "done": false },
+        { "id": "walks", "text": "Hero walks to the next blocking item", "mvp": true, "done": false },
+        { "id": "parallax", "text": "Parallax background", "mvp": false, "done": false }
+      ],
+      "items": [
+        { "id": "sprites", "type": "task", "title": "Procedural pixel sprites", "status": "done" },
+        { "id": "layout-algo", "type": "task", "title": "Topological layout", "status": "doing" },
+        { "id": "art-style", "type": "decision", "title": "Original art vs CC0 pack", "status": "done" },
+        { "id": "phaser-perf", "type": "risk", "title": "Phaser bundle too big for mobile", "status": "todo", "mvp": false },
+        { "id": "walk-anim", "type": "task", "title": "Hero auto-walk", "status": "todo", "dependsOn": ["layout-algo"] },
+        { "id": "schema-dep", "type": "dependency", "title": "Needs the data schema", "status": "done", "levelRef": "foundations/schema" },
+        { "id": "first-playable", "type": "deliverable", "title": "First playable level", "status": "todo", "dependsOn": ["walk-anim", "sprites"] },
+        { "id": "font-license", "type": "blocker", "title": "Confirm pixel font licence", "status": "todo" },
+        { "id": "particles", "type": "stretch", "title": "Coin particles", "status": "todo" }
+      ]
+    },
+    {
+      "id": "maps",
+      "name": "World Maps",
+      "deliverable": "Overworld and world maps to navigate between levels",
+      "timeboxDays": 4,
+      "successCriteria": [
+        { "id": "navigate", "text": "Can reach every level from the overworld", "mvp": true, "done": false }
+      ],
+      "items": [
+        { "id": "overworld", "type": "task", "title": "Overworld islands", "status": "todo" },
+        { "id": "world-map", "type": "task", "title": "World node map", "status": "todo" },
+        { "id": "level-dep", "type": "dependency", "title": "Level view", "status": "todo", "levelRef": "foundations/level-view" }
+      ]
+    }
+  ]
+}

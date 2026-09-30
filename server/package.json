@@ -1,0 +1,16 @@
+{
+  "name": "@quest/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@fastify/static": "^8.2.0",
+    "@quest/shared": "*",
+    "fastify": "^5.4.0",
+    "simple-git": "^3.28.0",
+    "tsx": "^4.20.0"
+  }
+}

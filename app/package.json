@@ -1,0 +1,21 @@
+{
+  "name": "@quest/app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build:pages": "VITE_TARGET=pages vite build",
+    "build:local": "VITE_TARGET=local vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource/press-start-2p": "^5.2.0",
+    "@quest/shared": "*",
+    "idb-keyval": "^6.2.1",
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0",
+    "vite-plugin-pwa": "^1.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "../../schema/quest.schema.json",
+  "id": "mobile",
+  "name": "Mobile",
+  "description": "Installable PWA with offline sync.",
+  "theme": "water",
+  "goalIds": ["anywhere"],
+  "unlocksAfter": ["publishing"],
+  "levels": [
+    {
+      "id": "pwa",
+      "name": "Offline PWA",
+      "deliverable": "Home-screen app that queues edits offline and syncs later",
+      "timeboxDays": 5,
+      "successCriteria": [
+        { "id": "installs", "text": "Installs on iOS and Android", "mvp": true, "done": false },
+        { "id": "offline-edit", "text": "Offline edits sync when back online", "mvp": true, "done": false }
+      ],
+      "items": [
+        { "id": "sw", "type": "task", "title": "Service worker", "status": "todo" },
+        { "id": "outbox", "type": "task", "title": "IndexedDB outbox", "status": "todo" },
+        { "id": "ios-storage", "type": "risk", "title": "iOS storage eviction", "status": "todo", "mvp": false },
+        { "id": "token-ux", "type": "decision", "title": "Token entry UX", "status": "todo" }
+      ]
+    }
+  ]
+}
