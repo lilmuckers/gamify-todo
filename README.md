@@ -89,7 +89,7 @@ for a phone the Pages PWA is the better route.
 
 ## Reviewing pull requests: the Warp Zone
 
-Open pull requests that touch `data/` appear in the **Warp Zone** (the purple island on the project select screen).
+Open pull requests that touch `data/` appear in the **Warp Zone** (the purple cartridge on the project select screen).
 Each is a **Warp World** showing only the changed levels: new items glow green, changed items are
 marked `!` with a field-by-field diff, removed items are ghosted. The review panel shows schema
 validity (checked in the browser), CI status and mergeability, and lets you approve, comment,

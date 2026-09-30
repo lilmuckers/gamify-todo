@@ -1,8 +1,9 @@
-import { isWorldLocked, orderedProjects, orderedWorlds, suggestNext, totals, worldTotals } from '@quest/shared';
+import { isWorldLocked, orderedProjects, orderedWorlds, seeded, suggestNext, totals, worldTotals } from '@quest/shared';
 import type { App } from './app';
 import { go, href } from './router';
 import { island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
+import { carpetCanvas, cartridge } from './sprites/cartridge';
 import { h, icon, mount } from './ui/dom';
 import { renderHud } from './ui/hud';
 import { renderPanel } from './ui/panels';
@@ -32,15 +33,19 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
   const r = app.route;
   const state = app.state;
   if (r.view === 'projects' && app.workspace) {
+    // Cartridges on the carpet, each tilted by its own seed.
     return h(
       'div',
-      { class: 'islands' },
+      { class: 'cart-floor', style: `background-image:url(${carpetCanvas().toDataURL()})` },
       orderedProjects(app.workspace).map((p) => {
         const t = totals(p);
+        const id = p.overworld.id;
+        const tilt = (seeded(id)() - 0.5) * 16;
+        const art = cartridge({ seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) });
         return h(
           'a',
-          { class: 'island', href: href({ view: 'overworld', projectId: p.overworld.id }) },
-          h('img', { src: island(orderedWorlds(p)[0]?.theme ?? 'grass', false).toDataURL(), class: 'pixel', alt: '' }),
+          { class: 'cart', href: href({ view: 'overworld', projectId: id }), style: `--tilt:${tilt.toFixed(1)}deg` },
+          h('img', { src: art.toDataURL(), class: 'pixel', alt: '' }),
           h('b', null, p.overworld.title),
           h('small', null, `★${t.stars}/${t.maxStars}`),
         );

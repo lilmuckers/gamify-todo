@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { isWorldLocked, orderedProjects, orderedWorlds, suggestNext, totals, worldTotals } from '@quest/shared';
+import { isWorldLocked, orderedWorlds, suggestNext, worldTotals } from '@quest/shared';
 import { go } from '../router';
 import { TILE, type ThemeKey } from '../sprites/render';
 import { islandTexture, QuestScene, WORLD_H } from './common';
@@ -137,49 +137,5 @@ export class OverworldScene extends IslandScene {
 
   protected emptyText() {
     return this.app.caps.canEdit ? 'No worlds yet: add one in the panel' : 'No worlds yet';
-  }
-}
-
-/** Title screen: an island per project, plus the Warp Zone for PR review. */
-export class ProjectsScene extends IslandScene {
-  constructor() {
-    super('projects');
-  }
-
-  protected islands(): Island[] | undefined {
-    const ws = this.app.workspace;
-    if (!ws) return;
-    const out: Island[] = orderedProjects(ws).map((p) => {
-      const t = totals(p);
-      const first = orderedWorlds(p)[0];
-      return {
-        key: p.overworld.id,
-        theme: first?.theme ?? 'grass',
-        locked: false,
-        label: 'PROJECT',
-        name: p.overworld.title,
-        stats: `${t.stars}/${t.maxStars}  LV ${t.levelsCleared}/${t.levels}`,
-        onClick: () => go({ view: 'overworld', projectId: p.overworld.id }),
-      };
-    });
-    if (out.length) out[0].here = true;
-    if (this.app.caps.canReviewPRs) {
-      const n = this.app.pulls.list?.length;
-      out.push({
-        key: '__warp',
-        theme: 'warp',
-        locked: false,
-        label: 'WARP ZONE',
-        labelColor: '#f6757a',
-        name: n === undefined ? 'Review PRs' : `${n} PR${n === 1 ? '' : 's'} to review`,
-        onClick: () => go({ view: 'prs' }),
-      });
-      void this.app.loadPulls();
-    }
-    return out;
-  }
-
-  protected emptyText() {
-    return this.app.caps.canEdit ? 'No projects yet: create one in the panel' : 'No projects yet';
   }
 }

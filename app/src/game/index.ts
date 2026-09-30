@@ -3,7 +3,8 @@ import type { App } from '../app';
 import type { Route } from '../router';
 import { BootScene } from './boot';
 import { LevelScene } from './level';
-import { OverworldScene, ProjectsScene } from './overworld';
+import { OverworldScene } from './overworld';
+import { ProjectsScene } from './projects';
 import { WorldScene } from './world';
 
 function sceneFor(route: Route): { key: string; params: object } {
