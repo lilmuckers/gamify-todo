@@ -90,7 +90,7 @@ fields**): https://tasks.patrick-mckinley.com/schema/quest.schema.json. Fetch it
 | `description` | | string | |
 | `theme` | ✓ | `grass` \| `desert` \| `water` \| `ice` \| `sky` \| `castle` | grass = general, desert = long slog/infra, water = research, ice = cleanup, sky = vision/design, castle = launch/high stakes |
 | `goalIds` | ✓ | id[] | goal ids from this project's `project.json` |
-| `unlocksAfter` | | id[] | other worlds in this project to finish first (visual only) |
+| `unlocksAfter` | | id[] | other worlds in this project to finish first. Draws the map: each world branches from the worlds it unlocks after (visual only; never blocks editing). Worlds without it start the map. |
 | `levelOrder` | ✓ | id[] | level files, in play order |
 
 ### Level (`data/<project-id>/<world-id>/<level-id>.json`)

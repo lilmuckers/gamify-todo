@@ -1,24 +1,36 @@
 import Phaser from 'phaser';
-import { isWorldLocked, orderedWorlds, suggestNext, worldTotals } from '@quest/shared';
+import { isWorldCleared, isWorldLocked, layoutWorldMap, orderedWorlds, suggestNext, worldTotals, type MapLayout } from '@quest/shared';
 import { go } from '../router';
 import { TILE, type ThemeKey } from '../sprites/render';
-import { islandTexture, QuestScene, WORLD_H } from './common';
+import { islandTexture, QuestScene } from './common';
 
-const SPACING = 8 * TILE;
+const COL = 8 * TILE;
+const ROW = 128;
+/** Room above/below the islands for labels. */
+const PAD_Y = 64;
 
 interface Island {
   key: string;
   theme: ThemeKey;
   locked: boolean;
+  cleared: boolean;
   label: string;
-  labelColor?: string;
   name: string;
   stats?: string;
   here?: boolean;
   onClick: () => void;
 }
 
-/** Sea of islands joined by a path. Subclasses decide what the islands are. */
+interface IslandMap {
+  islands: Island[];
+  layout: MapLayout;
+}
+
+/**
+ * Sea of islands. Islands sit in columns by dependency depth and dotted paths
+ * run from each world to every world that unlocks after it, so one world can
+ * open onto many.
+ */
 abstract class IslandScene extends QuestScene {
   private layer?: Phaser.GameObjects.Container;
   private sig = '';
@@ -38,72 +50,106 @@ abstract class IslandScene extends QuestScene {
   }
 
   protected onResize() {
-    super.onResize();
     this.sig = '';
     this.render();
   }
 
-  protected abstract islands(): Island[] | undefined;
+  protected abstract map(): IslandMap | undefined;
 
   private render() {
-    const islands = this.islands();
-    if (!islands) return;
-    const sig = JSON.stringify(islands.map(({ onClick: _, ...i }) => i));
+    const data = this.map();
+    if (!data) return;
+    const { islands, layout } = data;
+    const sig = JSON.stringify([islands.map(({ onClick: _, ...i }) => i), layout, this.scale.width, this.scale.height]);
     if (sig === this.sig) return;
     this.sig = sig;
 
-    const count = Math.max(1, islands.length);
-    const width = count * SPACING + 6 * TILE;
-    this.setupCamera(width, Math.min(width, 4 * SPACING + 2 * TILE));
-    const startX = Math.max(4 * TILE, (this.viewWidth - (count - 1) * SPACING) / 2);
+    // Content box: columns left to right, each column centred on y = 0.
+    const cols = Math.max(1, layout.cols);
+    const rows = Math.max(1, layout.rows);
+    const contentW = (cols - 1) * COL + 2 * COL;
+    const contentH = (rows - 1) * ROW + 2 * PAD_Y;
+    const cam = this.cameras.main;
+    const byH = this.scale.height / contentH;
+    const byW = this.scale.width / Math.min(contentW, 4 * COL + COL);
+    cam.setZoom(Math.max(0.5, Math.min(byH, byW, 3)));
+    const viewW = this.scale.width / cam.zoom;
+    const viewH = this.scale.height / cam.zoom;
+    const boundsW = Math.max(contentW, viewW);
+    const boundsH = Math.max(contentH, viewH);
+    const left = contentW < viewW ? -(viewW - contentW) / 2 : 0;
+    cam.setBounds(left, -boundsH / 2, boundsW, boundsH);
+    cam.setBackgroundColor('#2a6ec1');
+
     this.layer?.destroy();
     const layer = (this.layer = this.add.container(0, 0));
-    const W = Math.max(width, this.viewWidth) + 2 * TILE;
 
     // Sea with drifting wave marks.
-    this.cameras.main.setBackgroundColor('#2a6ec1');
     const waves = this.add.graphics();
     waves.fillStyle(0x5c94fc, 1);
     const rand = new Phaser.Math.RandomDataGenerator(['sea']);
-    for (let i = 0; i < W / 5; i++) waves.fillRect(rand.between(0, W), rand.between(-WORLD_H, 2 * WORLD_H), rand.between(4, 10), 2);
+    for (let i = 0; i < (boundsW * boundsH) / 900; i++)
+      waves.fillRect(left + rand.between(0, boundsW), rand.between(-boundsH / 2, boundsH / 2), rand.between(4, 10), 2);
     layer.add(waves);
     this.tweens.add({ targets: waves, x: 6, yoyo: true, repeat: -1, duration: 2200, ease: 'Sine.inOut' });
 
-    const pos = islands.map((_, i) => ({ x: startX + i * SPACING, y: i % 2 ? 90 : 150 }));
+    const perCol = new Map<number, number>();
+    for (const n of layout.nodes) perCol.set(n.col, (perCol.get(n.col) ?? 0) + 1);
+    const at = new Map(
+      layout.nodes.map((n) => [n.id, { x: COL + n.col * COL, y: (n.row - (perCol.get(n.col)! - 1) / 2) * ROW }]),
+    );
+    const byKey = new Map(islands.map((i) => [i.key, i]));
+
+    // Paths: gold once the dependency is cleared, faded while it's still locked.
     const path = this.add.graphics();
-    path.fillStyle(0xead4aa, 1);
-    for (let i = 0; i < pos.length - 1; i++) {
-      const a = pos[i];
-      const b = pos[i + 1];
-      const steps = Math.floor(Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y) / 7);
-      for (let s = 2; s < steps - 1; s++) path.fillRect(a.x + ((b.x - a.x) * s) / steps - 1, a.y + ((b.y - a.y) * s) / steps - 1, 3, 3);
+    for (const e of layout.edges) {
+      const a = at.get(e.from)!;
+      const b = at.get(e.to)!;
+      const from = new Phaser.Math.Vector2(a.x + 40, a.y + 4);
+      const to = new Phaser.Math.Vector2(b.x - 40, b.y + 4);
+      const curve = new Phaser.Curves.CubicBezier(
+        from,
+        new Phaser.Math.Vector2(from.x + (to.x - from.x) / 2, from.y),
+        new Phaser.Math.Vector2(from.x + (to.x - from.x) / 2, to.y),
+        to,
+      );
+      const open = byKey.get(e.from)?.cleared;
+      path.fillStyle(open ? 0xfee761 : 0xead4aa, open ? 1 : 0.55);
+      const dots = Math.max(2, Math.floor(curve.getLength() / 7));
+      for (const p of curve.getSpacedPoints(dots).slice(1, -1)) path.fillRect(p.x - 1, p.y - 1, 3, 3);
+      // Arrowhead into the dependent world.
+      path.fillTriangle(to.x + 2, to.y, to.x - 5, to.y - 4, to.x - 5, to.y + 4);
     }
     layer.add(path);
 
-    if (!islands.length) layer.add(this.text(this.viewWidth / 2, WORLD_H / 2, this.emptyText(), 6, '#ffffff', 200).setOrigin(0.5));
+    if (!islands.length) layer.add(this.text(left + boundsW / 2, 0, this.emptyText(), 6, '#ffffff', 200).setOrigin(0.5));
 
-    let focusX = pos[0]?.x ?? 0;
-    islands.forEach((isl, i) => {
-      const { x, y } = pos[i];
+    let focus = at.get(islands[0]?.key ?? '') ?? { x: 0, y: 0 };
+    for (const isl of islands) {
+      const { x, y } = at.get(isl.key)!;
       const img = this.add.image(x, y, islandTexture(this, isl.theme, isl.locked));
       this.clickable(img, isl.onClick);
       img.on('pointerover', () => img.setScale(1.08));
       img.on('pointerout', () => img.setScale(1));
       layer.add(img);
-      layer.add(this.text(x, y - 38, isl.label, 4, isl.labelColor ?? '#fee761').setOrigin(0.5, 1));
-      layer.add(this.text(x, y + 26, isl.name, 5, '#ffffff', 100).setOrigin(0.5, 0));
+      layer.add(this.text(x, y - 38, isl.label, 4, '#fee761').setOrigin(0.5, 1));
+      const name = this.text(x, y + 26, isl.name, 5, '#ffffff', 100).setOrigin(0.5, 0);
+      layer.add(name);
       if (isl.stats) {
-        layer.add(this.add.image(x - 22, y + 45, 'star').setScale(0.5));
-        layer.add(this.text(x - 14, y + 42, isl.stats, 4, '#ffffff').setOrigin(0, 0));
+        // Below the (possibly wrapped) name.
+        const sy = name.y + name.displayHeight + 3;
+        const stats = this.text(x + 5, sy, isl.stats, 4, '#ffffff').setOrigin(0.5, 0);
+        layer.add(stats);
+        layer.add(this.add.image(stats.x - stats.displayWidth / 2 - 6, sy + stats.displayHeight / 2, 'star').setScale(0.5));
       }
       if (isl.here) {
-        focusX = x;
+        focus = { x, y };
         const hero = this.add.image(x + 18, y - 4, 'hero').setOrigin(0.5, 1);
         layer.add(hero);
         this.tweens.add({ targets: hero, y: y - 8, yoyo: true, repeat: -1, duration: 400 });
       }
-    });
-    this.cameras.main.centerOnX(focusX);
+    }
+    cam.centerOn(focus.x, 0);
   }
 
   protected emptyText() {
@@ -117,17 +163,18 @@ export class OverworldScene extends IslandScene {
     super('overworld');
   }
 
-  protected islands(): Island[] | undefined {
+  protected map(): IslandMap | undefined {
     const state = this.app.state;
     const pid = this.app.projectId;
     if (!state || !pid) return;
     const next = suggestNext(state);
-    return orderedWorlds(state).map((w, i) => {
+    const islands = orderedWorlds(state).map((w, i) => {
       const t = worldTotals(w);
       return {
         key: w.id,
         theme: w.theme,
         locked: isWorldLocked(state, w),
+        cleared: isWorldCleared(w),
         label: `WORLD ${i + 1}`,
         name: w.name,
         stats: `${t.stars}/${t.maxStars}  LV ${t.cleared}/${t.levels}`,
@@ -135,6 +182,7 @@ export class OverworldScene extends IslandScene {
         onClick: () => go({ view: 'world', projectId: pid, worldId: w.id }),
       };
     });
+    return { islands, layout: layoutWorldMap(state) };
   }
 
   protected emptyText() {
