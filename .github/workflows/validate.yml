@@ -1,0 +1,41 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quest-data:
+    name: Quest data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate data against JSON Schema
+        run: npm run validate
+      - name: Data formatting (advisory)
+        run: npm run format:data:check || echo "::warning::Data files are not in canonical format; run npm run format:data"
+      - name: Generated schema code is current
+        run: npm run schema:check
+
+  code:
+    name: Typecheck & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: git config --global user.name ci && git config --global user.email ci@example.com
+      - run: npm test

@@ -2,7 +2,11 @@
   "name": "quest-log",
   "private": true,
   "type": "module",
-  "workspaces": ["shared", "app", "server"],
+  "workspaces": [
+    "shared",
+    "app",
+    "server"
+  ],
   "scripts": {
     "schema:gen": "node shared/scripts/gen.mjs",
     "schema:check": "node shared/scripts/gen.mjs --check",
@@ -12,7 +16,9 @@
     "dev": "npm run dev -w app",
     "dev:server": "npm run dev -w server",
     "build:pages": "npm run build:pages -w app",
-    "build:local": "npm run build:local -w app"
+    "build:local": "npm run build:local -w app",
+    "format:data": "tsx shared/scripts/format-data.ts",
+    "format:data:check": "tsx shared/scripts/format-data.ts --check"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

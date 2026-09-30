@@ -85,7 +85,7 @@ export class GitHubClient {
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: 'no-store',
-    });
+    } as RequestInit);
     if (!res.ok) {
       let message = res.statusText;
       try {

@@ -1,4 +1,4 @@
-import '@fontsource/press-start-2p/400.css';
+import '@fontsource/press-start-2p/latin-400.css';
 import './styles.css';
 import { App } from './app';
 import { repoRef, TARGET, tokenStore, uiPrefs } from './config';

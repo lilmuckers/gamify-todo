@@ -3,8 +3,18 @@
   "title": "Quest Log",
   "description": "Building a gamified project tracker, tracked in itself.",
   "goals": [
-    { "id": "ship-v1", "title": "Ship a usable v1 I track real work in" },
-    { "id": "anywhere", "title": "Update progress from anywhere, even offline" }
+    {
+      "id": "ship-v1",
+      "title": "Ship a usable v1 I track real work in"
+    },
+    {
+      "id": "anywhere",
+      "title": "Update progress from anywhere, even offline"
+    }
   ],
-  "worldOrder": ["foundations", "publishing", "mobile"]
+  "worldOrder": [
+    "foundations",
+    "publishing",
+    "mobile"
+  ]
 }

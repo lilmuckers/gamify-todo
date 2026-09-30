@@ -78,11 +78,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: target === 'local' ? { '/api': 'http://localhost:8787' } : undefined,
+    // Keep the browser's Host so the server's same-origin check passes.
+    proxy: target === 'local' ? { '/api': { target: 'http://localhost:8787', changeOrigin: false } } : undefined,
   },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 2000,
+    // Never inline fonts as data: URIs; the CSP only allows same-origin fonts.
+    assetsInlineLimit: (file) => (/\.(woff2?|ttf)$/.test(file) ? false : undefined),
   },
   plugins: [
     repoData(),

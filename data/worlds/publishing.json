@@ -4,8 +4,12 @@
   "name": "Publishing",
   "description": "Get the state onto GitHub Pages and edit it locally.",
   "theme": "sky",
-  "goalIds": ["ship-v1"],
-  "unlocksAfter": ["foundations"],
+  "goalIds": [
+    "ship-v1"
+  ],
+  "unlocksAfter": [
+    "foundations"
+  ],
   "levels": [
     {
       "id": "pages",
@@ -13,11 +17,26 @@
       "deliverable": "Read-only site deployed from main",
       "timeboxDays": 2,
       "successCriteria": [
-        { "id": "deployed", "text": "Site live at the Pages URL", "mvp": true, "done": false }
+        {
+          "id": "deployed",
+          "mvp": true,
+          "text": "Site live at the Pages URL",
+          "done": false
+        }
       ],
       "items": [
-        { "id": "workflow", "type": "task", "title": "Pages workflow", "status": "todo" },
-        { "id": "enable-pages", "type": "blocker", "title": "Enable Pages in repo settings", "status": "todo" }
+        {
+          "id": "workflow",
+          "title": "Pages workflow",
+          "type": "task",
+          "status": "todo"
+        },
+        {
+          "id": "enable-pages",
+          "title": "Enable Pages in repo settings",
+          "type": "blocker",
+          "status": "todo"
+        }
       ]
     },
     {
@@ -26,13 +45,41 @@
       "deliverable": "Local container that edits and commits data",
       "timeboxDays": 4,
       "successCriteria": [
-        { "id": "commits", "text": "Edits produce a git commit", "mvp": true, "done": false },
-        { "id": "pr-review", "text": "Open PRs show as warp worlds", "mvp": false, "done": false }
+        {
+          "id": "commits",
+          "mvp": true,
+          "text": "Edits produce a git commit",
+          "done": false
+        },
+        {
+          "id": "pr-review",
+          "mvp": false,
+          "text": "Open PRs show as warp worlds",
+          "done": false
+        }
       ],
       "items": [
-        { "id": "api", "type": "task", "title": "REST API", "status": "todo" },
-        { "id": "git", "type": "task", "title": "Git commit + push", "status": "todo", "dependsOn": ["api"] },
-        { "id": "ssh-mount", "type": "risk", "title": "SSH keys in container", "status": "todo" }
+        {
+          "id": "api",
+          "title": "REST API",
+          "type": "task",
+          "status": "todo"
+        },
+        {
+          "id": "git",
+          "title": "Git commit + push",
+          "type": "task",
+          "status": "todo",
+          "dependsOn": [
+            "api"
+          ]
+        },
+        {
+          "id": "ssh-mount",
+          "title": "SSH keys in container",
+          "type": "risk",
+          "status": "todo"
+        }
       ]
     }
   ]

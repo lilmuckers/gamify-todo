@@ -11,7 +11,8 @@ import type { DataSource, Loaded, LocalStatus, PullData } from './source';
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    // The server refuses mutations without this header (CSRF guard).
+    headers: { 'X-Quest-Client': '1', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 409) throw new ConflictError();
