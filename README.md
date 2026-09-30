@@ -31,7 +31,8 @@ All state lives in [`data/`](data) as JSON, validated by the JSON Schema in [`sc
 
 1. In the repo settings, set **Pages → Source** to **GitHub Actions**.
 2. Push to `main`. [`pages.yml`](.github/workflows/pages.yml) validates the data and deploys
-   `https://<owner>.github.io/<repo>/`.
+   `https://<owner>.github.io/<repo>/`, or your custom domain if one is set. The build uses relative
+   URLs, so it works at either without changes.
 
 Anyone can view it. To edit from the site (or from your phone), open **⚙ Settings** and paste a
 fine-grained personal access token limited to this repository with **Contents: read & write**,
