@@ -19,7 +19,7 @@ export interface CartSpec {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
+export function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
@@ -76,7 +76,7 @@ function glyph(ch: string): string {
   return (GLYPHS[ch] ?? '...|...|...|...|...').replace(/\|/g, '');
 }
 
-function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string, shadow?: string) {
+export function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string, shadow?: string) {
   const draw = (ox: number, oy: number, c: string) => {
     ctx.fillStyle = c;
     [...text].forEach((ch, i) => {
@@ -346,62 +346,6 @@ export function cartridge(spec: CartSpec): HTMLCanvasElement {
   // Shine.
   ctx.fillStyle = 'rgba(255,255,255,0.18)';
   ctx.fillRect(lx, ly, 2, 40);
-  cache.set(key, cv);
-  return cv;
-}
-
-/** Original home console: slot on top, power/reset buttons, LED. */
-export function consoleCanvas(on: boolean): HTMLCanvasElement {
-  const key = `console:${on}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
-  const [cv, ctx] = canvas(120, 64);
-  const K = PALETTE.k;
-  // Shadow-side base.
-  ctx.fillStyle = K;
-  ctx.fillRect(2, 14, 116, 48);
-  ctx.fillStyle = '#5a6988';
-  ctx.fillRect(3, 44, 114, 17);
-  // Top deck.
-  ctx.fillStyle = '#c0cbdc';
-  ctx.fillRect(3, 15, 114, 30);
-  ctx.fillStyle = '#dfe9f0';
-  ctx.fillRect(3, 15, 114, 2);
-  // Raised slot housing.
-  ctx.fillStyle = K;
-  ctx.fillRect(34, 4, 52, 22);
-  ctx.fillStyle = '#8b9bb4';
-  ctx.fillRect(35, 5, 50, 20);
-  ctx.fillStyle = '#c0cbdc';
-  ctx.fillRect(35, 5, 50, 2);
-  ctx.fillStyle = K;
-  ctx.fillRect(40, 10, 40, 6); // the slot
-  ctx.fillStyle = '#262b44';
-  ctx.fillRect(41, 11, 38, 4);
-  // Buttons.
-  const button = (x: number, label: string) => {
-    ctx.fillStyle = K;
-    ctx.fillRect(x, 28, 18, 10);
-    ctx.fillStyle = '#8b9bb4';
-    ctx.fillRect(x + 1, 29, 16, 8);
-    ctx.fillStyle = '#dfe9f0';
-    ctx.fillRect(x + 1, 29, 16, 1);
-    drawText(ctx, label, x + 3, 31, '#3a4466');
-  };
-  button(10, 'PWR');
-  button(92, 'RST');
-  // Grille and LED.
-  ctx.fillStyle = '#8b9bb4';
-  for (let x = 40; x < 80; x += 3) ctx.fillRect(x, 30, 2, 10);
-  ctx.fillStyle = K;
-  ctx.fillRect(8, 47, 6, 4);
-  ctx.fillStyle = on ? '#63c74d' : '#e43b44';
-  ctx.fillRect(9, 48, 4, 2);
-  // Front ports.
-  ctx.fillStyle = K;
-  ctx.fillRect(30, 50, 12, 6);
-  ctx.fillRect(78, 50, 12, 6);
-  drawText(ctx, 'QUEST-16', 44, 52, '#dfe9f0');
   cache.set(key, cv);
   return cv;
 }

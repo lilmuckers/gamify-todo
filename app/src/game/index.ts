@@ -42,6 +42,8 @@ export function startGame(app: App, parent: HTMLElement) {
     input: { mouse: { preventDefaultWheel: true } },
   });
   game.registry.set('app', app);
+  // Dev only: lets tooling inspect or step the game.
+  if (import.meta.env.DEV) (window as unknown as { __questGame?: Phaser.Game }).__questGame = game;
 
   let current = '';
   const sync = () => {

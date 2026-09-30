@@ -30,6 +30,8 @@ abstract class IslandScene extends QuestScene {
   }
 
   create() {
+    // Fades in after the console boot sequence (and harmlessly otherwise).
+    this.cameras.main.fadeIn(300);
     this.enableScrolling();
     this.render();
     this.watch(() => this.render());
