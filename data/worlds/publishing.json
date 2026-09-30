@@ -29,7 +29,8 @@
           "id": "workflow",
           "title": "Pages workflow",
           "type": "task",
-          "status": "todo"
+          "status": "todo",
+          "link": "https://tasks.patrick-mckinley.com"
         },
         {
           "id": "enable-pages",
