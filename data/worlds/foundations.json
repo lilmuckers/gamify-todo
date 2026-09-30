@@ -40,7 +40,7 @@
           "id": "draft-schema",
           "title": "Draft JSON Schema",
           "type": "task",
-          "status": "done"
+          "status": "doing"
         },
         {
           "id": "id-format",
@@ -64,7 +64,10 @@
           "type": "stretch",
           "status": "todo"
         }
-      ]
+      ],
+      "stats": {
+        "editsAfterClear": 1
+      }
     },
     {
       "id": "level-view",
