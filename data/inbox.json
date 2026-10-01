@@ -1,0 +1,11 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/inbox.schema.json",
+  "items": [
+    {
+      "id": "do-a-thing",
+      "title": "Do a thing",
+      "type": "deliverable",
+      "addedAt": "2026-10-01T16:16:03.393Z"
+    }
+  ]
+}
