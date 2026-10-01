@@ -2,6 +2,8 @@ import {
   diffWorkspaces,
   findLevel,
   HERO_IDS,
+  inverseOp,
+  UNDOABLE,
   reviewLevel,
   subLevel,
   validateWorkspace,
@@ -15,6 +17,7 @@ import {
   type PullSummary,
   type WorkspaceDiff,
   type World,
+  type Op,
   type Workspace,
 } from '@quest/shared';
 import { pageView, track, type Params } from './analytics';
@@ -27,7 +30,7 @@ import { currentRoute, href, routeProject, type Route } from './router';
 function selectionFrom(route: Route): Selection {
   return 'itemId' in route && route.itemId ? { kind: 'item', id: route.itemId } : undefined;
 }
-import { toast } from './ui/toast';
+import { toast, undoToast } from './ui/toast';
 
 export interface PullView {
   data?: PullData;
@@ -59,6 +62,37 @@ export function itemAddr(cur: LevelView) {
   };
 }
 
+/** Short toast text for an undoable edit, named by the item it touched. */
+function undoLabel(op: Op, before: Workspace): string {
+  const short = (t: string) => (t.length > 32 ? `${t.slice(0, 31)}…` : t);
+  const idea = (id: string) => short(before.inbox?.find((i) => i.id === id)?.title ?? id);
+  if (op.kind === 'inboxAdd') return `Jotted down: ${short(op.item.title)}`;
+  if (op.kind === 'inboxUpdate') return `Edited: ${idea(op.id)}`;
+  if (op.kind === 'inboxRemove') return `Crossed out: ${idea(op.ids[0])}`;
+  if (!('levelId' in op) || !('worldId' in op)) return 'Edited';
+  const state = before.projects[op.projectId];
+  const level = state && findLevel(state, op.worldId, op.levelId);
+  const parentId = 'parentId' in op ? op.parentId : undefined;
+  const list = parentId ? (level?.items.find((i) => i.id === parentId)?.subtasks ?? []) : (level?.items ?? []);
+  const title = (id: string) => list.find((i) => i.id === id)?.title ?? id;
+  switch (op.kind) {
+    case 'setItemStatus':
+      return `${STATUS_WORD[op.status]}: ${short(title(op.itemId))}`;
+    case 'setCriterion':
+      return op.done ? 'Criterion ticked' : 'Criterion unticked';
+    case 'updateItem':
+      return `Edited: ${short(title(op.itemId))}`;
+    case 'addItem':
+      return `Added: ${short(op.item.title)}`;
+    case 'deleteItem':
+      return `Deleted: ${short(title(op.itemId))}`;
+    default:
+      return 'Edited';
+  }
+}
+
+const STATUS_WORD: Record<string, string> = { todo: 'Reopened', doing: 'Started', done: 'Done', dropped: 'Dropped' };
+
 /** Which thing is selected in the level view (drives panel focus + sprite highlight). */
 export type Selection = { kind: 'item'; id: string } | { kind: 'criteria' } | undefined;
 
@@ -68,6 +102,8 @@ export class App {
   selection: Selection = selectionFrom(this.route);
   /** An item bubble is open in the level scene (Esc closes it before navigating). */
   bubbleOpen = false;
+  /** Next time the inbox page renders, put the cursor in its scribble line. */
+  focusCapture = false;
   pulls: { list?: PullSummary[]; loading: boolean; error?: string } = { loading: false };
   private pullViews = new Map<number, PullView>();
   private listeners = new Set<() => void>();
@@ -149,12 +185,24 @@ export class App {
     const before = this.store.state;
     const r = this.store.dispatch(body);
     if (r.ok) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, { ...e.params, ...meta });
+    if (r.ok && r.op && before && !meta?.undo && UNDOABLE.has(r.op.kind)) this.offerUndo(r.op, before);
     else track('edit_rejected', { reason: /no longer exists|already taken|cannot be/.test(r.error ?? '') ? 'conflict' : 'validation' });
     if (r.polish && r.polish > 0) track('polish_penalty', { points: r.polish });
     if (!r.ok) toast(r.error ?? 'Edit rejected', 'alert', 5000);
     else if (r.polish && r.polish > 0)
       toast('Perfectionism detected 🐢 — this level is already clear. Move on!', 'warn', 5000);
     return r;
+  }
+
+  /** "Done: Order tiles · UNDO": takes the edit back, or reverses it once synced. */
+  private offerUndo(op: Op, before: Workspace) {
+    const inverse = inverseOp(op, before);
+    if (!inverse) return;
+    undoToast(undoLabel(op, before), () => {
+      const retracted = this.store.retract(op.opId);
+      if (!retracted) this.dispatch(inverse, { undo: true });
+      track('undo', { kind: op.kind, mode: retracted ? 'retract' : 'inverse' });
+    });
   }
 
   private onRoute() {

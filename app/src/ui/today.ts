@@ -2,7 +2,8 @@ import { seeded, todayList, type TodayItem, type TodayLevel } from '@quest/share
 import { HEROES } from '../sprites/heroes';
 import { PALETTE } from '../sprites/pixels';
 import type { App } from '../app';
-import { href, withToday } from '../router';
+import { href, withPad, type PadPage } from '../router';
+import { inboxCount, inboxSheet } from './inbox';
 import { fmtDuration, h } from './dom';
 
 const DAY_MS = 86_400_000;
@@ -37,12 +38,11 @@ function itemHref(r: TodayItem) {
  * what's in progress and where the hero is waiting, across every project.
  * Every line deep-links to its level, item or dependency step.
  */
-export function todayPad(app: App, opts: { enter?: boolean; onClose?: () => void } = {}): HTMLElement {
+function todaySheet(app: App) {
   const ws = app.workspace;
   const list = ws ? todayList(ws) : { overdue: [], doing: [], next: [] };
   const edit = app.caps.canEdit;
   const today = new Date();
-  const tilt = -1.2 - seeded(today.toDateString())() * 2.6;
 
   const setStatus = (r: TodayItem, status: 'done' | 'doing', line: HTMLElement) => {
     const run = () =>
@@ -132,17 +132,54 @@ export function todayPad(app: App, opts: { enter?: boolean; onClose?: () => void
       : null;
 
   const empty = !list.overdue.length && !list.doing.length && !list.next.length;
+  return [
+    h('div', { class: 'pad-date' }, today.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })),
+    h('h2', { class: 'pad-title' }, "TODAY'S QUESTS"),
+    section('RUNNING OUT!!', 'late', list.overdue.map(levelLine)),
+    section('DOING', 'doing', list.doing.map(itemLine)),
+    section('NEXT UP', 'next', list.next.map(itemLine)),
+    empty && h('p', { class: 'pad-empty' }, 'Nothing on the go… pick a cartridge! ', h('span', { class: 'pad-arrow', 'aria-hidden': 'true' }, '↙')),
+    !ws && h('p', { class: 'pad-empty' }, 'Loading…'),
+  ];
+}
+
+const PAGE_LABEL: Record<PadPage, string> = { today: 'TODAY', inbox: 'INBOX' };
+
+/**
+ * The legal pad: page tabs along the top (Today, Inbox), a cross to put it
+ * away, the hero's thumbs holding it, and the sheet for the current page.
+ */
+function legalPad(app: App, page: PadPage, opts: { enter?: boolean; flip?: boolean; onClose?: () => void }): HTMLElement {
+  const tilt = -1.2 - seeded(new Date().toDateString())() * 2.6;
+  const counts: Record<PadPage, number> = { today: todayCount(app), inbox: inboxCount(app) };
   return h(
     'div',
-    { class: `legal-pad${opts.enter ? ' enter' : ''}`, style: `--tilt:${tilt.toFixed(2)}deg`, role: 'region', 'aria-label': "Today's plan" },
+    {
+      class: `legal-pad page-${page}${opts.enter ? ' enter' : ''}`,
+      style: `--tilt:${tilt.toFixed(2)}deg`,
+      role: 'region',
+      'aria-label': page === 'inbox' ? 'Inbox' : "Today's plan",
+    },
+    h(
+      'nav',
+      { class: 'pad-tabs', 'aria-label': 'Pad pages' },
+      (Object.keys(PAGE_LABEL) as PadPage[]).map((p) =>
+        h(
+          'a',
+          { class: `pad-tab tab-${p}${p === page ? ' on' : ''}`, href: href(withPad(app.route, p)), 'aria-current': p === page ? 'page' : undefined },
+          PAGE_LABEL[p],
+          counts[p] ? h('b', null, counts[p]) : null,
+        ),
+      ),
+    ),
     h('div', { class: 'pad-binding', 'aria-hidden': 'true' }),
     h(
       'a',
       {
         class: 'pad-close',
-        href: href(withToday(app.route, false)),
+        href: href(withPad(app.route, undefined)),
         title: 'Put it away (Esc)',
-        'aria-label': "Close today's plan",
+        'aria-label': 'Put the pad away',
         onclick: (e: Event) => {
           if (!opts.onClose) return;
           e.preventDefault();
@@ -154,17 +191,7 @@ export function todayPad(app: App, opts: { enter?: boolean; onClose?: () => void
     // Your hero's thumbs, holding the pad up.
     h('span', { class: 'pad-thumb left', 'aria-hidden': 'true' }),
     h('span', { class: 'pad-thumb right', 'aria-hidden': 'true' }),
-    h(
-      'div',
-      { class: 'pad-sheet' },
-      h('div', { class: 'pad-date' }, today.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })),
-      h('h2', { class: 'pad-title' }, "TODAY'S QUESTS"),
-      section('RUNNING OUT!!', 'late', list.overdue.map(levelLine)),
-      section('DOING', 'doing', list.doing.map(itemLine)),
-      section('NEXT UP', 'next', list.next.map(itemLine)),
-      empty && h('p', { class: 'pad-empty' }, 'Nothing on the go… pick a cartridge! ', h('span', { class: 'pad-arrow', 'aria-hidden': 'true' }, '↙')),
-      !ws && h('p', { class: 'pad-empty' }, 'Loading…'),
-    ),
+    h('div', { class: `pad-sheet${opts.flip ? ' flip' : ''}` }, page === 'inbox' ? inboxSheet(app) : todaySheet(app)),
   );
 }
 
@@ -172,8 +199,8 @@ export function todayPad(app: App, opts: { enter?: boolean; onClose?: () => void
  * Holds today's plan up over whatever screen is showing, whenever the route
  * has the today flag. Clicking the backdrop or the cross puts it away.
  */
-export function mountTodayOverlay(app: App, host: HTMLElement) {
-  let open = false;
+export function mountPadOverlay(app: App, host: HTMLElement) {
+  let open: PadPage | undefined;
   let queued = false;
   host.classList.add('today-overlay');
   host.hidden = true;
@@ -183,7 +210,7 @@ export function mountTodayOverlay(app: App, host: HTMLElement) {
 
   const close = () => {
     const pad = host.querySelector('.legal-pad');
-    const done = () => (location.hash = href(withToday(app.route, false)));
+    const done = () => (location.hash = href(withPad(app.route, undefined)));
     if (!pad || matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
     pad.classList.add('leaving');
     host.classList.add('leaving');
@@ -192,23 +219,29 @@ export function mountTodayOverlay(app: App, host: HTMLElement) {
 
   const render = () => {
     queued = false;
-    const show = !!app.route.today;
-    host.hidden = !show;
+    const page = app.route.pad;
+    host.hidden = !page;
     host.classList.remove('leaving');
-    if (!show) {
-      open = false;
+    if (!page) {
+      open = undefined;
       host.replaceChildren();
       return;
     }
-    // Keep the reader's place on the pad across updates.
-    const scroll = host.querySelector('.pad-sheet')?.scrollTop ?? 0;
-    const pad = todayPad(app, { enter: !open, onClose: close });
+    // Keep the reader's place, and whatever they're typing, across updates.
+    const scroll = open === page ? (host.querySelector('.pad-sheet')?.scrollTop ?? 0) : 0;
+    const kept = keepFields(host);
+    const pad = legalPad(app, page, { enter: !open, flip: !!open && open !== page, onClose: close });
     const skin = HEROES[app.heroId]?.colors?.['3'] ?? PALETTE.s;
     pad.style.setProperty('--skin', skin);
     host.replaceChildren(pad);
+    kept.restore(host);
     const sheet = host.querySelector('.pad-sheet');
     if (sheet) sheet.scrollTop = scroll;
-    open = true;
+    if (page === 'inbox' && app.focusCapture) {
+      app.focusCapture = false;
+      host.querySelector<HTMLInputElement>('.pad-scribble')?.focus();
+    }
+    open = page;
   };
   app.subscribe(() => {
     if (queued) return;
@@ -216,6 +249,30 @@ export function mountTodayOverlay(app: App, host: HTMLElement) {
     setTimeout(render, 0);
   });
   render();
+}
+
+type Keepable = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+/** Carries [data-keep] field values, focus and cursor over a re-render. */
+function keepFields(root: HTMLElement) {
+  const active = document.activeElement as Keepable | null;
+  const activeKey = active && root.contains(active) ? active.dataset.keep : undefined;
+  const values = new Map<string, { value: string; start: number | null; end: number | null }>();
+  for (const el of root.querySelectorAll<Keepable>('[data-keep]'))
+    values.set(el.dataset.keep!, { value: el.value, start: 'selectionStart' in el ? el.selectionStart : null, end: 'selectionEnd' in el ? el.selectionEnd : null });
+  return {
+    restore(next: HTMLElement) {
+      for (const el of next.querySelectorAll<Keepable>('[data-keep]')) {
+        const k = values.get(el.dataset.keep!);
+        if (!k) continue;
+        el.value = k.value;
+        if (el.dataset.keep === activeKey) {
+          el.focus({ preventScroll: true });
+          if ('setSelectionRange' in el && k.start !== null) el.setSelectionRange(k.start, k.end);
+        }
+      }
+    },
+  };
 }
 
 /** Overdue levels plus items in progress: the HUD badge count. */

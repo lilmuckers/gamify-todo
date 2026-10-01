@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tasks.patrick-mckinley.com/schema/quest.schema.json",
   "title": "Quest Log data",
-  "description": "Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.",
+  "description": "Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings, and an optional data/inbox.json holds captured ideas not yet placed in a level. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.",
   "oneOf": [
     {
       "$ref": "#/$defs/Project"
@@ -15,6 +15,9 @@
     },
     {
       "$ref": "#/$defs/Settings"
+    },
+    {
+      "$ref": "#/$defs/Inbox"
     }
   ],
   "$defs": {
@@ -569,6 +572,61 @@
         "hero": {
           "$ref": "#/$defs/HeroId",
           "description": "Default player character for everyone viewing this repo. A viewer's own choice (saved in their browser) wins in read-only mode."
+        }
+      }
+    },
+    "InboxItem": {
+      "type": "object",
+      "description": "A captured idea waiting to be placed in a level. Only the basics: placing it in a level turns it into a full item.",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id",
+          "description": "Unique within the inbox."
+        },
+        "type": {
+          "$ref": "#/$defs/ItemType"
+        },
+        "title": {
+          "$ref": "#/$defs/Title"
+        },
+        "notes": {
+          "$ref": "#/$defs/Notes"
+        },
+        "link": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional URL (e.g. something shared to the app)."
+        },
+        "addedAt": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "When it was captured."
+        }
+      }
+    },
+    "Inbox": {
+      "type": "object",
+      "description": "Repo-wide inbox of captured ideas, stored at data/inbox.json (optional). Items move out of here when they are placed in a level.",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Optional pointer to this schema, for editor autocompletion."
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/InboxItem"
+          }
         }
       }
     }

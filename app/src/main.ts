@@ -12,6 +12,7 @@ import { LocalApiSource } from './data/local';
 import type { DataSource } from './data/source';
 import { StaticSource } from './data/static';
 import { Store } from './data/store';
+import { prefillCapture } from './ui/inbox';
 
 async function createSource(): Promise<DataSource> {
   if (TARGET === 'local') return new LocalApiSource().init();
@@ -33,11 +34,22 @@ function useMobile(): boolean {
 async function main() {
   const root = document.getElementById('app')!;
   const mobile = useMobile();
+  // Something shared to the installed app lands in the inbox, ready to save.
+  const shared = new URLSearchParams(location.search);
+  const sharedTitle = shared.get('share-title') || shared.get('share-text');
+  const sharedUrl = shared.get('share-url') || (shared.get('share-text')?.match(/https?:\/\/\S+/)?.[0] ?? '');
+  if (sharedTitle || sharedUrl) {
+    prefillCapture((sharedTitle ?? sharedUrl).replace(sharedUrl, '').trim() || sharedUrl, sharedUrl || undefined);
+    for (const k of ['share-title', 'share-text', 'share-url']) shared.delete(k);
+    const query = shared.toString();
+    history.replaceState(history.state, '', `${location.pathname}${query ? `?${query}` : ''}#/~inbox`);
+  }
   // Phones open on today's plan.
-  if (mobile && /^#?\/?$/.test(location.hash)) history.replaceState(history.state, '', '#/~today');
+  else if (mobile && /^#?\/?$/.test(location.hash)) history.replaceState(history.state, '', '#/~today');
   const store = new Store(await createSource(), browserKV());
   store.attachBrowserEvents();
   const app = new App(store);
+  if (sharedTitle || sharedUrl) app.focusCapture = true;
   const userProps = () => ({
     app_mode: TARGET === 'local' ? 'local' : store.caps.canEdit ? 'github' : 'readonly',
     layout: mobile ? 'mobile' : 'desktop',

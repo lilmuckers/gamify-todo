@@ -63,6 +63,33 @@ describe('Store', () => {
     expect(store.status).toBe('synced');
   });
 
+  it('retracts an unsynced edit so nothing is committed', async () => {
+    const remote = fakeRemote(fixture());
+    const store = new Store(remote.source, memoryKV(), opts({ v: true }));
+    await store.start();
+    const r = store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' });
+    expect(store.state!.projects.p.worlds.w.levels[0].items[0].status).toBe('done');
+    expect(store.retract(r.op!.opId)).toBe(true);
+    expect(store.state!.projects.p.worlds.w.levels[0].items[0].status).toBe('todo');
+    expect(store.outbox).toHaveLength(0);
+    await store.sync();
+    expect(remote.commits).toHaveLength(0);
+    // Already gone: nothing to retract.
+    expect(store.retract(r.op!.opId)).toBe(false);
+  });
+
+  it("won't retract an edit that is being committed", async () => {
+    const remote = fakeRemote(fixture());
+    const store = new Store(remote.source, memoryKV(), opts({ v: true }));
+    await store.start();
+    const r = store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' });
+    const syncing = store.sync();
+    expect(store.retract(r.op!.opId)).toBe(false);
+    await syncing;
+    expect(remote.commits).toHaveLength(1);
+    expect(store.retract(r.op!.opId)).toBe(false);
+  });
+
   it('queues offline, survives reload, and replays onto a changed remote', async () => {
     const remote = fakeRemote(fixture());
     const kv = memoryKV();

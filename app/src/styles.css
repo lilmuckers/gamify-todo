@@ -1490,7 +1490,8 @@ a:focus-visible {
 /* The pad is held from below: it rises from the bottom edge and sways a little. */
 .today-overlay .legal-pad {
   width: min(540px, 100%);
-  max-height: calc(100% - 28px);
+  max-height: calc(100% - 56px);
+  min-height: min(460px, calc(100% - 56px));
   margin-bottom: -26px;
   transform-origin: 50% 100%;
   animation: pad-hold 5s ease-in-out infinite alternate;
@@ -1504,6 +1505,7 @@ a:focus-visible {
   animation: pad-down 220ms ease-in forwards;
 }
 .today-overlay .pad-sheet {
+  flex: 1;
   padding-bottom: 54px;
 }
 @keyframes pad-up {
@@ -1609,4 +1611,227 @@ a:focus-visible {
 .checks.deps .loop {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/* Toast with an action (UNDO). */
+.toast-action {
+  pointer-events: auto;
+  margin-left: 12px;
+  font: 9px var(--pixel);
+  padding: 4px 8px;
+  background: var(--gold);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  cursor: pointer;
+}
+.toast-action:hover {
+  background: var(--gold-hi);
+}
+
+/* ---------- Pad pages: Today and Inbox ---------- */
+.pad-tabs {
+  position: absolute;
+  top: -27px;
+  left: 22px;
+  display: flex;
+  gap: 6px;
+  z-index: 1;
+}
+.pad-tab {
+  position: relative;
+  padding: 2px 14px 6px;
+  border: 2px solid rgba(26, 28, 44, 0.35);
+  border-bottom: none;
+  border-radius: 9px 9px 0 0;
+  font: 700 19px/1 'Caveat', cursive;
+  color: var(--ink-blue);
+  text-decoration: none;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.25);
+  transform: translateY(4px);
+  transition: transform 120ms;
+}
+.pad-tab.on,
+.pad-tab:hover {
+  transform: translateY(0);
+}
+.pad-tab.tab-today {
+  background: #fdf3a7;
+}
+.pad-tab.tab-inbox {
+  background: #fde4e1;
+}
+.pad-tab b {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--pen-red);
+  color: #fff;
+  font: 700 13px/18px 'Caveat', cursive;
+}
+
+/* The inbox page is pink paper, same blue rules. */
+.legal-pad.page-inbox .pad-sheet {
+  background-color: #fde4e1;
+}
+.pad-sheet.flip {
+  transform-origin: 50% 0;
+  animation: pad-flip 260ms ease-out;
+}
+@keyframes pad-flip {
+  from {
+    transform: perspective(900px) rotateX(70deg);
+    opacity: 0.3;
+  }
+}
+.pad-sub {
+  margin: -6px 0 2px;
+  font-size: 18px;
+  opacity: 0.7;
+}
+
+/* Scribble line: where new ideas get written. */
+.pad-capture {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 4px -4px;
+}
+.legal-pad .pad-scribble {
+  flex: 1;
+  width: auto;
+  box-shadow: none;
+  min-width: 140px;
+  height: var(--line);
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed rgba(31, 58, 147, 0.5);
+  font: 24px/var(--line) 'Caveat', cursive;
+  color: var(--ink-blue);
+  outline: none;
+}
+.legal-pad .pad-scribble::placeholder {
+  color: rgba(31, 58, 147, 0.45);
+}
+.legal-pad .pad-scribble:focus {
+  outline: none;
+  box-shadow: none;
+  border-bottom-style: solid;
+}
+.legal-pad .pad-type,
+.legal-pad .pad-edit select,
+.legal-pad .pad-edit input {
+  width: auto;
+  height: auto;
+  box-shadow: none;
+  font: 18px 'Caveat', cursive;
+  color: var(--ink-blue);
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(31, 58, 147, 0.35);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.pad-pen {
+  background: none;
+  border: none;
+  padding: 0 4px;
+  font: 700 22px/1 'Caveat', cursive;
+  color: var(--ink-blue);
+  cursor: pointer;
+}
+.pad-pen.small {
+  font-size: 18px;
+  text-decoration: underline;
+}
+.pad-pen:hover {
+  color: var(--pen-red);
+}
+.pad-shared {
+  flex-basis: 100%;
+  font-size: 17px;
+  opacity: 0.8;
+  overflow-wrap: anywhere;
+}
+
+.pad-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pad-line.inbox .pad-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pad-line.inbox.picked {
+  /* Highlighter pen. */
+  background: linear-gradient(transparent 20%, rgba(255, 235, 59, 0.55) 20% 85%, transparent 85%);
+}
+.pad-icon {
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+}
+.pad-cross {
+  margin-left: auto;
+  color: var(--pen-red);
+  font-size: 20px;
+}
+.pad-where a {
+  color: inherit;
+}
+.pad-box-svg.on path:last-child {
+  opacity: 1;
+}
+.pad-edit {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 4px 0 8px;
+}
+
+/* Action bar: place the selected ideas somewhere. */
+.pad-actions {
+  position: sticky;
+  bottom: -54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px -18px 0 -62px;
+  padding: 8px 18px 50px 62px;
+  background: inherit;
+  border-top: 2px dashed rgba(31, 58, 147, 0.35);
+}
+.legal-pad.page-inbox .pad-actions {
+  background: #fde4e1;
+}
+.pad-do {
+  margin-left: auto;
+  padding: 0 14px;
+  font: 700 22px/32px 'Caveat', cursive;
+  color: var(--pen-red);
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px solid var(--pen-red);
+  border-radius: 50% 44% 56% 47% / 60% 48% 52% 46%;
+  cursor: pointer;
+  transform: rotate(-2deg);
+}
+.pad-do:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.pad-do:not(:disabled):hover {
+  background: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pad-sheet.flip {
+    animation: none;
+  }
 }

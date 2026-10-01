@@ -5,7 +5,7 @@ import { h, mount } from './ui/dom';
 import { renderHud } from './ui/hud';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
-import { mountTodayOverlay } from './ui/today';
+import { mountPadOverlay } from './ui/today';
 
 export function mountDesktop(app: App, root: HTMLElement) {
   const hud = h('header', { class: 'hud' });
@@ -20,7 +20,7 @@ export function mountDesktop(app: App, root: HTMLElement) {
     renderGameNav(app, nav);
     return renderPanel(app);
   });
-  mountTodayOverlay(app, today);
+  mountPadOverlay(app, today);
   // Before the game starts, so Esc reaches us before Phaser's own key handling.
   bindNavKeys(app);
   startGame(app, game);

@@ -34,11 +34,11 @@ export const STATUS_LABEL: Record<Item['status'], string> = {
   dropped: 'Dropped',
 };
 
-function field(label: string, input: HTMLElement, hint?: string) {
+export function field(label: string, input: HTMLElement, hint?: string) {
   return h('label', { class: 'field' }, h('span', null, label), input, hint && h('small', null, hint));
 }
 
-function text(value = '', opts: { max?: number; required?: boolean; placeholder?: string } = {}) {
+export function text(value = '', opts: { max?: number; required?: boolean; placeholder?: string } = {}) {
   return h('input', {
     type: 'text',
     value,
@@ -48,11 +48,11 @@ function text(value = '', opts: { max?: number; required?: boolean; placeholder?
   });
 }
 
-function area(value = '', max = 4000) {
+export function area(value = '', max = 4000) {
   return h('textarea', { rows: 3, maxLength: max }, value);
 }
 
-function select<T extends string>(options: { value: T; label: string }[], value?: T) {
+export function select<T extends string>(options: { value: T; label: string }[], value?: T) {
   return h(
     'select',
     null,
@@ -125,10 +125,10 @@ const checked = (box: HTMLElement) =>
   [...box.querySelectorAll<HTMLInputElement>('input:checked')].map((i) => i.value);
 
 const orUndef = <T>(arr: T[]) => (arr.length ? arr : undefined);
-const trimOrUndef = (s: string) => s.trim() || undefined;
+export const trimOrUndef = (s: string) => s.trim() || undefined;
 
 /** Returns false (keep modal open) when a required input is empty. */
-function requireFilled(...inputs: (HTMLInputElement | HTMLTextAreaElement)[]) {
+export function requireFilled(...inputs: (HTMLInputElement | HTMLTextAreaElement)[]) {
   for (const i of inputs)
     if (!i.value.trim()) {
       i.focus();
@@ -265,7 +265,7 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
   openModal(item ? (inSub ? 'Edit step' : 'Edit item') : inSub ? `New step for "${cur.sub!.dep.title}"` : 'New item', body, actions);
 }
 
-function stripUndefined<T extends object>(o: T): T {
+export function stripUndefined<T extends object>(o: T): T {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 }
 

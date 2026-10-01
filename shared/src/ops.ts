@@ -1,5 +1,5 @@
-import type { Criterion, GameState, Goal, Item, ItemStatus, Level, Project, Settings, World, Workspace } from './model';
-import { clone } from './model';
+import type { Criterion, GameState, Goal, InboxItem, Item, ItemStatus, Level, Project, Settings, World, Workspace } from './model';
+import { clone, uniqueId } from './model';
 import { isCleared } from './scoring';
 
 interface LevelAddr {
@@ -22,7 +22,14 @@ type ProjectPatch = Partial<Pick<Project, 'title' | 'description' | 'worldOrder'
 /** Ops that act inside one project. */
 type ProjectOpBody =
   | ({ kind: 'setItemStatus'; itemId: string; status: ItemStatus } & ItemAddr)
-  | ({ kind: 'addItem'; item: Item } & ItemAddr)
+  | ({
+      kind: 'addItem';
+      item: Item;
+      /** Position in the list; end when omitted. */
+      index?: number;
+      /** Siblings that wait for this item again (when undoing a delete). */
+      dependents?: string[];
+    } & ItemAddr)
   | ({ kind: 'updateItem'; itemId: string; patch: ItemPatch } & ItemAddr)
   | ({ kind: 'deleteItem'; itemId: string } & ItemAddr)
   | ({ kind: 'setCriterion'; criterionId: string; done: boolean } & LevelAddr)
@@ -47,7 +54,13 @@ export type OpBody =
   | { kind: 'addProject'; projectId: string; project: Project }
   | { kind: 'deleteProject'; projectId: string }
   /** Repo-wide settings (data/settings.json). Undefined values remove keys. */
-  | { kind: 'updateSettings'; patch: Partial<Omit<Settings, '$schema'>> };
+  | { kind: 'updateSettings'; patch: Partial<Omit<Settings, '$schema'>> }
+  /** Inbox (data/inbox.json): captured ideas waiting to be placed. */
+  | { kind: 'inboxAdd'; item: InboxItem; index?: number }
+  | { kind: 'inboxUpdate'; id: string; patch: Partial<Omit<InboxItem, 'id'>> }
+  | { kind: 'inboxRemove'; ids: string[] }
+  /** Moves inbox items into a level (or a dependency's steps) as to-do items. */
+  | ({ kind: 'inboxPlace'; ids: string[]; projectId: string } & ItemAddr);
 
 type ProjectOp = ProjectOpBody & { projectId: string; opId: string; at: string };
 
@@ -127,7 +140,11 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
         throw new OpConflict('steps inside a dependency cannot be dependencies themselves', op);
       if (list().some((i) => i.id === op.item.id))
         throw new OpConflict(`${parent ? 'step' : 'item'} id "${op.item.id}" already taken`, op);
-      list().push(clone(op.item));
+      if (op.index === undefined || op.index >= list().length) list().push(clone(op.item));
+      else list().splice(Math.max(0, op.index), 0, clone(op.item));
+      for (const sibling of list())
+        if (op.dependents?.includes(sibling.id) && !sibling.dependsOn?.includes(op.item.id))
+          sibling.dependsOn = [...(sibling.dependsOn ?? []), op.item.id];
       break;
     case 'updateItem': {
       const item = findItem(op.itemId);
@@ -186,7 +203,61 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
 }
 
 /** Applies one op to a copy of the workspace. Throws OpConflict if the target is gone. */
+function withInbox(ws: Workspace, inbox: InboxItem[]): Workspace {
+  const { inbox: _, ...rest } = ws;
+  return inbox.length ? { ...rest, inbox } : rest;
+}
+
+function applyInboxOp(ws: Workspace, op: Op & { kind: 'inboxAdd' | 'inboxUpdate' | 'inboxRemove' | 'inboxPlace' }): Workspace {
+  const inbox = clone(ws.inbox ?? []);
+  const find = (id: string) => need(inbox.find((i) => i.id === id), `inbox item "${id}"`, op);
+  switch (op.kind) {
+    case 'inboxAdd':
+      if (inbox.some((i) => i.id === op.item.id)) throw new OpConflict(`inbox id "${op.item.id}" already taken`, op);
+      inbox.splice(op.index ?? inbox.length, 0, clone(op.item));
+      return withInbox(ws, inbox);
+    case 'inboxUpdate': {
+      const item = find(op.id);
+      Object.assign(item, clone(op.patch));
+      for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (item as any)[k];
+      return withInbox(ws, inbox);
+    }
+    case 'inboxRemove':
+      for (const id of op.ids) find(id);
+      return withInbox(ws, inbox.filter((i) => !op.ids.includes(i.id)));
+    case 'inboxPlace': {
+      // Each captured idea becomes a to-do item via the normal addItem path,
+      // so level stats and start times behave exactly as for a new item.
+      const placed = op.ids.map(find);
+      const level = ws.projects[op.projectId]?.worlds[op.worldId]?.levels.find((l) => l.id === op.levelId);
+      need(level, `level "${op.levelId}"`, op);
+      const parent = op.parentId ? level!.items.find((i) => i.id === op.parentId) : undefined;
+      const taken = (parent ? (parent.subtasks ?? []) : level!.items).map((i) => i.id);
+      let next = ws;
+      for (const p of placed) {
+        const id = uniqueId(p.id, taken);
+        taken.push(id);
+        // Steps can't be dependencies themselves.
+        const type = op.parentId && p.type === 'dependency' ? 'task' : p.type;
+        const item: Item = { id, type, title: p.title, status: 'todo', ...(p.link ? { link: p.link } : {}), ...(p.notes ? { notes: p.notes } : {}) };
+        next = applyOp(next, {
+          ...op,
+          kind: 'addItem',
+          projectId: op.projectId,
+          worldId: op.worldId,
+          levelId: op.levelId,
+          ...(op.parentId ? { parentId: op.parentId } : {}),
+          item,
+        } as Op);
+      }
+      return withInbox(next, inbox.filter((i) => !op.ids.includes(i.id)));
+    }
+  }
+}
+
 export function applyOp(ws: Workspace, op: Op): Workspace {
+  if (op.kind === 'inboxAdd' || op.kind === 'inboxUpdate' || op.kind === 'inboxRemove' || op.kind === 'inboxPlace')
+    return applyInboxOp(ws, op);
   if (op.kind === 'updateSettings') {
     const settings = { ...ws.settings, ...clone(op.patch) };
     for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (settings as any)[k];
@@ -281,6 +352,66 @@ function applyProjectOp(state: GameState, op: ProjectOp): GameState {
   }
 }
 
+/** Op kinds the app offers to undo. */
+export const UNDOABLE = new Set<Op['kind']>([
+  'setItemStatus',
+  'setCriterion',
+  'updateItem',
+  'addItem',
+  'deleteItem',
+  'inboxAdd',
+  'inboxUpdate',
+  'inboxRemove',
+]);
+
+/**
+ * The op that reverses `op`, given the workspace just before it was applied.
+ * Undefined when the op can't be reversed (or its target was already gone).
+ */
+export function inverseOp(op: OpBody, before: Workspace): OpBody | undefined {
+  const inbox = before.inbox ?? [];
+  if (op.kind === 'inboxAdd') return { kind: 'inboxRemove', ids: [op.item.id] };
+  if (op.kind === 'inboxUpdate') {
+    const prev = inbox.find((i) => i.id === op.id) as Record<string, unknown> | undefined;
+    return prev && { kind: 'inboxUpdate', id: op.id, patch: Object.fromEntries(Object.keys(op.patch).map((k) => [k, clone(prev[k])])) };
+  }
+  if (op.kind === 'inboxRemove') {
+    if (op.ids.length !== 1) return;
+    const index = inbox.findIndex((i) => i.id === op.ids[0]);
+    return index < 0 ? undefined : { kind: 'inboxAdd', item: clone(inbox[index]), index };
+  }
+  if (op.kind === 'inboxPlace' || !('levelId' in op) || !('worldId' in op)) return;
+  const level = before.projects[op.projectId]?.worlds[op.worldId]?.levels.find((l) => l.id === op.levelId);
+  if (!level) return;
+  const parentId = 'parentId' in op ? op.parentId : undefined;
+  const list: Item[] = parentId ? ((level.items.find((i) => i.id === parentId)?.subtasks ?? []) as Item[]) : level.items;
+  const at = { projectId: op.projectId, worldId: op.worldId, levelId: op.levelId, ...(parentId ? { parentId } : {}) };
+  switch (op.kind) {
+    case 'setItemStatus': {
+      const prev = list.find((i) => i.id === op.itemId);
+      return prev && { kind: 'setItemStatus', ...at, itemId: op.itemId, status: prev.status };
+    }
+    case 'setCriterion': {
+      const prev = level.successCriteria.find((c) => c.id === op.criterionId);
+      return prev && { kind: 'setCriterion', ...at, criterionId: op.criterionId, done: prev.done };
+    }
+    case 'updateItem': {
+      const prev = list.find((i) => i.id === op.itemId) as Record<string, unknown> | undefined;
+      if (!prev) return;
+      const patch = Object.fromEntries(Object.keys(op.patch).map((k) => [k, clone(prev[k])]));
+      return { kind: 'updateItem', ...at, itemId: op.itemId, patch };
+    }
+    case 'addItem':
+      return { kind: 'deleteItem', ...at, itemId: op.item.id };
+    case 'deleteItem': {
+      const index = list.findIndex((i) => i.id === op.itemId);
+      if (index < 0) return;
+      const dependents = list.filter((i) => i.dependsOn?.includes(op.itemId)).map((i) => i.id);
+      return { kind: 'addItem', ...at, item: clone(list[index]), index, ...(dependents.length ? { dependents } : {}) };
+    }
+  }
+}
+
 export interface ReplayResult {
   state: Workspace;
   applied: Op[];
@@ -314,6 +445,12 @@ function itemTitle(ws: Workspace, op: { projectId: string; itemId: string } & It
 
 /** Human summary of an op, for commit messages and the pending list. */
 export function describeOp(op: Op, state?: Workspace): string {
+  const inboxTitle = (id: string) => state?.inbox?.find((i) => i.id === id)?.title ?? id;
+  if (op.kind === 'inboxAdd') return `inbox: add "${op.item.title}"`;
+  if (op.kind === 'inboxUpdate') return `inbox: edit ${inboxTitle(op.id)}`;
+  if (op.kind === 'inboxRemove') return `inbox: remove ${op.ids.map(inboxTitle).join(', ')}`;
+  if (op.kind === 'inboxPlace')
+    return `place ${op.ids.length} inbox item${op.ids.length === 1 ? '' : 's'} in ${op.projectId}/${op.worldId}/${op.levelId}${op.parentId ? ` (steps of ${op.parentId})` : ''}`;
   if (op.kind === 'updateSettings')
     return `settings: ${Object.entries(op.patch).map(([k, v]) => `${k} = ${v ?? 'default'}`).join(', ')}`;
   const where = 'levelId' in op ? ` (${op.projectId}/${op.worldId}/${op.levelId})` : ` (${op.projectId})`;

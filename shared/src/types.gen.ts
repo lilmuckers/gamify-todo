@@ -2,9 +2,9 @@
 // GENERATED from schema/quest.schema.json by `npm run schema:gen`. Do not edit.
 
 /**
- * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
+ * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings, and an optional data/inbox.json holds captured ideas not yet placed in a level. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
  */
-export type QuestLogData = Project | World | Level | Settings;
+export type QuestLogData = Project | World | Level | Settings | Inbox;
 /**
  * Short human-readable name. Imperative for tasks ('Write API docs'), noun phrase for deliverables ('Public beta').
  */
@@ -248,4 +248,37 @@ export interface Settings {
    * Default player character for everyone viewing this repo. A viewer's own choice (saved in their browser) wins in read-only mode.
    */
   hero?: "classic" | "bearded" | "redhead" | "mustard-jumper" | "denim-jacket" | "hoodie";
+}
+/**
+ * Repo-wide inbox of captured ideas, stored at data/inbox.json (optional). Items move out of here when they are placed in a level.
+ */
+export interface Inbox {
+  /**
+   * Optional pointer to this schema, for editor autocompletion.
+   */
+  $schema?: string;
+  /**
+   * @maxItems 500
+   */
+  items: InboxItem[];
+}
+/**
+ * A captured idea waiting to be placed in a level. Only the basics: placing it in a level turns it into a full item.
+ */
+export interface InboxItem {
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  id: string;
+  type: ItemType;
+  title: Title;
+  notes?: Notes;
+  /**
+   * Optional URL (e.g. something shared to the app).
+   */
+  link?: string;
+  /**
+   * When it was captured.
+   */
+  addedAt?: string;
 }

@@ -12,6 +12,16 @@ of time, what's in progress and where the hero is waiting in every project, each
 code circled. Every line deep-links to its level or step; tick the box to mark it done. Any link
 ending in `/~today` opens it over that screen.
 
+Turn the pad's page to the **Inbox** (the INBOX button, `i`, or `n` to start writing) to jot ideas
+down without deciding where they go. Later, tick a few and put them somewhere from wherever you
+are: **New game** from the project list, **New world** from a project map, **New level** from a
+world map, or **Add to this level** on a level. On Android, sharing a link or text to the
+installed app drops it straight in the inbox (iOS doesn't let web apps receive shares). Ideas live
+in `data/inbox.json` until they're placed.
+
+Most edits show an **UNDO** toast for a few seconds (Ctrl/Cmd+Z works too); edits that haven't
+synced yet are simply taken back, with no commit.
+
 Dependencies can go further. One that needs another level becomes a **cloud** the hero rides
 there. One you have to chase yourself can get **steps** of its own: a **warp pipe** down to an
 underground sub-level holding them. Clear the steps and the hero comes back up the pipe with
