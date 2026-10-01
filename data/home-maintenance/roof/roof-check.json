@@ -82,13 +82,13 @@
           "id": "clear-the-loft-hatch",
           "title": "Clear the loft hatch so they can look inside",
           "type": "task",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "rain-again",
           "title": "Rain cancels it a third time",
           "type": "risk",
-          "status": "todo",
+          "status": "done",
           "notes": "Plan B: drone survey from the same firm, £60."
         }
       ]
