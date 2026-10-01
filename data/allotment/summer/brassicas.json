@@ -5,7 +5,6 @@
   "deliverable": "Kale and purple sprouting broccoli established for winter picking",
   "timeboxDays": 60,
   "startedAt": "2026-07-03T09:00:00Z",
-  "clearedAt": "2026-10-01T16:23:51.297Z",
   "successCriteria": [
     {
       "id": "plants-established-under-netting",
@@ -17,7 +16,7 @@
       "id": "first-kale-picked",
       "mvp": true,
       "text": "First kale picked",
-      "done": true
+      "done": false
     }
   ],
   "items": [
@@ -108,5 +107,8 @@
       "type": "stretch",
       "status": "done"
     }
-  ]
+  ],
+  "stats": {
+    "editsAfterClear": 1
+  }
 }
