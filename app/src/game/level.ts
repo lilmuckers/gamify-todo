@@ -23,7 +23,7 @@ import { itemAddr, type App } from '../app';
 import { go } from '../router';
 import { GROUND_Y, heroWalk, QuestScene, tex, WORLD_H } from './common';
 import { PlayControls, type Controls } from './play/input';
-import { buildWorld, EXIT_ID, FLAG_ID, HITBOX, nearest, newBody, step, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
+import { ahead, buildWorld, EXIT_ID, FLAG_ID, HITBOX, nearest, newBody, step, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
 
 export interface LevelParams {
   projectId: string;
@@ -36,6 +36,9 @@ export interface LevelParams {
 
 /** Levels whose time-box warning was reported today (once per level per day). */
 const warned = new Set<string>();
+
+/** Play mode stops after this long without any input. */
+const IDLE_MS = 2 * 60_000;
 
 /** Bubble id for a sub-level's exit pipe (not an item; ids can't contain '!'). */
 const EXIT = EXIT_ID;
@@ -110,6 +113,14 @@ export class LevelScene extends QuestScene {
   private played = new Set<string>();
   /** Touching the flagpole (fires once per touch). */
   private atFlag = false;
+  /** Last time the player pressed or pushed anything. */
+  private lastInput = 0;
+  /** Look mode: the bubble follows whatever's ahead of the hero. */
+  private looking = false;
+  /** What look mode last showed (so a closed bubble isn't reopened every frame). */
+  private lookId?: string;
+  /** The pad is choosing the open bubble's buttons; the hero stands still. */
+  private picking = false;
 
   constructor() {
     super('level');
@@ -127,10 +138,15 @@ export class LevelScene extends QuestScene {
     this.dismissedAuto = undefined;
     this.exitPipe = undefined;
     this.leaving = false;
+    // A restart kills tweens mid-flight: their promises would never settle.
+    this.busy = undefined;
     this.playing = false;
     this.body = undefined;
     this.world = undefined;
     this.controls = undefined;
+    this.looking = false;
+    this.lookId = undefined;
+    this.picking = false;
   }
 
   private current() {
@@ -179,7 +195,8 @@ export class LevelScene extends QuestScene {
       if (!this.dragged && over.length === 0) this.closeBubble();
     });
     const typing = () => !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
-    this.input.keyboard?.on('keydown-ESC', () => !typing() && this.closeBubble());
+    // While playing, the play controls handle Esc (back out of picking first).
+    this.input.keyboard?.on('keydown-ESC', () => !typing() && !this.playing && this.closeBubble());
     this.input.keyboard?.on('keydown-ENTER', () => {
       if (typing() || !this.bubble || !this.canEdit()) return;
       this.setStatus(this.bubble.itemId, 'done');
@@ -591,6 +608,7 @@ export class LevelScene extends QuestScene {
     b.box.destroy();
     this.bubble = undefined;
     this.app.bubbleOpen = false;
+    this.picking = false;
     if (b.auto) this.dismissedAuto = b.itemId;
     else if (this.app.selection?.kind === 'item' && this.app.selection.id === b.itemId) this.app.select(undefined);
   }
@@ -603,6 +621,7 @@ export class LevelScene extends QuestScene {
         this.bubble.box.destroy();
         this.bubble = undefined;
         this.app.bubbleOpen = false;
+        this.picking = false;
       }
       return false;
     }
@@ -644,7 +663,7 @@ export class LevelScene extends QuestScene {
           : 'Back up to the level. Your steps stay here for next time.',
         size: 4,
       });
-      if (this.playing) spec.lines.push({ text: 'LEFT/RIGHT PICK · A PRESS · B CLOSE', size: 3, muted: true });
+      this.playHint(spec);
       if (edit && !isResolved(dep) && cleared) button('GOT IT! WARP UP', 0x63c74d, () => void this.leaveSub(true));
       button('WARP UP', 0xdfe9f0, () => void this.leaveSub(false));
       spec.anchor = { cx: pipe.x + pipe.w / 2, top: pipe.top, bottom: GROUND_Y };
@@ -654,7 +673,7 @@ export class LevelScene extends QuestScene {
     const v = this.views.get(id);
     if (!v) return;
     const { item, entity: e } = v;
-    if (this.playing) spec.lines.push({ text: 'LEFT/RIGHT PICK · A PRESS · B CLOSE', size: 3, muted: true });
+    this.playHint(spec);
     const info = TYPE_INFO[item.type];
     const optional = item.type === 'stretch' || item.mvp === false;
     spec.title = item.title;
@@ -709,6 +728,13 @@ export class LevelScene extends QuestScene {
       bottom: GROUND_Y - e.y * TILE,
     };
     return spec;
+  }
+
+  /** In play mode, how to reach the bubble's buttons from the pad. */
+  private playHint(spec: BubbleSpec) {
+    if (!this.playing) return;
+    const text = this.picking ? 'LEFT/RIGHT PICK · A PRESS · B BACK' : 'UP TO PICK A BUTTON';
+    spec.lines.push({ text, size: 3, muted: true });
   }
 
   /** The level a cloud goes to, if it still exists. */
@@ -837,7 +863,8 @@ export class LevelScene extends QuestScene {
       const cam = this.cameras.main;
       const viewW = cam.width / cam.zoom;
       const viewX = cam.scrollX + (cam.width - viewW) / 2;
-      if (!auto && (left < viewX || left + W > viewX + viewW)) {
+      // While playing the camera stays on the hero.
+      if (!auto && !this.playing && (left < viewX || left + W > viewX + viewW)) {
         this.following = false;
         cam.stopFollow();
         cam.pan(left + W / 2, cam.midPoint.y, 350, 'Sine.easeInOut');
@@ -845,7 +872,7 @@ export class LevelScene extends QuestScene {
     }
     this.bubble = { itemId, box, auto, buttons: rects.map((rect, i) => ({ rect, run: buttons[i].run })), focus: 0 };
     this.app.bubbleOpen = true;
-    if (this.playing) this.focusButton(0);
+    if (this.picking) this.focusButton(0);
   }
 
   /** Outlines the bubble button a gamepad would press. */
@@ -873,16 +900,19 @@ export class LevelScene extends QuestScene {
     this.body = newBody(x + HITBOX.offX, GROUND_Y);
     this.rebuildWorld();
     this.controls?.capture(true, this);
+    this.lastInput = Date.now();
     this.following = true;
     this.cameras.main.startFollow(this.hero, true, 0.1, 0.1, 0, 0);
     track('play_mode', { on: true });
-    toast('PLAY! Arrows or stick to move, A or Space to jump (hold Shift/B to run), Up to look, Down into pipes. START or Esc stops.', 'info', 5000);
+    toast('PLAY! Arrows or stick to move, A or Space to jump (hold Shift/B to run), Y or E to show what is ahead, Up to pick, Down into pipes. START or Esc stops.', 'info', 5000);
   }
 
   /** Back to the hero walking himself to wherever he's needed. */
   private exitPlay() {
     this.playing = false;
     this.controls?.capture(false, this);
+    this.looking = false;
+    this.lookId = undefined;
     if (!this.body) return;
     this.body = undefined;
     this.world = undefined;
@@ -914,26 +944,41 @@ export class LevelScene extends QuestScene {
     if (!controls) return;
     const c = controls.read();
     // A form is open: keys belong to it.
-    if (!this.input.manager.enabled || document.activeElement?.matches('input, textarea, select, [contenteditable]')) return;
+    if (!this.input.manager.enabled || document.activeElement?.matches('input, textarea, select, [contenteditable]')) {
+      // Time spent in a form isn't idling.
+      this.lastInput = Date.now();
+      return;
+    }
     if (!this.playing) {
       if (c.quitPressed && this.app.canPlay) this.app.setPlaying(true);
       return;
     }
-    if (c.quitPressed && !this.bubble) return this.app.setPlaying(false);
+    if (c.quitPressed && !this.picking) return this.app.setPlaying(false);
+    // Esc backs out one step at a time: picking, then a bubble, then play mode.
+    if (c.escPressed && !this.picking && (!this.bubble || this.looking)) return this.app.setPlaying(false);
+    const now = Date.now();
+    if (c.active || !this.lastInput) this.lastInput = now;
+    else if (now - this.lastInput > IDLE_MS) return this.app.setPlaying(false, 'idle');
     const body = this.body;
     const world = this.world;
     if (!body || !world || this.leaving) return;
 
     let input: Controls = c;
-    if (this.bubble) {
-      // A bubble is up: the pad picks its buttons and the hero stands still.
+    if (c.lookPressed) this.setLooking(!this.looking);
+    if (this.picking && this.bubble) {
+      // Picking: the pad chooses the bubble's buttons and the hero stands still.
       if (c.leftPressed) this.focusButton(this.bubble.focus - 1);
       if (c.rightPressed) this.focusButton(this.bubble.focus + 1);
-      if (c.backPressed || c.quitPressed) this.closeBubble();
+      if (c.backPressed || c.quitPressed || c.escPressed) this.stopPicking();
       else if (c.confirmPressed) this.bubble.buttons[this.bubble.focus]?.run();
       input = { ...c, x: 0, jumpHeld: false, jumpPressed: false, downPressed: false };
-    } else if (c.upPressed) this.lookAt(nearest(body, world)?.id);
-    if (!this.bubble && !this.following) {
+    } else if (c.upPressed) {
+      // Up picks from the bubble that's showing, or opens the one for what's here.
+      if (!this.bubble) this.lookAt(nearest(body, world)?.id);
+      if (this.bubble) this.startPicking();
+    } else if ((c.backPressed || c.escPressed) && this.bubble && !this.looking) this.closeBubble();
+    if (this.looking && !this.picking) this.lookAhead(ahead(body, world)?.id);
+    if (!this.picking && !this.following) {
       this.following = true;
       this.cameras.main.startFollow(this.hero, true, 0.1, 0.1, 0, 0);
     }
@@ -968,11 +1013,49 @@ export class LevelScene extends QuestScene {
     h.setAlpha(body.invuln > 0 && Math.floor(body.invuln * 12) % 2 ? 0.25 : 1);
   }
 
-  /** Up: open the bubble for whatever the hero is at. */
+  /** Opens the bubble for `id`, as if it had been clicked. */
   private lookAt(id?: string) {
     if (!id) return;
     if (id === FLAG_ID) return this.app.select({ kind: 'criteria' });
     this.openBubble(id);
+    if (id !== EXIT) this.app.select({ kind: 'item', id });
+  }
+
+  /** Y / E: the bubble follows whatever's ahead, or goes away. */
+  private setLooking(on: boolean) {
+    this.looking = on;
+    this.lookId = undefined;
+    if (!on) {
+      this.closeBubble();
+      if (this.app.selection) this.app.select(undefined);
+    }
+    toast(on ? 'LOOK ON: the bubble shows what is ahead. Up to pick a button.' : 'LOOK OFF', 'info', 1800);
+  }
+
+  /** Look mode: show the bubble of the nearest thing ahead, when that changes. */
+  private lookAhead(id?: string) {
+    if (id === this.lookId) return;
+    this.lookId = id;
+    if (!id) {
+      this.closeBubble();
+      if (this.app.selection) this.app.select(undefined);
+      return;
+    }
+    if (id === FLAG_ID) this.closeBubble();
+    this.lookAt(id);
+  }
+
+  private startPicking() {
+    this.picking = true;
+    // Redraw with the picking hint, first button outlined.
+    if (this.bubble) this.openBubble(this.bubble.itemId, { pop: false });
+  }
+
+  /** B: back to walking; look mode keeps its bubble, otherwise it closes. */
+  private stopPicking() {
+    if (!this.looking) return this.closeBubble();
+    this.picking = false;
+    if (this.bubble) this.openBubble(this.bubble.itemId, { pop: false });
   }
 
   private onPlayEvent(e: Exclude<PlayEvent, { kind: 'flag' }>) {
@@ -1050,7 +1133,7 @@ export class LevelScene extends QuestScene {
         this.wasCleared = true;
         this.leaving = false;
         // Stopped mid-finale: nothing will emit, so finish up here.
-        if (this.app.playing) this.app.setPlaying(false);
+        if (this.app.playing) this.app.setPlaying(false, 'cleared');
         else this.exitPlay();
       },
     });

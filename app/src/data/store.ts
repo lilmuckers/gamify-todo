@@ -63,6 +63,12 @@ export class Store {
   version?: string;
   outbox: Op[] = [];
   conflicts: Conflict[] = [];
+  /**
+   * Ops made while holding (a play session): queued but not synced until the
+   * player picks which to keep. Persisted, so a closed tab asks next time.
+   */
+  held = new Set<string>();
+  private holding = false;
   /** Called when a sync attempt finishes (analytics). */
   onSyncResult?: (r: { result: 'ok' | 'offline' | 'error' | 'conflict'; ops: number; conflicts: number; error?: unknown }) => void;
   status: SyncStatus = 'loading';
@@ -122,13 +128,16 @@ export class Store {
   }
 
   async start(): Promise<void> {
-    const [snap, outbox, conflicts] = await Promise.all([
+    const [snap, outbox, conflicts, held] = await Promise.all([
       this.kv.get<Snapshot>(this.key('snapshot')),
       this.kv.get<Op[]>(this.key('outbox')),
       this.kv.get<Conflict[]>(this.key('conflicts')),
+      this.kv.get<string[]>(this.key('held')),
     ]);
     this.outbox = outbox ?? [];
     this.conflicts = conflicts ?? [];
+    const queued = new Set(this.outbox.map((o) => o.opId));
+    this.held = new Set((held ?? []).filter((id) => queued.has(id)));
     if (snap) {
       this.setBase(snap.state, snap.version);
       this.lastSyncedAt = snap.at;
@@ -193,6 +202,7 @@ export class Store {
     return Promise.all([
       this.kv.set(this.key('outbox'), this.outbox),
       this.kv.set(this.key('conflicts'), this.conflicts),
+      this.kv.set(this.key('held'), [...this.held]),
     ]);
   }
 
@@ -218,6 +228,7 @@ export class Store {
     this.state = next;
     this.issues = issues;
     this.outbox.push(op);
+    if (this.holding) this.held.add(op.opId);
     this.status = this.idleStatus();
     void this.saveQueue();
     this.emit();
@@ -230,6 +241,35 @@ export class Store {
     const la = find(a);
     const lb = find(b);
     return la && lb ? polishPoints(lb) - polishPoints(la) : 0;
+  }
+
+  /** Starts or stops holding new edits back from syncing (see `held`). */
+  hold(on: boolean) {
+    this.holding = on;
+  }
+
+  /** Held edits, oldest first. */
+  heldOps(): Op[] {
+    return this.outbox.filter((o) => this.held.has(o.opId));
+  }
+
+  /**
+   * Ends a hold: held edits in `keep` go out with the next sync, the rest are
+   * taken back as if they never happened.
+   */
+  release(keep: Iterable<string>) {
+    const kept = new Set(keep);
+    const drop = new Set([...this.held].filter((id) => !kept.has(id)));
+    this.held.clear();
+    if (drop.size && this.base) {
+      this.outbox = this.outbox.filter((o) => !drop.has(o.opId));
+      this.state = replay(this.base, this.outbox).state;
+      this.issues = validateWorkspace(this.state);
+    }
+    this.status = this.idleStatus();
+    void this.saveQueue();
+    this.emit();
+    if (this.outbox.length) void this.sync();
   }
 
   private schedule(ms: number) {
@@ -256,7 +296,8 @@ export class Store {
 
   private async doSync(): Promise<void> {
     clearTimeout(this.timer);
-    if (!this.source.commit || !this.outbox.length) return;
+    // Held edits wait for the player's say-so; ops queue in order, so everything waits.
+    if (!this.source.commit || !this.outbox.length || this.holding || this.held.size) return;
     if (!this.online()) {
       this.status = 'offline';
       this.emit();
@@ -328,6 +369,7 @@ export class Store {
     const before = this.outbox.length;
     this.outbox = this.outbox.filter((o) => o.opId !== opId);
     if (this.outbox.length === before) return false;
+    this.held.delete(opId);
     this.state = replay(this.base, this.outbox).state;
     this.issues = validateWorkspace(this.state);
     this.status = this.idleStatus();
@@ -345,6 +387,7 @@ export class Store {
   /** Throws away queued edits (after the user confirms). */
   discardOutbox() {
     this.outbox = [];
+    this.held.clear();
     if (this.base && this.version) this.setBase(this.base, this.version);
     this.status = this.idleStatus();
     void this.saveQueue();

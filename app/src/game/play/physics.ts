@@ -279,6 +279,26 @@ function land(body: Body, c: Collider) {
   body.standingOn = c.id;
 }
 
+/**
+ * The nearest thing ahead of the hero: in the direction he's facing (which
+ * stays the last way he moved once he stops), or right above or below him.
+ */
+export function ahead(body: Body, world: PlayWorld): Collider | undefined {
+  const mid = body.x + body.w / 2;
+  let best: Collider | undefined;
+  let bestDist = Infinity;
+  for (const c of world.colliders) {
+    if (c.kind === 'plant') continue;
+    const d = (c.x + c.w / 2 - mid) * body.facing;
+    // Overlapping counts as ahead, so a block overhead isn't skipped.
+    const over = c.x < body.x + body.w && c.x + c.w > body.x;
+    if (d < 0 && !over) continue;
+    const dist = over ? 0 : d;
+    if (dist < bestDist) (best = c), (bestDist = dist);
+  }
+  return best;
+}
+
 /** The thing the hero is at: touching, standing on, or within half a tile of. */
 export function nearest(body: Body, world: PlayWorld): Collider | undefined {
   const reach = { x: body.x - 8, y: body.y - 4, w: body.w + 16, h: body.h + 8 };

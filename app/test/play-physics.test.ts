@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LayoutEntity, LevelLayout } from '@quest/shared';
-import { buildWorld, newBody, step, TUNING, type Body, type PlayEvent, type PlayInput, type PlayWorld } from '../src/game/play/physics';
+import { ahead, buildWorld, newBody, step, TUNING, type Body, type PlayEvent, type PlayInput, type PlayWorld } from '../src/game/play/physics';
 
 const T = 16;
 const GROUND = 192;
@@ -125,5 +125,24 @@ describe('play physics', () => {
 
   it('keeps the walk speed in step with the scripted walk', () => {
     expect(TUNING.walk).toBe(7 * T);
+  });
+});
+
+describe('looking ahead', () => {
+  it('finds the nearest thing in the way the hero faces, keeping it after he stops', () => {
+    const w = world([entity('qblock', 4), entity('wall', 10), entity('sign', 16)]);
+    const b = newBody(7 * T, GROUND);
+    expect(ahead(b, w)?.id).toBe('wall-10');
+    run(b, w, 6, { ...idle, x: -1 });
+    run(b, w, 30);
+    expect(b.facing).toBe(-1);
+    expect(ahead(b, w)?.id).toBe('qblock-4');
+  });
+
+  it('counts a block right overhead as ahead', () => {
+    const w = world([entity('qblock', 6), entity('wall', 9)]);
+    const b = newBody(6 * T + 2, GROUND);
+    b.facing = -1;
+    expect(ahead(b, w)?.id).toBe('qblock-6');
   });
 });

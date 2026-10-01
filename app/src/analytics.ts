@@ -37,6 +37,7 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   nav_shortcut: ['key'],
   play_mode: ['on'],
   play_complete: ['how'],
+  play_commit: ['kept', 'skipped', 'why'],
   skill_help_open: [],
   skill_download: ['format'],
   github_connect: ['can_push'],

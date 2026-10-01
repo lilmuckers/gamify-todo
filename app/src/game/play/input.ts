@@ -9,10 +9,16 @@ export interface Controls extends PlayInput {
   upPressed: boolean;
   /** A / Space: jump, or press the focused bubble button. */
   confirmPressed: boolean;
-  /** B / Esc: close a bubble. */
+  /** B: back out of picking a bubble button, or close the bubble. */
   backPressed: boolean;
   /** Start / Select: leave play mode. */
   quitPressed: boolean;
+  /** Esc: back out of a bubble, or (with none to back out of) leave play mode. */
+  escPressed: boolean;
+  /** Y / E: show or hide the bubble of whatever's ahead. */
+  lookPressed: boolean;
+  /** Anything held or pushed this frame (for the idle timeout). */
+  active: boolean;
 }
 
 const DEADZONE = 0.3;
@@ -23,7 +29,7 @@ const DEADZONE = 0.3;
  */
 const PAD = { a: 0, b: 1, x: 2, y: 3, select: 8, start: 9, up: 12, down: 13, left: 14, right: 15 };
 
-type Held = Record<'left' | 'right' | 'up' | 'down' | 'jump' | 'run' | 'confirm' | 'back' | 'quit', boolean>;
+type Held = Record<'left' | 'right' | 'up' | 'down' | 'jump' | 'run' | 'confirm' | 'back' | 'quit' | 'look' | 'esc', boolean>;
 
 /** The first connected gamepad, if any. */
 export function activePad(): Gamepad | undefined {
@@ -34,13 +40,13 @@ export function activePad(): Gamepad | undefined {
 /** Polls keyboard and gamepad once a frame, turning held buttons into presses. */
 export class PlayControls {
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
-  private prev: Held = { left: false, right: false, up: false, down: false, jump: false, run: false, confirm: false, back: false, quit: false };
+  private prev: Held = { left: false, right: false, up: false, down: false, jump: false, run: false, confirm: false, back: false, quit: false, look: false, esc: false };
 
   constructor(scene: Phaser.Scene) {
     const K = Phaser.Input.Keyboard.KeyCodes;
     // enableCapture=false: keys only get preventDefault while we're polling them.
     this.keys = scene.input.keyboard!.addKeys(
-      { left: K.LEFT, right: K.RIGHT, up: K.UP, down: K.DOWN, a: K.A, d: K.D, w: K.W, s: K.S, space: K.SPACE, z: K.Z, x: K.X, shift: K.SHIFT, esc: K.ESC },
+      { left: K.LEFT, right: K.RIGHT, up: K.UP, down: K.DOWN, a: K.A, d: K.D, w: K.W, s: K.S, space: K.SPACE, z: K.Z, x: K.X, e: K.E, shift: K.SHIFT, esc: K.ESC },
       false,
     ) as Record<string, Phaser.Input.Keyboard.Key>;
   }
@@ -65,10 +71,12 @@ export class PlayControls {
       up: k.up.isDown || k.w.isDown || btn(PAD.up) || ay < -0.6,
       down: k.down.isDown || k.s.isDown || btn(PAD.down) || ay > 0.6,
       jump: k.space.isDown || k.z.isDown || btn(PAD.a),
-      run: k.shift.isDown || k.x.isDown || btn(PAD.x) || btn(PAD.b) || btn(PAD.y),
+      run: k.shift.isDown || k.x.isDown || btn(PAD.x) || btn(PAD.b),
       confirm: k.space.isDown || k.z.isDown || btn(PAD.a),
-      back: k.esc.isDown || btn(PAD.b),
+      back: btn(PAD.b),
       quit: btn(PAD.start) || btn(PAD.select),
+      look: k.e.isDown || btn(PAD.y),
+      esc: k.esc.isDown,
     };
     const pressed = (key: keyof Held) => held[key] && !this.prev[key];
     // An analogue stick gives a proportional push; keys and the d-pad are all or nothing.
@@ -86,6 +94,9 @@ export class PlayControls {
       confirmPressed: pressed('confirm'),
       backPressed: pressed('back'),
       quitPressed: pressed('quit'),
+      lookPressed: pressed('look'),
+      escPressed: pressed('esc'),
+      active: Object.values(held).some(Boolean) || Math.abs(ax) > DEADZONE || Math.abs(ay) > DEADZONE,
     };
     this.prev = held;
     return out;
