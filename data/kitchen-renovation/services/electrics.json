@@ -56,7 +56,7 @@
       "id": "six-or-eight-downlights",
       "title": "Six or eight downlights",
       "type": "decision",
-      "status": "done",
+      "status": "todo",
       "notes": "Eight, on two switched zones."
     },
     {
@@ -80,5 +80,10 @@
       "type": "stretch",
       "status": "todo"
     }
-  ]
+  ],
+  "stats": {
+    "itemEdits": {
+      "six-or-eight-downlights": 1
+    }
+  }
 }
