@@ -195,7 +195,7 @@ Repo-wide display settings; omit the file to use the defaults. Only change it wh
 
 | Field | Notes |
 |---|---|
-| `hero` | default player character: `classic`, `bearded`, `redhead`, `afro-puff`, `denim-jacket` or `hoodie`. Viewers in read-only mode can pick their own in the app. |
+| `hero` | default player character: `classic`, `bearded`, `redhead`, `mustard-jumper`, `denim-jacket` or `hoodie`. Viewers in read-only mode can pick their own in the app. |
 
 ```json
 { "$schema": "https://tasks.patrick-mckinley.com/schema/settings.schema.json", "hero": "bearded" }

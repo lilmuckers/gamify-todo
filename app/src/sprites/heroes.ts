@@ -139,9 +139,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
       ],
     },
   },
-  'afro-puff': {
-    label: 'Afro puff',
-    description: 'Afro puff, glasses, mustard jumper, dark trousers.',
+  'mustard-jumper': {
+    label: 'Mustard jumper',
+    description: 'Hair up, glasses, mustard jumper, dark trousers.',
     colors: { '1': '#2b1d16', '2': '#4a3226', '3': '#7a4a2a', '4': '#5a3420', '5': '#e8a23a', '6': '#b97a1c', '7': '#262b44', '8': '#1a1c2c', '9': '#f4f4f4', '0': '#c0cbdc' },
     frames: {
       stand: [

@@ -247,5 +247,5 @@ export interface Settings {
   /**
    * Default player character for everyone viewing this repo. A viewer's own choice (saved in their browser) wins in read-only mode.
    */
-  hero?: "classic" | "bearded" | "redhead" | "afro-puff" | "denim-jacket" | "hoodie";
+  hero?: "classic" | "bearded" | "redhead" | "mustard-jumper" | "denim-jacket" | "hoodie";
 }
