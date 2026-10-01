@@ -99,16 +99,17 @@ function waitsFor(level: Level, item: Item | undefined, others: Item[], selected
     }
   }
 
-  const mark: Record<Item['status'], string> = { done: '✓', doing: '▶', todo: '', dropped: '✕' };
   const option = (o: Item) => {
     const loop = waiting.has(o.id);
     return h(
       'label',
       { class: `check ${o.status}${loop ? ' loop' : ''}`, title: loop ? `"${o.title}" already waits for this one` : STATUS_LABEL[o.status] },
       h('input', { type: 'checkbox', value: o.id, checked: selected.includes(o.id), disabled: loop }),
-      h('span', { class: 'dep-mark', 'aria-hidden': 'true' }, mark[o.status]),
       h('span', { class: 'dep-title' }, o.title),
-      loop ? h('small', null, 'waits for this') : o.status !== 'todo' && h('small', null, STATUS_LABEL[o.status].toLowerCase()),
+      // Status as a tag on the right, so the only box on the row is the one you tick.
+      loop
+        ? h('small', { class: 'dep-tag' }, 'waits for this')
+        : o.status !== 'todo' && h('span', { class: `pill ${o.status}` }, STATUS_LABEL[o.status]),
     );
   };
   const group = (title: string, items: Item[]) => (items.length ? [h('div', { class: 'checks-group' }, title), items.map(option)] : null);
