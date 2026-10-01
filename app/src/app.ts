@@ -17,7 +17,7 @@ import {
   type World,
   type Workspace,
 } from '@quest/shared';
-import { pageView, track } from './analytics';
+import { pageView, track, type Params } from './analytics';
 import { eventsForOp } from './analytics-events';
 import { heroStore } from './config';
 import type { PullData } from './data/source';
@@ -144,10 +144,11 @@ export class App {
     this.emit();
   }
 
-  dispatch(body: OpBody): DispatchResult {
+  /** Applies an edit. `meta` adds analytics context (e.g. which screen it came from). */
+  dispatch(body: OpBody, meta?: Params): DispatchResult {
     const before = this.store.state;
     const r = this.store.dispatch(body);
-    if (r.ok) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, e.params);
+    if (r.ok) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, { ...e.params, ...meta });
     else track('edit_rejected', { reason: /no longer exists|already taken|cannot be/.test(r.error ?? '') ? 'conflict' : 'validation' });
     if (r.polish && r.polish > 0) track('polish_penalty', { points: r.polish });
     if (!r.ok) toast(r.error ?? 'Edit rejected', 'alert', 5000);

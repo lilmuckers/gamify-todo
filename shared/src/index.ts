@@ -7,3 +7,4 @@ export * from './layout';
 export * from './diff';
 export * from './github';
 export * from './worldmap';
+export * from './today';

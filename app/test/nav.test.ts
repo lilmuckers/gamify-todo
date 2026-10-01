@@ -47,5 +47,6 @@ describe('navFor', () => {
     expect(navFor(fakeApp({ view: 'pr', pr: 3 })).up?.href).toBe('#/prs');
     expect(navFor(fakeApp({ view: 'overworld', projectId: 'p' })).up?.href).toBe('#/');
     expect(navFor(fakeApp({ view: 'projects' })).up).toBeUndefined();
+    expect(navFor(fakeApp({ view: 'today' }))).toMatchObject({ crumbs: [{ label: 'Quest Log' }, { label: 'Today', href: '#/today' }], up: { href: '#/' } });
   });
 });
