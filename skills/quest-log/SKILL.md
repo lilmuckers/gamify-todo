@@ -1,6 +1,6 @@
 ---
 name: quest-log
-description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in a GitHub repository, using the GitHub REST API with a personal access token. Use when asked to plan a project into worlds/levels/tasks, add or update tasks, mark work done, or open a pull request with Quest Log changes.
+description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repository the user chooses — usually their own data repo, not the Quest Log app repo — using the GitHub REST API with a personal access token. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, or open a pull request with Quest Log changes.
 ---
 
 # Quest Log data skill
@@ -10,6 +10,33 @@ repository. Any repo works: the user does not need a copy of the Quest Log code,
 folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those files.
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
+
+## Where the data lives: any repo
+
+The data repo is **whichever GitHub repository the user chooses**. Usually that's a repo of their
+own (for example `alice/quests`), separate from the Quest Log app's code repo
+(`lilmuckers/gamify-todo`). Users point the app at it under ⚙ Settings → Repository, and you
+work on the same repo.
+
+- **Never assume the repo.** If the user hasn't said, ask: *"Which GitHub repo (`owner/repo`) and
+  branch hold your Quest Log data?"* Branch is optional; blank means the repo's default branch.
+- **Everything in this skill works the same against that repo.** Creating, updating or deleting
+  projects, worlds and levels, adding or changing tasks and other items, ticking criteria, and
+  opening pull requests all use the same files and API calls. Only `<owner>/<repo>` and the
+  branch change.
+- **No app code is needed in the data repo**, only the `data/` folder, plus the optional CI from
+  §8. Don't copy the Quest Log source, workflows or settings into it.
+- **A new data repo** just needs one commit, such as a README created on GitHub. If it has no
+  `data/` folder yet, create `data/<project-id>/project.json` and go from there.
+- **One repo is one set of projects.** The app shows one repo at a time, and different repos are
+  independent. To move a project to another repo, copy its whole `data/<project-id>/` folder
+  there (and delete it from the old one if it's a move).
+- **Check access before writing.** `GET https://api.github.com/repos/<owner>/<repo>` returns
+  `permissions.push`. If that's false, the token can only read: tell the user, and either ask
+  for a token with write access to that repo or output the files instead (§6.5). Opening a pull
+  request (§6.3) also needs push access, because it creates a branch in the repo.
+- **Say where you're writing.** Before committing, tell the user the repo and branch, e.g.
+  *"Committing to alice/quests@main"*.
 
 ## 1. Concepts
 
@@ -204,7 +231,8 @@ When planning a new project: 2–5 worlds, 1–6 levels per world, under ~10 ite
 
 ### Access token
 
-The user supplies a **fine-grained personal access token** limited to the one data repo, with:
+The user supplies a **fine-grained personal access token** limited to their data repo (the one
+from "Where the data lives", not necessarily the Quest Log app repo), with:
 
 - **Contents: read & write** (read/write files)
 - **Pull requests: read & write** (only if opening PRs)
@@ -222,12 +250,14 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2022-11-28
 ```
 
-Let `R = https://api.github.com/repos/<owner>/<repo>`.
+Let `R = https://api.github.com/repos/<owner>/<repo>`, where `<owner>/<repo>` is the user's
+data repo. Every step below works the same for any repo the token can access.
 
 ### 6.1 Read the data
 
-1. `GET R` → `default_branch` (use it unless the user named a branch). `size: 0` means the repo
-   has no commits: ask the user to add a README on GitHub first.
+1. `GET R` → `default_branch` (use it unless the user named a branch) and `permissions.push`
+   (false = read-only). `size: 0` means the repo has no commits: ask the user to add a README on
+   GitHub first. A 404 means a wrong `owner/repo` or a token without access to it.
 2. `GET R/git/ref/heads/<branch>` → `object.sha` = **HEAD**.
 3. `GET R/git/trees/<HEAD>?recursive=1` → keep `type: "blob"` entries whose `path` starts with
    `data/` and ends with `.json`.
@@ -271,7 +301,7 @@ the app's **Warp Zone**, where they can be explored, validated and merged.
 ### 6.4 curl example
 
 ```bash
-R=https://api.github.com/repos/OWNER/REPO
+R=https://api.github.com/repos/OWNER/REPO   # the user's data repo
 H=(-H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
 HEAD=$(curl -s "${H[@]}" "$R/git/ref/heads/main" | jq -r .object.sha)
 BASE_TREE=$(curl -s "${H[@]}" "$R/git/commits/$HEAD" | jq -r .tree.sha)
