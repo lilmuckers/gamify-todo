@@ -5,16 +5,35 @@ import { toast } from './toast';
 import { zip } from './zip';
 
 const SKILL_PATH = 'skills/quest-log/SKILL.md';
+const SCRIPT_PATH = 'skills/quest-log/scripts/quest.py';
+const MANIFEST_PATH = 'schema/index.json';
 
 /** Absolute URL of the published skill, for pasting into assistants. */
 export function skillUrl(): string {
   return new URL(`${BASE_URL}${SKILL_PATH}`, location.href.split('#')[0]).href;
 }
 
-async function skillText(): Promise<string> {
-  const res = await fetch(`${BASE_URL}${SKILL_PATH}`, { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`Couldn't load SKILL.md (${res.status})`);
+async function text(path: string): Promise<string> {
+  const res = await fetch(`${BASE_URL}${path}`, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`Couldn't load ${path} (${res.status})`);
   return res.text();
+}
+
+const skillText = () => text(SKILL_PATH);
+
+/**
+ * The skill folder as Claude expects it: SKILL.md, the helper script, and the
+ * schemas (listed by the manifest) so validation works without internet.
+ */
+export async function skillPackage(): Promise<Record<string, string>> {
+  const manifest = JSON.parse(await text(MANIFEST_PATH)) as { schemas: { file: string }[] };
+  const files: Record<string, string> = {
+    'quest-log/SKILL.md': await skillText(),
+    'quest-log/scripts/quest.py': await text(SCRIPT_PATH),
+    'quest-log/schemas/index.json': JSON.stringify(manifest, null, 2) + '\n',
+  };
+  await Promise.all(manifest.schemas.map(async (s) => (files[`quest-log/schemas/${s.file}`] = await text(`schema/${s.file}`))));
+  return files;
 }
 
 function download(name: string, data: BlobPart, type: string) {
@@ -51,10 +70,10 @@ export function skillHelpDialog() {
   });
   const mdBtn = h('button', { class: 'btn sm', type: 'button' }, 'Download SKILL.md');
   mdBtn.onclick = busy(mdBtn, async () => download('SKILL.md', await skillText(), 'text/markdown'));
-  const zipBtn = h('button', { class: 'btn sm primary', type: 'button' }, 'Download Claude skill (.zip)');
-  zipBtn.onclick = busy(zipBtn, async () =>
-    download('quest-log-skill.zip', zip({ 'quest-log/SKILL.md': await skillText() }) as BlobPart, 'application/zip'),
-  );
+  const zipBtn = h('button', { class: 'btn sm primary', type: 'button' }, 'Download skill (.zip)');
+  zipBtn.onclick = busy(zipBtn, async () => download('quest-log-skill.zip', zip(await skillPackage()) as BlobPart, 'application/zip'));
+  const pyBtn = h('button', { class: 'btn sm', type: 'button' }, 'Download quest.py');
+  pyBtn.onclick = busy(pyBtn, async () => download('quest.py', await text(SCRIPT_PATH), 'text/x-python'));
 
   const body = h(
     'div',
@@ -63,18 +82,29 @@ export function skillHelpDialog() {
     h(
       'ul',
       null,
-      h('li', null, 'The skill is one file, ', code('SKILL.md'), '. It teaches an AI assistant Quest Log’s folders and schema, how to plan small "good enough" levels, and how to read and commit your data through the GitHub API.'),
+      h('li', null, code('SKILL.md'), ' teaches an AI assistant Quest Log’s folders and schema and how to plan small "good enough" levels. The bundled ', code('quest.py'), ' does the mechanical parts: validating files and reading or committing them through the GitHub API.'),
       h('li', null, 'Then just ask in plain words: ', h('i', null, '"Plan my kitchen renovation as a Quest Log project"'), ', ', h('i', null, '"Mark Order tiles as done"'), ', ', h('i', null, '"Add a blocker to Demolition"'), '. The assistant edits the right JSON files and commits them, or opens a pull request you can review in the Warp Zone.'),
       h('li', null, 'It works on whichever repo holds your data (yours is ', h('b', null, repoName), '). Tell the assistant the repo, and give it a fine-grained token limited to that repo (Contents: read & write, plus Pull requests if you want PRs).'),
       h('li', null, 'Assistants that can’t make web requests give you the finished files instead, for you to commit. The app and CI validate everything, so mistakes are caught.'),
     ),
-    h('div', { class: 'actions' }, zipBtn, mdBtn, copyBtn),
+    h('div', { class: 'actions' }, zipBtn, mdBtn, pyBtn, copyBtn),
+    h(
+      'p',
+      { class: 'muted' },
+      'The zip contains ',
+      code('SKILL.md'),
+      ', ',
+      code('scripts/quest.py'),
+      ' (a dependency-free Python helper that validates data and pulls/pushes it through the GitHub API) and the JSON schemas, so it works offline too. The schemas are also listed at ',
+      h('a', { href: `${BASE_URL}${MANIFEST_PATH}`, target: '_blank', rel: 'noopener', class: 'link' }, 'schema/index.json'),
+      '.',
+    ),
     h('p', { class: 'muted' }, 'Skill link: ', h('a', { href: skillUrl(), target: '_blank', rel: 'noopener', class: 'link' }, skillUrl())),
 
     h('h3', null, 'Claude'),
     h('h4', null, 'claude.ai on the web and the desktop app'),
     steps(
-      ['Download the ', h('b', null, 'Claude skill (.zip)'), ' above.'],
+      ['Download the ', h('b', null, 'skill (.zip)'), ' above.'],
       ['Open ', h('b', null, 'Settings → Capabilities'), '. Make sure code execution / file creation is switched on (skills need it).'],
       ['Under ', h('b', null, 'Skills'), ', choose ', h('b', null, 'Upload skill'), ' and pick ', code('quest-log-skill.zip'), '.'],
       ['Start a chat and ask, e.g. ', h('i', null, '"Use the quest-log skill to add a task to my Kitchen world in ' + repoName + '"'), '.'],
@@ -83,15 +113,15 @@ export function skillHelpDialog() {
     h('p', null, 'Skills belong to your account: upload it once on the web or desktop, and it’s available in the mobile apps too.'),
     h('h4', null, 'Claude Code'),
     steps(
-      ['Save ', code('SKILL.md'), ' as ', code('~/.claude/skills/quest-log/SKILL.md'), ' (or ', code('.claude/skills/quest-log/SKILL.md'), ' inside a project).'],
-      ['Claude Code picks it up automatically; ask it to update your quests and it will use the GitHub API or edit a local clone of your data repo.'],
+      ['Unzip the skill into ', code('~/.claude/skills/'), ' so you have ', code('~/.claude/skills/quest-log/SKILL.md'), ' (or use ', code('.claude/skills/'), ' inside a project).'],
+      ['Claude Code picks it up automatically and runs ', code('quest.py'), ' with your ', code('GITHUB_TOKEN'), ' to pull, edit and push your data.'],
     ),
 
     h('h3', null, 'ChatGPT'),
     h('h4', null, 'Desktop app or chatgpt.com'),
     steps(
-      ['Download ', code('SKILL.md'), ' above.'],
-      ['Create a ', h('b', null, 'Project'), ' (sidebar → New project), add ', code('SKILL.md'), ' as a project file, and set the project instructions to ', h('i', null, '"Follow SKILL.md for all Quest Log requests. My data repo is ' + repoName + '."')],
+      ['Download ', code('SKILL.md'), ' and the ', h('b', null, 'skill (.zip)'), ' above.'],
+      ['Create a ', h('b', null, 'Project'), ' (sidebar → New project), add both as project files, and set the project instructions to ', h('i', null, '"Follow SKILL.md for all Quest Log requests. Unzip quest-log-skill.zip to use scripts/quest.py. My data repo is ' + repoName + '."')],
       ['Chat inside that project. Alternatively, make a custom GPT (', h('b', null, 'Explore GPTs → Create'), ') with ', code('SKILL.md'), ' under Knowledge and the same instruction.'],
     ),
     h('h4', null, 'ChatGPT on iPhone'),
@@ -99,7 +129,7 @@ export function skillHelpDialog() {
       ['Projects and custom GPTs you set up on the web or desktop sync to the iOS app: open the project (or GPT) and chat as usual.'],
       ['For a one-off chat: save ', code('SKILL.md'), ' to Files, tap ', h('b', null, '+'), ' in a chat to attach it, and say ', h('i', null, '"Follow this skill"'), '. Creating custom GPTs isn’t available in the iOS app.'],
     ),
-    h('p', { class: 'muted' }, 'ChatGPT usually can’t call the GitHub API from a chat, so expect it to hand you complete files to commit (or paste into a pull request).'),
+    h('p', { class: 'muted' }, 'ChatGPT’s code interpreter has no internet access, so it runs ', code('quest.py validate'), ' against the schemas bundled in the zip to check its work, then hands you complete files to commit or paste into a pull request.'),
     h('p', { class: 'muted' }, 'Menu names change between app versions; look for the closest match. Never paste a token that can access more than your data repo.'),
   );
   openModal('Use Quest Log with an AI assistant', body);

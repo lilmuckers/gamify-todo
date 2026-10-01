@@ -117,6 +117,13 @@ LLM is checked before you look at it.
 projects into this structure and how to read, commit, or open a PR through the GitHub API with a
 personal access token. A test keeps its examples valid.
 
+The skill includes [`scripts/quest.py`](skills/quest-log/scripts/quest.py), a standard-library
+Python helper (no installs) that validates data with the same rules as the app and pulls/pushes it
+through the GitHub API (`validate`, `info`, `pull`, `status`, `push [--pr]`). It works in Claude,
+ChatGPT's code interpreter (validation only: no internet there), CI and a terminal. The **AI SKILL**
+button in the app downloads the skill as a zip with the script and schemas bundled. All schemas are
+listed in the static manifest [`schema/index.json`](schema/index.json), published with the site.
+
 
 [`schema/quest.schema.json`](schema/quest.schema.json) is the contract: JSON Schema 2020-12,
 `additionalProperties: false` throughout, a description on every field and enum value. Data files
