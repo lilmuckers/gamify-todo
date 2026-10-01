@@ -5,6 +5,7 @@
   "deliverable": "Every alarm tested and a carbon-monoxide alarm fitted by the boiler",
   "timeboxDays": 3,
   "startedAt": "2026-09-27T09:00:00Z",
+  "clearedAt": "2026-10-01T00:37:19.426Z",
   "successCriteria": [
     {
       "id": "all-smoke-alarms-tested",
@@ -16,7 +17,7 @@
       "id": "co-alarm-fitted-next-to-the-boil",
       "mvp": true,
       "text": "CO alarm fitted next to the boiler",
-      "done": false
+      "done": true
     }
   ],
   "items": [
