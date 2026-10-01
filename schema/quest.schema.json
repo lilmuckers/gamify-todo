@@ -563,6 +563,54 @@
         {
           "const": "hoodie",
           "description": "Dark wavy hair and stubble, green hoodie, cargo shorts."
+        },
+        {
+          "const": "emo",
+          "description": "Black side fringe over one eye with a purple streak, band tee, skinny jeans, checked trainers."
+        },
+        {
+          "const": "goth",
+          "description": "Long straight black hair, dark lipstick, lace-trimmed black dress, striped tights, platform boots."
+        },
+        {
+          "const": "punk",
+          "description": "Green mohawk, studded leather jacket over a white tee, ripped jeans, red boots."
+        },
+        {
+          "const": "rainbow-tee",
+          "description": "Short curly hair, rainbow-striped t-shirt, jeans, white trainers."
+        },
+        {
+          "const": "trans-flag-hair",
+          "description": "Long hair dyed in light blue, pink and white bands, white tee, dungarees, pink trainers."
+        },
+        {
+          "const": "trans-pin",
+          "description": "Short undercut and a moustache, cardigan with a light blue, pink and white pin, chinos."
+        },
+        {
+          "const": "bi-bomber",
+          "description": "Short natural curls, bomber jacket in magenta, purple and blue, black jeans, white trainers."
+        },
+        {
+          "const": "drag-glam",
+          "description": "Big golden wig, lashes, red lips, sparkly pink gown and red heels."
+        },
+        {
+          "const": "nb-beanie",
+          "description": "Yellow, white, purple and black striped beanie and scarf, grey jacket, jeans."
+        },
+        {
+          "const": "hijab-skater",
+          "description": "Teal hijab, orange skate hoodie, black leggings, chunky skate shoes."
+        },
+        {
+          "const": "silver-locs",
+          "description": "Long silver locs, round glasses, magenta jumper, corduroy trousers, garden boots."
+        },
+        {
+          "const": "flannel",
+          "description": "Side-swept auburn crop with a shaved side, red plaid flannel over a white tee, jeans, brown boots."
         }
       ]
     },
