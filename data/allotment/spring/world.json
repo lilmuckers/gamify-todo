@@ -1,0 +1,18 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "spring",
+  "name": "Spring Sowing",
+  "description": "Get things in the ground on time. Late sowing was last year's biggest mistake.",
+  "theme": "grass",
+  "goalIds": [
+    "weekly-harvest"
+  ],
+  "unlocksAfter": [
+    "winter"
+  ],
+  "levelOrder": [
+    "seedlings",
+    "potatoes",
+    "onions-garlic"
+  ]
+}

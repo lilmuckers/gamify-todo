@@ -1,0 +1,84 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "electrics",
+  "name": "First-fix electrics",
+  "deliverable": "New ring main, cooker circuit and lighting cabled to every planned position",
+  "description": "Running a day behind because of the RCBO.",
+  "timeboxDays": 6,
+  "startedAt": "2026-09-22T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "cooker-circuit-installed",
+      "mvp": true,
+      "text": "Cooker circuit installed",
+      "done": false
+    },
+    {
+      "id": "every-socket-position-on-the-pla",
+      "mvp": true,
+      "text": "Every socket position on the plan cabled",
+      "done": false
+    },
+    {
+      "id": "under-cabinet-lighting-cabled",
+      "mvp": false,
+      "text": "Under-cabinet lighting cabled",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "chase-the-walls-for-cables",
+      "title": "Chase the walls for cables",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "cooker-circuit",
+      "title": "Run the cooker circuit from the consumer unit",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "cable-sockets-per-the-plan",
+      "title": "Cable sockets per the plan",
+      "type": "task",
+      "status": "doing",
+      "notes": "18 doubles plus three appliance spurs. 11 done."
+    },
+    {
+      "id": "cable-the-led-downlights",
+      "title": "Cable the LED downlights",
+      "type": "task",
+      "status": "doing"
+    },
+    {
+      "id": "six-or-eight-downlights",
+      "title": "Six or eight downlights",
+      "type": "decision",
+      "status": "done",
+      "notes": "Eight, on two switched zones."
+    },
+    {
+      "id": "consumer-unit-needs-an-extra-rcbo",
+      "title": "Consumer unit needs an extra RCBO",
+      "type": "blocker",
+      "status": "todo",
+      "notes": "Electrician ordering it; three days lead time."
+    },
+    {
+      "id": "joists-block-downlight-positions",
+      "title": "Joists block downlight positions",
+      "type": "risk",
+      "status": "todo",
+      "mvp": false,
+      "notes": "Shift positions by up to 100mm rather than notch joists."
+    },
+    {
+      "id": "led-strip-under-the-wall-units",
+      "title": "LED strip under the wall units",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

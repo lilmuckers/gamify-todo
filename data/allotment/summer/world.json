@@ -1,0 +1,23 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "summer",
+  "name": "Summer Crops",
+  "description": "One level per crop: each is \"done\" when we have eaten a decent harvest, not when it is perfect.",
+  "theme": "water",
+  "goalIds": [
+    "weekly-harvest",
+    "two-hours"
+  ],
+  "unlocksAfter": [
+    "spring"
+  ],
+  "levelOrder": [
+    "tomatoes",
+    "beans",
+    "squash",
+    "salads",
+    "brassicas",
+    "watering",
+    "inspection"
+  ]
+}

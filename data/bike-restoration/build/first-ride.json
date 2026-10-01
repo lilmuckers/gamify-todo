@@ -1,0 +1,80 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "first-ride",
+  "name": "First ride",
+  "deliverable": "A 50km ride with no mechanical problems",
+  "timeboxDays": 14,
+  "successCriteria": [
+    {
+      "id": "50km-with-no-mechanical-problems",
+      "mvp": true,
+      "text": "50km with no mechanical problems",
+      "done": false
+    },
+    {
+      "id": "comfortable-for-the-whole-ride",
+      "mvp": true,
+      "text": "Comfortable for the whole ride",
+      "done": false
+    },
+    {
+      "id": "sportive-entry-booked",
+      "mvp": false,
+      "text": "Sportive entry booked",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "brakes-done",
+      "title": "Brakes done",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "build/brakes"
+    },
+    {
+      "id": "shakedown",
+      "title": "Car-park shakedown ride",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "re-tension-cables-after-the-first-ride",
+      "title": "Re-tension cables after the first ride",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "shakedown"
+      ]
+    },
+    {
+      "id": "ride-50km",
+      "title": "Ride 50km",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "shakedown"
+      ]
+    },
+    {
+      "id": "book-the-sportive",
+      "title": "Book the sportive",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "gearing-too-hard-for-dales-climbs",
+      "title": "Gearing too hard for Dales climbs",
+      "type": "risk",
+      "status": "todo",
+      "mvp": false,
+      "notes": "Fit a larger freewheel if I am walking hills."
+    },
+    {
+      "id": "ride-to-dad-s-house-to-show-him",
+      "title": "Ride to Dad's house to show him",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

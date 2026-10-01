@@ -1,0 +1,15 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "plan",
+  "name": "Plan & Budget",
+  "description": "Decide what we are building and what it costs before anyone picks up a hammer.",
+  "theme": "sky",
+  "goalIds": [
+    "on-budget"
+  ],
+  "levelOrder": [
+    "budget",
+    "design",
+    "trades"
+  ]
+}

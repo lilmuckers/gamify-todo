@@ -1,0 +1,59 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "sign-off",
+  "name": "Building Control sign-off",
+  "deliverable": "Electrical Installation Certificate issued and the work notified to Building Control",
+  "timeboxDays": 10,
+  "successCriteria": [
+    {
+      "id": "electrical-installation-certific",
+      "mvp": true,
+      "text": "Electrical Installation Certificate received",
+      "done": false
+    },
+    {
+      "id": "building-control-notification-su",
+      "mvp": true,
+      "text": "Building Control notification submitted",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "tests",
+      "title": "Final electrical tests",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "electrical-installation-certificate",
+      "title": "Electrical Installation Certificate",
+      "type": "deliverable",
+      "status": "todo",
+      "dependsOn": [
+        "tests"
+      ]
+    },
+    {
+      "id": "submit-the-part-p-notification",
+      "title": "Submit the Part P notification",
+      "type": "task",
+      "status": "todo",
+      "notes": "The electrician's competent-person scheme files it."
+    },
+    {
+      "id": "file-certificates-in-the-house-folder",
+      "title": "File certificates in the house folder",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "inspection-flags-missing-bonding",
+      "title": "Inspection flags missing bonding",
+      "type": "risk",
+      "status": "todo",
+      "mvp": false,
+      "notes": "Ask the electrician to check main bonding to gas and water."
+    }
+  ]
+}

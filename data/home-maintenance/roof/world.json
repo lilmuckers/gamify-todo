@@ -1,0 +1,15 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "roof",
+  "name": "Roof & Gutters",
+  "description": "Keep water out: gutters, slates, and the mystery damp patch in the back bedroom.",
+  "theme": "water",
+  "goalIds": [
+    "dry-warm"
+  ],
+  "levelOrder": [
+    "gutters",
+    "roof-check",
+    "damp"
+  ]
+}

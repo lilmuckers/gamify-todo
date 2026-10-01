@@ -1,0 +1,30 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
+  "id": "kitchen-renovation",
+  "title": "Kitchen Renovation",
+  "description": "Turning the 1990s galley kitchen at 14 Elm Road into an open kitchen-diner. Budget £18,000 including contingency. Target: cooking Christmas dinner in it. A temporary kitchen in the dining room keeps us fed meanwhile.",
+  "goals": [
+    {
+      "id": "christmas-dinner",
+      "title": "Cook Christmas dinner in the new kitchen",
+      "description": "Hard deadline. Anything not needed for that can wait until January."
+    },
+    {
+      "id": "on-budget",
+      "title": "Finish within £18,000 including a 10% contingency",
+      "description": "Track spend against the budget sheet weekly."
+    },
+    {
+      "id": "livable",
+      "title": "Keep the house livable while work happens",
+      "description": "Temporary kitchen, dust sheets, one clean room at all times."
+    }
+  ],
+  "worldOrder": [
+    "plan",
+    "strip",
+    "services",
+    "fit",
+    "finish"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
+  "id": "customer-portal",
+  "title": "Customer Portal v2",
+  "description": "Rebuild of the customer self-service portal at Acme Utilities: bills, meter readings and moving home. Team of five. Launch to all customers by 28 November, before the winter billing peak.",
+  "goals": [
+    {
+      "id": "launch",
+      "title": "Launch to 100% of customers by 28 November",
+      "description": "Hard date: the winter billing peak starts in December."
+    },
+    {
+      "id": "fewer-calls",
+      "title": "Cut 'where is my bill' calls to the contact centre by 30%",
+      "description": "Baseline: 4,200 calls a month (August)."
+    },
+    {
+      "id": "accessible",
+      "title": "Meet WCAG 2.2 AA",
+      "description": "Regulator expectation; the old portal fails it badly."
+    }
+  ],
+  "worldOrder": [
+    "discovery",
+    "platform",
+    "features",
+    "launch"
+  ]
+}

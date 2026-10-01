@@ -1,0 +1,94 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "units",
+  "name": "Fit the units",
+  "deliverable": "All base and wall units fitted, level and fixed",
+  "timeboxDays": 5,
+  "successCriteria": [
+    {
+      "id": "base-units-level-within-2mm",
+      "mvp": true,
+      "text": "Base units level within 2mm",
+      "done": false
+    },
+    {
+      "id": "wall-units-fixed-into-studs-or-m",
+      "mvp": true,
+      "text": "Wall units fixed into studs or masonry",
+      "done": false
+    },
+    {
+      "id": "doors-aligned",
+      "mvp": false,
+      "text": "Doors aligned",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "walls-dry",
+      "title": "Walls dry",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "services/plastering"
+    },
+    {
+      "id": "check-units-for-damage-on-delivery",
+      "title": "Check units for damage on delivery",
+      "type": "task",
+      "status": "todo",
+      "notes": "Photograph any damage before signing the delivery note."
+    },
+    {
+      "id": "base",
+      "title": "Fit the base units",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "fit-the-wall-units",
+      "title": "Fit the wall units",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "base"
+      ]
+    },
+    {
+      "id": "fit-the-peninsula",
+      "title": "Fit the peninsula",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "base"
+      ]
+    },
+    {
+      "id": "hang-and-align-the-doors",
+      "title": "Hang and align the doors",
+      "type": "task",
+      "status": "todo",
+      "mvp": false
+    },
+    {
+      "id": "two-carcasses-back-ordered",
+      "title": "Two carcasses back-ordered",
+      "type": "blocker",
+      "status": "todo",
+      "notes": "Supplier says two weeks. Fitter can work around them."
+    },
+    {
+      "id": "floor-is-not-level",
+      "title": "Floor is not level",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Shim with plastic packers; check with a 2m level."
+    },
+    {
+      "id": "soft-close-hinges-everywhere",
+      "title": "Soft-close hinges everywhere",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "plumbing",
+  "name": "First-fix plumbing",
+  "deliverable": "Sink, dishwasher and washing-machine supplies and waste in place and pressure-tested",
+  "timeboxDays": 5,
+  "startedAt": "2026-09-25T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "pressure-test-passed",
+      "mvp": true,
+      "text": "Pressure test passed",
+      "done": false
+    },
+    {
+      "id": "gas-pipe-capped-by-a-gas-safe-en",
+      "mvp": true,
+      "text": "Gas pipe capped by a Gas Safe engineer",
+      "done": false
+    },
+    {
+      "id": "softener-loop-fitted",
+      "mvp": false,
+      "text": "Softener loop fitted",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "move-supply",
+      "title": "Move the sink supply 1.2m left",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "waste",
+      "title": "Run waste for sink and dishwasher",
+      "type": "task",
+      "status": "doing"
+    },
+    {
+      "id": "fit-the-washing-machine-valve",
+      "title": "Fit the washing-machine valve",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "gas-safe-engineer-to-cap-the-gas",
+      "title": "Gas Safe engineer to cap the gas",
+      "type": "dependency",
+      "status": "todo",
+      "notes": "Booked for 4 October."
+    },
+    {
+      "id": "pressure-test-the-system",
+      "title": "Pressure-test the system",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "move-supply",
+        "waste"
+      ]
+    },
+    {
+      "id": "water-softener-now-or-later",
+      "title": "Water softener now or later",
+      "type": "decision",
+      "status": "todo",
+      "mvp": false,
+      "notes": "Loop costs £90 now, £400 later once units are in."
+    },
+    {
+      "id": "slow-leak-behind-the-units-goes-unnotice",
+      "title": "Slow leak behind the units goes unnoticed",
+      "type": "risk",
+      "status": "todo",
+      "mvp": false,
+      "notes": "Put a £15 leak alarm under the sink."
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "tomatoes",
+  "name": "Tomatoes",
+  "deliverable": "Ten tomato plants cropping in the polytunnel",
+  "timeboxDays": 90,
+  "startedAt": "2026-05-04T09:00:00Z",
+  "clearedAt": "2026-07-13T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "plants-cropping",
+      "mvp": true,
+      "text": "Plants cropping",
+      "done": true
+    },
+    {
+      "id": "5kg-harvested",
+      "mvp": true,
+      "text": "5kg harvested",
+      "done": true
+    },
+    {
+      "id": "no-blight",
+      "mvp": false,
+      "text": "No blight",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "plant-out-in-the-polytunnel",
+      "title": "Plant out in the polytunnel",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "tie-in-to-canes-weekly",
+      "title": "Tie in to canes weekly",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "pinch-out-side-shoots",
+      "title": "Pinch out side shoots",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "feed-weekly-once-flowering",
+      "title": "Feed weekly once flowering",
+      "type": "task",
+      "status": "done",
+      "notes": "Comfrey feed from the plot comfrey patch."
+    },
+    {
+      "id": "blight-in-august",
+      "title": "Blight in August",
+      "type": "risk",
+      "status": "done",
+      "notes": "Hit the outdoor plants; polytunnel ones were fine. Removed affected plants fast."
+    },
+    {
+      "id": "save-seed",
+      "title": "Save seed",
+      "type": "stretch",
+      "status": "dropped",
+      "notes": "Hybrid variety, would not come true."
+    }
+  ]
+}

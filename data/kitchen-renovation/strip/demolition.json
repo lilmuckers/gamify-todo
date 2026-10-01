@@ -1,0 +1,92 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "demolition",
+  "name": "Demolition",
+  "deliverable": "Old units, tiles and the dining-room wall removed; the room swept and safe",
+  "timeboxDays": 5,
+  "startedAt": "2026-09-05T09:00:00Z",
+  "clearedAt": "2026-09-11T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "units-and-tiles-out",
+      "mvp": true,
+      "text": "Units and tiles out",
+      "done": true
+    },
+    {
+      "id": "wall-removed-and-the-opening-mad",
+      "mvp": true,
+      "text": "Wall removed and the opening made good",
+      "done": true
+    },
+    {
+      "id": "skip-collected-the-same-week",
+      "mvp": false,
+      "text": "Skip collected the same week",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "skip",
+      "title": "Hire an 8-yard skip",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "permit",
+      "title": "Skip permit from the council",
+      "type": "dependency",
+      "status": "done",
+      "notes": "Skip sits on the road so it needs a permit. Took three working days."
+    },
+    {
+      "id": "isolate",
+      "title": "Isolate water and electrics",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "remove-the-wall-units",
+      "title": "Remove the wall units",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "remove-the-base-units-and-worktop",
+      "title": "Remove the base units and worktop",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "hack-off-the-wall-tiles",
+      "title": "Hack off the wall tiles",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "take-down-the-dining-room-wall",
+      "title": "Take down the dining-room wall",
+      "type": "task",
+      "status": "done",
+      "dependsOn": [
+        "isolate"
+      ],
+      "notes": "Dust screen with a zip door; doors to the rest of the house taped."
+    },
+    {
+      "id": "asbestos-in-the-old-floor-tiles",
+      "title": "Asbestos in the old floor tiles",
+      "type": "risk",
+      "status": "done",
+      "notes": "Lab test came back negative (£45)."
+    },
+    {
+      "id": "salvage-the-old-sink-for-the-garden",
+      "title": "Salvage the old sink for the garden",
+      "type": "stretch",
+      "status": "dropped",
+      "notes": "Cracked on removal."
+    }
+  ]
+}

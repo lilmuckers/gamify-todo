@@ -1,0 +1,73 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "hypercare",
+  "name": "Hypercare",
+  "deliverable": "Two weeks of close monitoring after launch, then the old portal switched off",
+  "timeboxDays": 14,
+  "successCriteria": [
+    {
+      "id": "two-weeks-with-no-sev-1-incident",
+      "mvp": true,
+      "text": "Two weeks with no Sev 1 incidents",
+      "done": false
+    },
+    {
+      "id": "old-portal-switched-off",
+      "mvp": true,
+      "text": "Old portal switched off",
+      "done": false
+    },
+    {
+      "id": "call-volume-measured-against-tar",
+      "mvp": true,
+      "text": "Call volume measured against target",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "go-live-complete",
+      "title": "Go-live complete",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "launch/go-live"
+    },
+    {
+      "id": "daily-stand-up-with-support",
+      "title": "Daily stand-up with support",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "watch-error-and-latency-dashboards",
+      "title": "Watch error and latency dashboards",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "measure-the-call-volume-change",
+      "title": "Measure the call-volume change",
+      "type": "task",
+      "status": "todo",
+      "notes": "Compare December with the August baseline, adjusting for seasonality."
+    },
+    {
+      "id": "switch-off-the-old-portal",
+      "title": "Switch off the old portal",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "retro-with-the-team",
+      "title": "Retro with the team",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "celebrate",
+      "title": "Celebrate",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

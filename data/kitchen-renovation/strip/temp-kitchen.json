@@ -1,0 +1,63 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "temp-kitchen",
+  "name": "Set up a temporary kitchen",
+  "deliverable": "Microwave, kettle, fridge and a washing-up station working in the dining room",
+  "timeboxDays": 3,
+  "startedAt": "2026-09-02T09:00:00Z",
+  "clearedAt": "2026-09-04T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "can-make-a-hot-meal-without-the",
+      "mvp": true,
+      "text": "Can make a hot meal without the old kitchen",
+      "done": true
+    },
+    {
+      "id": "washing-up-without-using-the-bat",
+      "mvp": false,
+      "text": "Washing up without using the bath",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "move-the-fridge-to-the-dining-room",
+      "title": "Move the fridge to the dining room",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "set-up-microwave-kettle-and-toaster",
+      "title": "Set up microwave, kettle and toaster",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "buy-a-camping-washing-up-bowl",
+      "title": "Buy a camping washing-up bowl",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "box-up-crockery",
+      "title": "Box up crockery",
+      "type": "task",
+      "status": "done",
+      "notes": "Labelled boxes: daily, occasional, rare. Daily box stays in the dining room."
+    },
+    {
+      "id": "extension-leads-overload-one-socket",
+      "title": "Extension leads overload one socket",
+      "type": "risk",
+      "status": "done",
+      "notes": "Spread across two circuits; electrician checked it."
+    },
+    {
+      "id": "slow-cooker-station-for-weekday-dinners",
+      "title": "Slow-cooker station for weekday dinners",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

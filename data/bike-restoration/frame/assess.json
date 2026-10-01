@@ -1,0 +1,66 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "assess",
+  "name": "Assess the frame",
+  "deliverable": "A decision on whether the frame is safe to ride, based on alignment and corrosion checks",
+  "timeboxDays": 5,
+  "startedAt": "2026-06-13T09:00:00Z",
+  "clearedAt": "2026-06-19T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "alignment-checked",
+      "mvp": true,
+      "text": "Alignment checked",
+      "done": true
+    },
+    {
+      "id": "no-cracks-at-the-lugs",
+      "mvp": true,
+      "text": "No cracks at the lugs",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "check-frame-alignment-with-string",
+      "title": "Check frame alignment with string",
+      "type": "task",
+      "status": "done",
+      "notes": "Rear triangle 2mm out; within tolerance."
+    },
+    {
+      "id": "inspect-the-lugs-for-cracks",
+      "title": "Inspect the lugs for cracks",
+      "type": "task",
+      "status": "done",
+      "notes": "Torch and magnifier. Clean."
+    },
+    {
+      "id": "check-the-inside-of-the-tubes-for-rust",
+      "title": "Check the inside of the tubes for rust",
+      "type": "task",
+      "status": "done",
+      "notes": "Surface rust only in the seat tube."
+    },
+    {
+      "id": "bike-co-op-mechanic-second-opinion",
+      "title": "Bike co-op mechanic second opinion",
+      "type": "dependency",
+      "status": "done"
+    },
+    {
+      "id": "keep-this-frame-or-buy-another",
+      "title": "Keep this frame or buy another",
+      "type": "decision",
+      "status": "done",
+      "notes": "Keep it. It is the whole point."
+    },
+    {
+      "id": "bottom-bracket-shell-threads-damaged",
+      "title": "Bottom-bracket shell threads damaged",
+      "type": "risk",
+      "status": "done",
+      "notes": "Threads are fine after cleaning."
+    }
+  ]
+}

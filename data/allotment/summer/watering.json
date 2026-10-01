@@ -1,0 +1,58 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "watering",
+  "name": "Watering routine",
+  "deliverable": "A watering routine that takes under 20 minutes a visit",
+  "timeboxDays": 30,
+  "startedAt": "2026-06-13T09:00:00Z",
+  "clearedAt": "2026-07-08T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "under-20-minutes-a-visit",
+      "mvp": true,
+      "text": "Under 20 minutes a visit",
+      "done": true
+    },
+    {
+      "id": "no-crop-lost-to-drought",
+      "mvp": true,
+      "text": "No crop lost to drought",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "add-two-more-water-butts",
+      "title": "Add two more water butts",
+      "type": "task",
+      "status": "done",
+      "notes": "Connected to the shed gutter."
+    },
+    {
+      "id": "bury-bottles-next-to-the-squash",
+      "title": "Bury bottles next to the squash",
+      "type": "task",
+      "status": "done",
+      "notes": "Water goes to the roots, not the leaves."
+    },
+    {
+      "id": "mulch-everything-thirsty",
+      "title": "Mulch everything thirsty",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "rota-with-the-next-door-plot-for-holiday",
+      "title": "Rota with the next-door plot for holidays",
+      "type": "dependency",
+      "status": "done"
+    },
+    {
+      "id": "drip-irrigation-kit",
+      "title": "Drip irrigation kit",
+      "type": "stretch",
+      "status": "dropped",
+      "notes": "Not needed once the mulch went down."
+    }
+  ]
+}

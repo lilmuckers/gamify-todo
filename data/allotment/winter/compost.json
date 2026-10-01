@@ -1,0 +1,57 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "compost",
+  "name": "Compost system",
+  "deliverable": "Two working compost bays so one can rot while the other fills",
+  "timeboxDays": 14,
+  "startedAt": "2025-12-25T09:00:00Z",
+  "clearedAt": "2026-01-06T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "two-bays-built",
+      "mvp": true,
+      "text": "Two bays built",
+      "done": true
+    },
+    {
+      "id": "first-bay-filled-and-turned",
+      "mvp": true,
+      "text": "First bay filled and turned",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "build-bays-from-pallets",
+      "title": "Build bays from pallets",
+      "type": "task",
+      "status": "done",
+      "notes": "Four pallets per bay, cable-tied."
+    },
+    {
+      "id": "line-with-old-carpet",
+      "title": "Line with old carpet",
+      "type": "task",
+      "status": "done",
+      "notes": "Keeps the heat in; checked it is wool, not synthetic."
+    },
+    {
+      "id": "fill-the-first-bay",
+      "title": "Fill the first bay",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "turn-the-first-bay",
+      "title": "Turn the first bay",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "third-bay-for-leaf-mould",
+      "title": "Third bay for leaf mould",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

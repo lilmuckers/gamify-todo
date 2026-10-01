@@ -148,7 +148,7 @@ shared/   Generated types and Ajv validators, ops log + replay, scoring, level l
           PR diffing, GitHub client — used by app and server
 app/      Vite + Phaser 3 front end (desktop game view, mobile view, PWA)
 server/   Fastify API for the Docker editor (git commit/push, PR proxy)
-data/     The quests: one folder per project
+data/     The quests: one folder per project (ships with five example projects)
 ```
 
 Edits are **ops** (`setItemStatus`, `addItem`, …) rather than whole-file writes. That makes offline

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "potatoes",
+  "name": "Plant potatoes",
+  "deliverable": "First earlies and maincrop planted and earthed up",
+  "timeboxDays": 21,
+  "startedAt": "2026-03-25T09:00:00Z",
+  "clearedAt": "2026-04-24T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "first-earlies-planted",
+      "mvp": true,
+      "text": "First earlies planted",
+      "done": true
+    },
+    {
+      "id": "maincrop-planted",
+      "mvp": true,
+      "text": "Maincrop planted",
+      "done": true
+    },
+    {
+      "id": "earthed-up-twice",
+      "mvp": false,
+      "text": "Earthed up twice",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "chit-the-seed-potatoes",
+      "title": "Chit the seed potatoes",
+      "type": "task",
+      "status": "done",
+      "notes": "Egg boxes on the spare-room windowsill."
+    },
+    {
+      "id": "plant-first-earlies",
+      "title": "Plant first earlies",
+      "type": "task",
+      "status": "done",
+      "notes": "Charlotte, end of March."
+    },
+    {
+      "id": "plant-maincrop",
+      "title": "Plant maincrop",
+      "type": "task",
+      "status": "done",
+      "notes": "Sarpo Mira for blight resistance."
+    },
+    {
+      "id": "earth-up-after-the-first-shoots",
+      "title": "Earth up after the first shoots",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "earth-up-again",
+      "title": "Earth up again",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "late-frost-on-the-shoots",
+      "title": "Late frost on the shoots",
+      "type": "risk",
+      "status": "done",
+      "notes": "Fleece on the two frosty nights in April."
+    }
+  ]
+}

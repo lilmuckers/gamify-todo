@@ -1,0 +1,15 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "garden",
+  "name": "Garden",
+  "description": "Fewer jobs, not more. Anything that adds weekly work gets dropped.",
+  "theme": "grass",
+  "goalIds": [
+    "easy-garden"
+  ],
+  "levelOrder": [
+    "fence",
+    "lawn",
+    "shed"
+  ]
+}

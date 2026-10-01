@@ -1,0 +1,79 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "tiling",
+  "name": "Splashback and floor",
+  "deliverable": "Splashback tiled and the floor laid through to the dining area",
+  "timeboxDays": 6,
+  "successCriteria": [
+    {
+      "id": "splashback-grouted-and-sealed",
+      "mvp": true,
+      "text": "Splashback grouted and sealed",
+      "done": false
+    },
+    {
+      "id": "floor-laid-with-no-lip-at-the-do",
+      "mvp": true,
+      "text": "Floor laid with no lip at the doorway",
+      "done": false
+    },
+    {
+      "id": "transition-strip-to-the-hallway",
+      "mvp": false,
+      "text": "Transition strip to the hallway",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "choose-the-splashback-tiles",
+      "title": "Choose the splashback tiles",
+      "type": "decision",
+      "status": "todo",
+      "notes": "Shortlist: handmade-look zellige in sage, or plain white metro."
+    },
+    {
+      "id": "tile",
+      "title": "Tile the splashback",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "grout-and-seal",
+      "title": "Grout and seal",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "tile"
+      ]
+    },
+    {
+      "id": "level",
+      "title": "Level the subfloor",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "lay-the-lvt-flooring",
+      "title": "Lay the LVT flooring",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "level"
+      ]
+    },
+    {
+      "id": "not-enough-tiles-from-one-batch",
+      "title": "Not enough tiles from one batch",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Order 15% extra in a single batch to avoid colour mismatch."
+    },
+    {
+      "id": "herringbone-floor-pattern",
+      "title": "Herringbone floor pattern",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

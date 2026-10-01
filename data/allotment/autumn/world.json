@@ -1,0 +1,17 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "autumn",
+  "name": "Autumn & Storage",
+  "description": "Store what we grew and set the beds up for next year.",
+  "theme": "sky",
+  "goalIds": [
+    "weekly-harvest"
+  ],
+  "unlocksAfter": [
+    "summer"
+  ],
+  "levelOrder": [
+    "store",
+    "green-manure"
+  ]
+}

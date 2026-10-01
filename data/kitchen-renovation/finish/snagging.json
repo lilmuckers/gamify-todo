@@ -1,0 +1,75 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "snagging",
+  "name": "Snagging and handover",
+  "deliverable": "A snag list with every item fixed or consciously accepted",
+  "timeboxDays": 7,
+  "successCriteria": [
+    {
+      "id": "snag-list-fixed-or-accepted",
+      "mvp": true,
+      "text": "Snag list fixed or accepted",
+      "done": false
+    },
+    {
+      "id": "final-payments-made",
+      "mvp": true,
+      "text": "Final payments made",
+      "done": false
+    },
+    {
+      "id": "christmas-dinner-cooked",
+      "mvp": false,
+      "text": "Christmas dinner cooked",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "walkround",
+      "title": "Walk round with the fitter and list snags",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "fix-door-alignment",
+      "title": "Fix door alignment",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "silicone-around-the-sink-and-worktops",
+      "title": "Silicone around the sink and worktops",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "final-payment-to-the-fitter",
+      "title": "Final payment to the fitter",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "walkround"
+      ]
+    },
+    {
+      "id": "register-appliance-warranties",
+      "title": "Register appliance warranties",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "christmas-dinner-test-run",
+      "title": "Christmas dinner test run",
+      "type": "deliverable",
+      "status": "todo",
+      "notes": "If the turkey fits in the oven, we are done."
+    },
+    {
+      "id": "style-the-open-shelves",
+      "title": "Style the open shelves",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

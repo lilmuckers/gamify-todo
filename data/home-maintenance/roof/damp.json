@@ -1,0 +1,72 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "damp",
+  "name": "Fix the damp patch",
+  "deliverable": "No damp on the back-bedroom wall after two weeks of rain",
+  "timeboxDays": 21,
+  "successCriteria": [
+    {
+      "id": "source-of-the-damp-found",
+      "mvp": true,
+      "text": "Source of the damp found",
+      "done": false
+    },
+    {
+      "id": "patch-stays-dry-for-two-weeks-of",
+      "mvp": true,
+      "text": "Patch stays dry for two weeks of rain",
+      "done": false
+    },
+    {
+      "id": "wall-repainted",
+      "mvp": false,
+      "text": "Wall repainted",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "roof-inspection-done",
+      "title": "Roof inspection done",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "roof/roof-check"
+    },
+    {
+      "id": "check-the-gutter-joint-above-the-patch",
+      "title": "Check the gutter joint above the patch",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "readings",
+      "title": "Take weekly damp-meter readings",
+      "type": "task",
+      "status": "todo",
+      "notes": "Baseline 28% WME at the worst spot. Under 17% counts as dry."
+    },
+    {
+      "id": "stain-block-now-or-wait-until-fully-dry",
+      "title": "Stain-block now or wait until fully dry",
+      "type": "decision",
+      "status": "todo",
+      "notes": "Probably wait: painting a wet wall traps moisture."
+    },
+    {
+      "id": "repaint-with-stain-block-paint",
+      "title": "Repaint with stain-block paint",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "readings"
+      ]
+    },
+    {
+      "id": "it-s-rising-damp-not-the-roof",
+      "title": "It's rising damp, not the roof",
+      "type": "risk",
+      "status": "todo",
+      "notes": "If the patch is near the floor rather than the ceiling, call a damp surveyor."
+    }
+  ]
+}

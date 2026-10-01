@@ -1,0 +1,14 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "discovery",
+  "name": "Discovery",
+  "description": "Find out what customers actually come to the portal for, so we build that first.",
+  "theme": "sky",
+  "goalIds": [
+    "fewer-calls"
+  ],
+  "levelOrder": [
+    "research",
+    "metrics"
+  ]
+}

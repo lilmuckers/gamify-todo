@@ -1,0 +1,17 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "finish",
+  "name": "Finishing Touches",
+  "description": "Paint, snags and the Christmas test run.",
+  "theme": "sky",
+  "goalIds": [
+    "christmas-dinner"
+  ],
+  "unlocksAfter": [
+    "fit"
+  ],
+  "levelOrder": [
+    "decorate",
+    "snagging"
+  ]
+}

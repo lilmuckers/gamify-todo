@@ -1,0 +1,68 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "store",
+  "name": "Harvest and store",
+  "deliverable": "Potatoes, onions and squash stored where they will last into winter",
+  "timeboxDays": 21,
+  "startedAt": "2026-09-23T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "potatoes-stored-in-hessian-sacks",
+      "mvp": true,
+      "text": "Potatoes stored in hessian sacks",
+      "done": false
+    },
+    {
+      "id": "onions-plaited-and-hung",
+      "mvp": true,
+      "text": "Onions plaited and hung",
+      "done": false
+    },
+    {
+      "id": "squash-stored-somewhere-cool",
+      "mvp": false,
+      "text": "Squash stored somewhere cool",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "lift-the-maincrop-potatoes",
+      "title": "Lift the maincrop potatoes",
+      "type": "task",
+      "status": "done",
+      "notes": "22kg."
+    },
+    {
+      "id": "dry-the-potatoes-for-a-day-before-baggin",
+      "title": "Dry the potatoes for a day before bagging",
+      "type": "task",
+      "status": "doing"
+    },
+    {
+      "id": "plait-the-onions",
+      "title": "Plait the onions",
+      "type": "task",
+      "status": "doing"
+    },
+    {
+      "id": "store-squash-in-the-spare-room",
+      "title": "Store squash in the spare room",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "check-stores-monthly-for-rot",
+      "title": "Check stores monthly for rot",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "mice-in-the-garage",
+      "title": "Mice in the garage",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Store in the spare room, not the garage."
+    }
+  ]
+}

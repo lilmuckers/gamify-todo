@@ -1,0 +1,65 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "notifications",
+  "name": "Email notifications",
+  "deliverable": "Bill-ready and reading-due emails sent from the new platform",
+  "timeboxDays": 7,
+  "successCriteria": [
+    {
+      "id": "bill-ready-email",
+      "mvp": true,
+      "text": "Bill-ready email",
+      "done": false
+    },
+    {
+      "id": "reading-due-email",
+      "mvp": true,
+      "text": "Reading-due email",
+      "done": false
+    },
+    {
+      "id": "unsubscribe-works",
+      "mvp": false,
+      "text": "Unsubscribe works",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "email-templates-in-the-design-system",
+      "title": "Email templates in the design system",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "bill-ready-trigger-from-billing-events",
+      "title": "Bill-ready trigger from billing events",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "reading-due-trigger",
+      "title": "Reading-due trigger",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "preference-centre",
+      "title": "Preference centre",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "marketing-team-sign-off-on-templates",
+      "title": "Marketing team sign-off on templates",
+      "type": "dependency",
+      "status": "todo"
+    },
+    {
+      "id": "sms-as-well-as-email",
+      "title": "SMS as well as email",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

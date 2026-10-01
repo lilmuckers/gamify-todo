@@ -1,0 +1,47 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "shed",
+  "name": "Sort the shed",
+  "deliverable": "The mower can come out without moving anything else",
+  "timeboxDays": 2,
+  "successCriteria": [
+    {
+      "id": "mower-reachable-without-moving-a",
+      "mvp": true,
+      "text": "Mower reachable without moving anything",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "empty-the-shed-onto-the-lawn",
+      "title": "Empty the shed onto the lawn",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "tip-run-for-broken-stuff",
+      "title": "Tip run for broken stuff",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "put-up-wall-hooks-for-tools",
+      "title": "Put up wall hooks for tools",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "shelf-for-paint-tins",
+      "title": "Shelf for paint tins",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "label-everything",
+      "title": "Label everything",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "beta",
+  "name": "Private beta",
+  "deliverable": "5% of customers using the new portal with feedback flowing in",
+  "timeboxDays": 14,
+  "successCriteria": [
+    {
+      "id": "5-of-customers-switched-over",
+      "mvp": true,
+      "text": "5% of customers switched over",
+      "done": false
+    },
+    {
+      "id": "feedback-widget-live",
+      "mvp": true,
+      "text": "Feedback widget live",
+      "done": false
+    },
+    {
+      "id": "task-completion-above-the-old-po",
+      "mvp": true,
+      "text": "Task completion above the old portal",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "bills-feature-finished",
+      "title": "Bills feature finished",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "features/bills"
+    },
+    {
+      "id": "feature-flag-by-customer-segment",
+      "title": "Feature flag by customer segment",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "feedback-widget",
+      "title": "Feedback widget",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "invite-email-to-beta-customers",
+      "title": "Invite email to beta customers",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "daily-triage-of-feedback",
+      "title": "Daily triage of feedback",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "beta-customers-call-anyway",
+      "title": "Beta customers call anyway",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Brief the contact centre so agents can help on the new portal."
+    },
+    {
+      "id": "opt-in-or-automatic-beta",
+      "title": "Opt-in or automatic beta",
+      "type": "decision",
+      "status": "todo",
+      "notes": "Automatic with an opt-out link."
+    },
+    {
+      "id": "compare-task-completion-against-the-base",
+      "title": "Compare task completion against the baseline",
+      "type": "task",
+      "status": "todo"
+    }
+  ]
+}

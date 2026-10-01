@@ -1,0 +1,81 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "worktops",
+  "name": "Worktops",
+  "deliverable": "Oak worktops cut, jointed, oiled and fixed, with the sink cut-out done",
+  "timeboxDays": 4,
+  "successCriteria": [
+    {
+      "id": "worktops-fixed",
+      "mvp": true,
+      "text": "Worktops fixed",
+      "done": false
+    },
+    {
+      "id": "sink-cut-out-sealed",
+      "mvp": true,
+      "text": "Sink cut-out sealed",
+      "done": false
+    },
+    {
+      "id": "three-coats-of-oil",
+      "mvp": false,
+      "text": "Three coats of oil",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "units-fitted",
+      "title": "Units fitted",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "fit/units"
+    },
+    {
+      "id": "template",
+      "title": "Template the worktops",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "joint",
+      "title": "Cut and joint the corner",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "template"
+      ]
+    },
+    {
+      "id": "make-the-sink-cut-out",
+      "title": "Make the sink cut-out",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "joint"
+      ]
+    },
+    {
+      "id": "oil-every-surface-especially-cut-edges",
+      "title": "Oil every surface, especially cut edges",
+      "type": "task",
+      "status": "todo",
+      "notes": "End grain soaks up water: three coats on every cut edge."
+    },
+    {
+      "id": "undermount-or-inset-sink",
+      "title": "Undermount or inset sink",
+      "type": "decision",
+      "status": "todo"
+    },
+    {
+      "id": "corner-joint-goes-wrong",
+      "title": "Corner joint goes wrong",
+      "type": "risk",
+      "status": "todo",
+      "mvp": false,
+      "notes": "Buy the worktop 300mm long so there is a second chance."
+    }
+  ]
+}

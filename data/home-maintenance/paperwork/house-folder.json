@@ -1,0 +1,53 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "house-folder",
+  "name": "House folder",
+  "deliverable": "Every certificate, warranty and manual in one shared folder, with reminders for next year",
+  "timeboxDays": 3,
+  "successCriteria": [
+    {
+      "id": "all-certificates-in-one-folder",
+      "mvp": true,
+      "text": "All certificates in one folder",
+      "done": false
+    },
+    {
+      "id": "shared-with-my-partner",
+      "mvp": false,
+      "text": "Shared with my partner",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "collect-gas-and-electrical-certificates",
+      "title": "Collect gas and electrical certificates",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "scan-warranties-and-manuals",
+      "title": "Scan warranties and manuals",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "create-the-shared-folder",
+      "title": "Create the shared folder",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "add-calendar-reminders-for-next-year-s-s",
+      "title": "Add calendar reminders for next year's services",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "spreadsheet-of-what-s-due-when",
+      "title": "Spreadsheet of what's due when",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

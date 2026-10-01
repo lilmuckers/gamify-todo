@@ -1,0 +1,22 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
+  "id": "bike-restoration",
+  "title": "Restore a 1978 Road Bike",
+  "description": "Dad's old Peugeot PX10, rescued from his garage. The aim is to ride it on the Dales sportive next June, not to build a museum piece. Original parts where they're cheap and safe; modern where it matters (brakes, tyres).",
+  "goals": [
+    {
+      "id": "ride-sportive",
+      "title": "Ride the 100km Dales sportive on it next June",
+      "description": "Needs to be comfortable and reliable for five hours."
+    },
+    {
+      "id": "keep-character",
+      "title": "Keep the bike's original look where it's cheap and safe",
+      "description": "Decals, lugs and the Simplex derailleur stay."
+    }
+  ],
+  "worldOrder": [
+    "frame",
+    "build"
+  ]
+}

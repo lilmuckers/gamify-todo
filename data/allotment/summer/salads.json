@@ -1,0 +1,57 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "salads",
+  "name": "Salad all summer",
+  "deliverable": "A bag of salad leaves every week from June to September",
+  "timeboxDays": 90,
+  "startedAt": "2026-06-03T09:00:00Z",
+  "clearedAt": "2026-09-11T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "a-bag-of-leaves-most-weeks",
+      "mvp": true,
+      "text": "A bag of leaves most weeks",
+      "done": true
+    },
+    {
+      "id": "successional-sowing-every-three",
+      "mvp": false,
+      "text": "Successional sowing every three weeks",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "sow-a-row-every-three-weeks",
+      "title": "Sow a row every three weeks",
+      "type": "task",
+      "status": "done",
+      "notes": "Calendar reminder, every third Saturday."
+    },
+    {
+      "id": "shade-netting-in-july-heat",
+      "title": "Shade netting in July heat",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "pick-outer-leaves-only",
+      "title": "Pick outer leaves only",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "bolting-in-the-heatwave",
+      "title": "Bolting in the heatwave",
+      "type": "risk",
+      "status": "done",
+      "notes": "Expected; resowed in partial shade."
+    },
+    {
+      "id": "swap-surplus-with-the-next-door-plot",
+      "title": "Swap surplus with the next-door plot",
+      "type": "task",
+      "status": "done"
+    }
+  ]
+}

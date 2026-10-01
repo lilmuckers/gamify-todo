@@ -1,0 +1,93 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "design",
+  "name": "Finalise the design",
+  "deliverable": "A dimensioned plan and elevations showing units, appliances, sockets and lighting",
+  "timeboxDays": 10,
+  "startedAt": "2026-08-06T09:00:00Z",
+  "clearedAt": "2026-08-17T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "plan-signed-off",
+      "mvp": true,
+      "text": "Plan signed off",
+      "done": true
+    },
+    {
+      "id": "socket-and-switch-positions-mark",
+      "mvp": true,
+      "text": "Socket and switch positions marked on the plan",
+      "done": true
+    },
+    {
+      "id": "3d-render-to-sanity-check-the-lo",
+      "mvp": false,
+      "text": "3D render to sanity-check the look",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "measure",
+      "title": "Measure the room to the nearest 5mm",
+      "type": "task",
+      "status": "done",
+      "notes": "Walls are 12mm out of square on the window side; noted on the plan."
+    },
+    {
+      "id": "choose-unit-range-and-colour",
+      "title": "Choose unit range and colour",
+      "type": "task",
+      "status": "done",
+      "notes": "Shaker doors in sage green, oak worktops, brass handles."
+    },
+    {
+      "id": "hob",
+      "title": "Gas or induction hob",
+      "type": "decision",
+      "status": "done",
+      "notes": "Induction. Lets us cap the gas pipe and frees up the wall."
+    },
+    {
+      "id": "plan-appliance-positions",
+      "title": "Plan appliance positions",
+      "type": "task",
+      "status": "done",
+      "dependsOn": [
+        "hob"
+      ]
+    },
+    {
+      "id": "plan-drawing",
+      "title": "Dimensioned plan drawing",
+      "type": "deliverable",
+      "status": "done",
+      "dependsOn": [
+        "measure"
+      ]
+    },
+    {
+      "id": "mark-sockets-and-switches-on-the-plan",
+      "title": "Mark sockets and switches on the plan",
+      "type": "task",
+      "status": "done",
+      "dependsOn": [
+        "plan-drawing"
+      ],
+      "notes": "18 doubles plus three appliance spurs under the counter."
+    },
+    {
+      "id": "3d-render-in-the-supplier-s-planner",
+      "title": "3D render in the supplier's planner",
+      "type": "stretch",
+      "status": "done"
+    },
+    {
+      "id": "island-too-tight-for-a-walkway",
+      "title": "Island too tight for a walkway",
+      "type": "risk",
+      "status": "dropped",
+      "notes": "Dropped the island for a peninsula: keeps 1m clearance."
+    }
+  ]
+}

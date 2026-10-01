@@ -1,0 +1,61 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "eicr",
+  "name": "Electrical safety check",
+  "deliverable": "An Electrical Installation Condition Report with no unresolved C1 or C2 items",
+  "timeboxDays": 30,
+  "successCriteria": [
+    {
+      "id": "eicr-carried-out",
+      "mvp": true,
+      "text": "EICR carried out",
+      "done": false
+    },
+    {
+      "id": "any-c1-c2-faults-fixed",
+      "mvp": true,
+      "text": "Any C1/C2 faults fixed",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "get-eicr-quotes",
+      "title": "Get EICR quotes",
+      "type": "task",
+      "status": "todo",
+      "notes": "The last one was in 2019; recommended every ten years, but the fuse board is old."
+    },
+    {
+      "id": "book",
+      "title": "Book the EICR",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "report",
+      "title": "EICR report",
+      "type": "deliverable",
+      "status": "todo",
+      "dependsOn": [
+        "book"
+      ]
+    },
+    {
+      "id": "fix-any-c1-c2-items",
+      "title": "Fix any C1/C2 items",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "report"
+      ]
+    },
+    {
+      "id": "old-fuse-board-needs-replacing",
+      "title": "Old fuse board needs replacing",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Budget £600–900 just in case."
+    }
+  ]
+}

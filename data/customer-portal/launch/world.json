@@ -1,0 +1,21 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "launch",
+  "name": "Launch",
+  "description": "Get it safely in front of every customer before the winter peak.",
+  "theme": "castle",
+  "goalIds": [
+    "launch",
+    "accessible"
+  ],
+  "unlocksAfter": [
+    "features"
+  ],
+  "levelOrder": [
+    "a11y-audit",
+    "load-test",
+    "beta",
+    "go-live",
+    "hypercare"
+  ]
+}

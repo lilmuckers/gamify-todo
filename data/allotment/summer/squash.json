@@ -1,0 +1,64 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "squash",
+  "name": "Squash and courgettes",
+  "deliverable": "Two courgette plants and three squash plants cropping without taking over the plot",
+  "timeboxDays": 75,
+  "startedAt": "2026-05-24T09:00:00Z",
+  "clearedAt": "2026-08-22T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "courgettes-harvested-regularly",
+      "mvp": true,
+      "text": "Courgettes harvested regularly",
+      "done": true
+    },
+    {
+      "id": "squash-ripened-for-storage",
+      "mvp": true,
+      "text": "Squash ripened for storage",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "plant-out-on-the-compost-heap-bed",
+      "title": "Plant out on the compost-heap bed",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "mulch-with-grass-clippings",
+      "title": "Mulch with grass clippings",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "pick-courgettes-small-and-often",
+      "title": "Pick courgettes small and often",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "cure-the-squash-in-the-sun",
+      "title": "Cure the squash in the sun",
+      "type": "task",
+      "status": "done",
+      "notes": "Two weeks on the shed roof."
+    },
+    {
+      "id": "powdery-mildew",
+      "title": "Powdery mildew",
+      "type": "risk",
+      "status": "done",
+      "notes": "Late August; did not matter by then."
+    },
+    {
+      "id": "two-courgette-plants-or-three",
+      "title": "Two courgette plants or three",
+      "type": "decision",
+      "status": "done",
+      "notes": "Two. Last year three was a nightmare."
+    }
+  ]
+}

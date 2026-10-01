@@ -1,0 +1,65 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "alarms",
+  "name": "Smoke and CO alarms",
+  "deliverable": "Every alarm tested and a carbon-monoxide alarm fitted by the boiler",
+  "timeboxDays": 3,
+  "startedAt": "2026-09-27T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "all-smoke-alarms-tested",
+      "mvp": true,
+      "text": "All smoke alarms tested",
+      "done": false
+    },
+    {
+      "id": "co-alarm-fitted-next-to-the-boil",
+      "mvp": true,
+      "text": "CO alarm fitted next to the boiler",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "test-every-smoke-alarm",
+      "title": "Test every smoke alarm",
+      "type": "task",
+      "status": "done",
+      "notes": "Three of four fine."
+    },
+    {
+      "id": "replace-the-hallway-alarm",
+      "title": "Replace the hallway alarm",
+      "type": "task",
+      "status": "doing",
+      "notes": "Ten years old; the date on the back says 2016."
+    },
+    {
+      "id": "buy-co",
+      "title": "Buy a CO alarm",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "fit-the-co-alarm-by-the-boiler",
+      "title": "Fit the CO alarm by the boiler",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "buy-co"
+      ]
+    },
+    {
+      "id": "note-alarm-expiry-dates-in-the-house-fol",
+      "title": "Note alarm expiry dates in the house folder",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "interlinked-alarms",
+      "title": "Interlinked alarms",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

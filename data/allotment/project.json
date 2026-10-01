@@ -1,0 +1,27 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
+  "id": "allotment",
+  "title": "Allotment 2026",
+  "description": "Plot 14B at Elm Lane allotments, year two. Last year we grew 23 things badly; this year it is fewer crops, grown properly, and a plot that passes the committee inspection.",
+  "goals": [
+    {
+      "id": "weekly-harvest",
+      "title": "Something to eat from the plot every week, May to October"
+    },
+    {
+      "id": "pass-inspection",
+      "title": "Pass the committee's tidiness inspection",
+      "description": "Inspections are in June and September. Two fails and you lose the plot."
+    },
+    {
+      "id": "two-hours",
+      "title": "Keep it to about two hours a week outside sowing season"
+    }
+  ],
+  "worldOrder": [
+    "winter",
+    "spring",
+    "summer",
+    "autumn"
+  ]
+}

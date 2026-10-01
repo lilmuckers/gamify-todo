@@ -1,0 +1,87 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "roof-check",
+  "name": "Roof inspection",
+  "deliverable": "A roofer has inspected the roof and fixed any slipped slates",
+  "description": "Overdue because of weather, not effort. Do not start the damp job until this is done.",
+  "timeboxDays": 14,
+  "startedAt": "2026-09-10T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "roofer-has-inspected-the-roof",
+      "mvp": true,
+      "text": "Roofer has inspected the roof",
+      "done": false
+    },
+    {
+      "id": "slipped-slates-replaced",
+      "mvp": true,
+      "text": "Slipped slates replaced",
+      "done": false
+    },
+    {
+      "id": "photos-of-the-roof-saved",
+      "mvp": false,
+      "text": "Photos of the roof saved",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "photograph-the-roof-from-the-street-with",
+      "title": "Photograph the roof from the street with a zoom lens",
+      "type": "task",
+      "status": "done",
+      "notes": "Spotted three slipped slates above the back bedroom."
+    },
+    {
+      "id": "get-two-roofer-quotes",
+      "title": "Get two roofer quotes",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "choose-the-roofer",
+      "title": "Choose the roofer",
+      "type": "decision",
+      "status": "done",
+      "notes": "Hughes & Son: cheaper, and they can reach the slates from a roof ladder without scaffolding."
+    },
+    {
+      "id": "visit",
+      "title": "Roofer visit",
+      "type": "dependency",
+      "status": "doing",
+      "notes": "Booked twice, cancelled twice for rain. Next slot: Monday."
+    },
+    {
+      "id": "replace-the-three-slipped-slates",
+      "title": "Replace the three slipped slates",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "visit"
+      ]
+    },
+    {
+      "id": "re-point-the-chimney-flashing",
+      "title": "Re-point the chimney flashing",
+      "type": "task",
+      "status": "todo",
+      "mvp": false
+    },
+    {
+      "id": "rain-keeps-cancelling-the-visit",
+      "title": "Rain keeps cancelling the visit",
+      "type": "blocker",
+      "status": "doing",
+      "notes": "Asked to be on the cancellation list for dry days."
+    },
+    {
+      "id": "check-the-loft-for-daylight-through-the",
+      "title": "Check the loft for daylight through the roof",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "strip",
+  "name": "Strip-out",
+  "description": "Empty the old kitchen and take it back to bare walls, without the dust taking over the house.",
+  "theme": "desert",
+  "goalIds": [
+    "livable",
+    "christmas-dinner"
+  ],
+  "unlocksAfter": [
+    "plan"
+  ],
+  "levelOrder": [
+    "temp-kitchen",
+    "demolition",
+    "clear-out"
+  ]
+}

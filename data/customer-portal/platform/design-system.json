@@ -1,0 +1,68 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "design-system",
+  "name": "Design system",
+  "deliverable": "Accessible components shared by every page",
+  "timeboxDays": 14,
+  "startedAt": "2026-07-13T09:00:00Z",
+  "clearedAt": "2026-07-27T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "core-components-built-and-docume",
+      "mvp": true,
+      "text": "Core components built and documented",
+      "done": true
+    },
+    {
+      "id": "each-component-passes-axe-checks",
+      "mvp": true,
+      "text": "Each component passes axe checks",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "audit-the-brand-guidelines-for-colour-co",
+      "title": "Audit the brand guidelines for colour contrast",
+      "type": "task",
+      "status": "done",
+      "notes": "Brand teal fails on white; darkened by 10%, agreed with brand."
+    },
+    {
+      "id": "buttons-links-and-form-fields",
+      "title": "Buttons, links and form fields",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "error-summary-and-inline-errors",
+      "title": "Error summary and inline errors",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "tables-for-bill-history",
+      "title": "Tables for bill history",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "component-docs-site",
+      "title": "Component docs site",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "automated-axe-checks-in-ci",
+      "title": "Automated axe checks in CI",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "dark-mode",
+      "title": "Dark mode",
+      "type": "stretch",
+      "status": "done"
+    }
+  ]
+}

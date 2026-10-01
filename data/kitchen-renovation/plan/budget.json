@@ -1,0 +1,76 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "budget",
+  "name": "Set the budget",
+  "deliverable": "A budget spreadsheet we have both signed off, with a 10% contingency line",
+  "description": "Rough numbers first, then real quotes. The contingency is not optional.",
+  "timeboxDays": 7,
+  "startedAt": "2026-07-31T09:00:00Z",
+  "clearedAt": "2026-08-05T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "total-agreed-by-both-of-us",
+      "mvp": true,
+      "text": "Total agreed by both of us",
+      "done": true
+    },
+    {
+      "id": "contingency-of-at-least-10",
+      "mvp": true,
+      "text": "Contingency of at least 10%",
+      "done": true
+    },
+    {
+      "id": "every-line-backed-by-a-quote-or",
+      "mvp": false,
+      "text": "Every line backed by a quote or a real price",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "list-everything-we-want",
+      "title": "List everything we want",
+      "type": "task",
+      "status": "done",
+      "notes": "Wish list first, cut later. Ended with 31 lines; cut to 22."
+    },
+    {
+      "id": "price-units-at-three-suppliers",
+      "title": "Price units at three suppliers",
+      "type": "task",
+      "status": "done",
+      "notes": "Wren, a trade counter via the fitter, and a local joiner. Trade counter won on price."
+    },
+    {
+      "id": "layout",
+      "title": "Keep the layout or knock through to the dining room",
+      "type": "decision",
+      "status": "done",
+      "notes": "Knock through. Structural engineer confirmed the wall is not load-bearing (£180 visit)."
+    },
+    {
+      "id": "add-a-10-contingency-line",
+      "title": "Add a 10% contingency line",
+      "type": "task",
+      "status": "done",
+      "dependsOn": [
+        "price-units-at-three-suppliers"
+      ]
+    },
+    {
+      "id": "costs-creep-after-demolition",
+      "title": "Costs creep after demolition",
+      "type": "risk",
+      "status": "done",
+      "notes": "Mitigated with fixed-price quotes and the contingency line."
+    },
+    {
+      "id": "colour-coded-cost-chart",
+      "title": "Colour-coded cost chart",
+      "type": "stretch",
+      "status": "dropped",
+      "notes": "Spreadsheet is fine. Dropped."
+    }
+  ]
+}

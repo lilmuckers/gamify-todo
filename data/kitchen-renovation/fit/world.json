@@ -1,0 +1,20 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "fit",
+  "name": "Fit-out",
+  "description": "The bit that finally looks like a kitchen.",
+  "theme": "grass",
+  "goalIds": [
+    "christmas-dinner",
+    "on-budget"
+  ],
+  "unlocksAfter": [
+    "services"
+  ],
+  "levelOrder": [
+    "units",
+    "worktops",
+    "appliances",
+    "tiling"
+  ]
+}
