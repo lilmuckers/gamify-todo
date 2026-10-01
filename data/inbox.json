@@ -12,6 +12,12 @@
       "title": "Don't do a thing",
       "type": "blocker",
       "addedAt": "2026-10-01T16:16:12.125Z"
+    },
+    {
+      "id": "build-that-other-thing",
+      "title": "Build that other thing",
+      "type": "dependency",
+      "addedAt": "2026-10-01T16:16:25.108Z"
     }
   ]
 }
