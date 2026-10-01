@@ -178,7 +178,9 @@ export class LevelScene extends QuestScene {
 
   private refresh() {
     const cur = this.current();
-    if (!cur) return;
+    // On the way out (pipe or cloud), leave the stage alone: a rebuild would
+    // strand the hero's ride mid-tween. The next scene draws fresh state.
+    if (!cur || this.leaving) return;
     const sig = JSON.stringify([cur.level, cur.diff?.change, this.app.selection]);
     if (sig === this.sig) return;
     const changed = this.diffStatuses(cur.level);
