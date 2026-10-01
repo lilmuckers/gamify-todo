@@ -1120,3 +1120,60 @@ a:focus-visible {
 .game-nav .nav-up {
   background: rgba(181, 80, 136, 0.9);
 }
+
+/* ---------- Hero picker (settings) ---------- */
+.hero-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hero-carousel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  outline: none;
+}
+.hero-carousel:focus-visible .hero-card {
+  outline: 2px solid var(--gold);
+}
+.hero-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: linear-gradient(#5c94fc, #9cc3ff);
+  text-align: center;
+  min-height: 150px;
+}
+.hero-card b {
+  font: 9px var(--pixel);
+  color: #1a1c2c;
+}
+.hero-card small {
+  color: #1a1c2c;
+  opacity: 0.8;
+}
+.hero-big {
+  width: 64px;
+  height: 64px;
+}
+.hero-dots {
+  display: flex;
+  gap: 4px;
+}
+.hero-dots i {
+  width: 6px;
+  height: 6px;
+  background: rgba(26, 28, 44, 0.3);
+}
+.hero-dots i.on {
+  background: #1a1c2c;
+}
+.hero-carousel > .btn {
+  font: 16px/1 var(--body);
+  padding: 14px 10px;
+}

@@ -3,6 +3,7 @@ import type { App } from './app';
 import { go, href } from './router';
 import { island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
+import { heroKey } from './sprites/heroes';
 import { carpetCanvas, cartridge } from './sprites/cartridge';
 import { h, icon, mount } from './ui/dom';
 import { renderHud } from './ui/hud';
@@ -74,7 +75,7 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
   if (cur) {
     const theme = r.view === 'pr-level' ? 'warp' : cur.sub ? 'under' : cur.world.theme;
     const sel = app.selection?.kind === 'item' ? app.selection.id : undefined;
-    const strip = drawStrip(cur.level, theme, cur.diff, sel, !!cur.sub);
+    const strip = drawStrip(cur.level, theme, cur.diff, sel, !!cur.sub, heroKey(app.heroId));
     const scale = 1.5;
     strip.canvas.className = 'pixel';
     strip.canvas.style.width = `${strip.canvas.width * scale}px`;
@@ -105,7 +106,7 @@ function renderNav(app: App, nav: HTMLElement) {
     h(
       'button',
       { type: 'button', disabled: !next, onclick: () => next && pid && go({ view: 'level', projectId: pid, ...next }) },
-      icon('hero', 'grass', 'icon sm'),
+      icon(heroKey(app.heroId), 'grass', 'icon sm'),
       h('span', null, 'Next'),
     ),
     app.caps.canReviewPRs &&

@@ -1,4 +1,4 @@
-import type { Criterion, GameState, Goal, Item, ItemStatus, Level, Project, World, Workspace } from './model';
+import type { Criterion, GameState, Goal, Item, ItemStatus, Level, Project, Settings, World, Workspace } from './model';
 import { clone } from './model';
 import { isCleared } from './scoring';
 
@@ -45,7 +45,9 @@ type ProjectOpBody =
 export type OpBody =
   | (ProjectOpBody & { projectId: string })
   | { kind: 'addProject'; projectId: string; project: Project }
-  | { kind: 'deleteProject'; projectId: string };
+  | { kind: 'deleteProject'; projectId: string }
+  /** Repo-wide settings (data/settings.json). Undefined values remove keys. */
+  | { kind: 'updateSettings'; patch: Partial<Omit<Settings, '$schema'>> };
 
 type ProjectOp = ProjectOpBody & { projectId: string; opId: string; at: string };
 
@@ -185,16 +187,22 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
 
 /** Applies one op to a copy of the workspace. Throws OpConflict if the target is gone. */
 export function applyOp(ws: Workspace, op: Op): Workspace {
+  if (op.kind === 'updateSettings') {
+    const settings = { ...ws.settings, ...clone(op.patch) };
+    for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (settings as any)[k];
+    const { settings: _, ...rest } = ws;
+    return Object.keys(settings).length ? { ...rest, settings } : rest;
+  }
   if (op.kind === 'addProject') {
     if (ws.projects[op.projectId]) throw new OpConflict(`project id "${op.projectId}" already taken`, op);
-    return { projects: { ...ws.projects, [op.projectId]: { overworld: clone(op.project), worlds: {} } } };
+    return { ...ws, projects: { ...ws.projects, [op.projectId]: { overworld: clone(op.project), worlds: {} } } };
   }
   const state = need(ws.projects[op.projectId], `project "${op.projectId}"`, op);
   if (op.kind === 'deleteProject') {
     const { [op.projectId]: _, ...rest } = ws.projects;
-    return { projects: rest };
+    return { ...ws, projects: rest };
   }
-  return { projects: { ...ws.projects, [op.projectId]: applyProjectOp(state, op) } };
+  return { ...ws, projects: { ...ws.projects, [op.projectId]: applyProjectOp(state, op) } };
 }
 
 function applyProjectOp(state: GameState, op: ProjectOp): GameState {
@@ -306,6 +314,8 @@ function itemTitle(ws: Workspace, op: { projectId: string; itemId: string } & It
 
 /** Human summary of an op, for commit messages and the pending list. */
 export function describeOp(op: Op, state?: Workspace): string {
+  if (op.kind === 'updateSettings')
+    return `settings: ${Object.entries(op.patch).map(([k, v]) => `${k} = ${v ?? 'default'}`).join(', ')}`;
   const where = 'levelId' in op ? ` (${op.projectId}/${op.worldId}/${op.levelId})` : ` (${op.projectId})`;
   const title = (id: string) =>
     state && 'levelId' in op ? itemTitle(state, { ...op, itemId: id } as any) : id;

@@ -12,6 +12,7 @@ const REPO_KEY = 'quest.github.repo';
 const BRANCH_KEY = 'quest.github.branch';
 const RESOLVED_BRANCH_KEY = 'quest.github.branch.resolved';
 const UI_KEY = 'quest.ui';
+const HERO_KEY = 'quest.hero';
 
 function read(key: string): string | undefined {
   try {
@@ -60,6 +61,12 @@ export function setRepo(value: string | undefined, branch?: string) {
 export function rememberBranch(branch: string) {
   write(RESOLVED_BRANCH_KEY, branch);
 }
+
+/** This browser's choice of player character (next to the token, never sent anywhere). */
+export const heroStore = {
+  get: () => read(HERO_KEY),
+  set: (id: string | undefined) => write(HERO_KEY, id),
+};
 
 export interface UiPrefs {
   mobile?: 'auto' | 'on' | 'off';
