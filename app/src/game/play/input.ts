@@ -78,7 +78,23 @@ export class PlayControls {
       look: k.e.isDown || btn(PAD.y),
       esc: k.esc.isDown,
     };
-    const pressed = (key: keyof Held) => held[key] && !this.prev[key];
+    // A quick tap can go down and up between two frames, so polling isDown
+    // misses it: JustDown latches every keydown until read here.
+    const tap = Object.fromEntries(Object.entries(k).map(([name, key]) => [name, Phaser.Input.Keyboard.JustDown(key)]));
+    const tapped: Record<keyof Held, boolean> = {
+      left: tap.left || tap.a,
+      right: tap.right || tap.d,
+      up: tap.up || tap.w,
+      down: tap.down || tap.s,
+      jump: tap.space || tap.z,
+      run: false,
+      confirm: tap.space || tap.z,
+      back: false,
+      quit: false,
+      look: tap.e,
+      esc: tap.esc,
+    };
+    const pressed = (key: keyof Held) => (held[key] && !this.prev[key]) || tapped[key];
     // An analogue stick gives a proportional push; keys and the d-pad are all or nothing.
     const stick = Math.abs(ax) > DEADZONE && !btn(PAD.left) && !btn(PAD.right) ? (ax - Math.sign(ax) * DEADZONE) / (1 - DEADZONE) : 0;
     const x = stick || (held.right ? 1 : 0) - (held.left ? 1 : 0);
@@ -96,7 +112,7 @@ export class PlayControls {
       quitPressed: pressed('quit'),
       lookPressed: pressed('look'),
       escPressed: pressed('esc'),
-      active: Object.values(held).some(Boolean) || Math.abs(ax) > DEADZONE || Math.abs(ay) > DEADZONE,
+      active: Object.values(held).some(Boolean) || Object.values(tapped).some(Boolean) || Math.abs(ax) > DEADZONE || Math.abs(ay) > DEADZONE,
     };
     this.prev = held;
     return out;
