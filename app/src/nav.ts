@@ -1,4 +1,5 @@
 import { orderedWorlds } from '@quest/shared';
+import { track } from './analytics';
 import type { App } from './app';
 import { href, type Route } from './router';
 
@@ -116,6 +117,7 @@ export function bindNavKeys(app: App) {
       e.key === 'Escape' ? (app.bubbleOpen ? undefined : nav.up) : e.key === '[' ? nav.prev : e.key === ']' ? nav.next : undefined;
     if (!target) return;
     e.preventDefault();
+    track('nav_shortcut', { key: e.key === 'Escape' ? 'escape' : e.key });
     location.hash = target.href;
   });
 }

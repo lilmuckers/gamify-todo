@@ -2,6 +2,7 @@ import { scoreLevel, totals } from '@quest/shared';
 import type { App } from '../app';
 import { href } from '../router';
 import { fmtDuration, h, icon, mount, stars } from './dom';
+import { track } from '../analytics';
 import { navFor } from '../nav';
 import { heroKey } from '../sprites/heroes';
 import { settingsDialog } from './settings';
@@ -77,7 +78,9 @@ export function renderHud(app: App, el: HTMLElement) {
           try {
             await s.sync();
             toast(await s.source.publish!(), 'win');
+            track('publish', { ok: true });
           } catch (err) {
+            track('publish', { ok: false });
             toast((err as Error).message, 'alert', 6000);
           } finally {
             btn.disabled = false;

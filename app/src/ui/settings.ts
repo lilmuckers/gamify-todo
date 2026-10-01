@@ -1,4 +1,5 @@
 import { describeOp, GitHubClient, HERO_IDS, parseRepo, type HeroId } from '@quest/shared';
+import { analyticsAllowed, analyticsAvailable, setAnalyticsAllowed, track } from '../analytics';
 import type { App } from '../app';
 import { chosenBranch, heroStore, repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
 import { HEROES, heroKey } from '../sprites/heroes';
@@ -41,6 +42,7 @@ export function settingsDialog(app: App) {
             if (who.empty) throw new Error(`${ref.owner}/${ref.repo} has no commits yet. Add a README on GitHub first.`);
             setRepo(`${ref.owner}/${ref.repo}`, branch.value);
             tokenStore.set(t);
+            track('github_connect', { can_push: who.canPush });
             toast(who.canPush ? `Connected as ${who.login}` : `Connected read-only: ${who.login} cannot push there`, who.canPush ? 'win' : 'warn');
             location.hash = '#/';
             location.reload();
@@ -61,6 +63,7 @@ export function settingsDialog(app: App) {
           if (s.outbox.length && !(await confirmDialog('Disconnect', `${s.outbox.length} edit(s) are not synced yet and will stay queued until you reconnect.`, 'Disconnect')))
             return;
           tokenStore.set(undefined);
+          track('github_disconnect');
           location.reload();
         },
       },
@@ -79,7 +82,9 @@ export function settingsDialog(app: App) {
         h('b', null, 'Checks: read'),
         '. Data goes in data/<project>/… (see the ',
         h('a', { href: 'skills/quest-log/SKILL.md', target: '_blank', class: 'link' }, 'skill guide'),
-        '). The token is stored in this browser’s localStorage only and sent nowhere except api.github.com. Anyone with access to this browser profile can read it.',
+        '). The token is stored in this browser’s localStorage and the app sends it only to api.github.com. Anyone with access to this browser profile can read it.',
+        analyticsAvailable() &&
+          ' This page also loads Google Analytics (no titles, ids or repo names are sent); you can switch it off under Privacy below.',
       ),
       h('label', { class: 'field' }, h('span', null, 'Repository'), repo),
       h('label', { class: 'field' }, h('span', null, 'Branch (optional)'), branch),
@@ -104,6 +109,27 @@ export function settingsDialog(app: App) {
     ].map(([v, l]) => h('option', { value: v, selected: (uiPrefs().mobile ?? 'auto') === v }, l)),
   );
   body.append(h('h3', null, 'Display'), h('label', { class: 'field' }, h('span', null, 'Layout'), mode));
+
+  if (analyticsAvailable()) {
+    const toggle = h('input', {
+      type: 'checkbox',
+      checked: analyticsAllowed(),
+      onchange: (e: Event) => {
+        const on = (e.target as HTMLInputElement).checked;
+        setAnalyticsAllowed(on);
+        toast(on ? 'Analytics on from the next reload' : 'Analytics off', 'win');
+      },
+    });
+    body.append(
+      h('h3', null, 'Privacy'),
+      h('label', { class: 'check' }, toggle, 'Usage analytics (Google Analytics)'),
+      h(
+        'small',
+        { class: 'muted' },
+        'Counts which screens and actions get used, by type only: no project, level or item titles or ids, no repo names, no tokens. Off by default if your browser sends Global Privacy Control.',
+      ),
+    );
+  }
 
   body.append(h('h3', null, 'Sync'));
   body.append(

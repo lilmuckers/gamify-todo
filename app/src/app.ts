@@ -17,6 +17,8 @@ import {
   type World,
   type Workspace,
 } from '@quest/shared';
+import { pageView, track } from './analytics';
+import { eventsForOp } from './analytics-events';
 import { heroStore } from './config';
 import type { PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
@@ -75,6 +77,7 @@ export class App {
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
+      pageView(this.route);
       this.onRoute();
       this.emit();
     });
@@ -136,12 +139,17 @@ export class App {
   /** Picks a hero: saved in this browser, and in the repo's settings when editable. */
   setHero(id: HeroId) {
     heroStore.set(id);
+    track('hero_select', { hero: id, saved_to_repo: this.caps.canEdit });
     if (this.caps.canEdit && this.workspace?.settings?.hero !== id) this.dispatch({ kind: 'updateSettings', patch: { hero: id } });
     this.emit();
   }
 
   dispatch(body: OpBody): DispatchResult {
+    const before = this.store.state;
     const r = this.store.dispatch(body);
+    if (r.ok) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, e.params);
+    else track('edit_rejected', { reason: /no longer exists|already taken|cannot be/.test(r.error ?? '') ? 'conflict' : 'validation' });
+    if (r.polish && r.polish > 0) track('polish_penalty', { points: r.polish });
     if (!r.ok) toast(r.error ?? 'Edit rejected', 'alert', 5000);
     else if (r.polish && r.polish > 0)
       toast('Perfectionism detected 🐢 — this level is already clear. Move on!', 'warn', 5000);

@@ -1,4 +1,5 @@
 import type { MergeMethod, PullDetail, ReviewEvent } from '@quest/shared';
+import { track } from '../analytics';
 import type { App } from '../app';
 import { go } from '../router';
 import { h } from './dom';
@@ -16,6 +17,7 @@ export function reviewDialog(app: App, pr: PullDetail) {
     }
     try {
       await provider.review(pr.number, event, body.value.trim());
+      track('pr_review', { event: event.toLowerCase() });
       toast(event === 'APPROVE' ? 'Approved ✓' : 'Review sent', 'win');
     } catch (err) {
       toast((err as Error).message, 'alert', 6000);
@@ -51,6 +53,7 @@ export function mergeDialog(app: App, pr: PullDetail) {
       run: async () => {
         try {
           await provider.merge(pr.number, method.value as MergeMethod, pr.headSha);
+          track('pr_merge', { method: method.value });
         } catch (err) {
           toast((err as Error).message, 'alert', 6000);
           return false;

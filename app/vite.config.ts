@@ -20,6 +20,9 @@ function detectRepo(): string | undefined {
 }
 
 const repo = process.env.VITE_GH_REPO ?? detectRepo();
+// Google Analytics: on for the Pages build, off for Docker/local unless set explicitly.
+const gaId = process.env.VITE_GA_ID ?? (target === 'pages' ? 'G-5D7YVR6VN6' : '');
+const GOOGLE = 'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com';
 // Pages builds use relative URLs so the same build works at /<repo>/ on github.io
 // and at the root of a custom domain (routing is hash-based). Override with VITE_BASE.
 const base = process.env.VITE_BASE ?? (target === 'pages' ? './' : '/');
@@ -86,13 +89,14 @@ function repoData(): Plugin {
 /** Strict CSP for production builds (dev needs inline HMR scripts). */
 function csp(): Plugin {
   const connect = target === 'pages' ? "'self' https://api.github.com" : "'self'";
+  const ga = (sources: string) => (gaId ? ` ${sources}` : '');
   const policy = [
     "default-src 'self'",
-    "script-src 'self'",
+    `script-src 'self'${ga('https://www.googletagmanager.com')}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    `img-src 'self' data: blob:${ga(GOOGLE)}`,
     "font-src 'self'",
-    `connect-src ${connect}`,
+    `connect-src ${connect}${ga(GOOGLE)}`,
     "worker-src 'self'",
     "manifest-src 'self'",
     "base-uri 'self'",
@@ -112,6 +116,7 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_TARGET': JSON.stringify(target),
     'import.meta.env.VITE_GH_REPO': JSON.stringify(repo ?? ''),
+    'import.meta.env.VITE_GA_ID': JSON.stringify(gaId),
   },
   server: {
     port: 5173,

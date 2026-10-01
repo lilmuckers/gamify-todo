@@ -21,6 +21,7 @@ import {
   type Level,
   type World,
 } from '@quest/shared';
+import { bucket, track } from '../analytics';
 import { itemAddr, type App, type LevelView } from '../app';
 import { href } from '../router';
 import { fmtDuration, h, icon, relTime, stars } from './dom';
@@ -440,6 +441,8 @@ function levelPanel(app: App) {
     const up = { ...r, subId: undefined, itemId: dep.id } as typeof r;
     const left = level.items.filter((i) => isMvpItem(i) && !isResolved(i)).length;
     const setDep = (status: Item['status']) => {
+      track('dependency_resolve', { action: status === 'done' ? 'close' : 'skip', dep_mode: 'warp' });
+      track('warp_exit', { closed: status === 'done' });
       app.arrival = { kind: 'pipe-up', itemId: dep.id };
       if (app.dispatch({ kind: 'setItemStatus', ...at, itemId: dep.id, status }).ok) location.hash = href(up);
     };
@@ -462,7 +465,18 @@ function levelPanel(app: App) {
       h(
         'div',
         { class: 'row actions' },
-        h('a', { class: 'btn sm', href: href(up), onclick: () => (app.arrival = { kind: 'pipe-up', itemId: dep.id }) }, '⬆ Back up the pipe'),
+        h(
+          'a',
+          {
+            class: 'btn sm',
+            href: href(up),
+            onclick: () => {
+              track('warp_exit', { closed: false });
+              app.arrival = { kind: 'pipe-up', itemId: dep.id };
+            },
+          },
+          '⬆ Back up the pipe',
+        ),
         edit && !isResolved(dep) && smallBtn('✓ Got it', () => setDep('done'), 'go'),
         edit && !isResolved(dep) && smallBtn('Jump over', () => setDep('dropped')),
       ),
@@ -527,11 +541,19 @@ function dependencyLinks(app: App, cur: LevelView, item: Item) {
     const target = ref && app.state && findLevel(app.state, ref.worldId, ref.levelId);
     if (!ref || !target || r.view !== 'level') return h('small', { class: 'muted' }, `Needs level ${item.levelRef}`);
     const name = `${app.state!.worlds[ref.worldId]?.name ?? ref.worldId}: ${target.name}`;
-    return h('div', null, h('a', { class: 'link', href: href({ view: 'level', projectId: cur.projectId, ...ref }), onclick: () => (app.arrival = { kind: 'cloud' }) }, `☁ Ride the cloud to ${name}`));
+    const ride = () => {
+      track('cloud_ride');
+      app.arrival = { kind: 'cloud' };
+    };
+    return h('div', null, h('a', { class: 'link', href: href({ view: 'level', projectId: cur.projectId, ...ref }), onclick: ride }, `☁ Ride the cloud to ${name}`));
   }
   if (r.view !== 'level' && r.view !== 'pr-level') return null;
   const below = { ...r, subId: item.id, itemId: undefined };
-  const enter = () => (app.arrival = { kind: 'pipe-down' });
+  const enter = () => {
+    const steps = item.subtasks?.length ?? 0;
+    track('warp_enter', { steps_bucket: bucket(steps), adding: steps === 0 });
+    app.arrival = { kind: 'pipe-down' };
+  };
   if (mode === 'warp') {
     const steps = (item.subtasks ?? []) as Item[];
     const done = steps.filter(isResolved).length;

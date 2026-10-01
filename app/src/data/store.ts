@@ -61,6 +61,8 @@ export class Store {
   version?: string;
   outbox: Op[] = [];
   conflicts: Conflict[] = [];
+  /** Called when a sync attempt finishes (analytics). */
+  onSyncResult?: (r: { result: 'ok' | 'offline' | 'error' | 'conflict'; ops: number; conflicts: number; error?: unknown }) => void;
   status: SyncStatus = 'loading';
   error?: string;
   issues: Issue[] = [];
@@ -237,6 +239,7 @@ export class Store {
     if (!this.online()) {
       this.status = 'offline';
       this.emit();
+      this.onSyncResult?.({ result: 'offline', ops: this.outbox.length, conflicts: 0 });
       return;
     }
     this.status = 'syncing';
@@ -279,14 +282,17 @@ export class Store {
         this.status = this.idleStatus();
         await Promise.all([this.saveQueue(), this.saveSnapshot()]);
         this.emit();
+        this.onSyncResult?.({ result: r.conflicts.length ? 'conflict' : 'ok', ops: r.applied.length, conflicts: r.conflicts.length });
         return;
       }
       this.status = 'error';
       this.error = 'Remote kept changing; will retry';
       this.schedule(this.retryMs);
+      this.onSyncResult?.({ result: 'error', ops: batch.length, conflicts: 0 });
     } catch (err) {
       this.fail(err);
       this.schedule(this.retryMs);
+      this.onSyncResult?.({ result: 'error', ops: batch.length, conflicts: 0, error: err });
     }
     this.emit();
   }
