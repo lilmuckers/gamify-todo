@@ -17,7 +17,7 @@
       "id": "pr-review",
       "mvp": false,
       "text": "Open PRs show as warp worlds",
-      "done": false
+      "done": true
     }
   ],
   "items": [
@@ -42,5 +42,8 @@
       "type": "risk",
       "status": "done"
     }
-  ]
+  ],
+  "stats": {
+    "editsAfterClear": 1
+  }
 }
