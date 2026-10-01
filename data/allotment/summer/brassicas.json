@@ -79,7 +79,7 @@
       "id": "net-against-pigeons-and-butterflies",
       "title": "Net against pigeons and butterflies",
       "type": "task",
-      "status": "done",
+      "status": "todo",
       "notes": "Fine mesh, hooped."
     },
     {
@@ -112,6 +112,7 @@
     "editsAfterClear": 1,
     "itemEdits": {
       "check-under-the-leaves-for-caterpillars": 1,
+      "net-against-pigeons-and-butterflies": 1,
       "stake-the-broccoli-before-autumn-winds": 1,
       "whitefly-on-the-kale": 1
     }
