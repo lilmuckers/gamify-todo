@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { LayoutEntity, LevelLayout } from '@quest/shared';
-import { ahead, buildWorld, newBody, step, TUNING, type Body, type PlayEvent, type PlayInput, type PlayWorld } from '../src/game/play/physics';
+import type { LayoutEntity, LevelLayout, StairStep } from '@quest/shared';
+import { ahead, buildWorld, nearest, newBody, step, stepId, TUNING, type Body, type PlayEvent, type PlayInput, type PlayWorld } from '../src/game/play/physics';
 
 const T = 16;
 const GROUND = 192;
@@ -13,8 +13,8 @@ function entity(kind: LayoutEntity['kind'], x: number, extra: Partial<LayoutEnti
   return { itemId: `${kind}-${x}`, kind, x, y: size[2], w: size[0], h: size[1], rank: 0, blocking: true, resolved: false, ...extra };
 }
 
-function world(entities: LayoutEntity[], sub = false): PlayWorld {
-  const layout: LevelLayout = { width: 60, entities, decorations: [], flagX: 50, castleX: 59, stops: [], hero: { x: 0, kind: 'flag' } };
+function world(entities: LayoutEntity[], sub = false, stairs: StairStep[] = []): PlayWorld {
+  const layout: LevelLayout = { width: 60, entities, decorations: [], stairs, flagX: 50, castleX: 59, stops: [], hero: { x: 0, kind: 'flag' } };
   return buildWorld(layout, { tile: T, groundY: GROUND, sub });
 }
 
@@ -125,6 +125,104 @@ describe('play physics', () => {
 
   it('keeps the walk speed in step with the scripted walk', () => {
     expect(TUNING.walk).toBe(7 * T);
+  });
+});
+
+describe('flagpole stairs', () => {
+  /** Steps at x = 40, 42, 44 (tiles), 1-3 blocks tall; the pole is at 50. */
+  const stairs = (spec: [mvp: boolean, done: boolean][]): StairStep[] =>
+    spec.map(([mvp, done], i) => ({ criterionId: `c${i}`, index: i, x: 40 + 2 * i, w: 2, h: i + 1, mvp, done }));
+  /** Holds right, jumping whenever on the ground: climbs anything in the way. */
+  const climb = (b: Body) => (): PlayInput => ({ ...idle, x: 1, jumpHeld: true, jumpPressed: b.onGround });
+  /** Plays like the scene: landed steps go in the `played` set. */
+  function play(b: Body, w: PlayWorld, frames: number, input: (f: number) => PlayInput, played = new Set<string>()) {
+    const events: PlayEvent[] = [];
+    for (let f = 0; f < frames; f++) {
+      const ev = step(b, input(f), w, DT, played);
+      for (const e of ev) if (e.kind === 'step') played.add(e.id);
+      events.push(...ev);
+      if (ev.some((e) => e.kind === 'flag')) break;
+    }
+    return { events, played };
+  }
+
+  it('makes each step a solid platform and ticks a step once when landed on', () => {
+    const w = world([], false, stairs([[true, false]]));
+    const b = newBody(39 * T - 4, GROUND);
+    const { events, played } = play(b, w, 60, (f) => ({ ...idle, x: f < 20 ? 1 : 0, jumpHeld: true, jumpPressed: f === 0 }));
+    expect(b.standingOn).toBe(stepId('c0'));
+    expect(b.y + b.h).toBe(GROUND - T);
+    expect(events.filter((e) => e.kind === 'step')).toEqual([{ kind: 'step', id: stepId('c0') }]);
+    // Standing there doesn't tick it again, even with the played set cleared (a rebuild).
+    expect(run(b, w, 30).filter((e) => e.kind === 'step')).toEqual([]);
+    expect(played.has(stepId('c0'))).toBe(true);
+  });
+
+  it("doesn't tick steps that are already ticked", () => {
+    const w = world([], false, stairs([[true, true]]));
+    const b = newBody(39 * T - 4, GROUND);
+    const events = run(b, w, 60, (f) => ({ ...idle, x: f < 20 ? 1 : 0, jumpHeld: true, jumpPressed: f === 0 }));
+    expect(b.standingOn).toBe(stepId('c0'));
+    expect(events.some((e) => e.kind === 'step')).toBe(false);
+  });
+
+  it('climbs to the pole, ticking every step, then the pole counts', () => {
+    const w = world([], false, stairs([[true, false], [true, false], [true, false]]));
+    const b = newBody(36 * T, GROUND);
+    const { events } = play(b, w, 600, climb(b));
+    expect(events.filter((e) => e.kind === 'step').map((e) => (e as { id: string }).id)).toEqual(['c0', 'c1', 'c2'].map(stepId));
+    expect(events.some((e) => e.kind === 'flag')).toBe(true);
+    expect(events.some((e) => e.kind === 'flagWhack')).toBe(false);
+  });
+
+  it("walls off everything past an un-ticked must-do step, so it can't be skipped", () => {
+    const w = world([], false, stairs([[true, true], [true, false], [true, false]]));
+    const b = newBody(36 * T, GROUND);
+    // Never lets the step-2 landing count: the gate past it stays shut.
+    const never = { has: () => false } as unknown as Set<string>;
+    for (let f = 0; f < 600; f++) step(b, climb(b)(), w, DT, never);
+    const gate = w.colliders.find((c) => c.kind === 'gate' && c.id === stepId('c1'))!;
+    expect(b.x + b.w).toBeLessThanOrEqual(gate.x + 0.001);
+    // The only gates are for un-ticked must-do steps.
+    expect(w.colliders.filter((c) => c.kind === 'gate').map((c) => c.id)).toEqual([stepId('c1'), stepId('c2')]);
+    expect(w.mvpSteps).toEqual([stepId('c1'), stepId('c2')]);
+  });
+
+  it('lets bonus steps be jumped over', () => {
+    // A bonus step between two ticked must-dos, never landed on.
+    const w = world([], false, [
+      { criterionId: 'a', index: 0, x: 40, w: 2, h: 1, mvp: true, done: true },
+      { criterionId: 'bonus', index: 1, x: 42, w: 2, h: 2, mvp: false, done: false },
+      { criterionId: 'b', index: 2, x: 44, w: 2, h: 2, mvp: true, done: true },
+    ]);
+    expect(w.colliders.some((c) => c.kind === 'gate')).toBe(false);
+    const b = newBody(41 * T, GROUND);
+    b.y = GROUND - T - b.h;
+    // Long jump from the first step straight onto the third.
+    const { events } = play(b, w, 120, (f) => ({ ...idle, x: 1, run: true, jumpHeld: f < 20, jumpPressed: f === 0 }));
+    expect(events.some((e) => e.kind === 'step')).toBe(false);
+    expect(events.some((e) => e.kind === 'flag')).toBe(true);
+  });
+
+  it('whacks the hero back from the pole while a must-do step is left, with a cooldown', () => {
+    const w = world([], false, stairs([[true, false]]));
+    // Dropped right by the pole, past the stairs.
+    const b = newBody(48 * T, GROUND);
+    const events = run(b, w, 60, { ...idle, x: 1 });
+    const whacks = events.filter((e) => e.kind === 'flagWhack');
+    expect(whacks).toEqual([{ kind: 'flagWhack', left: 1 }]);
+    expect(events.some((e) => e.kind === 'flag')).toBe(false);
+    expect(b.x).toBeLessThan(48 * T);
+    // Once the cooldown is over, it whacks again.
+    expect(run(b, w, 200, { ...idle, x: 1 }).filter((e) => e.kind === 'flagWhack').length).toBeGreaterThan(0);
+  });
+
+  it('leaves gates out of looking around', () => {
+    const w = world([], false, stairs([[true, false]]));
+    // Just past the step, facing the pole: the gate behind is never "ahead" or "near".
+    const b = newBody(42 * T + 2, GROUND);
+    expect(ahead(b, w)?.kind).toBe('flag');
+    expect(nearest(b, w)?.id).toBe(stepId('c0'));
   });
 });
 

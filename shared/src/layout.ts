@@ -49,10 +49,27 @@ export interface Stop {
   kind: 'item' | 'flag' | 'castle';
 }
 
+/**
+ * One success criterion as a step of the staircase before the flagpole, in
+ * successCriteria order. Tiles, like everything else: `h` is how many blocks
+ * tall the step's column is.
+ */
+export interface StairStep {
+  criterionId: string;
+  index: number;
+  x: number;
+  w: number;
+  h: number;
+  mvp: boolean;
+  done: boolean;
+}
+
 export interface LevelLayout {
   width: number;
   entities: LayoutEntity[];
   decorations: Decoration[];
+  /** The staircase up to the flagpole (none in a sub-level). */
+  stairs: StairStep[];
   flagX: number;
   castleX: number;
   /** Where the hero stops, in walking order. */
@@ -76,6 +93,22 @@ const SIZE: Record<EntityKind, { w: number; h: number; y: number }> = {
 const GAP = 3;
 const RANK_GAP = 2;
 const START_X = 6;
+/** Width of one stair step, in tiles: room for its label in the dirt. */
+export const STEP_W = 2;
+/** The top step is never taller than this, however many criteria there are. */
+export const MAX_STAIR_H = 8;
+/** Ground between the last item and the first step: where the hero waits. */
+const STAIR_GAP = 3;
+/** Ground between the top step and the flagpole: the leap. */
+const POLE_GAP = 2;
+
+/**
+ * Step heights, one block up per criterion. Past MAX_STAIR_H criteria the
+ * climb is spread out instead: some neighbours share a height.
+ */
+export function stairHeights(n: number): number[] {
+  return Array.from({ length: n }, (_, i) => (n <= MAX_STAIR_H ? i + 1 : Math.ceil(((i + 1) * MAX_STAIR_H) / n)));
+}
 
 export function isBlocking(item: Item): boolean {
   if (isResolved(item) || !isMvpItem(item)) return false;
@@ -161,9 +194,22 @@ export function layoutLevel(level: Level, opts: LayoutOptions = {}): LevelLayout
   }
 
   const mainEnd = Math.max(x, START_X + 8);
-  const flagX = mainEnd + 3;
-  // Room right of the pole for the success-criteria labels.
-  const castleX = opts.sub ? flagX + 4 : flagX + 9;
+  // A normal level ends with a staircase of success criteria up to the pole.
+  const stairX = mainEnd + STAIR_GAP;
+  const heights = stairHeights(level.successCriteria.length);
+  const stairs: StairStep[] = opts.sub
+    ? []
+    : level.successCriteria.map((c, i) => ({
+        criterionId: c.id,
+        index: i,
+        x: stairX + i * STEP_W,
+        w: STEP_W,
+        h: heights[i],
+        mvp: c.mvp,
+        done: c.done,
+      }));
+  const flagX = opts.sub ? mainEnd + 3 : stairX + stairs.length * STEP_W + POLE_GAP;
+  const castleX = opts.sub ? flagX + 4 : flagX + 5;
   const width = opts.sub ? flagX + 7 : castleX + 10;
 
   // Stretch coins float above whatever they depend on, else spread across the level.
@@ -194,8 +240,9 @@ export function layoutLevel(level: Level, opts: LayoutOptions = {}): LevelLayout
       itemId: e.itemId,
       kind: 'item' as const,
     }));
+  // Nothing blocking: wait at the goal (the foot of the stairs, or the exit pipe).
   stops.push(
-    cleared && !opts.sub ? { x: castleX + 2, kind: 'castle' } : { x: flagX - 1.5, kind: 'flag' },
+    cleared && !opts.sub ? { x: castleX + 2, kind: 'castle' } : { x: (opts.sub ? flagX : stairX) - 1.5, kind: 'flag' },
   );
 
   const rand = seeded(level.id);
@@ -207,5 +254,5 @@ export function layoutLevel(level: Level, opts: LayoutOptions = {}): LevelLayout
   for (let bx = 4 + rand() * 8; bx < width; bx += 9 + rand() * 10)
     decorations.push({ kind: 'bush', x: bx, y: 0, size: 1 + Math.floor(rand() * 3) });
 
-  return { width, entities, decorations, flagX, castleX, stops, hero: stops[0] };
+  return { width, entities, decorations, stairs, flagX, castleX, stops, hero: stops[0] };
 }

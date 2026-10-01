@@ -13,9 +13,9 @@ export interface Rect {
 }
 
 export interface Collider extends Rect {
-  /** Item id, or EXIT_ID for a sub-level's exit pipe. */
+  /** Item id, EXIT_ID for a sub-level's exit pipe, FLAG_ID for the pole, or stepId(criterion) for a stair step. */
   id: string;
-  kind: 'qblock' | 'checkpoint' | 'wall' | 'pipe' | 'warp' | 'cloud' | 'critter' | 'sign' | 'coins' | 'plant' | 'exit' | 'flag';
+  kind: 'qblock' | 'checkpoint' | 'wall' | 'pipe' | 'warp' | 'cloud' | 'critter' | 'sign' | 'coins' | 'plant' | 'exit' | 'flag' | 'step' | 'gate';
   /** Blocks movement from every side. */
   solid?: boolean;
   /** Only blocks from above (land on it, jump up through it). */
@@ -30,10 +30,19 @@ export interface Collider extends Rect {
   enter?: boolean;
   /** Touching it collects it. */
   collect?: boolean;
+  /** A stair step not ticked yet: landing on it ticks its criterion. */
+  tick?: boolean;
+  /**
+   * An invisible wall past an un-ticked must-do step (`id` is that step's):
+   * gone once the step is landed on, so it can't be jumped over.
+   */
+  gate?: boolean;
 }
 
 export interface PlayWorld {
   colliders: Collider[];
+  /** Must-do steps not ticked yet: the pole whacks you while any are left. */
+  mvpSteps: string[];
   /** Level width in pixels: the hero can't leave [0, width]. */
   width: number;
   groundY: number;
@@ -73,11 +82,20 @@ export type PlayEvent =
   | { kind: 'collect'; id: string }
   | { kind: 'enter'; id: string }
   | { kind: 'hurt'; id: string }
+  /** Landed on a stair step that wasn't ticked: tick its criterion. */
+  | { kind: 'step'; id: string }
+  /** Touched the pole with all must-do steps ticked: the finale. */
   | { kind: 'flag' }
+  /** Touched the pole with must-do steps left: it whacks the hero back. */
+  | { kind: 'flagWhack'; left: number }
   | { kind: 'jump' };
 
 export const EXIT_ID = '!exit';
 export const FLAG_ID = '!flag';
+/** Collider (and bubble) ids for stair steps; criterion ids can't contain '!'. */
+export const STEP_PREFIX = '!step:';
+export const stepId = (criterionId: string) => `${STEP_PREFIX}${criterionId}`;
+export const criterionOf = (id: string) => (id.startsWith(STEP_PREFIX) ? id.slice(STEP_PREFIX.length) : undefined);
 
 export const TUNING = {
   walk: 112,
@@ -95,6 +113,9 @@ export const TUNING = {
   hurtKnock: 160,
   hurtHop: 220,
   invuln: 1.2,
+  /** The flagpole's telling-off: thrown back left, no damage. */
+  whackKnock: 260,
+  whackHop: 300,
   coyote: 0.08,
   buffer: 0.12,
 };
@@ -108,6 +129,11 @@ export interface WorldOpts {
   /** A dependency's sub-level: exit pipe instead of a flagpole. */
   sub?: boolean;
 }
+
+/** Gates reach well above the top of the world, so nothing jumps over them. */
+const WORLD_ABOVE = 20;
+/** Wide enough that a running hero can't step through one in a frame. */
+const GATE_W = 8;
 
 /** Colliders for a laid-out level. Tile rects become pixel rects, as the scene draws them. */
 export function buildWorld(layout: LevelLayout, { tile: T, groundY, sub }: WorldOpts): PlayWorld {
@@ -153,14 +179,28 @@ export function buildWorld(layout: LevelLayout, { tile: T, groundY, sub }: World
         break;
     }
   }
+  // The staircase: every step is solid; un-ticked ones tick when landed on,
+  // and an un-ticked must-do step walls off everything past it until then.
+  const mvpSteps: string[] = [];
+  for (const s of layout.stairs) {
+    const id = stepId(s.criterionId);
+    const x = s.x * T;
+    const top = groundY - s.h * T;
+    colliders.push({ id, kind: 'step', x, y: top, w: s.w * T, h: s.h * T, solid: true, ...(s.done ? {} : { tick: true }) });
+    if (s.mvp && !s.done) {
+      mvpSteps.push(id);
+      const sky = -WORLD_ABOVE * T;
+      colliders.push({ id, kind: 'gate', x: x + s.w * T - GATE_W / 2, y: sky, w: GATE_W, h: top - sky, solid: true, gate: true });
+    }
+  }
   const fx = layout.flagX * T;
   if (sub) colliders.push({ id: EXIT_ID, kind: 'exit', x: fx, y: groundY - 2 * T, w: 2 * T, h: 2 * T, solid: true, enter: true });
   else {
-    // Base block, then the pole itself.
+    // Base block, then the pole itself (reachable from the ground too: it hangs over the block's edge).
     colliders.push({ id: FLAG_ID, kind: 'flag', x: fx, y: groundY - T, w: T, h: T, solid: true });
-    colliders.push({ id: FLAG_ID, kind: 'flag', x: fx + 6, y: groundY - 10 * T, w: 4, h: 9 * T });
+    colliders.push({ id: FLAG_ID, kind: 'flag', x: fx - 2, y: groundY - 10 * T, w: T + 4, h: 10 * T });
   }
-  return { colliders, width: layout.width * T, groundY };
+  return { colliders, mvpSteps, width: layout.width * T, groundY };
 }
 
 export function newBody(x: number, groundY: number): Body {
@@ -202,7 +242,9 @@ export function step(body: Body, input: PlayInput, world: PlayWorld, dt: number,
   const g = body.vy < 0 && !input.jumpHeld ? t.gravity * t.cutGravity : t.gravity;
   body.vy = Math.min(body.vy + g * dt, t.maxFall);
 
-  const solids = world.colliders.filter((c) => c.solid);
+  // A gate opens once its step has been landed on.
+  const solids = world.colliders.filter((c) => c.solid && !(c.gate && done.has(c.id)));
+  const wasOn = body.standingOn;
 
   // Move X, then push out of anything solid.
   body.x += body.vx * dt;
@@ -242,6 +284,11 @@ export function step(body: Body, input: PlayInput, world: PlayWorld, dt: number,
     body.vy = 0;
     body.onGround = true;
   }
+  // Landing on an un-ticked step ticks it (once per landing).
+  if (body.standingOn && body.standingOn !== wasOn && !done.has(body.standingOn)) {
+    const c = world.colliders.find((c) => c.id === body.standingOn && c.tick);
+    if (c) events.push({ kind: 'step', id: c.id });
+  }
 
   // Standing on something you can go into.
   if (input.downPressed && body.onGround && body.standingOn) {
@@ -268,7 +315,18 @@ export function step(body: Body, input: PlayInput, world: PlayWorld, dt: number,
       events.push({ kind: 'hurt', id: c.id });
     }
   }
-  if (flag) events.push({ kind: 'flag' });
+  if (flag) {
+    const left = world.mvpSteps.filter((id) => !done.has(id)).length;
+    if (!left) events.push({ kind: 'flag' });
+    else if (body.invuln === 0) {
+      // Skipped a must-do step: the pole whips back and sends you packing.
+      body.invuln = t.invuln;
+      body.vx = -t.whackKnock;
+      body.vy = -t.whackHop;
+      body.onGround = false;
+      events.push({ kind: 'flagWhack', left });
+    }
+  }
   return events;
 }
 
@@ -288,7 +346,7 @@ export function ahead(body: Body, world: PlayWorld): Collider | undefined {
   let best: Collider | undefined;
   let bestDist = Infinity;
   for (const c of world.colliders) {
-    if (c.kind === 'plant') continue;
+    if (c.kind === 'plant' || c.kind === 'gate') continue;
     const d = (c.x + c.w / 2 - mid) * body.facing;
     // Overlapping counts as ahead, so a block overhead isn't skipped.
     const over = c.x < body.x + body.w && c.x + c.w > body.x;
@@ -305,7 +363,7 @@ export function nearest(body: Body, world: PlayWorld): Collider | undefined {
   const mid = body.x + body.w / 2;
   let best: Collider | undefined;
   for (const c of world.colliders) {
-    if (c.kind === 'plant' || !overlaps(reach, c)) continue;
+    if (c.kind === 'plant' || c.kind === 'gate' || !overlaps(reach, c)) continue;
     if (!best || Math.abs(c.x + c.w / 2 - mid) < Math.abs(best.x + best.w / 2 - mid)) best = c;
   }
   return best;

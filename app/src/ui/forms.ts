@@ -276,7 +276,7 @@ export function criterionForm(app: App, worldId: string, level: Level, c?: Crite
     'div',
     null,
     field('Success criterion', txt, 'Observable and testable: "A new user can sign up".'),
-    field('MVP', mvp, 'MVP criteria raise the flagpole. Keep them to the 1–3 that truly matter.'),
+    field('MVP', mvp, 'MVP criteria are the must-do steps up to the flagpole. Keep them to the 1–3 that truly matter.'),
   );
   const at = { worldId, levelId: level.id };
   openModal(c ? 'Edit criterion' : 'New criterion', body, [
