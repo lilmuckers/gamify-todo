@@ -1,6 +1,6 @@
 import { isWorldLocked, orderedProjects, orderedWorlds, seeded, suggestNext, totals, worldTotals } from '@quest/shared';
 import type { App } from './app';
-import { go, href } from './router';
+import { go, href, withToday } from './router';
 import { island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
 import { heroKey } from './sprites/heroes';
@@ -11,7 +11,7 @@ import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { settingsDialog } from './ui/settings';
 import { skillHelpDialog } from './ui/skill-help';
-import { todayPad } from './ui/today';
+import { mountTodayOverlay } from './ui/today';
 
 /** Compact, touch-first layout for phones: DOM screens plus a static level strip. */
 export function mountMobile(app: App, root: HTMLElement) {
@@ -20,23 +20,19 @@ export function mountMobile(app: App, root: HTMLElement) {
   const nav = h('nav', { class: 'tabbar' });
   root.append(hud, body, nav);
 
+  const today = h('div', { class: 'mobile' });
+  root.append(today);
   let stripScroll: number | undefined;
-  let padShown = false;
   scheduler(app, body, () => {
     renderHud(app, hud);
     renderNav(app, nav);
-    if (app.route.view === 'today') {
-      const pad = h('div', { class: 'pad-host mobile' }, todayPad(app, { enter: !padShown }));
-      padShown = true;
-      return pad;
-    }
-    padShown = false;
     const prevStrip = body.querySelector('.strip');
     if (prevStrip) stripScroll = prevStrip.scrollLeft;
     const visual = renderVisual(app, stripScroll);
     return h('div', null, visual, renderPanel(app));
   });
   window.addEventListener('hashchange', () => (stripScroll = undefined));
+  mountTodayOverlay(app, today);
 }
 
 function renderVisual(app: App, scroll?: number): HTMLElement | null {
@@ -108,7 +104,7 @@ function renderNav(app: App, nav: HTMLElement) {
   const next = state && suggestNext(state);
   mount(
     nav,
-    h('a', { href: href({ view: 'today' }), class: app.route.view === 'today' ? 'on' : '' }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
+    h('a', { href: href(withToday(app.route, !app.route.today)), class: app.route.today ? 'on' : '' }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
     h('a', { href: href({ view: 'projects' }), class: app.route.view === 'projects' ? 'on' : '' }, icon('node-clear', 'grass', 'icon sm'), h('span', null, 'Projects')),
     pid &&
       h('a', { href: href({ view: 'overworld', projectId: pid }), class: app.route.view === 'overworld' ? 'on' : '' }, icon('node', 'grass', 'icon sm'), h('span', null, 'Map')),

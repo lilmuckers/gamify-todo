@@ -68,11 +68,10 @@ export function sanitize(allowed: readonly string[], params: Params = {}): Recor
 
 /** Screen name for a route, with no ids in it. */
 export function routeType(route: Route): string {
+  if (route.today) return '/today';
   switch (route.view) {
     case 'projects':
       return '/projects';
-    case 'today':
-      return '/today';
     case 'overworld':
       return '/project';
     case 'world':

@@ -1,7 +1,7 @@
 import { orderedWorlds } from '@quest/shared';
 import { track } from './analytics';
 import type { App } from './app';
-import { href, type Route } from './router';
+import { href, withToday, type Route } from './router';
 
 export interface NavLink {
   label: string;
@@ -20,6 +20,16 @@ const link = (label: string, route: Route): NavLink => ({ label, href: href(rout
 
 export function navFor(app: App): NavModel {
   const r = app.route;
+  const screen = screenNav(app, withToday(r, false));
+  if (!r.today) return screen;
+  // Today's plan is held up over the screen: closing it puts it away again.
+  return {
+    crumbs: [...screen.crumbs, link('Today', r)],
+    up: link('Close', withToday(r, false)),
+  };
+}
+
+function screenNav(app: App, r: Route): NavModel {
   const home = link('Quest Log', { view: 'projects' });
   const state = app.state;
   const projectTitle = state?.overworld.title ?? ('projectId' in r ? r.projectId : '');
@@ -27,11 +37,6 @@ export function navFor(app: App): NavModel {
   switch (r.view) {
     case 'projects':
       return { crumbs: [home] };
-    case 'today': {
-      // Closing Today returns to wherever it was opened from.
-      const prev = app.previousRoute && app.previousRoute.view !== 'today' ? app.previousRoute : undefined;
-      return { crumbs: [home, link('Today', r)], up: prev ? link('Back', prev) : link('All projects', { view: 'projects' }) };
-    }
     case 'prs':
       return { crumbs: [home, link('Warp Zone', r)], up: link('All projects', { view: 'projects' }) };
     case 'overworld':
@@ -109,8 +114,9 @@ export function navFor(app: App): NavModel {
 }
 
 /**
- * Keyboard: Esc goes up a screen (unless a popup or item bubble is open),
- * [ and ] step to the previous / next level or world.
+ * Keyboard: Esc goes up a screen (unless a popup or item bubble is open) or
+ * puts today's plan away, [ and ] step to the previous / next level or world,
+ * t holds today's plan up (or puts it away).
  */
 export function bindNavKeys(app: App) {
   window.addEventListener('keydown', (e) => {
@@ -118,11 +124,12 @@ export function bindNavKeys(app: App) {
     if (document.activeElement?.matches('input, textarea, select, [contenteditable]')) return;
     if (document.querySelector('.overlay')) return;
     const nav = navFor(app);
-    const today = app.route.view === 'today' ? undefined : { label: 'Today', href: href({ view: 'today' }) };
+    const r = app.route;
+    const today = { label: 'Today', href: href(withToday(r, !r.today)) };
     const target =
       e.key === 'Escape'
         ? // A level's item bubble takes Esc first (the flag can be stale on other screens).
-          app.bubbleOpen && (app.route.view === 'level' || app.route.view === 'pr-level')
+          !r.today && app.bubbleOpen && (r.view === 'level' || r.view === 'pr-level')
           ? undefined
           : nav.up
         : e.key === '['

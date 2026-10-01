@@ -1,6 +1,6 @@
 import { scoreLevel, totals } from '@quest/shared';
 import type { App } from '../app';
-import { href } from '../router';
+import { href, withToday } from '../router';
 import { fmtDuration, h, icon, mount, stars } from './dom';
 import { track } from '../analytics';
 import { navFor } from '../nav';
@@ -113,7 +113,7 @@ export function renderHud(app: App, el: HTMLElement) {
     ),
     h(
       'a',
-      { class: `btn sm hud-today${r.view === 'today' ? ' on' : ''}`, href: href({ view: 'today' }), title: "Today's plan (T)" },
+      { class: `btn sm hud-today${r.today ? ' on' : ''}`, href: href(withToday(r, !r.today)), title: "Today's plan (T)" },
       'TODAY',
       (() => {
         const n = todayCount(app);

@@ -47,9 +47,10 @@ describe('navFor', () => {
     expect(navFor(fakeApp({ view: 'pr', pr: 3 })).up?.href).toBe('#/prs');
     expect(navFor(fakeApp({ view: 'overworld', projectId: 'p' })).up?.href).toBe('#/');
     expect(navFor(fakeApp({ view: 'projects' })).up).toBeUndefined();
-    expect(navFor(fakeApp({ view: 'today' }))).toMatchObject({ crumbs: [{ label: 'Quest Log' }, { label: 'Today', href: '#/today' }], up: { href: '#/' } });
-    const fromLevel = fakeApp({ view: 'today' });
-    fromLevel.previousRoute = { view: 'level', projectId: 'p', worldId: 'w', levelId: 'two' };
-    expect(navFor(fromLevel).up).toEqual({ label: 'Back', href: '#/p/p/w/two' });
+    const today = navFor(fakeApp({ view: 'level', projectId: 'p', worldId: 'w', levelId: 'two', today: true }));
+    expect(today.crumbs.map((c) => c.label)).toEqual(['Quest Log', 'T', 'W', 'Two', 'Today']);
+    expect(today.crumbs[3].href).toBe('#/p/p/w/two');
+    expect(today.up).toEqual({ label: 'Close', href: '#/p/p/w/two' });
+    expect(today.prev).toBeUndefined();
   });
 });

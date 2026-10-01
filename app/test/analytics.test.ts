@@ -38,7 +38,7 @@ describe('sanitize', () => {
 describe('routeType', () => {
   const routes: Route[] = [
     { view: 'projects' },
-    { view: 'today' },
+    { view: 'level', projectId: 'secret-project', worldId: 'kitchen', levelId: 'demo', today: true },
     { view: 'overworld', projectId: 'secret-project' },
     { view: 'world', projectId: 'secret-project', worldId: 'kitchen' },
     { view: 'level', projectId: 'secret-project', worldId: 'kitchen', levelId: 'demo', itemId: 'buy-tiles' },
@@ -52,6 +52,7 @@ describe('routeType', () => {
     for (const r of routes) {
       const t = routeType(r);
       expect(t).toMatch(/^\/[a-z-]+$/);
+      if (r.today) expect(t).toBe('/today');
       for (const id of ['secret-project', 'kitchen', 'demo', 'buy-tiles', 'permit', '12']) expect(t).not.toContain(id);
     }
     expect(routeType(parseRoute(href(routes[5])))).toBe('/sub-level');
