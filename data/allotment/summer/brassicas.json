@@ -86,7 +86,7 @@
       "id": "check-under-the-leaves-for-caterpillars",
       "title": "Check under the leaves for caterpillars weekly",
       "type": "task",
-      "status": "done"
+      "status": "todo"
     },
     {
       "id": "stake-the-broccoli-before-autumn-winds",
@@ -111,6 +111,7 @@
   "stats": {
     "editsAfterClear": 1,
     "itemEdits": {
+      "check-under-the-leaves-for-caterpillars": 1,
       "whitefly-on-the-kale": 1
     }
   }
