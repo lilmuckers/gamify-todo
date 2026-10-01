@@ -1,0 +1,16 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "frame",
+  "name": "Teardown & Frame",
+  "description": "Strip it, find out what is salvageable, and get the frame painted.",
+  "theme": "desert",
+  "goalIds": [
+    "keep-character"
+  ],
+  "levelOrder": [
+    "teardown",
+    "assess",
+    "paint",
+    "headset"
+  ]
+}

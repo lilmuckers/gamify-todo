@@ -1,0 +1,63 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "metrics",
+  "name": "Success metrics",
+  "deliverable": "Agreed launch metrics, with dashboards showing a baseline before launch",
+  "timeboxDays": 7,
+  "startedAt": "2026-06-16T09:00:00Z",
+  "clearedAt": "2026-06-24T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "metrics-agreed-with-the-product",
+      "mvp": true,
+      "text": "Metrics agreed with the product owner",
+      "done": true
+    },
+    {
+      "id": "baseline-dashboard-live",
+      "mvp": true,
+      "text": "Baseline dashboard live",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "define-where-is-my-bill-call-rate",
+      "title": "Define 'where is my bill' call rate",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "instrument-the-old-portal-for-baseline-t",
+      "title": "Instrument the old portal for baseline task completion",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "launch-metrics-dashboard",
+      "title": "Launch metrics dashboard",
+      "type": "deliverable",
+      "status": "done",
+      "link": "https://github.com/acme-utilities/portal/issues/19"
+    },
+    {
+      "id": "analytics-tool",
+      "title": "Analytics tool",
+      "type": "decision",
+      "status": "done",
+      "notes": "Stick with the existing tool; no new cookie consent work."
+    },
+    {
+      "id": "agree-targets-with-the-product-owner",
+      "title": "Agree targets with the product owner",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "weekly-metrics-email",
+      "title": "Weekly metrics email",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

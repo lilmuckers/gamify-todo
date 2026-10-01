@@ -1,0 +1,19 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "services",
+  "name": "Electrics & Plumbing",
+  "description": "First fix: everything that goes in the walls before plastering. The new cooker circuit needs Building Control sign-off.",
+  "theme": "castle",
+  "goalIds": [
+    "christmas-dinner"
+  ],
+  "unlocksAfter": [
+    "strip"
+  ],
+  "levelOrder": [
+    "electrics",
+    "plumbing",
+    "plastering",
+    "sign-off"
+  ]
+}

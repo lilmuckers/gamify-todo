@@ -1,0 +1,96 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "api",
+  "name": "API gateway",
+  "deliverable": "A single API layer in front of billing, metering and CRM, with caching and error handling",
+  "description": "Functionally done; contract tests blocked on the CRM team.",
+  "timeboxDays": 20,
+  "startedAt": "2026-07-08T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "all-three-back-ends-reachable-th",
+      "mvp": true,
+      "text": "All three back ends reachable through the gateway",
+      "done": true
+    },
+    {
+      "id": "p95-latency-under-400ms",
+      "mvp": true,
+      "text": "p95 latency under 400ms",
+      "done": true
+    },
+    {
+      "id": "contract-tests-in-ci",
+      "mvp": true,
+      "text": "Contract tests in CI",
+      "done": false
+    },
+    {
+      "id": "circuit-breakers-on-billing",
+      "mvp": false,
+      "text": "Circuit breakers on billing",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "gateway-skeleton-and-auth-middleware",
+      "title": "Gateway skeleton and auth middleware",
+      "type": "task",
+      "status": "done",
+      "link": "https://github.com/acme-utilities/portal/issues/40"
+    },
+    {
+      "id": "billing-api-adapter",
+      "title": "Billing API adapter",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "metering-api-adapter",
+      "title": "Metering API adapter",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "crm-api-adapter",
+      "title": "CRM API adapter",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "response-caching-for-bill-history",
+      "title": "Response caching for bill history",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "contracts",
+      "title": "Contract tests in CI",
+      "type": "task",
+      "status": "doing",
+      "notes": "Billing and metering done; CRM blocked on its test environment."
+    },
+    {
+      "id": "crm-test-environment-unavailable",
+      "title": "CRM test environment unavailable",
+      "type": "blocker",
+      "status": "doing",
+      "link": "https://github.com/acme-utilities/portal/issues/57",
+      "notes": "CRM team says next sprint."
+    },
+    {
+      "id": "circuit-breaker-on-the-billing-adapter",
+      "title": "Circuit breaker on the billing adapter",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "billing-system-slow-at-month-end",
+      "title": "Billing system slow at month end",
+      "type": "risk",
+      "status": "done",
+      "notes": "Cached bill history; month-end load test showed p95 of 310ms."
+    }
+  ]
+}

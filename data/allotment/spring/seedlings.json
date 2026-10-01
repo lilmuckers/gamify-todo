@@ -1,0 +1,71 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "seedlings",
+  "name": "Raise seedlings at home",
+  "deliverable": "Tomato, squash and bean seedlings ready to plant out after the last frost",
+  "timeboxDays": 42,
+  "startedAt": "2026-02-28T09:00:00Z",
+  "clearedAt": "2026-04-14T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "seedlings-strong-enough-to-plant",
+      "mvp": true,
+      "text": "Seedlings strong enough to plant out",
+      "done": true
+    },
+    {
+      "id": "hardened-off-for-a-week",
+      "mvp": true,
+      "text": "Hardened off for a week",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "pick-varieties",
+      "title": "Pick varieties",
+      "type": "decision",
+      "status": "done",
+      "notes": "Gardener's Delight tomatoes, Crown Prince squash, Cobra climbing beans."
+    },
+    {
+      "id": "sow-tomatoes-on-the-windowsill",
+      "title": "Sow tomatoes on the windowsill",
+      "type": "task",
+      "status": "done",
+      "notes": "Late February, heated propagator."
+    },
+    {
+      "id": "sow-squash-and-beans",
+      "title": "Sow squash and beans",
+      "type": "task",
+      "status": "done",
+      "notes": "Mid April."
+    },
+    {
+      "id": "pot-on-the-tomatoes",
+      "title": "Pot on the tomatoes",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "harden-off-in-the-cold-frame",
+      "title": "Harden off in the cold frame",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "leggy-seedlings-from-low-light",
+      "title": "Leggy seedlings from low light",
+      "type": "risk",
+      "status": "done",
+      "notes": "Turned trays daily; a clip-on grow light for the tomatoes."
+    },
+    {
+      "id": "chillies-too",
+      "title": "Chillies too",
+      "type": "stretch",
+      "status": "done"
+    }
+  ]
+}

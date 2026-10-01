@@ -1,0 +1,63 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "load-test",
+  "name": "Load test",
+  "deliverable": "Proof the portal survives the December billing peak",
+  "timeboxDays": 7,
+  "successCriteria": [
+    {
+      "id": "survives-3x-peak-traffic",
+      "mvp": true,
+      "text": "Survives 3x peak traffic",
+      "done": false
+    },
+    {
+      "id": "no-errors-from-the-billing-adapt",
+      "mvp": true,
+      "text": "No errors from the billing adapter under load",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "model-december-traffic-from-last-year",
+      "title": "Model December traffic from last year",
+      "type": "task",
+      "status": "todo",
+      "notes": "1,800 logins a minute at peak."
+    },
+    {
+      "id": "write-load-test-scripts",
+      "title": "Write load-test scripts",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "run",
+      "title": "Run at 3x peak",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "fix-bottlenecks",
+      "title": "Fix bottlenecks",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "run"
+      ]
+    },
+    {
+      "id": "billing-team-to-allow-load-against-stagi",
+      "title": "Billing team to allow load against staging",
+      "type": "dependency",
+      "status": "todo"
+    },
+    {
+      "id": "soak-test-over-a-weekend",
+      "title": "Soak test over a weekend",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

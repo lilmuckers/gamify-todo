@@ -1,0 +1,87 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "paint",
+  "name": "Strip and paint the frame",
+  "deliverable": "Frame and fork powder-coated in the original white with replica decals",
+  "description": "Waiting on the powder coater. Use the wait to sort the wheels.",
+  "timeboxDays": 21,
+  "startedAt": "2026-09-01T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "frame-back-from-the-powder-coate",
+      "mvp": true,
+      "text": "Frame back from the powder coater",
+      "done": false
+    },
+    {
+      "id": "decals-applied",
+      "mvp": true,
+      "text": "Decals applied",
+      "done": false
+    },
+    {
+      "id": "lug-lining-picked-out-by-hand",
+      "mvp": false,
+      "text": "Lug lining picked out by hand",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "powder-coat-or-wet-paint",
+      "title": "Powder coat or wet paint",
+      "type": "decision",
+      "status": "done",
+      "notes": "Powder coat: tougher, and the local shop does frames for £120."
+    },
+    {
+      "id": "decals",
+      "title": "Order replica decals",
+      "type": "task",
+      "status": "done",
+      "notes": "Ordered from a decal specialist; arrived in a week."
+    },
+    {
+      "id": "drop-the-frame-at-the-powder-coater",
+      "title": "Drop the frame at the powder coater",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "coater",
+      "title": "Powder coater turnaround",
+      "type": "dependency",
+      "status": "doing",
+      "notes": "Quoted three weeks. Chased once."
+    },
+    {
+      "id": "apply-the-decals",
+      "title": "Apply the decals",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "decals",
+        "coater"
+      ]
+    },
+    {
+      "id": "clear-coat-over-the-decals",
+      "title": "Clear coat over the decals",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "coater-blasts-away-the-serial-number",
+      "title": "Coater blasts away the serial number",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Asked them to mask the BB shell; written on the job card."
+    },
+    {
+      "id": "pick-out-the-lugs-in-black",
+      "title": "Pick out the lugs in black",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

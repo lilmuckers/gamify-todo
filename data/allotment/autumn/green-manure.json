@@ -1,0 +1,54 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "green-manure",
+  "name": "Put beds to bed",
+  "deliverable": "Empty beds sown with green manure or mulched before November",
+  "timeboxDays": 30,
+  "successCriteria": [
+    {
+      "id": "no-bare-soil-over-winter",
+      "mvp": true,
+      "text": "No bare soil over winter",
+      "done": false
+    },
+    {
+      "id": "next-year-s-bed-plan-sketched",
+      "mvp": false,
+      "text": "Next year's bed plan sketched",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "sow-field-beans-as-green-manure",
+      "title": "Sow field beans as green manure",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "mulch-the-remaining-beds-with-compost",
+      "title": "Mulch the remaining beds with compost",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "empty-the-first-compost-bay-onto-the-bed",
+      "title": "Empty the first compost bay onto the beds",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "crop-rotation-for-next-year",
+      "title": "Crop rotation for next year",
+      "type": "decision",
+      "status": "todo",
+      "notes": "Move potatoes to bed 4, brassicas to bed 1."
+    },
+    {
+      "id": "order-seed-catalogues",
+      "title": "Order seed catalogues",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

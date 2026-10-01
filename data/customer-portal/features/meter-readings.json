@@ -1,0 +1,76 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "meter-readings",
+  "name": "Submit meter readings",
+  "deliverable": "Customers submit gas and electricity readings with validation and photo upload",
+  "timeboxDays": 14,
+  "startedAt": "2026-09-19T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "readings-submitted-to-metering",
+      "mvp": true,
+      "text": "Readings submitted to metering",
+      "done": false
+    },
+    {
+      "id": "out-of-range-readings-flagged-be",
+      "mvp": true,
+      "text": "Out-of-range readings flagged before submit",
+      "done": false
+    },
+    {
+      "id": "photo-upload",
+      "mvp": false,
+      "text": "Photo upload",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "reading-form-for-single-and-dual-rate-me",
+      "title": "Reading form for single and dual-rate meters",
+      "type": "task",
+      "status": "done",
+      "link": "https://github.com/acme-utilities/portal/issues/84"
+    },
+    {
+      "id": "validation-against-the-expected-range",
+      "title": "Validation against the expected range",
+      "type": "task",
+      "status": "doing",
+      "notes": "Flag anything 50% above or below the estimate."
+    },
+    {
+      "id": "submission-confirmation-and-reference-nu",
+      "title": "Submission confirmation and reference number",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "reminder-emails-when-a-reading-is-due",
+      "title": "Reminder emails when a reading is due",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "smart-meter-customers-confused-by-the-fo",
+      "title": "Smart-meter customers confused by the form",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Hide the form for smart-meter accounts."
+    },
+    {
+      "id": "metering-team-to-accept-photos",
+      "title": "Metering team to accept photos",
+      "type": "dependency",
+      "status": "todo",
+      "mvp": false
+    },
+    {
+      "id": "photo-upload-with-ocr",
+      "title": "Photo upload with OCR",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

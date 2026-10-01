@@ -1,0 +1,57 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "clear-out",
+  "name": "Clear the rubbish",
+  "deliverable": "Skip gone, house clean again, anything useful sold or donated",
+  "timeboxDays": 4,
+  "startedAt": "2026-09-12T09:00:00Z",
+  "clearedAt": "2026-09-15T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "skip-collected",
+      "mvp": true,
+      "text": "Skip collected",
+      "done": true
+    },
+    {
+      "id": "nothing-left-in-the-hallway",
+      "mvp": true,
+      "text": "Nothing left in the hallway",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "sell-the-old-oven-online",
+      "title": "Sell the old oven online",
+      "type": "task",
+      "status": "done",
+      "notes": "Went for £60."
+    },
+    {
+      "id": "donate-the-cabinet-doors",
+      "title": "Donate the cabinet doors",
+      "type": "task",
+      "status": "done",
+      "notes": "Local scrap store took them for craft projects."
+    },
+    {
+      "id": "tip-run-for-the-rest",
+      "title": "Tip run for the rest",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "book-skip-collection",
+      "title": "Book skip collection",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "deep-clean-the-dust-from-the-hallway",
+      "title": "Deep-clean the dust from the hallway",
+      "type": "task",
+      "status": "done"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "beds",
+  "name": "Build raised beds",
+  "deliverable": "Six raised beds built, filled and covered for winter",
+  "timeboxDays": 21,
+  "startedAt": "2025-12-05T09:00:00Z",
+  "clearedAt": "2025-12-20T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "six-beds-built-and-filled",
+      "mvp": true,
+      "text": "Six beds built and filled",
+      "done": true
+    },
+    {
+      "id": "paths-between-beds-wide-enough-f",
+      "mvp": true,
+      "text": "Paths between beds wide enough for a wheelbarrow",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "bed-size",
+      "title": "Bed size",
+      "type": "decision",
+      "status": "done",
+      "notes": "1.2m wide so we can reach the middle without stepping on the soil."
+    },
+    {
+      "id": "boards",
+      "title": "Order scaffold boards",
+      "type": "task",
+      "status": "done",
+      "notes": "Reclaimed from a builder, £4 a board."
+    },
+    {
+      "id": "build-the-frames",
+      "title": "Build the frames",
+      "type": "task",
+      "status": "done",
+      "dependsOn": [
+        "boards"
+      ]
+    },
+    {
+      "id": "fill-with-compost-and-topsoil",
+      "title": "Fill with compost and topsoil",
+      "type": "task",
+      "status": "done",
+      "notes": "3 tonnes of soil improver from the council scheme."
+    },
+    {
+      "id": "cover-with-cardboard-for-winter",
+      "title": "Cover with cardboard for winter",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "boards-treated-with-creosote",
+      "title": "Boards treated with creosote",
+      "type": "risk",
+      "status": "done",
+      "notes": "Checked: untreated, safe for veg."
+    },
+    {
+      "id": "seventh-bed-for-flowers",
+      "title": "Seventh bed for flowers",
+      "type": "stretch",
+      "status": "dropped",
+      "notes": "Ran out of boards; flowers went in the border instead."
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "research",
+  "name": "Customer research",
+  "deliverable": "A ranked list of the top customer tasks, backed by data and interviews",
+  "timeboxDays": 10,
+  "startedAt": "2026-06-03T09:00:00Z",
+  "clearedAt": "2026-06-15T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "top-5-tasks-ranked-with-evidence",
+      "mvp": true,
+      "text": "Top 5 tasks ranked with evidence",
+      "done": true
+    },
+    {
+      "id": "findings-shared-with-the-team",
+      "mvp": true,
+      "text": "Findings shared with the team",
+      "done": true
+    },
+    {
+      "id": "contact-centre-agents-interviewe",
+      "mvp": false,
+      "text": "Contact-centre agents interviewed",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "pull-six-months-of-contact-centre-call-r",
+      "title": "Pull six months of contact-centre call reasons",
+      "type": "task",
+      "status": "done",
+      "link": "https://github.com/acme-utilities/portal/issues/12"
+    },
+    {
+      "id": "analyse-old-portal-analytics",
+      "title": "Analyse old-portal analytics",
+      "type": "task",
+      "status": "done",
+      "notes": "Bills 41%, meter readings 23%, moving home 9%, everything else under 5%."
+    },
+    {
+      "id": "interviews",
+      "title": "Interview eight customers",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "shadow-two-contact-centre-agents",
+      "title": "Shadow two contact-centre agents",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "top-tasks-report",
+      "title": "Top-tasks report",
+      "type": "deliverable",
+      "status": "done",
+      "dependsOn": [
+        "interviews"
+      ]
+    },
+    {
+      "id": "playback-session-with-stakeholders",
+      "title": "Playback session with stakeholders",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "recruiting-older-customers-for-interview",
+      "title": "Recruiting older customers for interviews",
+      "type": "risk",
+      "status": "done",
+      "notes": "Recruited via the priority services register, with consent."
+    },
+    {
+      "id": "diary-study",
+      "title": "Diary study",
+      "type": "stretch",
+      "status": "dropped",
+      "notes": "Too slow for the timeline."
+    }
+  ]
+}

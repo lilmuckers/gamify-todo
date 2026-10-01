@@ -1,0 +1,87 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "trades",
+  "name": "Book the trades",
+  "deliverable": "Electrician, plumber, plasterer and fitter booked, with dates in a shared calendar",
+  "description": "Took twice as long as planned because of the fitter swap.",
+  "timeboxDays": 7,
+  "startedAt": "2026-08-18T09:00:00Z",
+  "clearedAt": "2026-09-01T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "all-four-trades-booked",
+      "mvp": true,
+      "text": "All four trades booked",
+      "done": true
+    },
+    {
+      "id": "dates-in-the-shared-calendar",
+      "mvp": true,
+      "text": "Dates in the shared calendar",
+      "done": true
+    },
+    {
+      "id": "written-quotes-saved-in-the-hous",
+      "mvp": false,
+      "text": "Written quotes saved in the house folder",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "electrician",
+      "title": "Get three electrician quotes",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "plumber",
+      "title": "Get three plumber quotes",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "plasterer",
+      "title": "Book the plasterer",
+      "type": "task",
+      "status": "done",
+      "notes": "Same plasterer as the hallway job; reliable, books up fast."
+    },
+    {
+      "id": "fitter",
+      "title": "Book the kitchen fitter",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "first-choice-fitter-only-free-in-january",
+      "title": "First-choice fitter only free in January",
+      "type": "blocker",
+      "status": "done",
+      "notes": "Swapped to a fitter the neighbours used. Starts 10 October."
+    },
+    {
+      "id": "shared-trade-calendar",
+      "title": "Shared trade calendar",
+      "type": "deliverable",
+      "status": "done",
+      "notes": "Google calendar shared with both phones; every trade has an entry."
+    },
+    {
+      "id": "pay-deposits",
+      "title": "Pay deposits",
+      "type": "task",
+      "status": "done",
+      "dependsOn": [
+        "electrician",
+        "plumber",
+        "plasterer",
+        "fitter"
+      ],
+      "notes": "Fitter 20%, everyone else on completion."
+    }
+  ],
+  "stats": {
+    "editsAfterClear": 2
+  }
+}

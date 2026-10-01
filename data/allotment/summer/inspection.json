@@ -1,0 +1,56 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "inspection",
+  "name": "Pass the September inspection",
+  "deliverable": "A pass on the committee's September inspection",
+  "timeboxDays": 21,
+  "startedAt": "2026-09-06T09:00:00Z",
+  "clearedAt": "2026-09-19T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "inspection-passed",
+      "mvp": true,
+      "text": "Inspection passed",
+      "done": true
+    },
+    {
+      "id": "no-weeds-over-knee-height",
+      "mvp": false,
+      "text": "No weeds over knee height",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "strim-the-plot-edges",
+      "title": "Strim the plot edges",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "clear-the-weedy-corner-by-the-gate",
+      "title": "Clear the weedy corner by the gate",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "tidy-the-compost-bays",
+      "title": "Tidy the compost bays",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "remove-the-broken-cloche",
+      "title": "Remove the broken cloche",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "inspection-pass-letter",
+      "title": "Inspection pass letter",
+      "type": "deliverable",
+      "status": "done",
+      "notes": "Comment: \"much improved since last year\"."
+    }
+  ]
+}

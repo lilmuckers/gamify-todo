@@ -1,0 +1,62 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "brassicas",
+  "name": "Winter brassicas",
+  "deliverable": "Kale and purple sprouting broccoli established for winter picking",
+  "timeboxDays": 60,
+  "startedAt": "2026-07-03T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "plants-established-under-netting",
+      "mvp": true,
+      "text": "Plants established under netting",
+      "done": false
+    },
+    {
+      "id": "first-kale-picked",
+      "mvp": true,
+      "text": "First kale picked",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "plant-out-kale-and-broccoli",
+      "title": "Plant out kale and broccoli",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "net-against-pigeons-and-butterflies",
+      "title": "Net against pigeons and butterflies",
+      "type": "task",
+      "status": "done",
+      "notes": "Fine mesh, hooped."
+    },
+    {
+      "id": "check-under-the-leaves-for-caterpillars",
+      "title": "Check under the leaves for caterpillars weekly",
+      "type": "task",
+      "status": "doing"
+    },
+    {
+      "id": "stake-the-broccoli-before-autumn-winds",
+      "title": "Stake the broccoli before autumn winds",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "whitefly-on-the-kale",
+      "title": "Whitefly on the kale",
+      "type": "risk",
+      "status": "doing",
+      "notes": "Spraying with soapy water; mostly cosmetic."
+    },
+    {
+      "id": "try-red-russian-kale-too",
+      "title": "Try red Russian kale too",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

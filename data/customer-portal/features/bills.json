@@ -1,0 +1,111 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "bills",
+  "name": "View and download bills",
+  "deliverable": "Customers can see, understand and download every bill from the last two years",
+  "description": "Highest-value feature: 41% of portal visits.",
+  "timeboxDays": 21,
+  "startedAt": "2026-08-22T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "bill-history-for-two-years",
+      "mvp": true,
+      "text": "Bill history for two years",
+      "done": false
+    },
+    {
+      "id": "pdf-download",
+      "mvp": true,
+      "text": "PDF download",
+      "done": false
+    },
+    {
+      "id": "why-is-my-bill-higher-explainer",
+      "mvp": true,
+      "text": "\"Why is my bill higher?\" explainer",
+      "done": false
+    },
+    {
+      "id": "bill-shock-alerts",
+      "mvp": false,
+      "text": "Bill shock alerts",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "bill-history-list",
+      "title": "Bill history list",
+      "type": "task",
+      "status": "done",
+      "link": "https://github.com/acme-utilities/portal/issues/71"
+    },
+    {
+      "id": "bill-detail-page",
+      "title": "Bill detail page",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "pdf",
+      "title": "PDF download",
+      "type": "task",
+      "status": "doing",
+      "notes": "Billing system renders PDFs; we stream them through the gateway."
+    },
+    {
+      "id": "why-is-my-bill-higher-explainer",
+      "title": "\"Why is my bill higher?\" explainer",
+      "type": "task",
+      "status": "doing",
+      "notes": "Compares against the same period last year."
+    },
+    {
+      "id": "copy-reviewed-by-the-plain-english-team",
+      "title": "Copy reviewed by the plain-English team",
+      "type": "dependency",
+      "status": "done"
+    },
+    {
+      "id": "empty-states-for-new-customers",
+      "title": "Empty states for new customers",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "pdfs-not-accessible",
+      "title": "PDFs not accessible",
+      "type": "risk",
+      "status": "todo",
+      "mvp": false,
+      "notes": "Billing PDFs are untagged; the HTML bill page is the accessible version."
+    },
+    {
+      "id": "billing-api-missing-tariff-breakdown",
+      "title": "Billing API missing tariff breakdown",
+      "type": "blocker",
+      "status": "doing",
+      "link": "https://github.com/acme-utilities/portal/issues/78",
+      "notes": "Workaround: show totals only for now."
+    },
+    {
+      "id": "usability-test-with-five-customers",
+      "title": "Usability test with five customers",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "show-estimated-or-only-actual-bills",
+      "title": "Show estimated or only actual bills",
+      "type": "decision",
+      "status": "done",
+      "notes": "Both, clearly labelled. Estimates cause the most calls."
+    },
+    {
+      "id": "bill-shock-alerts",
+      "title": "Bill shock alerts",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

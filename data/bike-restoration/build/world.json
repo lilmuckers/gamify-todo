@@ -1,0 +1,19 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "build",
+  "name": "Rebuild & Ride",
+  "description": "Put it all back together, make it safe, then ride it.",
+  "theme": "grass",
+  "goalIds": [
+    "ride-sportive"
+  ],
+  "unlocksAfter": [
+    "frame"
+  ],
+  "levelOrder": [
+    "wheels",
+    "drivetrain",
+    "brakes",
+    "first-ride"
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "decorate",
+  "name": "Decorate",
+  "deliverable": "Walls and ceiling painted, woodwork glossed",
+  "timeboxDays": 5,
+  "successCriteria": [
+    {
+      "id": "two-coats-on-the-walls",
+      "mvp": true,
+      "text": "Two coats on the walls",
+      "done": false
+    },
+    {
+      "id": "ceiling-painted-white",
+      "mvp": true,
+      "text": "Ceiling painted white",
+      "done": false
+    },
+    {
+      "id": "feature-wall-in-the-dining-area",
+      "mvp": false,
+      "text": "Feature wall in the dining area",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "mist",
+      "title": "Mist coat the new plaster",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "two-coats-on-the-walls",
+      "title": "Two coats on the walls",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "mist"
+      ]
+    },
+    {
+      "id": "paint-the-ceiling",
+      "title": "Paint the ceiling",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "gloss-the-skirting-and-door-frame",
+      "title": "Gloss the skirting and door frame",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "pick-the-wall-colour",
+      "title": "Pick the wall colour",
+      "type": "decision",
+      "status": "todo",
+      "notes": "Testers on three walls: Lime White, Slaked Lime, Joa's White."
+    },
+    {
+      "id": "feature-wall-in-the-dining-area",
+      "title": "Feature wall in the dining area",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

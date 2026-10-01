@@ -1,0 +1,16 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "winter",
+  "name": "Winter Prep",
+  "description": "Fix the layout over winter so the growing season is just growing.",
+  "theme": "desert",
+  "goalIds": [
+    "pass-inspection",
+    "two-hours"
+  ],
+  "levelOrder": [
+    "beds",
+    "compost",
+    "paths"
+  ]
+}

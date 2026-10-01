@@ -1,0 +1,65 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "headset",
+  "name": "Headset and bottom bracket",
+  "deliverable": "Smooth, play-free headset and bottom bracket fitted to the frame",
+  "timeboxDays": 4,
+  "successCriteria": [
+    {
+      "id": "headset-turns-smoothly-with-no-p",
+      "mvp": true,
+      "text": "Headset turns smoothly with no play",
+      "done": false
+    },
+    {
+      "id": "bottom-bracket-spins-freely",
+      "mvp": true,
+      "text": "Bottom bracket spins freely",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "frame-painted",
+      "title": "Frame painted",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "frame/paint"
+    },
+    {
+      "id": "original-bearings-or-new-cartridge-botto",
+      "title": "Original bearings or new cartridge bottom bracket",
+      "type": "decision",
+      "status": "todo",
+      "notes": "French thread cartridges exist; probably worth it for reliability."
+    },
+    {
+      "id": "face",
+      "title": "Chase and face the BB shell",
+      "type": "task",
+      "status": "todo",
+      "notes": "Bike co-op has the tools; book a bench slot."
+    },
+    {
+      "id": "fit-the-bottom-bracket",
+      "title": "Fit the bottom bracket",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "face"
+      ]
+    },
+    {
+      "id": "grease-and-fit-the-headset",
+      "title": "Grease and fit the headset",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "adjust-headset-preload",
+      "title": "Adjust headset preload",
+      "type": "task",
+      "status": "todo"
+    }
+  ]
+}

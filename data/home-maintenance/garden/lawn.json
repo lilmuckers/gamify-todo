@@ -1,0 +1,78 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "lawn",
+  "name": "Low-maintenance lawn",
+  "deliverable": "A lawn that needs one mow a fortnight, with tidy mulched borders",
+  "timeboxDays": 30,
+  "startedAt": "2026-09-17T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "mower-path-laid-along-the-border",
+      "mvp": true,
+      "text": "Mower path laid along the borders",
+      "done": false
+    },
+    {
+      "id": "borders-mulched",
+      "mvp": true,
+      "text": "Borders mulched",
+      "done": false
+    },
+    {
+      "id": "clover-overseeded",
+      "mvp": false,
+      "text": "Clover overseeded",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "measure-the-lawn",
+      "title": "Measure the lawn",
+      "type": "task",
+      "status": "done",
+      "notes": "42 square metres."
+    },
+    {
+      "id": "clover-lawn-or-keep-grass",
+      "title": "Clover lawn or keep grass",
+      "type": "decision",
+      "status": "done",
+      "notes": "Keep grass, overseed with micro-clover: fewer mows, stays green."
+    },
+    {
+      "id": "lay-a-stepping-stone-mower-path",
+      "title": "Lay a stepping-stone mower path",
+      "type": "task",
+      "status": "doing",
+      "notes": "12 of 20 slabs down."
+    },
+    {
+      "id": "mulch-the-borders-with-bark",
+      "title": "Mulch the borders with bark",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "overseed-with-micro-clover",
+      "title": "Overseed with micro-clover",
+      "type": "stretch",
+      "status": "todo"
+    },
+    {
+      "id": "sell-the-old-petrol-mower",
+      "title": "Sell the old petrol mower",
+      "type": "task",
+      "status": "todo",
+      "notes": "Battery mower bought in spring."
+    },
+    {
+      "id": "clover-spreads-into-the-borders",
+      "title": "Clover spreads into the borders",
+      "type": "risk",
+      "status": "todo",
+      "mvp": false,
+      "notes": "The mower path doubles as an edge."
+    }
+  ]
+}

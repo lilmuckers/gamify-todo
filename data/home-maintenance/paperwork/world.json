@@ -1,0 +1,14 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "paperwork",
+  "name": "Paperwork",
+  "description": "The dull admin that makes next year easier.",
+  "theme": "sky",
+  "goalIds": [
+    "safe"
+  ],
+  "levelOrder": [
+    "house-folder",
+    "insurance"
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "go-live",
+  "name": "Go live",
+  "deliverable": "All customers on the new portal, old portal redirecting",
+  "timeboxDays": 10,
+  "successCriteria": [
+    {
+      "id": "100-of-customers-on-the-new-port",
+      "mvp": true,
+      "text": "100% of customers on the new portal",
+      "done": false
+    },
+    {
+      "id": "old-portal-redirects-every-url",
+      "mvp": true,
+      "text": "Old portal redirects every URL",
+      "done": false
+    },
+    {
+      "id": "error-rate-below-0-5",
+      "mvp": true,
+      "text": "Error rate below 0.5%",
+      "done": false
+    },
+    {
+      "id": "launch-blog-post",
+      "mvp": false,
+      "text": "Launch blog post",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "beta-goals-met",
+      "title": "Beta goals met",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "launch/beta"
+    },
+    {
+      "id": "load-test-passed",
+      "title": "Load test passed",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "launch/load-test"
+    },
+    {
+      "id": "go-no-go",
+      "title": "Go/no-go meeting",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "ramp-traffic-25-50-100",
+      "title": "Ramp traffic 25 / 50 / 100%",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "go-no-go"
+      ]
+    },
+    {
+      "id": "url-redirects-from-the-old-portal",
+      "title": "URL redirects from the old portal",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "rollback-plan-written-and-rehearsed",
+      "title": "Rollback plan written and rehearsed",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "on-call-rota-for-launch-week",
+      "title": "On-call rota for launch week",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "brief-the-contact-centre",
+      "title": "Brief the contact centre",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "launch-clashes-with-a-billing-run",
+      "title": "Launch clashes with a billing run",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Billing runs on the 1st; launch mid-month."
+    },
+    {
+      "id": "change-advisory-board-approval",
+      "title": "Change advisory board approval",
+      "type": "blocker",
+      "status": "todo",
+      "notes": "Next CAB meeting: 14 November."
+    },
+    {
+      "id": "launch-announcement-email",
+      "title": "Launch announcement email",
+      "type": "deliverable",
+      "status": "todo"
+    },
+    {
+      "id": "launch-blog-post",
+      "title": "Launch blog post",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

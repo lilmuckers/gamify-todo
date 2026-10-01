@@ -1,0 +1,58 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "onions-garlic",
+  "name": "Onions and garlic",
+  "deliverable": "Onion sets and garlic planted and kept weed-free until they establish",
+  "timeboxDays": 14,
+  "startedAt": "2026-03-30T09:00:00Z",
+  "clearedAt": "2026-04-12T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "onions-and-garlic-in-the-ground",
+      "mvp": true,
+      "text": "Onions and garlic in the ground",
+      "done": true
+    },
+    {
+      "id": "bed-weed-free-for-a-month",
+      "mvp": false,
+      "text": "Bed weed-free for a month",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "plant-garlic",
+      "title": "Plant garlic",
+      "type": "task",
+      "status": "done",
+      "notes": "Planted in November; overwintered."
+    },
+    {
+      "id": "plant-onion-sets",
+      "title": "Plant onion sets",
+      "type": "task",
+      "status": "done",
+      "notes": "Centurion, 40 sets."
+    },
+    {
+      "id": "net-against-birds-pulling-the-sets",
+      "title": "Net against birds pulling the sets",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "hoe-weekly-for-a-month",
+      "title": "Hoe weekly for a month",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "shallots-too",
+      "title": "Shallots too",
+      "type": "stretch",
+      "status": "dropped",
+      "notes": "No space left. Fine."
+    }
+  ]
+}

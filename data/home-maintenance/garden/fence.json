@@ -1,0 +1,66 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "fence",
+  "name": "Fix the back fence",
+  "deliverable": "Back fence upright and solid again",
+  "timeboxDays": 7,
+  "startedAt": "2026-08-22T09:00:00Z",
+  "clearedAt": "2026-08-29T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "fence-stands-upright-in-wind",
+      "mvp": true,
+      "text": "Fence stands upright in wind",
+      "done": true
+    },
+    {
+      "id": "panels-treated",
+      "mvp": false,
+      "text": "Panels treated",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "repair-or-replace-the-fence",
+      "title": "Repair or replace the fence",
+      "type": "decision",
+      "status": "done",
+      "notes": "Repair: only one post had rotted."
+    },
+    {
+      "id": "neighbour-ok-with-access-from-their-side",
+      "title": "Neighbour OK with access from their side",
+      "type": "dependency",
+      "status": "done"
+    },
+    {
+      "id": "dig",
+      "title": "Dig out the rotten post",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "concrete-in-a-new-post",
+      "title": "Concrete in a new post",
+      "type": "task",
+      "status": "done",
+      "dependsOn": [
+        "dig"
+      ]
+    },
+    {
+      "id": "rehang-the-two-loose-panels",
+      "title": "Rehang the two loose panels",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "treat-the-panels",
+      "title": "Treat the panels",
+      "type": "task",
+      "status": "done",
+      "notes": "One coat was enough; second coat skipped."
+    }
+  ]
+}

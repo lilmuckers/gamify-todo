@@ -1,0 +1,28 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
+  "id": "home-maintenance",
+  "title": "Home Maintenance 2026",
+  "description": "The yearly jobs that stop the house falling apart. Mostly small, mostly boring, and all cheaper done now than after a winter of leaks. Rule: each job gets one weekend, then it's good enough.",
+  "goals": [
+    {
+      "id": "dry-warm",
+      "title": "A dry, warm house going into winter",
+      "description": "No new damp patches; heating serviced before the first cold snap."
+    },
+    {
+      "id": "safe",
+      "title": "Everything safety-related checked and certified",
+      "description": "Gas, electrics and alarms, with paperwork filed."
+    },
+    {
+      "id": "easy-garden",
+      "title": "A garden that takes an hour a week, not a weekend"
+    }
+  ],
+  "worldOrder": [
+    "roof",
+    "heating",
+    "garden",
+    "paperwork"
+  ]
+}

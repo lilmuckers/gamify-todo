@@ -1,0 +1,67 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "appliances",
+  "name": "Appliances",
+  "deliverable": "Hob, oven, dishwasher, fridge-freezer and washing machine installed and working",
+  "timeboxDays": 3,
+  "successCriteria": [
+    {
+      "id": "can-cook-on-the-hob-and-in-the-o",
+      "mvp": true,
+      "text": "Can cook on the hob and in the oven",
+      "done": false
+    },
+    {
+      "id": "dishwasher-runs-a-full-cycle-wit",
+      "mvp": true,
+      "text": "Dishwasher runs a full cycle without leaks",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "order-the-appliances",
+      "title": "Order the appliances",
+      "type": "task",
+      "status": "todo",
+      "notes": "Delivery slot matters more than waiting for sales."
+    },
+    {
+      "id": "connect-the-induction-hob",
+      "title": "Connect the induction hob",
+      "type": "task",
+      "status": "todo",
+      "notes": "Electrician, on the new cooker circuit."
+    },
+    {
+      "id": "install-the-oven",
+      "title": "Install the oven",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "plumb-in-the-dishwasher",
+      "title": "Plumb in the dishwasher",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "plumb-in-the-washing-machine",
+      "title": "Plumb in the washing machine",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "fit-the-integrated-fridge-freezer-doors",
+      "title": "Fit the integrated fridge-freezer doors",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "smart-plug-for-the-extractor",
+      "title": "Smart plug for the extractor",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

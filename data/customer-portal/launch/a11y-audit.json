@@ -1,0 +1,77 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "a11y-audit",
+  "name": "Accessibility audit",
+  "deliverable": "External WCAG 2.2 AA audit with all critical issues fixed",
+  "timeboxDays": 14,
+  "startedAt": "2026-09-26T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "audit-completed",
+      "mvp": true,
+      "text": "Audit completed",
+      "done": false
+    },
+    {
+      "id": "no-open-critical-issues",
+      "mvp": true,
+      "text": "No open critical issues",
+      "done": false
+    },
+    {
+      "id": "accessibility-statement-publishe",
+      "mvp": true,
+      "text": "Accessibility statement published",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "book-the-external-auditor",
+      "title": "Book the external auditor",
+      "type": "task",
+      "status": "done",
+      "notes": "Booked for 20 October."
+    },
+    {
+      "id": "screen-reader-pass-on-every-page",
+      "title": "Screen-reader pass on every page",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "keyboard-only-pass-on-every-page",
+      "title": "Keyboard-only pass on every page",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "report",
+      "title": "Audit report",
+      "type": "deliverable",
+      "status": "todo"
+    },
+    {
+      "id": "fix-critical-issues",
+      "title": "Fix critical issues",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "report"
+      ]
+    },
+    {
+      "id": "publish-the-accessibility-statement",
+      "title": "Publish the accessibility statement",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "audit-finds-issues-in-the-identity-provi",
+      "title": "Audit finds issues in the identity provider pages",
+      "type": "risk",
+      "status": "todo",
+      "notes": "We cannot change those; document them in the statement."
+    }
+  ]
+}

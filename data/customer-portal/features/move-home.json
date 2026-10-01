@@ -1,0 +1,74 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "move-home",
+  "name": "Moving home",
+  "deliverable": "Customers can tell us they are moving and get a final bill without calling",
+  "timeboxDays": 14,
+  "successCriteria": [
+    {
+      "id": "move-out-date-captured",
+      "mvp": true,
+      "text": "Move-out date captured",
+      "done": false
+    },
+    {
+      "id": "final-meter-reading-requested",
+      "mvp": true,
+      "text": "Final meter reading requested",
+      "done": false
+    },
+    {
+      "id": "new-address-set-up",
+      "mvp": false,
+      "text": "New address set up",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "meter-readings-live",
+      "title": "Meter readings live",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "features/meter-readings"
+    },
+    {
+      "id": "move-out-form",
+      "title": "Move-out form",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "final-reading-step",
+      "title": "Final reading step",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "forwarding-address-for-the-final-bill",
+      "title": "Forwarding address for the final bill",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "handle-move-in-to-a-new-address-too",
+      "title": "Handle move-in to a new address too",
+      "type": "decision",
+      "status": "todo",
+      "notes": "Probably phase 2; check with the product owner."
+    },
+    {
+      "id": "joint-account-holders",
+      "title": "Joint account holders",
+      "type": "risk",
+      "status": "todo",
+      "notes": "Both names must agree; CRM has no flag for this."
+    },
+    {
+      "id": "confirmation-email",
+      "title": "Confirmation email",
+      "type": "task",
+      "status": "todo"
+    }
+  ]
+}

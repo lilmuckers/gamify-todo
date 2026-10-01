@@ -1,0 +1,61 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "brakes",
+  "name": "Brakes and cockpit",
+  "deliverable": "Brakes that stop confidently in the wet, and a comfortable riding position",
+  "timeboxDays": 5,
+  "successCriteria": [
+    {
+      "id": "brakes-stop-confidently-in-the-w",
+      "mvp": true,
+      "text": "Brakes stop confidently in the wet",
+      "done": false
+    },
+    {
+      "id": "bars-and-saddle-set-to-my-fit",
+      "mvp": true,
+      "text": "Bars and saddle set to my fit",
+      "done": false
+    },
+    {
+      "id": "fresh-bar-tape",
+      "mvp": false,
+      "text": "Fresh bar tape",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "keep-the-original-brakes-or-upgrade",
+      "title": "Keep the original brakes or upgrade",
+      "type": "decision",
+      "status": "todo",
+      "notes": "Original centre-pulls with modern pads stop fine; keep them."
+    },
+    {
+      "id": "fit-new-brake-pads-and-cables",
+      "title": "Fit new brake pads and cables",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "fit-the-stem-and-bars",
+      "title": "Fit the stem and bars",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "set-saddle-height-and-setback",
+      "title": "Set saddle height and setback",
+      "type": "task",
+      "status": "todo",
+      "notes": "Copy measurements from my current bike."
+    },
+    {
+      "id": "cork-bar-tape",
+      "title": "Cork bar tape",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

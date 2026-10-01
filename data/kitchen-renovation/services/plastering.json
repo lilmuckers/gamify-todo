@@ -1,0 +1,71 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "plastering",
+  "name": "Plaster the walls",
+  "deliverable": "All walls and the new ceiling skimmed and drying",
+  "timeboxDays": 4,
+  "successCriteria": [
+    {
+      "id": "walls-skimmed",
+      "mvp": true,
+      "text": "Walls skimmed",
+      "done": false
+    },
+    {
+      "id": "ceiling-boarded-and-skimmed",
+      "mvp": true,
+      "text": "Ceiling boarded and skimmed",
+      "done": false
+    },
+    {
+      "id": "period-coving-matched-in-the-din",
+      "mvp": false,
+      "text": "Period coving matched in the dining area",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "first-fix-electrics-finished",
+      "title": "First-fix electrics finished",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "services/electrics"
+    },
+    {
+      "id": "plumbing-pressure-tested",
+      "title": "Plumbing pressure-tested",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "services/plumbing"
+    },
+    {
+      "id": "board",
+      "title": "Board the ceiling",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "skim-the-walls",
+      "title": "Skim the walls",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "leave-it-to-dry-for-5-7-days",
+      "title": "Leave it to dry for 5–7 days",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "board"
+      ],
+      "notes": "Don't paint for at least a week; mist coat first."
+    },
+    {
+      "id": "match-the-period-coving",
+      "title": "Match the period coving",
+      "type": "stretch",
+      "status": "todo"
+    }
+  ]
+}

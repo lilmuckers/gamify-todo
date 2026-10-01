@@ -1,0 +1,60 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "insurance",
+  "name": "Renew home insurance",
+  "deliverable": "Home insurance renewed with the same or better cover",
+  "timeboxDays": 10,
+  "startedAt": "2026-09-28T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "policy-renewed-before-the-deadli",
+      "mvp": true,
+      "text": "Policy renewed before the deadline",
+      "done": false
+    },
+    {
+      "id": "same-cover-for-less-money",
+      "mvp": false,
+      "text": "Same cover for less money",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "get-the-renewal-quote",
+      "title": "Get the renewal quote",
+      "type": "task",
+      "status": "done",
+      "notes": "Up 18% on last year."
+    },
+    {
+      "id": "compare",
+      "title": "Compare three alternatives",
+      "type": "task",
+      "status": "doing"
+    },
+    {
+      "id": "raise-the-excess-to-500",
+      "title": "Raise the excess to £500",
+      "type": "decision",
+      "status": "todo",
+      "notes": "Saves about £40 a year."
+    },
+    {
+      "id": "declare-the-roof-work",
+      "title": "Declare the roof work",
+      "type": "task",
+      "status": "todo",
+      "notes": "Some insurers want to know about repairs."
+    },
+    {
+      "id": "renew-or-switch",
+      "title": "Renew or switch",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "compare"
+      ]
+    }
+  ]
+}

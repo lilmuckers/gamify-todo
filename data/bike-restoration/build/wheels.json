@@ -1,0 +1,71 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "wheels",
+  "name": "Wheels",
+  "deliverable": "True, tensioned wheels with new tyres, tubes and rim tape",
+  "description": "Done early while the frame was at the powder coater.",
+  "timeboxDays": 7,
+  "startedAt": "2026-09-06T09:00:00Z",
+  "clearedAt": "2026-09-13T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "both-wheels-true-within-1mm",
+      "mvp": true,
+      "text": "Both wheels true within 1mm",
+      "done": true
+    },
+    {
+      "id": "new-tyres-fitted",
+      "mvp": true,
+      "text": "New tyres fitted",
+      "done": true
+    },
+    {
+      "id": "hubs-serviced",
+      "mvp": false,
+      "text": "Hubs serviced",
+      "done": true
+    }
+  ],
+  "items": [
+    {
+      "id": "strip-and-regrease-the-hubs",
+      "title": "Strip and regrease the hubs",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "replace-two-broken-spokes",
+      "title": "Replace two broken spokes",
+      "type": "task",
+      "status": "done",
+      "notes": "Rear drive side. Matching length from the co-op spares box."
+    },
+    {
+      "id": "true-and-tension-both-wheels",
+      "title": "True and tension both wheels",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "fit-25mm-tyres",
+      "title": "Fit 25mm tyres",
+      "type": "task",
+      "status": "done",
+      "notes": "Modern tyres fit the old rims fine."
+    },
+    {
+      "id": "new-rim-tape-and-tubes",
+      "title": "New rim tape and tubes",
+      "type": "task",
+      "status": "done"
+    },
+    {
+      "id": "rims-too-worn-to-brake-on",
+      "title": "Rims too worn to brake on",
+      "type": "risk",
+      "status": "dropped",
+      "notes": "Brake tracks still have plenty of material. Not a problem."
+    }
+  ]
+}

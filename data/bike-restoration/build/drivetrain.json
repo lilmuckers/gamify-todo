@@ -1,0 +1,85 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "drivetrain",
+  "name": "Drivetrain",
+  "deliverable": "Cranks, chain and derailleurs fitted and shifting cleanly across the range",
+  "timeboxDays": 7,
+  "startedAt": "2026-09-21T09:00:00Z",
+  "successCriteria": [
+    {
+      "id": "shifts-cleanly-across-all-gears",
+      "mvp": true,
+      "text": "Shifts cleanly across all gears",
+      "done": false
+    },
+    {
+      "id": "chain-line-correct",
+      "mvp": true,
+      "text": "Chain line correct",
+      "done": false
+    },
+    {
+      "id": "original-simplex-derailleur-kept",
+      "mvp": false,
+      "text": "Original Simplex derailleur kept",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "bottom-bracket-fitted",
+      "title": "Bottom bracket fitted",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "frame/headset"
+    },
+    {
+      "id": "clean-and-polish-the-cranks",
+      "title": "Clean and polish the cranks",
+      "type": "task",
+      "status": "done",
+      "notes": "Fine wire wool and metal polish; looks new."
+    },
+    {
+      "id": "fit-the-cranks",
+      "title": "Fit the cranks",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "fit-the-derailleurs-and-shifters",
+      "title": "Fit the derailleurs and shifters",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "chain",
+      "title": "New chain and freewheel",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "fit-new-cables-and-housing",
+      "title": "Fit new cables and housing",
+      "type": "task",
+      "status": "todo"
+    },
+    {
+      "id": "index-the-gears",
+      "title": "Index the gears",
+      "type": "task",
+      "status": "todo",
+      "dependsOn": [
+        "chain"
+      ]
+    },
+    {
+      "id": "simplex-plastic-derailleur-cracks",
+      "title": "Simplex plastic derailleur cracks",
+      "type": "risk",
+      "status": "todo",
+      "mvp": false,
+      "notes": "Have a cheap modern derailleur as backup."
+    }
+  ]
+}
