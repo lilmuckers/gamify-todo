@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { orderedProjects, orderedWorlds, suggestNext, totals, type GameState } from '@quest/shared';
 import { go } from '../router';
+import { quip, type Thing } from './quips';
 import { clutter, CONSOLE_PORTS, consoleTop, SCREEN, SLOT, TV_H, TV_W, tvCanvas, wallpaperCanvas } from '../sprites/bedroom';
 import { carpetCanvas, cartridge, CART_H, CART_W, controllerCanvas, type CartSpec } from '../sprites/cartridge';
 import { projectForm } from '../ui/forms';
@@ -34,7 +35,7 @@ interface Room {
   console: Placed;
   pad: Placed;
   powerSide: 1 | -1;
-  props: (Placed & { key: string; under: boolean })[];
+  props: (Placed & { key: string; under: boolean; kind: Thing; label?: string })[];
   carts: Placed[];
 }
 
@@ -57,6 +58,7 @@ export class ProjectsScene extends QuestScene {
   private sig = '';
   private room?: Room;
   private visit = 0;
+  private lastQuip?: string;
 
   constructor() {
     super('projects');
@@ -188,7 +190,7 @@ export class ProjectsScene extends QuestScene {
       this.textures.addCanvas(key, prop.canvas);
       const rad = Math.max(prop.canvas.width, prop.canvas.height) / 2;
       const [spot] = this.scatter(1, r, taken, rad * 0.8, 180);
-      props.push({ ...spot, key, under: !!prop.under });
+      props.push({ ...spot, key, under: !!prop.under, kind: prop.kind, label: prop.label });
     }
     return { console, pad, powerSide: r() < 0.5 ? 1 : -1, props, carts };
   }
@@ -221,12 +223,18 @@ export class ProjectsScene extends QuestScene {
     layer.add(this.add.tileSprite(-pad, SKIRTING_Y - 500, FLOOR_W + 2 * pad, 500, tex('wallpaper', wallpaperCanvas)).setOrigin(0));
     layer.add(this.add.rectangle(-pad, SKIRTING_Y - 8, FLOOR_W + 2 * pad, 10, 0xdfe9f0).setOrigin(0));
     layer.add(this.add.rectangle(TV.x - TV_W / 2 - 10, SKIRTING_Y - 40, TV_W + 20, 38, 0x743f39).setOrigin(0).setStrokeStyle(2, 0x1a1c2c));
-    layer.add(this.add.image(TV.x, TV.y, tex('tv', tvCanvas)));
+    const tv = this.add.image(TV.x, TV.y, tex('tv', tvCanvas));
+    layer.add(tv);
+    this.mutter(layer, tv, undefined, { x: TV.x, y: TV.y, angle: 0 }, 'tv', undefined, 1.04);
     layer.add(this.add.tileSprite(-pad, SKIRTING_Y + 2, FLOOR_W + 2 * pad, FLOOR_H + pad, tex('carpet', carpetCanvas)).setOrigin(0));
 
     // Puddles and crumbs under everything else.
     const propImage = (p: Room['props'][number]) => this.add.image(p.x, p.y, p.key).setAngle(p.angle);
-    for (const p of room.props.filter((p) => p.under)) layer.add(propImage(p));
+    for (const p of room.props.filter((p) => p.under)) {
+      const img = propImage(p);
+      layer.add(img);
+      this.mutter(layer, img, undefined, p, p.kind, p.label);
+    }
 
     // Cables: A/V up to the TV, power off-screen, controller to the pad.
     const c = room.console;
@@ -255,14 +263,19 @@ export class ProjectsScene extends QuestScene {
     cable(port('pad1'), { x: room.pad.x + 10, y: room.pad.y - 6 }, -16, 0x5a6988);
     layer.add(cables);
 
-    layer.add(this.add.image(c.x + 3, c.y + 5, tex('console-off', () => consoleTop(false))).setAngle(c.angle).setTint(0).setAlpha(0.35));
+    const consoleShadow = this.add.image(c.x + 3, c.y + 5, tex('console-off', () => consoleTop(false))).setAngle(c.angle).setTint(0).setAlpha(0.35);
     const consoleImg = this.add.image(c.x, c.y, 'console-off').setAngle(c.angle);
-    layer.add(consoleImg);
-    layer.add(this.add.image(room.pad.x, room.pad.y, tex('controller', controllerCanvas)).setAngle(room.pad.angle));
+    layer.add([consoleShadow, consoleImg]);
+    this.mutter(layer, consoleImg, consoleShadow, c, 'console', undefined, 1.06);
+    const padImg = this.add.image(room.pad.x, room.pad.y, tex('controller', controllerCanvas)).setAngle(room.pad.angle);
+    layer.add(padImg);
+    this.mutter(layer, padImg, undefined, room.pad, 'controller');
 
     for (const p of room.props.filter((p) => !p.under)) {
-      layer.add(this.add.image(p.x + 2, p.y + 3, p.key).setAngle(p.angle).setTint(0).setAlpha(0.3));
-      layer.add(propImage(p));
+      const shadow = this.add.image(p.x + 2, p.y + 3, p.key).setAngle(p.angle).setTint(0).setAlpha(0.3);
+      const img = propImage(p);
+      layer.add([shadow, img]);
+      this.mutter(layer, img, shadow, p, p.kind, p.label);
     }
 
     const title = this.text(CENTER.x, v.y + 14, 'SELECT A GAME', 7, '#fee761').setOrigin(0.5);
@@ -296,6 +309,66 @@ export class ProjectsScene extends QuestScene {
         void this.play(img, shadow, consoleImg, cart);
       });
     });
+  }
+
+  /**
+   * The non-game things on the floor: hovering (or tapping) one lifts it a
+   * little, like a cartridge but more half-hearted, with a muttered remark.
+   */
+  private mutter(
+    layer: Phaser.GameObjects.Container,
+    img: Phaser.GameObjects.Image,
+    shadow: Phaser.GameObjects.Image | undefined,
+    home: Placed,
+    thing: Thing,
+    label?: string,
+    scale = 1.15,
+  ) {
+    img.setInteractive(this.input.makePixelPerfect(1));
+    const sx = shadow?.x ?? 0;
+    const sy = shadow?.y ?? 0;
+    let up = false;
+    const lift = () => {
+      if (this.busy || up) return;
+      up = true;
+      if (shadow) layer.bringToTop(shadow);
+      layer.bringToTop(img);
+      const angle = home.angle / 2;
+      this.tweens.add({ targets: img, angle, scale, y: home.y - 3, duration: 160, ease: 'Sine.out' });
+      if (shadow) this.tweens.add({ targets: shadow, angle, scale, x: sx + 2, y: sy + 3, alpha: 0.25, duration: 160 });
+      this.lastQuip = quip(thing, label, this.lastQuip);
+      this.showQuip(this.lastQuip, home.x, home.y - (img.displayHeight * scale) / 2);
+    };
+    const drop = () => {
+      if (!up) return;
+      up = false;
+      this.tweens.add({ targets: img, angle: home.angle, scale: 1, y: home.y, duration: 180 });
+      if (shadow) this.tweens.add({ targets: shadow, angle: home.angle, scale: 1, x: sx, y: sy, alpha: 0.3, duration: 180 });
+      this.info?.destroy();
+    };
+    img.on('pointerover', lift);
+    img.on('pointerout', drop);
+    // Touch has no hover: a tap mutters, another tap stops.
+    img.on('pointerup', (p: Phaser.Input.Pointer) => p.wasTouch && (up ? drop() : lift()));
+  }
+
+  /** A quieter cousin of the cartridge info box: one muttered line in grey. */
+  private showQuip(text: string, x: number, top: number) {
+    this.info?.destroy();
+    const t = this.text(0, 0, text, 4, '#c0cbdc', 120).setOrigin(0.5, 0);
+    const w = t.displayWidth + 10;
+    const h = t.displayHeight + 8;
+    const bg = this.add.rectangle(0, -4, w, h, 0x262b44, 0.82).setOrigin(0.5, 0).setStrokeStyle(1, 0x5a6988);
+    // A little tail pointing down at the thing.
+    const tail = this.add.triangle(0, h - 4, -3, 0, 3, 0, 0, 4, 0x262b44, 0.82).setOrigin(0.5, 0);
+    const cam = this.cameras.main;
+    const above = top - h - 6 > cam.worldView.y + 4;
+    const iy = above ? top - h - 2 : top + 8;
+    const left = cam.worldView.x;
+    const ix = Phaser.Math.Clamp(x, left + w / 2 + 4, left + cam.worldView.width - w / 2 - 4);
+    tail.setX(Phaser.Math.Clamp(x - ix, -w / 2 + 5, w / 2 - 5)).setVisible(above);
+    this.info = this.add.container(ix, iy, [bg, tail, t]).setDepth(1000).setAlpha(0);
+    this.tweens.add({ targets: this.info, alpha: 1, duration: 120 });
   }
 
   private showInfo(cart: Cart, x: number, y: number) {

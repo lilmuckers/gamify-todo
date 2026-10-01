@@ -113,8 +113,13 @@ export function wallpaperCanvas(): HTMLCanvasElement {
 
 // ---- Clutter (random each load) ----
 
+export type PropKind = 'snack' | 'crumbs' | 'sock' | 'juice' | 'soda' | 'pizza' | 'comic';
+
 export interface Prop {
+  kind: PropKind;
   canvas: HTMLCanvasElement;
+  /** Words printed on it (a snack brand, a comic's cover), for hover quips. */
+  label?: string;
   /** Draw under other props (e.g. a puddle). */
   under?: boolean;
 }
@@ -135,20 +140,21 @@ function snackBag(r: Rand): Prop {
     rect(ctx, x, 36, 1, 3, K);
   }
   rect(ctx, 2, 14, 30, 9, '#f4f4f4');
-  drawText(ctx, pick(r, BRANDS), 5, 16, K);
+  const brand = pick(r, BRANDS);
+  drawText(ctx, brand, 5, 16, K);
   disc(ctx, 17, 29, 4, 3, '#fee761');
   rect(ctx, 6, 5, 2, 8, 'rgba(255,255,255,0.35)');
   if (r() < 0.5) {
     // Torn open with crisps spilling out.
     rect(ctx, 4, 0, 26, 4, '#262b44');
   }
-  return { canvas: c };
+  return { kind: 'snack', canvas: c, label: brand };
 }
 
 function crumbs(r: Rand): Prop {
   const [c, ctx] = canvas(30, 20);
   for (let i = 0; i < 9; i++) disc(ctx, 3 + r() * 24, 3 + r() * 14, 2, 1, pick(r, ['#fee761', '#feae34', '#e4a672']));
-  return { canvas: c, under: true };
+  return { kind: 'crumbs', canvas: c, under: true };
 }
 
 function sock(r: Rand): Prop {
@@ -164,7 +170,7 @@ function sock(r: Rand): Prop {
   rect(ctx, 3, 4, 8, 2, stripe);
   rect(ctx, 3, 8, 8, 2, stripe);
   rect(ctx, 14, 19, 5, 8, pick(r, ['#c0cbdc', '#8b9bb4']));
-  return { canvas: c };
+  return { kind: 'sock', canvas: c };
 }
 
 function juice(r: Rand): Prop {
@@ -184,7 +190,7 @@ function juice(r: Rand): Prop {
   disc(ctx, cx + 21, cy + 8, 4, 7, K);
   disc(ctx, cx + 21, cy + 8, 3, 6, liquid);
   rect(ctx, cx + 5, cy + 6, 8, 4, pick(r, ['#0099db', '#e43b44', '#63c74d']));
-  return { canvas: c };
+  return { kind: 'juice', canvas: c };
 }
 
 function soda(r: Rand): Prop {
@@ -196,7 +202,7 @@ function soda(r: Rand): Prop {
   rect(ctx, 24, 2, 4, 10, '#c0cbdc');
   rect(ctx, 26, 4, 3, 6, K);
   rect(ctx, 8, 6, 10, 3, '#fee761');
-  return { canvas: c };
+  return { kind: 'soda', canvas: c };
 }
 
 function pizza(r: Rand): Prop {
@@ -207,7 +213,7 @@ function pizza(r: Rand): Prop {
     if (w > 2) rect(ctx, 2, y + 1, w - 2, 1, y < 3 ? '#b86f50' : '#fee761');
   }
   for (let i = 0; i < 4; i++) disc(ctx, 5 + r() * 9, 6 + r() * 8, 2, 2, '#a22633');
-  return { canvas: c };
+  return { kind: 'pizza', canvas: c };
 }
 
 function comic(r: Rand): Prop {
@@ -215,11 +221,12 @@ function comic(r: Rand): Prop {
   rect(ctx, 0, 0, 32, 42, K);
   rect(ctx, 1, 1, 30, 40, pick(r, ['#fee761', '#2ce8f5', '#f6757a', '#63c74d']));
   rect(ctx, 2, 2, 28, 9, pick(r, ['#e43b44', '#124e89', '#262b44']));
-  drawText(ctx, pick(r, ['ZAP!', 'POW!', 'BAM!', 'WOW!']), 8, 4, '#f4f4f4');
+  const word = pick(r, ['ZAP!', 'POW!', 'BAM!', 'WOW!']);
+  drawText(ctx, word, 8, 4, '#f4f4f4');
   disc(ctx, 16, 26, 8, 9, '#f4f4f4');
   disc(ctx, 16, 24, 4, 4, pick(r, ['#e43b44', '#0099db', '#b55088']));
   rect(ctx, 26, 36, 4, 4, '#f4f4f4');
-  return { canvas: c };
+  return { kind: 'comic', canvas: c, label: word };
 }
 
 /** A fresh, random assortment of floor clutter. */
