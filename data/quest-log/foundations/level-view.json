@@ -71,7 +71,7 @@
       "id": "first-playable",
       "title": "First playable level",
       "type": "deliverable",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "walk-anim",
         "sprites"
