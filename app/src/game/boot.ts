@@ -8,12 +8,6 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     registerTextures(this);
-    this.anims.create({
-      key: 'hero-walk',
-      frames: [{ key: 'hero' }, { key: 'hero-walk' }],
-      frameRate: 8,
-      repeat: -1,
-    });
     this.game.events.emit('booted');
   }
 }

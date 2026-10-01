@@ -8,3 +8,4 @@ interface CompiledValidator {
 export const validateProject: CompiledValidator;
 export const validateWorld: CompiledValidator;
 export const validateLevel: CompiledValidator;
+export const validateSettings: CompiledValidator;

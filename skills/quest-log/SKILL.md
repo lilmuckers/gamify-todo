@@ -58,6 +58,7 @@ Nothing else gates it. The whole point is "good enough, then move on": keep MVP 
 
 ```
 data/
+  settings.json                ← Settings (optional, repo-wide)
   <project-id>/
     project.json               ← Project
     <world-id>/
@@ -85,7 +86,7 @@ Rules:
 - `project.json` → `worldOrder` lists **exactly** the world folders in that project.
 - `world.json` → `levelOrder` lists **exactly** the level files in that folder.
 - A level id may not be `world` (that name is the world file).
-- No other `.json` files anywhere under `data/`.
+- The only file directly in `data/` is the optional `settings.json`. No other `.json` files anywhere under `data/`.
 - Files are UTF-8 JSON, 2-space indent, trailing newline.
 
 ## 3. Schemas
@@ -97,6 +98,7 @@ Put the matching `$schema` URL at the top of every file:
 | `project.json` | `https://tasks.patrick-mckinley.com/schema/project.schema.json` |
 | `world.json` | `https://tasks.patrick-mckinley.com/schema/world.schema.json` |
 | `<level-id>.json` | `https://tasks.patrick-mckinley.com/schema/level.schema.json` |
+| `data/settings.json` | `https://tasks.patrick-mckinley.com/schema/settings.schema.json` |
 
 Full definitions (JSON Schema 2020-12, `additionalProperties: false` everywhere — **no extra
 fields**): https://tasks.patrick-mckinley.com/schema/quest.schema.json. Fetch it if unsure.
@@ -185,6 +187,18 @@ matter. When every must-do step is `done` or `dropped`, the dependency itself is
     { "id": "apply-online", "type": "task", "title": "Apply on the council website", "status": "done" },
     { "id": "pay-fee", "type": "task", "title": "Pay the fee", "status": "todo", "dependsOn": ["apply-online"] }
   ] }
+```
+
+### Settings (`data/settings.json`, optional)
+
+Repo-wide display settings; omit the file to use the defaults. Only change it when the user asks.
+
+| Field | Notes |
+|---|---|
+| `hero` | default player character: `classic`, `bearded`, `redhead`, `afro-puff`, `denim-jacket` or `hoodie`. Viewers in read-only mode can pick their own in the app. |
+
+```json
+{ "$schema": "https://tasks.patrick-mckinley.com/schema/settings.schema.json", "hero": "bearded" }
 ```
 
 ## 4. Example files

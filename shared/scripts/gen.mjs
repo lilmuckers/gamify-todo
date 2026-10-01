@@ -33,6 +33,7 @@ const validators =
     validateProject: `${id}#/$defs/Project`,
     validateWorld: `${id}#/$defs/World`,
     validateLevel: `${id}#/$defs/Level`,
+    validateSettings: `${id}#/$defs/Settings`,
   });
 
 // Ajv's "esm" output still require()s runtime helpers; point them at our ESM shim.
@@ -52,6 +53,7 @@ const perFile = [
   ['project', 'project.schema.json', null, 'data/<project-id>/project.json'],
   ['world', 'world.schema.json', null, 'data/<project-id>/<world-id>/world.json'],
   ['level', 'level.schema.json', null, 'data/<project-id>/<world-id>/<level-id>.json'],
+  ['settings', 'settings.schema.json', null, 'data/settings.json'],
 ];
 const base = id.slice(0, id.lastIndexOf('/') + 1);
 const manifest = {

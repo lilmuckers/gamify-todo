@@ -1,6 +1,8 @@
-import { describeOp, GitHubClient, parseRepo } from '@quest/shared';
+import { describeOp, GitHubClient, HERO_IDS, parseRepo, type HeroId } from '@quest/shared';
 import type { App } from '../app';
-import { chosenBranch, repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
+import { chosenBranch, heroStore, repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
+import { HEROES, heroKey } from '../sprites/heroes';
+import { spriteUrl } from '../sprites/render';
 import { h, relTime } from './dom';
 import { confirmDialog, openModal } from './modal';
 import { toast } from './toast';
@@ -8,6 +10,7 @@ import { toast } from './toast';
 export function settingsDialog(app: App) {
   const s = app.store;
   const body = h('div', { class: 'settings' });
+  body.append(h('h3', null, 'Your hero'), heroPicker(app));
 
   if (TARGET === 'pages') {
     const cur = repoRef();
@@ -146,4 +149,74 @@ export function settingsDialog(app: App) {
       h('p', { class: 'muted' }, 'Edits are committed locally. Publishing pushes them so GitHub Pages redeploys.'),
     );
   openModal('Settings', body);
+}
+
+/**
+ * Carousel of player characters. The choice is kept in this browser; when the
+ * data is editable it is also saved to data/settings.json as the repo default.
+ */
+function heroPicker(app: App) {
+  let index = Math.max(0, HERO_IDS.indexOf(app.heroId));
+  const img = h('img', { class: 'pixel hero-big', alt: '' });
+  const name = h('b', null);
+  const desc = h('small', { class: 'muted' });
+  const dots = h('div', { class: 'hero-dots', 'aria-hidden': 'true' });
+  const use = h('button', { class: 'btn sm primary', type: 'button' });
+  const repoHero = app.workspace?.settings?.hero;
+  const where = app.store.source.label;
+  const note = h(
+    'small',
+    { class: 'muted' },
+    app.caps.canEdit
+      ? `Saved in this browser and to data/settings.json (${where}), so it becomes the default for everyone viewing this data.`
+      : `Saved in this browser only, next to your token. It overrides the data's default${repoHero ? ` (${HEROES[repoHero].label})` : ''}.`,
+  );
+
+  // Two-frame walk cycle in the preview, until the dialog closes.
+  let step = 0;
+  const timer = setInterval(() => {
+    if (!img.isConnected && step > 0) return clearInterval(timer);
+    step++;
+    img.src = spriteUrl(heroKey(HERO_IDS[index], step % 2 ? 'walk' : 'stand'));
+  }, 260);
+
+  const show = () => {
+    const id = HERO_IDS[index];
+    img.src = spriteUrl(heroKey(id));
+    img.alt = HEROES[id].label;
+    name.textContent = HEROES[id].label;
+    desc.textContent = HEROES[id].description;
+    dots.replaceChildren(...HERO_IDS.map((_, i) => h('i', { class: i === index ? 'on' : '' })));
+    const current = id === app.heroId && heroStore.get() === id;
+    use.textContent = current ? '✓ Your hero' : 'Use this hero';
+    use.disabled = current;
+  };
+  const move = (d: number) => {
+    index = (index + d + HERO_IDS.length) % HERO_IDS.length;
+    show();
+  };
+  use.onclick = () => {
+    app.setHero(HERO_IDS[index] as HeroId);
+    show();
+  };
+  const arrow = (label: string, d: number) =>
+    h('button', { class: 'btn sm ghost', type: 'button', 'aria-label': label, onclick: () => move(d) }, d < 0 ? '◀' : '▶');
+  const stage = h(
+    'div',
+    {
+      class: 'hero-carousel',
+      tabIndex: 0,
+      onkeydown: (e: KeyboardEvent) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          move(e.key === 'ArrowLeft' ? -1 : 1);
+        }
+      },
+    },
+    arrow('Previous hero', -1),
+    h('div', { class: 'hero-card' }, img, name, desc, dots),
+    arrow('Next hero', 1),
+  );
+  show();
+  return h('div', { class: 'hero-picker' }, stage, h('div', { class: 'actions' }, use), note);
 }

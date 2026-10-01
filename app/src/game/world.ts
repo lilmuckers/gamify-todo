@@ -174,7 +174,7 @@ export class WorldScene extends QuestScene {
         layer.add(this.text(x, y + 30, n.change.toUpperCase(), 4, color).setOrigin(0.5, 0));
       }
       if (n.here) {
-        const hero = this.add.image(x, y - 12, 'hero').setOrigin(0.5, 1);
+        const hero = this.add.image(x, y - 12, this.heroTex()).setOrigin(0.5, 1);
         layer.add(hero);
         this.tweens.add({ targets: hero, y: y - 16, yoyo: true, repeat: -1, duration: 400 });
       }

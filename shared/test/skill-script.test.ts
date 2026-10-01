@@ -77,12 +77,23 @@ describe('quest.py validate', () => {
     ['subtasks on a task', () => edit(good(), lvl, (d) => (d.items[0].subtasks = [{ id: 's', type: 'task', title: 'S', status: 'todo' }])), /only dependency items/],
     ['nested dependency step', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].subtasks = [{ id: 's', type: 'dependency', title: 'S', status: 'todo' }]))), /one of|not valid/],
     ['dangling step dependsOn', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].subtasks = [{ id: 's', type: 'task', title: 'S', status: 'todo', dependsOn: ['x'] }]))), /unknown subtask "x"/],
+    ['unknown hero in settings', () => ({ ...good(), 'data/settings.json': JSON.stringify({ hero: 'wizard' }) }), /one of|not valid/],
+    ['extra key in settings', () => ({ ...good(), 'data/settings.json': JSON.stringify({ hero: 'classic', theme: 'dark' }) }), /theme/],
     ['level depends on itself', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].levelRef = 'w/lvl'))), /cannot depend on itself/],
   ];
 
   it('accepts the fixture', async () => {
     const r = await run(['validate', writeTree(good())], { QUEST_NO_JSONSCHEMA: '1' });
     expect(r.code).toBe(0);
+  });
+
+  it('accepts a settings file with both validators', async () => {
+    const files = { ...good(), 'data/settings.json': JSON.stringify({ $schema: 'https://tasks.patrick-mckinley.com/schema/settings.schema.json', hero: 'redhead' }) };
+    expect(validateFiles(files)).toEqual([]);
+    for (const env of ENGINES) {
+      const r = await run(['validate', writeTree(files)], env);
+      expect(r.code, r.out).toBe(0);
+    }
   });
 
   for (const [name, make, pattern] of cases)
@@ -346,7 +357,7 @@ describe('quest.py schema loading', () => {
     mkdirSync(join(skill, 'quest-log/scripts'), { recursive: true });
     mkdirSync(join(skill, 'quest-log/schemas'));
     writeFileSync(join(skill, 'quest-log/scripts/quest.py'), readFileSync(SCRIPT));
-    for (const f of ['index.json', 'quest.schema.json', 'project.schema.json', 'world.schema.json', 'level.schema.json'])
+    for (const f of ['index.json', 'quest.schema.json', 'project.schema.json', 'world.schema.json', 'level.schema.json', 'settings.schema.json'])
       writeFileSync(join(skill, 'quest-log/schemas', f), readFileSync(join(SCHEMAS, f)));
     const r = await run(['validate', ROOT], { QUEST_NO_JSONSCHEMA: '1' }, skill, join(skill, 'quest-log/scripts/quest.py'), []);
     expect(r.code, r.out).toBe(0);
@@ -388,7 +399,7 @@ describe('quest.py schema loading', () => {
 describe('schema manifest', () => {
   it('lists every published schema, and each file exists', () => {
     const manifest = JSON.parse(readFileSync(join(SCHEMAS, 'index.json'), 'utf8'));
-    expect(manifest.schemas.map((s: any) => s.name).sort()).toEqual(['level', 'project', 'quest', 'world']);
+    expect(manifest.schemas.map((s: any) => s.name).sort()).toEqual(['level', 'project', 'quest', 'settings', 'world']);
     for (const s of manifest.schemas) {
       const doc = JSON.parse(readFileSync(join(SCHEMAS, s.file), 'utf8'));
       expect(doc.$id).toBe(s.id);

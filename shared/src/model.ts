@@ -1,6 +1,7 @@
-import type { Project, World as WorldFile, Level, Item, Criterion, Goal, Subtask } from './types.gen';
+import type { Project, World as WorldFile, Level, Item, Criterion, Goal, Subtask, Settings } from './types.gen';
 
-export type { Project, WorldFile, Level, Item, Criterion, Goal, Subtask };
+export type { Project, WorldFile, Level, Item, Criterion, Goal, Subtask, Settings };
+export type HeroId = NonNullable<Settings['hero']>;
 /** The project file is what the overworld map shows. */
 export type Overworld = Project;
 /** In memory, a world carries its level files, in levelOrder. */
@@ -19,7 +20,11 @@ export interface GameState {
 /** Every project in the data folder, keyed by project id. Projects are independent. */
 export interface Workspace {
   projects: Record<string, GameState>;
+  /** data/settings.json, when the repo has one. */
+  settings?: Omit<Settings, '$schema'>;
 }
+
+export const HERO_IDS: HeroId[] = ['classic', 'bearded', 'redhead', 'afro-puff', 'denim-jacket', 'hoodie'];
 
 export function orderedProjects(ws: Workspace): GameState[] {
   return Object.values(ws.projects).sort((a, b) => a.overworld.title.localeCompare(b.overworld.title));

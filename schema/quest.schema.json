@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tasks.patrick-mckinley.com/schema/quest.schema.json",
   "title": "Quest Log data",
-  "description": "Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.",
+  "description": "Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.",
   "oneOf": [
     {
       "$ref": "#/$defs/Project"
@@ -12,6 +12,9 @@
     },
     {
       "$ref": "#/$defs/Level"
+    },
+    {
+      "$ref": "#/$defs/Settings"
     }
   ],
   "$defs": {
@@ -522,6 +525,50 @@
             "type": "integer",
             "minimum": 0
           }
+        }
+      }
+    },
+    "HeroId": {
+      "description": "Which player character walks the levels.",
+      "oneOf": [
+        {
+          "const": "classic",
+          "description": "The original: red cap, blue overalls."
+        },
+        {
+          "const": "bearded",
+          "description": "Bald, brown beard, glasses, t-shirt, jeans and trainers."
+        },
+        {
+          "const": "redhead",
+          "description": "Long red hair, tank top and jeans."
+        },
+        {
+          "const": "afro-puff",
+          "description": "Afro puff, glasses, mustard jumper, dark trousers."
+        },
+        {
+          "const": "denim-jacket",
+          "description": "Short purple hair, denim jacket, black jeans."
+        },
+        {
+          "const": "hoodie",
+          "description": "Dark wavy hair and stubble, green hoodie, cargo shorts."
+        }
+      ]
+    },
+    "Settings": {
+      "type": "object",
+      "description": "Repo-wide display settings, stored at data/settings.json. Optional: without it the app uses its defaults.",
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Optional pointer to this schema, for editor autocompletion."
+        },
+        "hero": {
+          "$ref": "#/$defs/HeroId",
+          "description": "Default player character for everyone viewing this repo. A viewer's own choice (saved in their browser) wins in read-only mode."
         }
       }
     }

@@ -1,10 +1,12 @@
 import {
   diffWorkspaces,
   findLevel,
+  HERO_IDS,
   reviewLevel,
   subLevel,
   validateWorkspace,
   type GameState,
+  type HeroId,
   type Issue,
   type Item,
   type Level,
@@ -15,6 +17,7 @@ import {
   type World,
   type Workspace,
 } from '@quest/shared';
+import { heroStore } from './config';
 import type { PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { currentRoute, href, routeProject, type Route } from './router';
@@ -115,6 +118,25 @@ export class App {
       const url = href(this.route);
       if (location.hash !== url) history.replaceState(history.state, '', url);
     }
+    this.emit();
+  }
+
+  /**
+   * The player character. Editable views use the repo's data/settings.json
+   * (falling back to this browser's choice); read-only views let this
+   * browser's choice override the repo's.
+   */
+  get heroId(): HeroId {
+    const local = heroStore.get() as HeroId | undefined;
+    const repo = this.workspace?.settings?.hero;
+    const pick = this.caps.canEdit ? (repo ?? local) : (local ?? repo);
+    return pick && HERO_IDS.includes(pick) ? pick : 'classic';
+  }
+
+  /** Picks a hero: saved in this browser, and in the repo's settings when editable. */
+  setHero(id: HeroId) {
+    heroStore.set(id);
+    if (this.caps.canEdit && this.workspace?.settings?.hero !== id) this.dispatch({ kind: 'updateSettings', patch: { hero: id } });
     this.emit();
   }
 

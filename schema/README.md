@@ -9,8 +9,9 @@ repo of your own. Files are validated by the JSON Schemas here (draft 2020-12,
 | `data/<project-id>/project.json` | [`project.schema.json`](project.schema.json) |
 | `data/<project-id>/<world-id>/world.json` | [`world.schema.json`](world.schema.json) |
 | `data/<project-id>/<world-id>/<level-id>.json` | [`level.schema.json`](level.schema.json) |
+| `data/settings.json` (optional) | [`settings.schema.json`](settings.schema.json) |
 
-All three reference the definitions in [`quest.schema.json`](quest.schema.json). They are published
+All of them reference the definitions in [`quest.schema.json`](quest.schema.json). They are published
 at `https://tasks.patrick-mckinley.com/schema/`, and data files point there with `$schema`, so
 editors autocomplete them wherever they live.
 

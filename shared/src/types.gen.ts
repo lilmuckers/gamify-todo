@@ -2,9 +2,9 @@
 // GENERATED from schema/quest.schema.json by `npm run schema:gen`. Do not edit.
 
 /**
- * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
+ * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
  */
-export type QuestLogData = Project | World | Level;
+export type QuestLogData = Project | World | Level | Settings;
 /**
  * Short human-readable name. Imperative for tasks ('Write API docs'), noun phrase for deliverables ('Public beta').
  */
@@ -235,4 +235,17 @@ export interface LevelStats {
   itemEdits?: {
     [k: string]: number;
   };
+}
+/**
+ * Repo-wide display settings, stored at data/settings.json. Optional: without it the app uses its defaults.
+ */
+export interface Settings {
+  /**
+   * Optional pointer to this schema, for editor autocompletion.
+   */
+  $schema?: string;
+  /**
+   * Default player character for everyone viewing this repo. A viewer's own choice (saved in their browser) wins in read-only mode.
+   */
+  hero?: "classic" | "bearded" | "redhead" | "afro-puff" | "denim-jacket" | "hoodie";
 }

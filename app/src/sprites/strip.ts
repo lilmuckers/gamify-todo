@@ -13,7 +13,7 @@ export interface Strip {
 }
 
 /** Static 2D-canvas render of a level for the mobile view (no Phaser needed). */
-export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selected?: string, sub = false): Strip {
+export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selected?: string, sub = false, hero = 'hero'): Strip {
   const L = layoutLevel(level, { sub });
   const width = L.width * TILE;
   const c = document.createElement('canvas');
@@ -123,7 +123,7 @@ export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selec
     }
   }
   const heroX = L.hero.x * TILE;
-  if (!cleared || sub) draw('hero', heroX, GROUND - TILE);
+  if (!cleared || sub) draw(hero, heroX, GROUND - TILE);
 
   return {
     canvas: c,

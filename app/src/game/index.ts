@@ -58,7 +58,8 @@ export function startGame(app: App, parent: HTMLElement) {
   let current = '';
   const sync = () => {
     const { key, params } = sceneFor(app.route);
-    const sig = `${key}:${JSON.stringify(params)}`;
+    // A new hero restarts the scene so every sprite picks it up.
+    const sig = `${key}:${JSON.stringify(params)}:${app.heroId}`;
     // Level/world scenes need data loaded before they can build.
     if (!app.workspace && key !== 'world' && !app.route.view.startsWith('pr')) return;
     if (sig === current) return;

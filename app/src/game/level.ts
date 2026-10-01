@@ -20,7 +20,7 @@ import { toast } from '../ui/toast';
 import { itemForm, STATUS_LABEL, TYPE_INFO } from '../ui/forms';
 import { itemAddr, type App } from '../app';
 import { go } from '../router';
-import { GROUND_Y, QuestScene, tex, WORLD_H } from './common';
+import { GROUND_Y, heroWalk, QuestScene, tex, WORLD_H } from './common';
 
 export interface LevelParams {
   projectId: string;
@@ -119,7 +119,7 @@ export class LevelScene extends QuestScene {
       return;
     }
     this.fx = this.add.container(0, 0).setDepth(50);
-    this.hero = this.add.sprite(0, GROUND_Y, 'hero').setOrigin(0, 1).setDepth(40);
+    this.hero = this.add.sprite(0, GROUND_Y, this.heroTex()).setOrigin(0, 1).setDepth(40);
     this.build(cur.world, cur.level, cur.diff);
     this.heroTargetX = this.layout.hero.x * TILE;
     this.hero.x = this.heroTargetX;
@@ -802,7 +802,7 @@ export class LevelScene extends QuestScene {
 
   private idle() {
     this.hero.anims.stop();
-    this.hero.setTexture('hero');
+    this.hero.setTexture(this.heroTex());
   }
 
   private walkTo(x: number): Promise<void> {
@@ -814,7 +814,7 @@ export class LevelScene extends QuestScene {
         this.cameras.main.startFollow(this.hero, true, 0.08, 0.08, -this.viewWidth / 6, 0);
       }
       this.hero.setFlipX(x < this.hero.x);
-      this.hero.play('hero-walk');
+      this.hero.play(heroWalk(this.app.heroId));
       this.tweens.add({
         targets: this.hero,
         x,
@@ -830,7 +830,7 @@ export class LevelScene extends QuestScene {
 
   private jump(height = 22): Promise<void> {
     return new Promise((resolve) => {
-      this.hero.setTexture('hero-jump');
+      this.hero.setTexture(this.heroTex('jump'));
       this.tweens.add({
         targets: this.hero,
         y: GROUND_Y - height,
@@ -904,7 +904,7 @@ export class LevelScene extends QuestScene {
   /** Hops from the ground onto a platform whose top is at `y`, landing at `x`. */
   private hopTo(x: number, y: number, duration = 320): Promise<void> {
     return new Promise((resolve) => {
-      this.hero.setTexture('hero-jump');
+      this.hero.setTexture(this.heroTex('jump'));
       const startY = this.hero.y;
       const peak = Math.min(startY, y) - 18;
       this.tweens.add({ targets: this.hero, x, duration, ease: 'Linear' });
@@ -1023,7 +1023,7 @@ export class LevelScene extends QuestScene {
     const stopX = this.layout.hero.x * TILE;
     if (a.kind === 'pipe-down') {
       // Drop out of the ceiling pipe.
-      this.hero.setPosition(TILE + 8, 3 * TILE + 4).setTexture('hero-jump');
+      this.hero.setPosition(TILE + 8, 3 * TILE + 4).setTexture(this.heroTex('jump'));
       await new Promise<void>((resolve) =>
         this.tweens.add({ targets: this.hero, y: GROUND_Y, duration: 520, ease: 'Bounce.out', onComplete: () => resolve() }),
       );

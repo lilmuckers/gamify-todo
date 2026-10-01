@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import type { App } from '../app';
 import { SPRITES } from '../sprites/pixels';
+import { HERO_IDS } from '@quest/shared';
+import { heroKey, type HeroFrame } from '../sprites/heroes';
 import { island, sprite, TILE, type ThemeKey } from '../sprites/render';
 
 export const WORLD_H = 15 * TILE;
@@ -20,7 +22,20 @@ export function registerTextures(scene: Phaser.Scene) {
   };
   for (const name of [...Object.keys(SPRITES), 'castle']) if (!THEMED.has(name)) add(name, sprite(name));
   for (const theme of THEME_KEYS) for (const name of THEMED) add(tex(name, theme), sprite(name, theme));
+  for (const id of HERO_IDS) {
+    for (const frame of ['stand', 'walk', 'jump'] as const) add(heroKey(id, frame), sprite(heroKey(id, frame)));
+    if (!scene.anims.exists(heroWalk(id)))
+      scene.anims.create({
+        key: heroWalk(id),
+        frames: [{ key: heroKey(id) }, { key: heroKey(id, 'walk') }],
+        frameRate: 8,
+        repeat: -1,
+      });
+  }
 }
+
+/** Walk animation key for a hero. */
+export const heroWalk = (id: string) => `walk@${id}`;
 
 export function islandTexture(scene: Phaser.Scene, theme: ThemeKey, locked: boolean) {
   const key = `island@${theme}@${locked}`;
@@ -39,6 +54,11 @@ export abstract class QuestScene extends Phaser.Scene {
 
   init(_params?: object) {
     this.app = this.registry.get('app') as App;
+  }
+
+  /** Texture of the player's chosen hero. */
+  protected heroTex(frame: HeroFrame = 'stand') {
+    return heroKey(this.app.heroId, frame);
   }
 
   get zoom() {

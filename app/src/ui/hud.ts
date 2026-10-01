@@ -3,6 +3,7 @@ import type { App } from '../app';
 import { href } from '../router';
 import { fmtDuration, h, icon, mount, stars } from './dom';
 import { navFor } from '../nav';
+import { heroKey } from '../sprites/heroes';
 import { settingsDialog } from './settings';
 import { skillHelpDialog } from './skill-help';
 import { toast } from './toast';
@@ -55,7 +56,7 @@ export function renderHud(app: App, el: HTMLElement) {
     crumbs.map((c, i) => [
       i > 0 && h('span', { class: 'sep', 'aria-hidden': 'true' }, '›'),
       i === 0
-        ? h('a', { class: 'hud-home', href: c.href, title: 'All projects' }, icon('hero', 'grass', 'icon'), h('span', null, 'QUEST LOG'))
+        ? h('a', { class: 'hud-home', href: c.href, title: 'All projects' }, icon(heroKey(app.heroId), 'grass', 'icon'), h('span', null, 'QUEST LOG'))
         : h('a', { href: c.href, class: i === crumbs.length - 1 ? 'here' : '', 'aria-current': i === crumbs.length - 1 ? 'page' : undefined }, c.label),
     ]),
   );

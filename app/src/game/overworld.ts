@@ -144,7 +144,7 @@ abstract class IslandScene extends QuestScene {
       }
       if (isl.here) {
         focus = { x, y };
-        const hero = this.add.image(x + 18, y - 4, 'hero').setOrigin(0.5, 1);
+        const hero = this.add.image(x + 18, y - 4, this.heroTex()).setOrigin(0.5, 1);
         layer.add(hero);
         this.tweens.add({ targets: hero, y: y - 8, yoyo: true, repeat: -1, duration: 400 });
       }

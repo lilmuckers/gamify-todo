@@ -30,6 +30,13 @@
       "id": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
       "description": "One key deliverable, stored at data/<project-id>/<world-id>/<level-id>.json. The level is CLEARED when every MVP success criterion is done. Keep MVP criteria to the minimum that makes the deliverable useful.",
       "appliesTo": "data/<project-id>/<world-id>/<level-id>.json"
+    },
+    {
+      "name": "settings",
+      "file": "settings.schema.json",
+      "id": "https://tasks.patrick-mckinley.com/schema/settings.schema.json",
+      "description": "Repo-wide display settings, stored at data/settings.json (optional).",
+      "appliesTo": "data/settings.json"
     }
   ]
 }

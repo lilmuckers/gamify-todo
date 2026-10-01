@@ -225,6 +225,8 @@ def make_checker(registry):
 # ---------------------------------------------------------------- data tree
 
 def classify(path):
+    if path == 'data/settings.json':
+        return ('settings', None, None, None)
     m = PROJECT_RE.match(path)
     if m:
         return ('project', m.group(1), None, None)
@@ -312,7 +314,8 @@ def validate_files(files, registry, by_name):
         if not kind:
             if path.startswith('data/') and path.endswith('.json'):
                 issues.append((path, '/', 'unexpected file: use data/<project>/project.json, '
-                                          'data/<project>/<world>/world.json or data/<project>/<world>/<level>.json'))
+                                          'data/<project>/<world>/world.json, data/<project>/<world>/<level>.json '
+                                          'or data/settings.json'))
             continue
         try:
             doc = json.loads(text)
@@ -322,6 +325,8 @@ def validate_files(files, registry, by_name):
         parsed[path] = doc
         k, p, w, lv = kind
         issues += [(path, at, msg) for at, msg in check(doc, by_name[k])]
+        if k == 'settings':
+            continue
         expected = {'project': p, 'world': w, 'level': lv}[k]
         if isinstance(doc, dict) and doc.get('id') != expected:
             issues.append((path, '/id', f'id "{doc.get("id")}" must match its {"file name" if k == "level" else "folder"} "{expected}"'))
