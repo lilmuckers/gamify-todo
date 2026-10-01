@@ -37,7 +37,7 @@
       "id": "maincrop-grown",
       "title": "Maincrop potatoes grown",
       "type": "dependency",
-      "status": "done",
+      "status": "todo",
       "levelRef": "spring/potatoes",
       "notes": "Nothing to store without them."
     },
@@ -75,7 +75,7 @@
   ],
   "stats": {
     "itemEdits": {
-      "maincrop-grown": 1
+      "maincrop-grown": 2
     }
   }
 }
