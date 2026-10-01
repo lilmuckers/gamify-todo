@@ -81,7 +81,7 @@
       "id": "font-license",
       "title": "Confirm pixel font licence",
       "type": "blocker",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "particles",
