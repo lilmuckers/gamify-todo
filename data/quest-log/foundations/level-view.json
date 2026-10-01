@@ -55,7 +55,7 @@
       "id": "walk-anim",
       "title": "Hero auto-walk",
       "type": "task",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "layout-algo"
       ]
