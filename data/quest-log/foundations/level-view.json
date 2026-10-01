@@ -5,18 +5,19 @@
   "deliverable": "A level renders items as a side-scrolling platformer with an auto-walking hero",
   "timeboxDays": 5,
   "startedAt": "2026-09-29T09:00:00Z",
+  "clearedAt": "2026-10-01T00:06:44.733Z",
   "successCriteria": [
     {
       "id": "renders",
       "mvp": true,
       "text": "Every item type has a distinct sprite",
-      "done": false
+      "done": true
     },
     {
       "id": "walks",
       "mvp": true,
       "text": "Hero walks to the next blocking item",
-      "done": false
+      "done": true
     },
     {
       "id": "parallax",
