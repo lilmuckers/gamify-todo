@@ -62,7 +62,7 @@
           "id": "cut-to-size",
           "title": "Cut to size with a bit spare",
           "type": "task",
-          "status": "doing",
+          "status": "done",
           "dependsOn": [
             "sunday-trip"
           ]
