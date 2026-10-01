@@ -155,7 +155,8 @@ Item:
 | `status` | ✓ | `todo` \| `doing` \| `done` \| `dropped` |
 | `mvp` | | default `true` (on the critical path). Set `false` for optional items. Omit for `stretch`. |
 | `dependsOn` | | ids of items **in the same level** that come first; no cycles |
-| `levelRef` | | dependency items only: `"<world-id>/<level-id>"` in the **same project** |
+| `levelRef` | | dependency items only: `"<world-id>/<level-id>"` in the **same project**, not the item's own level |
+| `subtasks` | | dependency items only: the steps to get it (see below). Not together with `levelRef`. |
 | `link` | | URL to a ticket/doc/PR |
 | `notes` | | free text / markdown |
 
@@ -163,6 +164,28 @@ Item types: `task` (work you do), `deliverable` (milestone inside the level), `b
 stopping progress), `dependency` (needed from elsewhere), `risk` (might go wrong; `done` =
 mitigated/accepted), `decision` (open question), `stretch` (nice-to-have; never blocks, never
 earns stars). `dropped` is a good status: cutting scope is encouraged.
+
+**Dependencies come in three shapes.** Pick the one that matches what the user has to do:
+
+| Shape | When | Fields | In the app |
+|---|---|---|---|
+| Wait for it | someone else delivers it | neither | a pipe with a plant |
+| Another level | it's the output of a level in this project | `levelRef` | a cloud that carries the hero there |
+| Chase it | the user has to take steps to get it | `subtasks` | a warp pipe down to a bonus sub-level |
+
+`subtasks` is an array of steps shaped like items: `id` (unique among that dependency's steps),
+`type` (any type **except** `dependency`; sub-levels don't nest), `title`, `status`, and optional
+`mvp`, `dependsOn` (ids of **sibling steps**), `link`, `notes`. Keep it to the few steps that
+matter. When every must-do step is `done` or `dropped`, the dependency itself is ready to mark
+`done`: do that in the same change when the user says it's sorted.
+
+```json
+{ "id": "permit", "type": "dependency", "title": "Skip permit from the council", "status": "todo",
+  "subtasks": [
+    { "id": "apply-online", "type": "task", "title": "Apply on the council website", "status": "done" },
+    { "id": "pay-fee", "type": "task", "title": "Pay the fee", "status": "todo", "dependsOn": ["apply-online"] }
+  ] }
+```
 
 ## 4. Example files
 
@@ -225,8 +248,11 @@ Always read the current files first, change the minimum, and keep the rest byte-
 | Add an item | Append to `items` in the level file with a new unique id and `"status": "todo"`. |
 | Start work | Set item `status` to `doing`. If the level has no `startedAt`, set it to the current UTC time. |
 | Finish work | Set item `status` to `done` (or `dropped` to cut it). |
+| Add a step to a dependency | Append to that item's `subtasks` (create the array if missing) with a new id unique among its steps. Never on an item with `levelRef`. |
+| Finish a step | Set the step's `status` inside `subtasks`. The dependency's own `status` is separate. |
 | Tick a criterion | Set `done: true`. If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
 | Delete a level | Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. |
+| Delete a step | Remove it from `subtasks` and from its siblings' `dependsOn`; drop the `subtasks` key if it's now empty. |
 | Delete a world | Delete the folder's files **and** remove it from `worldOrder` and from other worlds' `unlocksAfter`. |
 
 Never write `stats`. Never touch other projects when working on one.
@@ -369,6 +395,7 @@ delete. The user can commit them or paste them into a pull request.
 - [ ] Every level has ≥1 criterion with `"mvp": true`.
 - [ ] `dependsOn` only names items in the same level, with no cycles.
 - [ ] `levelRef` and `goalIds` / `unlocksAfter` point at things in the same project.
+- [ ] `subtasks` only on dependencies without `levelRef`; no dependency steps; step `dependsOn` names sibling steps.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).
 
 ## 8. Optional: CI in the user's own repo

@@ -52,7 +52,46 @@
       "title": "Roofer visit",
       "type": "dependency",
       "status": "doing",
-      "notes": "Booked twice, cancelled twice for rain. Next slot: Monday."
+      "notes": "Booked twice, cancelled twice for rain. Next slot: Monday.",
+      "subtasks": [
+        {
+          "id": "three-quotes",
+          "title": "Get three roofer quotes",
+          "type": "task",
+          "status": "done"
+        },
+        {
+          "id": "check-insurance",
+          "title": "Check reviews and public liability insurance",
+          "type": "task",
+          "status": "done",
+          "dependsOn": [
+            "three-quotes"
+          ]
+        },
+        {
+          "id": "book-dry-slot",
+          "title": "Book a slot with a dry forecast",
+          "type": "task",
+          "status": "doing",
+          "dependsOn": [
+            "check-insurance"
+          ]
+        },
+        {
+          "id": "clear-the-loft-hatch",
+          "title": "Clear the loft hatch so they can look inside",
+          "type": "task",
+          "status": "todo"
+        },
+        {
+          "id": "rain-again",
+          "title": "Rain cancels it a third time",
+          "type": "risk",
+          "status": "todo",
+          "notes": "Plan B: drone survey from the same firm, £60."
+        }
+      ]
     },
     {
       "id": "replace-the-three-slipped-slates",

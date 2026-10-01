@@ -72,9 +72,9 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
   }
   const cur = app.currentLevel();
   if (cur) {
-    const theme = r.view === 'pr-level' ? 'warp' : cur.world.theme;
+    const theme = r.view === 'pr-level' ? 'warp' : cur.sub ? 'under' : cur.world.theme;
     const sel = app.selection?.kind === 'item' ? app.selection.id : undefined;
-    const strip = drawStrip(cur.level, theme, cur.diff, sel);
+    const strip = drawStrip(cur.level, theme, cur.diff, sel, !!cur.sub);
     const scale = 1.5;
     strip.canvas.className = 'pixel';
     strip.canvas.style.width = `${strip.canvas.width * scale}px`;

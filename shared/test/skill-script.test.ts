@@ -74,6 +74,10 @@ describe('quest.py validate', () => {
     ['level missing from levelOrder', () => ({ ...good(), 'data/p/w/extra.json': good()[lvl].replace('"id": "lvl"', '"id": "extra"') }), /missing from levelOrder/],
     ['stray file', () => ({ ...good(), 'data/notes.json': '{}' }), /unexpected file/],
     ['invalid JSON', () => ({ ...good(), [lvl]: '{nope' }), /invalid JSON/],
+    ['subtasks on a task', () => edit(good(), lvl, (d) => (d.items[0].subtasks = [{ id: 's', type: 'task', title: 'S', status: 'todo' }])), /only dependency items/],
+    ['nested dependency step', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].subtasks = [{ id: 's', type: 'dependency', title: 'S', status: 'todo' }]))), /one of|not valid/],
+    ['dangling step dependsOn', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].subtasks = [{ id: 's', type: 'task', title: 'S', status: 'todo', dependsOn: ['x'] }]))), /unknown subtask "x"/],
+    ['level depends on itself', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].levelRef = 'w/lvl'))), /cannot depend on itself/],
   ];
 
   it('accepts the fixture', async () => {

@@ -280,6 +280,28 @@ def find_cycle(items):
     return None
 
 
+def subtask_issues(lf, at, item, subs):
+    """Rules for a dependency's subtasks (its warp-pipe sub-level)."""
+    out = []
+    if item['type'] != 'dependency':
+        out.append((lf, f'{at}/subtasks', 'only dependency items can have subtasks'))
+    if item.get('levelRef'):
+        out.append((lf, f'{at}/subtasks', 'use levelRef or subtasks, not both'))
+    ids = [t['id'] for t in subs]
+    if len(set(ids)) != len(ids):
+        out.append((lf, f'{at}/subtasks', 'duplicate subtask ids'))
+    for k, t in enumerate(subs):
+        for j, d in enumerate(t.get('dependsOn', [])):
+            if d == t['id']:
+                out.append((lf, f'{at}/subtasks/{k}/dependsOn/{j}', 'subtask depends on itself'))
+            elif d not in ids:
+                out.append((lf, f'{at}/subtasks/{k}/dependsOn/{j}', f'unknown subtask "{d}"'))
+    cycle = find_cycle(subs)
+    if cycle:
+        out.append((lf, f'{at}/subtasks', 'dependency cycle: ' + ' -> '.join(cycle)))
+    return out
+
+
 def validate_files(files, registry, by_name):
     """Schema, folder structure, then cross-reference checks. Returns [(file, path, message)]."""
     check, _ = make_checker(registry)
@@ -371,6 +393,11 @@ def validate_files(files, registry, by_name):
                     ref = item.get('levelRef')
                     if ref and tuple(ref.split('/', 1)) not in all_levels:
                         issues.append((lf, f'/items/{n}/levelRef', f'unknown level "{ref}" in this project'))
+                    elif ref and tuple(ref.split('/', 1)) == (w, lv):
+                        issues.append((lf, f'/items/{n}/levelRef', 'a level cannot depend on itself'))
+                    subs = item.get('subtasks')
+                    if subs is not None:
+                        issues += subtask_issues(lf, f'/items/{n}', item, subs)
                 cycle = find_cycle(level['items'])
                 if cycle:
                     issues.append((lf, '/items', 'dependency cycle: ' + ' -> '.join(cycle)))

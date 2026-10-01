@@ -1,6 +1,6 @@
-import type { Project, World as WorldFile, Level, Item, Criterion, Goal } from './types.gen';
+import type { Project, World as WorldFile, Level, Item, Criterion, Goal, Subtask } from './types.gen';
 
-export type { Project, WorldFile, Level, Item, Criterion, Goal };
+export type { Project, WorldFile, Level, Item, Criterion, Goal, Subtask };
 /** The project file is what the overworld map shows. */
 export type Overworld = Project;
 /** In memory, a world carries its level files, in levelOrder. */
@@ -90,6 +90,46 @@ export function findLevel(state: GameState, worldId: string, levelId: string): L
 export function parseLevelRef(ref: string): { worldId: string; levelId: string } | undefined {
   const [worldId, levelId] = ref.split('/');
   return worldId && levelId ? { worldId, levelId } : undefined;
+}
+
+/**
+ * How a dependency shows up in a level:
+ * - `cloud`: it points at another level (levelRef); the hero can ride over to it.
+ * - `warp`: it has subtasks; a warp pipe leads down into a sub-level of them.
+ * - `plain`: just something to wait for (a pipe with a plant).
+ */
+export type DependencyMode = 'cloud' | 'warp' | 'plain';
+
+export function dependencyMode(item: Item): DependencyMode | undefined {
+  if (item.type !== 'dependency') return undefined;
+  if (item.levelRef) return 'cloud';
+  if (item.subtasks?.length) return 'warp';
+  return 'plain';
+}
+
+/** Id of the single criterion of a sub-level: every must-do subtask is out of the way. */
+export const SUB_CRITERION_ID = 'all-steps-clear';
+
+/**
+ * A dependency's subtasks as a level of their own, so the level view can show
+ * them. Keeps the parent level's id: ops address the parent level plus the
+ * dependency (`parentId`).
+ */
+export function subLevel(parent: Level, dep: Item): Level {
+  const items = (dep.subtasks ?? []) as Item[];
+  // No must-do steps yet means nothing has been cleared, not that everything has.
+  const must = items.filter(isMvpItem);
+  const done = must.length > 0 && must.every(isResolved);
+  return {
+    id: parent.id,
+    name: dep.title,
+    deliverable: `Everything needed for "${dep.title}"`,
+    ...(dep.notes ? { description: dep.notes } : {}),
+    timeboxDays: parent.timeboxDays,
+    ...(parent.startedAt ? { startedAt: parent.startedAt } : {}),
+    successCriteria: [{ id: SUB_CRITERION_ID, text: 'Every must-do step done or dropped', mvp: true, done }],
+    items,
+  };
 }
 
 export function clone<T>(value: T): T {

@@ -64,7 +64,58 @@
       "title": "Metering team to accept photos",
       "type": "dependency",
       "status": "todo",
-      "mvp": false
+      "mvp": false,
+      "subtasks": [
+        {
+          "id": "write-the-proposal",
+          "title": "Write up the photo-reading proposal",
+          "type": "task",
+          "status": "done",
+          "notes": "Two pages: why, how we validate, what changes for the metering team."
+        },
+        {
+          "id": "present-at-metering-weekly",
+          "title": "Present at the metering team weekly",
+          "type": "task",
+          "status": "doing",
+          "dependsOn": [
+            "write-the-proposal"
+          ]
+        },
+        {
+          "id": "rules-for-blurry-photos",
+          "title": "Agree what happens with unreadable photos",
+          "type": "decision",
+          "status": "todo",
+          "dependsOn": [
+            "present-at-metering-weekly"
+          ],
+          "notes": "Options: reject in-app, or accept and flag for manual read."
+        },
+        {
+          "id": "sign-off-email",
+          "title": "Sign-off email from the metering lead",
+          "type": "deliverable",
+          "status": "todo",
+          "dependsOn": [
+            "rules-for-blurry-photos"
+          ]
+        },
+        {
+          "id": "regulator-estimated-reads",
+          "title": "Regulator rules on photo reads as \"actual\"",
+          "type": "risk",
+          "status": "todo",
+          "mvp": false,
+          "notes": "Checked with compliance: counts as a customer read. Low risk."
+        },
+        {
+          "id": "auto-ocr",
+          "title": "Auto-read the numbers with OCR",
+          "type": "stretch",
+          "status": "todo"
+        }
+      ]
     },
     {
       "id": "photo-upload-with-ocr",

@@ -53,6 +53,7 @@ const KEY_ORDER = [
   'levelRef',
   'link',
   'notes',
+  'subtasks',
   'goals',
   'worldOrder',
   'levelOrder',

@@ -6,6 +6,12 @@ launch — completely separate efforts) is its own Mario-style **overworld**; th
 blockers are brick walls, dependencies are pipes, risks are critters, decisions are signposts and
 stretch goals are floating coins. A hero auto-walks to whatever is blocking you next.
 
+Dependencies can go further. One that needs another level becomes a **cloud** the hero rides
+there. One you have to chase yourself can get **steps** of its own: a **warp pipe** down to an
+underground sub-level holding them. Clear the steps and the hero comes back up the pipe with
+the dependency done. Every dependency's bubble offers *Warp in* / *Hop on* (visit), *Got it!*
+(close) and *Jump over* (skip). Plain ones stay a pipe with a plant.
+
 The game is built to beat perfectionism:
 
 - **Flagpole = MVP.** A level clears when its MVP success criteria are ticked. Nothing else gates it,

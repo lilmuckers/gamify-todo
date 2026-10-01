@@ -43,19 +43,30 @@ export function navFor(app: App): NavModel {
       };
     }
     case 'level': {
+      const world = state?.worlds[r.worldId];
+      const level = world?.levels.find((l) => l.id === r.levelId);
+      const levelRoute: Route = { view: 'level', projectId: r.projectId, worldId: r.worldId, levelId: r.levelId };
+      const base = [
+        home,
+        link(projectTitle, { view: 'overworld', projectId: r.projectId }),
+        link(world?.name ?? r.worldId, { view: 'world', projectId: r.projectId, worldId: r.worldId }),
+      ];
+      if (r.subId) {
+        // Inside a dependency's sub-level: up goes back out of the pipe.
+        const dep = level?.items.find((i) => i.id === r.subId);
+        const back = { ...levelRoute, itemId: r.subId };
+        return {
+          crumbs: [...base, link(level?.name ?? r.levelId, back), link(`⬇ ${dep?.title ?? r.subId}`, { ...r, itemId: undefined })],
+          up: link(`Back up to ${level?.name ?? r.levelId}`, back),
+        };
+      }
       // Prev/next run through every level of the project, crossing world boundaries.
       const all = state ? orderedWorlds(state).flatMap((w) => w.levels.map((l) => ({ w, l }))) : [];
       const i = all.findIndex((x) => x.w.id === r.worldId && x.l.id === r.levelId);
-      const world = state?.worlds[r.worldId];
       const at = (x: (typeof all)[number] | undefined) =>
         x && link(x.w.id === r.worldId ? x.l.name : `${x.w.name}: ${x.l.name}`, { view: 'level', projectId: r.projectId, worldId: x.w.id, levelId: x.l.id });
       return {
-        crumbs: [
-          home,
-          link(projectTitle, { view: 'overworld', projectId: r.projectId }),
-          link(world?.name ?? r.worldId, { view: 'world', projectId: r.projectId, worldId: r.worldId }),
-          link(all[i]?.l.name ?? r.levelId, { ...r, itemId: undefined }),
-        ],
+        crumbs: [...base, link(all[i]?.l.name ?? r.levelId, levelRoute)],
         up: link(`${world?.name ?? r.worldId} map`, { view: 'world', projectId: r.projectId, worldId: r.worldId }),
         prev: at(all[i - 1]),
         next: at(all[i + 1]),
@@ -68,6 +79,13 @@ export function navFor(app: App): NavModel {
       };
     case 'pr-level': {
       const v = app.pullView(r.pr);
+      if (r.subId) {
+        const back: Route = { ...r, subId: undefined, itemId: r.subId };
+        return {
+          crumbs: [home, link('Warp Zone', { view: 'prs' }), link(`PR #${r.pr}`, { view: 'pr', pr: r.pr }), link(r.levelId, back), link(`⬇ ${r.subId}`, r)],
+          up: link(`Back up to ${r.levelId}`, back),
+        };
+      }
       const levels = v?.diff?.levels ?? [];
       const i = levels.findIndex((d) => d.projectId === r.projectId && d.worldId === r.worldId && d.levelId === r.levelId);
       const name = (d: (typeof levels)[number]) =>
