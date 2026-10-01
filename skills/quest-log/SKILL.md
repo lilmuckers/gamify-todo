@@ -1,6 +1,6 @@
 ---
 name: quest-log
-description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repository the user chooses — usually their own data repo, not the Quest Log app repo — using the GitHub REST API with a personal access token. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, or open a pull request with Quest Log changes.
+description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repository the user chooses — usually their own data repo, not the Quest Log app repo. Use your own GitHub integration if you have one (ChatGPT's GitHub connector or Codex, Claude's GitHub integration, Claude Code with git), otherwise the bundled quest.py or the GitHub REST API with a personal access token; always validate with quest.py. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, capture a quick idea or to-do (into the inbox when it's unclear where it belongs), say what to work on next, or open a pull request with Quest Log changes.
 ---
 
 # Quest Log data skill
@@ -11,8 +11,31 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-This skill ships with a helper, `scripts/quest.py` (see "The helper script"), that validates data
-and pulls/pushes it through the GitHub API. Use it whenever you can run Python.
+This skill ships with a helper, `scripts/quest.py` (see "The helper script"). Its main job is
+**validation**: run it on your changes before every commit whenever you can run Python. It can
+also pull and push through the GitHub API, but only use that when you have no better way to
+reach GitHub (see "How to reach GitHub").
+
+## How to reach GitHub
+
+Use the first of these that you have. Whichever you use, the files and rules in this document are
+the same, and you still validate with `quest.py` before committing.
+
+1. **Your own GitHub integration.** For example: ChatGPT's GitHub connector or Codex, Claude's
+   GitHub integration or a GitHub MCP server, Claude Code or another agent with `git`/`gh` and a
+   clone. Use it to read the data, commit and open pull requests, the same way you would for any
+   repo. It handles authentication, so **don't ask the user for a token**. Use `quest.py` only to
+   validate: run `python3 scripts/quest.py validate DIR` on a checkout or on the files you've
+   written (`DIR` contains `data/`), and fix every issue before committing.
+2. **`quest.py pull` / `push`** with a token, when you can run Python **and** reach
+   `api.github.com` but have no integration. See "The helper script".
+3. **The GitHub REST API directly** (§6), when you can make HTTP requests but can't run Python.
+   Check the rules in §7 by hand.
+4. **No access at all:** write the files, validate them if you can run Python, and give them to
+   the user to commit (§6.5).
+
+Tell the user which route you're using when it isn't obvious, e.g. *"Committing through the
+GitHub connector to alice/quests@main"*.
 
 ## Where the data lives: any repo
 
@@ -34,10 +57,11 @@ work on the same repo.
 - **One repo is one set of projects.** The app shows one repo at a time, and different repos are
   independent. To move a project to another repo, copy its whole `data/<project-id>/` folder
   there (and delete it from the old one if it's a move).
-- **Check access before writing.** `GET https://api.github.com/repos/<owner>/<repo>` returns
-  `permissions.push`. If that's false, the token can only read: tell the user, and either ask
-  for a token with write access to that repo or output the files instead (§6.5). Opening a pull
-  request (§6.3) also needs push access, because it creates a branch in the repo.
+- **Check access before writing.** With an integration, check it can write to that repo (or
+  open a pull request instead). With a token, `GET https://api.github.com/repos/<owner>/<repo>`
+  returns `permissions.push`. If that's false, the token can only read: tell the user, and
+  either ask for a token with write access to that repo or output the files instead (§6.5).
+  Opening a pull request (§6.3) also needs push access, because it creates a branch in the repo.
 - **Say where you're writing.** Before committing, tell the user the repo and branch, e.g.
   *"Committing to alice/quests@main"*.
 
@@ -49,6 +73,10 @@ work on the same repo.
 | **World** | An island on the project's map | One theme or area inside the project: "Kitchen", "Payments". |
 | **Level** | One course in a world | ONE key deliverable, with a time-box and success criteria. |
 | **Item** | Things in the course | Tasks, blockers, dependencies, risks, decisions, milestones, stretch goals. |
+
+Inside a level, items are laid out left to right by `dependsOn` (shown in the app as **"Waits
+for"**): an item that waits for others comes after them. The hero walks to the first unfinished
+must-do item and waits there.
 
 A level is **cleared** when every success criterion marked `"mvp": true` is `"done": true`.
 Nothing else gates it. The whole point is "good enough, then move on": keep MVP criteria to the
@@ -291,16 +319,69 @@ Always read the current files first, change the minimum, and keep the rest byte-
 | Delete a level | Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. |
 | Delete a step | Remove it from `subtasks` and from its siblings' `dependsOn`; drop the `subtasks` key if it's now empty. |
 | Delete a world | Delete the folder's files **and** remove it from `worldOrder` and from other worlds' `unlocksAfter`. |
+| Capture an idea (inbox) | Append `{ id, type, title, notes?, link?, addedAt }` to `items` in `data/inbox.json` (create the file with its `$schema` if missing). `id` unique within the inbox; `addedAt` = now (UTC). |
+| Place an inbox idea | Add it to the target level's `items` as a normal item (`"status": "todo"`, fresh id unique in that level, keep `type`, `title`, `notes`, `link`) **and** remove it from `data/inbox.json`, in the **same commit**. Delete `data/inbox.json` if `items` is now empty. |
 
 Never write `stats`. Never touch other projects when working on one.
+
+### When it's not clear where something goes: use the inbox
+
+The inbox exists so nothing gets lost while the user decides where it belongs. **Don't guess and
+don't invent structure to hold one item.** Put it in `data/inbox.json` instead when:
+
+- the request doesn't say which project, world or level, and nothing existing is an obvious fit
+  (e.g. *"remind me to ring the plumber"* with no plumbing level anywhere);
+- it could fit several places equally well;
+- it's a quick capture (*"note that…"*, *"add to my list…"*, a pasted link) rather than planning;
+- it would need a new project or world that the user hasn't asked for.
+
+Keep the basics the user gave you: a short imperative `title`, the `type` that fits (`task` if
+unsure), any detail in `notes`, a URL in `link`. Then tell them: *"I've put 'Ring the plumber'
+in your Inbox; open the Inbox page in the app to drop it into a level, or tell me where it goes."*
+
+If there's **one** clear match (a level whose deliverable obviously covers it), add it there
+instead and say where you put it. If the user later tells you where an inbox idea belongs, place
+it (table above). The app's Inbox page can also turn selected ideas into a new game, world or
+level.
+
+### Answering "what should I do next?"
+
+Read the data and answer the way the app's **Today** page does, across all projects:
+
+1. **Running out:** levels with a `startedAt`, not cleared, where `startedAt + timeboxDays` is
+   past (overdue) or less than 25% of the time-box remains.
+2. **Doing:** items (and dependency steps) with `"status": "doing"` in uncleared levels.
+3. **Next up:** in each started, uncleared level, the first must-do item that isn't done or
+   dropped, in `dependsOn` order (items with no `dependsOn` first, then file order). If that item
+   is a dependency with `subtasks`, name its first open step. For projects with nothing started,
+   suggest the first uncleared level of the first world.
+
+Nudge towards finishing what's started and cutting scope (`dropped` is a fine answer).
+
+### Linking the user to things
+
+The app has a link for every screen. Base URL `https://tasks.patrick-mckinley.com/` (or wherever
+the user runs it), then:
+
+| Link | Opens |
+|---|---|
+| `#/p/<project>` | the project map |
+| `#/p/<project>/<world>` | a world |
+| `#/p/<project>/<world>/<level>` | a level; add `/<item>` to open that item's bubble |
+| `#/p/<project>/<world>/<level>/@<dependency>/<step>` | a step inside a dependency |
+| `#/~today`, `#/~inbox` | the Today or Inbox page (add `/~today` or `/~inbox` to any link to hold it up over that screen) |
+
+When the user is reading the app from another repo, it shows that repo only after they've
+connected it in ⚙ Settings.
 
 When planning a new project: 2–5 worlds, 1–6 levels per world, under ~10 items per level,
 `timeboxDays` realistic but tight, 1–3 MVP criteria per level. Bias hard towards shippable.
 
 ## The helper script: `scripts/quest.py`
 
-Standard-library Python 3.8+, no installs. It runs the same checks as the app and talks to GitHub
-for you, so prefer it over hand-written API calls.
+Standard-library Python 3.8+, no installs. It runs the same checks as the app. **Always use it to
+validate.** Use its `pull`/`push` only when you have no GitHub integration of your own (see "How to
+reach GitHub"); it's better than hand-written API calls.
 
 ```bash
 python3 scripts/quest.py validate DIR                 # DIR contains data/; exit 1 lists every issue
@@ -311,7 +392,10 @@ python3 scripts/quest.py push --dir quest-data -m "quest: done: Fit units (kitch
 python3 scripts/quest.py push --dir quest-data -m "..." --pr "Plan the garden project"   # PR instead
 ```
 
-Workflow: `pull` → edit the JSON files under `quest-data/data/` → `validate quest-data` →
+With your own integration: get the files however your integration does (a clone, a checkout, or
+writing them into a folder as `DIR/data/...`), then `validate DIR` before you commit.
+
+Without one: `pull` → edit the JSON files under `quest-data/data/` → `validate quest-data` →
 `push`. `push` validates first and refuses invalid data. It makes **one** commit with only the
 files you changed. If the branch moved since your pull it still commits on top, unless someone
 changed the same files; then it stops and tells you to `pull --force` and re-apply your edits.
@@ -322,13 +406,16 @@ above. `python3 scripts/quest.py schemas` shows which.
 
 Where you are running matters:
 
-| Environment | What works |
+| Environment | What to do |
 |---|---|
-| Claude Code, a terminal, CI | Everything: `pull`, `validate`, `push`, `--pr`. |
-| Claude.ai / Claude apps (code execution) | `validate` always. `pull`/`push` only if the sandbox can reach `api.github.com`; if you get a network error, validate and output the files (§6.5). |
-| ChatGPT code interpreter | No internet: unzip the skill, run `validate` on the files you wrote, then output them (§6.5). |
+| Claude Code, Codex, a terminal with `git`/`gh` | Clone or use the checkout, edit, `validate`, commit and push (or open a PR) with git. `quest.py pull`/`push` also works if there's no clone. |
+| An agent with a GitHub connector/integration (ChatGPT, Claude) | Read and commit through the integration. Run `validate` in code execution on the files you're about to commit. |
+| Claude.ai / Claude apps with code execution, no integration | `validate` always. `pull`/`push` only if the sandbox can reach `api.github.com`; if you get a network error, validate and output the files (§6.5). |
+| ChatGPT code interpreter, no integration | No internet: unzip the skill, run `validate` on the files you wrote, then output them (§6.5). |
 
-## 6. Talking to GitHub
+## 6. Talking to GitHub without an integration
+
+Skip this section if you have your own GitHub integration (see "How to reach GitHub").
 
 ### Access token
 
@@ -433,6 +520,7 @@ delete. The user can commit them or paste them into a pull request.
 - [ ] `dependsOn` only names items in the same level, with no cycles.
 - [ ] `levelRef` and `goalIds` / `unlocksAfter` point at things in the same project.
 - [ ] `subtasks` only on dependencies without `levelRef`; no dependency steps; step `dependsOn` names sibling steps.
+- [ ] Inbox ideas have only `id`, `type`, `title`, `notes`, `link`, `addedAt`, with unique ids; a placed idea is removed from `data/inbox.json` in the same commit.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).
 
 ## 8. Optional: CI in the user's own repo
