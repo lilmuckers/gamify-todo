@@ -10,7 +10,7 @@
       "id": "all-smoke-alarms-tested",
       "mvp": true,
       "text": "All smoke alarms tested",
-      "done": false
+      "done": true
     },
     {
       "id": "co-alarm-fitted-next-to-the-boil",
