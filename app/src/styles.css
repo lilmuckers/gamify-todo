@@ -1177,3 +1177,306 @@ a:focus-visible {
   font: 16px/1 var(--body);
   padding: 14px 10px;
 }
+
+/* ---------- Today: a legal pad on the bedroom floor ---------- */
+.hud-today {
+  position: relative;
+}
+.hud-today.on {
+  border-color: var(--gold);
+  color: var(--gold-hi);
+}
+.hud-badge {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  background: var(--red);
+  color: #fff;
+  font-size: 7px;
+  padding: 2px 3px;
+}
+
+.pad-host {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 4% 6% 70px;
+  pointer-events: none;
+}
+.pad-host[hidden] {
+  display: none;
+}
+.pad-host.mobile {
+  position: static;
+  display: block;
+  padding: 18px 14px 28px;
+  pointer-events: auto;
+}
+
+.legal-pad {
+  --ink-blue: #1f3a93;
+  --pen-red: #c8242c;
+  --line: 30px;
+  position: relative;
+  width: min(520px, 92%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  transform: rotate(var(--tilt));
+  transform-origin: 60% 20%;
+  box-shadow:
+    0 2px 0 #e7d97f,
+    0 4px 0 #f4e78f,
+    0 18px 34px rgba(0, 0, 0, 0.45);
+  font-family: 'Caveat', 'Comic Sans MS', cursive;
+  color: var(--ink-blue);
+}
+.pad-host.mobile .legal-pad {
+  width: 100%;
+  transform: rotate(calc(var(--tilt) / 2));
+}
+.legal-pad.enter {
+  animation: pad-in 260ms ease-out;
+}
+@keyframes pad-in {
+  from {
+    opacity: 0;
+    transform: translateY(48px) rotate(calc(var(--tilt) - 7deg));
+  }
+}
+
+/* Glued red binding with a perforated edge. */
+.pad-binding {
+  flex: none;
+  height: 22px;
+  background: linear-gradient(#a3312f, #6f1d1c);
+  border-bottom: 3px dotted rgba(253, 243, 167, 0.55);
+}
+
+.pad-sheet {
+  position: relative;
+  overflow: auto;
+  padding: 10px 18px 24px 62px;
+  line-height: var(--line);
+  font-size: 22px;
+  background-color: #fdf3a7;
+  background-image:
+    linear-gradient(90deg, transparent 46px, #e39a9a 46px 47px, transparent 47px 50px, #e39a9a 50px 51px, transparent 51px),
+    repeating-linear-gradient(to bottom, transparent 0 calc(var(--line) - 1px), #a9c7e6 calc(var(--line) - 1px) var(--line));
+  background-attachment: local;
+}
+/* Curled corner shadow. */
+.legal-pad::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(315deg, rgba(0, 0, 0, 0.16), transparent 62%);
+  pointer-events: none;
+}
+
+.pad-date {
+  position: absolute;
+  top: 6px;
+  right: 18px;
+  font-size: 20px;
+  transform: rotate(4deg);
+}
+.pad-title {
+  display: inline-block;
+  margin: 0 0 4px;
+  font: 700 32px/var(--line) 'Caveat', cursive;
+  letter-spacing: 1px;
+  color: var(--ink-blue);
+  border-bottom: 4px double var(--pen-red);
+  transform: rotate(-1.5deg);
+}
+.pad-section {
+  margin-top: 4px;
+}
+.pad-section h3 {
+  margin: 0;
+  color: inherit;
+  font: 700 25px/var(--line) 'Caveat', cursive;
+  letter-spacing: 1px;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.pad-section.late h3 {
+  color: var(--pen-red);
+}
+.pad-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pad-line {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  min-height: var(--line);
+}
+.pad-line.late {
+  color: var(--pen-red);
+}
+.pad-link {
+  color: inherit;
+  text-decoration: none;
+}
+.pad-link:hover,
+.pad-link:focus-visible {
+  text-decoration: underline wavy;
+  text-underline-offset: 4px;
+  outline: none;
+}
+.pad-where {
+  font-size: 17px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+.pad-dep {
+  opacity: 0.8;
+}
+/* Level codes circled in pen, like a cheat scribbled from a magazine. */
+.pad-code {
+  display: inline-block;
+  padding: 0 7px;
+  line-height: 22px;
+  font-weight: 700;
+  border: 2px solid currentColor;
+  border-radius: 50% 44% 56% 47% / 60% 48% 52% 46%;
+  transform: rotate(-6deg);
+}
+.pad-code.red {
+  color: var(--pen-red);
+}
+.pad-bang {
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--pen-red);
+  transform: rotate(8deg);
+}
+
+.pad-box,
+.pad-start {
+  align-self: flex-start;
+  margin-top: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.pad-box {
+  width: 20px;
+  height: 20px;
+  margin-left: -28px;
+}
+.pad-box:disabled {
+  cursor: default;
+}
+.pad-box-svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pad-box-svg path:last-child {
+  opacity: 0;
+  stroke-width: 2.4;
+  transition: opacity 120ms;
+}
+.pad-box:not(:disabled):hover .pad-box-svg path:last-child,
+.pad-box:focus-visible .pad-box-svg path:last-child {
+  opacity: 0.35;
+}
+.struck .pad-box-svg path:last-child {
+  opacity: 1;
+}
+.pad-start {
+  font-size: 15px;
+  color: #2f7d32;
+  opacity: 0.75;
+}
+.pad-start:hover {
+  opacity: 1;
+}
+
+/* Pen line through a finished item. */
+.pad-strike {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  width: 100%;
+  height: 10px;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--ink-blue);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 110;
+  stroke-dashoffset: 110;
+  overflow: visible;
+}
+.struck .pad-strike {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 380ms ease-in;
+}
+.pad-empty {
+  margin: 0;
+  font-size: 24px;
+}
+.pad-arrow {
+  display: inline-block;
+  font-size: 30px;
+  transform: rotate(-20deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legal-pad.enter {
+    animation: none;
+  }
+  .struck .pad-strike {
+    transition: none;
+  }
+}
+.pad-line.more {
+  opacity: 0.6;
+  font-size: 19px;
+}
+.pad-host.mobile {
+  overflow: hidden;
+}
+.pad-host.mobile .legal-pad {
+  width: calc(100% - 6px);
+  margin: 0 auto;
+}
+.pad-host.mobile .pad-sheet {
+  padding-left: 56px;
+  padding-right: 12px;
+}
+.pad-host.mobile .pad-where {
+  white-space: normal;
+}
+@media (max-width: 520px) {
+  .pad-date {
+    position: static;
+    text-align: right;
+    transform: rotate(3deg);
+  }
+}

@@ -1,5 +1,6 @@
 export type Route =
   | { view: 'projects' }
+  | { view: 'today' }
   | { view: 'overworld'; projectId: string }
   | { view: 'world'; projectId: string; worldId: string }
   | { view: 'level'; projectId: string; worldId: string; levelId: string; subId?: string; itemId?: string }
@@ -10,6 +11,7 @@ export type Route =
 /**
  * Every screen has a shareable hash URL:
  *   #/                                  project select
+ *   #/today                             today's plan, across all projects
  *   #/p/<project>                       project map
  *   #/p/<project>/<world>               world map
  *   #/p/<project>/<world>/<level>[/<item>]   level, optionally with an item's bubble open
@@ -27,6 +29,7 @@ export function parseRoute(hash: string): Route {
     if (c) return { view: 'world', projectId: b, worldId: c };
     return { view: 'overworld', projectId: b };
   }
+  if (a === 'today') return { view: 'today' };
   if (a === 'prs') return { view: 'prs' };
   if (a === 'pr' && Number(b) > 0) {
     const [c, d, e, ...more] = rest;
@@ -46,6 +49,8 @@ export function href(route: Route): string {
   switch (route.view) {
     case 'projects':
       return '#/';
+    case 'today':
+      return '#/today';
     case 'overworld':
       return `#/p/${e(route.projectId)}`;
     case 'world':

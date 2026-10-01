@@ -15,7 +15,7 @@ export type Params = Record<string, Value | undefined>;
 
 /** Allowed parameters per event. Anything else is dropped before sending. */
 export const EVENT_PARAMS: Record<string, readonly string[]> = {
-  item_status: ['status', 'item_type', 'in_sub_level', 'dep_mode'],
+  item_status: ['status', 'item_type', 'in_sub_level', 'dep_mode', 'source'],
   item_add: ['item_type', 'in_sub_level'],
   item_edit: ['item_type', 'in_sub_level'],
   item_delete: ['item_type', 'in_sub_level'],
@@ -71,6 +71,8 @@ export function routeType(route: Route): string {
   switch (route.view) {
     case 'projects':
       return '/projects';
+    case 'today':
+      return '/today';
     case 'overworld':
       return '/project';
     case 'world':

@@ -4,6 +4,7 @@ import { href, parseRoute, type Route } from '../src/router';
 describe('router deep links', () => {
   const routes: Route[] = [
     { view: 'projects' },
+    { view: 'today' },
     { view: 'overworld', projectId: 'house' },
     { view: 'world', projectId: 'house', worldId: 'kitchen' },
     { view: 'level', projectId: 'house', worldId: 'kitchen', levelId: 'demo' },

@@ -1,4 +1,6 @@
 import '@fontsource/press-start-2p/latin-400.css';
+import '@fontsource/caveat/latin-400.css';
+import '@fontsource/caveat/latin-700.css';
 import './styles.css';
 import { GitHubError } from '@quest/shared';
 import { bucket, initAnalytics, setUserProps, track } from './analytics';
@@ -30,10 +32,12 @@ function useMobile(): boolean {
 
 async function main() {
   const root = document.getElementById('app')!;
+  const mobile = useMobile();
+  // Phones open on today's plan.
+  if (mobile && /^#?\/?$/.test(location.hash)) history.replaceState(history.state, '', '#/today');
   const store = new Store(await createSource(), browserKV());
   store.attachBrowserEvents();
   const app = new App(store);
-  const mobile = useMobile();
   const userProps = () => ({
     app_mode: TARGET === 'local' ? 'local' : store.caps.canEdit ? 'github' : 'readonly',
     layout: mobile ? 'mobile' : 'desktop',

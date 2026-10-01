@@ -11,6 +11,7 @@ import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { settingsDialog } from './ui/settings';
 import { skillHelpDialog } from './ui/skill-help';
+import { todayPad } from './ui/today';
 
 /** Compact, touch-first layout for phones: DOM screens plus a static level strip. */
 export function mountMobile(app: App, root: HTMLElement) {
@@ -20,9 +21,16 @@ export function mountMobile(app: App, root: HTMLElement) {
   root.append(hud, body, nav);
 
   let stripScroll: number | undefined;
+  let padShown = false;
   scheduler(app, body, () => {
     renderHud(app, hud);
     renderNav(app, nav);
+    if (app.route.view === 'today') {
+      const pad = h('div', { class: 'pad-host mobile' }, todayPad(app, { enter: !padShown }));
+      padShown = true;
+      return pad;
+    }
+    padShown = false;
     const prevStrip = body.querySelector('.strip');
     if (prevStrip) stripScroll = prevStrip.scrollLeft;
     const visual = renderVisual(app, stripScroll);
@@ -100,6 +108,7 @@ function renderNav(app: App, nav: HTMLElement) {
   const next = state && suggestNext(state);
   mount(
     nav,
+    h('a', { href: href({ view: 'today' }), class: app.route.view === 'today' ? 'on' : '' }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
     h('a', { href: href({ view: 'projects' }), class: app.route.view === 'projects' ? 'on' : '' }, icon('node-clear', 'grass', 'icon sm'), h('span', null, 'Projects')),
     pid &&
       h('a', { href: href({ view: 'overworld', projectId: pid }), class: app.route.view === 'overworld' ? 'on' : '' }, icon('node', 'grass', 'icon sm'), h('span', null, 'Map')),

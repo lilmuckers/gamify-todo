@@ -27,6 +27,8 @@ export function navFor(app: App): NavModel {
   switch (r.view) {
     case 'projects':
       return { crumbs: [home] };
+    case 'today':
+      return { crumbs: [home, link('Today', r)], up: link('All projects', { view: 'projects' }) };
     case 'prs':
       return { crumbs: [home, link('Warp Zone', r)], up: link('All projects', { view: 'projects' }) };
     case 'overworld':
@@ -113,8 +115,20 @@ export function bindNavKeys(app: App) {
     if (document.activeElement?.matches('input, textarea, select, [contenteditable]')) return;
     if (document.querySelector('.overlay')) return;
     const nav = navFor(app);
+    const today = app.route.view === 'today' ? undefined : { label: 'Today', href: href({ view: 'today' }) };
     const target =
-      e.key === 'Escape' ? (app.bubbleOpen ? undefined : nav.up) : e.key === '[' ? nav.prev : e.key === ']' ? nav.next : undefined;
+      e.key === 'Escape'
+        ? // A level's item bubble takes Esc first (the flag can be stale on other screens).
+          app.bubbleOpen && (app.route.view === 'level' || app.route.view === 'pr-level')
+          ? undefined
+          : nav.up
+        : e.key === '['
+          ? nav.prev
+          : e.key === ']'
+            ? nav.next
+            : e.key === 't'
+              ? today
+              : undefined;
     if (!target) return;
     e.preventDefault();
     track('nav_shortcut', { key: e.key === 'Escape' ? 'escape' : e.key });

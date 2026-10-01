@@ -5,16 +5,25 @@ import { h, mount } from './ui/dom';
 import { renderHud } from './ui/hud';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
+import { todayPad } from './ui/today';
 
 export function mountDesktop(app: App, root: HTMLElement) {
   const hud = h('header', { class: 'hud' });
   const game = h('div', { class: 'game', 'aria-label': 'Game view' });
   const nav = h('nav', { class: 'game-nav', 'aria-label': 'Level navigation' });
   const panel = h('aside', { class: 'panel' });
-  root.append(hud, h('main', { class: 'desktop' }, h('div', { class: 'game-wrap' }, game, nav), panel));
+  // Today's plan: a legal pad lying over the bedroom floor.
+  const pad = h('div', { class: 'pad-host' });
+  root.append(hud, h('main', { class: 'desktop' }, h('div', { class: 'game-wrap' }, game, nav, pad), panel));
+  let padShown = false;
   scheduler(app, panel, () => {
     renderHud(app, hud);
     renderGameNav(app, nav);
+    const show = app.route.view === 'today';
+    pad.hidden = !show;
+    if (show) mount(pad, todayPad(app, { enter: !padShown }));
+    else pad.replaceChildren();
+    padShown = show;
     return renderPanel(app);
   });
   // Before the game starts, so Esc reaches us before Phaser's own key handling.

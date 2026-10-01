@@ -6,6 +6,11 @@ launch — completely separate efforts) is its own Mario-style **overworld**; th
 blockers are brick walls, dependencies are pipes, risks are critters, decisions are signposts and
 stretch goals are floating coins. A hero auto-walks to whatever is blocking you next.
 
+**Today** (`#/today`, the TODAY button or `t`; the first screen on phones) is a legal pad lying on
+the bedroom floor with the day's plan scrawled on it: levels running out of time, what's in
+progress and where the hero is waiting in every project, each with its level code circled. Every
+line deep-links to its level or step; tick the box to mark it done.
+
 Dependencies can go further. One that needs another level becomes a **cloud** the hero rides
 there. One you have to chase yourself can get **steps** of its own: a **warp pipe** down to an
 underground sub-level holding them. Clear the steps and the hero comes back up the pipe with

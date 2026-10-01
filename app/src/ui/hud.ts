@@ -7,6 +7,7 @@ import { navFor } from '../nav';
 import { heroKey } from '../sprites/heroes';
 import { settingsDialog } from './settings';
 import { skillHelpDialog } from './skill-help';
+import { todayCount } from './today';
 import { toast } from './toast';
 import { confirmDialog } from './modal';
 
@@ -109,6 +110,15 @@ export function renderHud(app: App, el: HTMLElement) {
       'button',
       { class: `sync-pill ${s.status}`, type: 'button', title: s.error ?? 'Sync details', onclick: () => settingsDialog(app) },
       syncLabel,
+    ),
+    h(
+      'a',
+      { class: `btn sm hud-today${r.view === 'today' ? ' on' : ''}`, href: href({ view: 'today' }), title: "Today's plan (T)" },
+      'TODAY',
+      (() => {
+        const n = todayCount(app);
+        return n ? h('b', { class: 'hud-badge' }, n) : null;
+      })(),
     ),
     h('button', { class: 'btn sm', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
     h('button', { class: 'btn ghost gear-btn', type: 'button', title: 'Settings', 'aria-label': 'Settings', onclick: () => settingsDialog(app) }, '⚙'),
