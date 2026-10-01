@@ -1610,3 +1610,18 @@ a:focus-visible {
   cursor: not-allowed;
   opacity: 0.5;
 }
+
+/* Toast with an action (UNDO). */
+.toast-action {
+  pointer-events: auto;
+  margin-left: 12px;
+  font: 9px var(--pixel);
+  padding: 4px 8px;
+  background: var(--gold);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  cursor: pointer;
+}
+.toast-action:hover {
+  background: var(--gold-hi);
+}

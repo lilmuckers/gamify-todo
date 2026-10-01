@@ -47,6 +47,7 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   pr_review: ['event'],
   pwa_install: [],
   analytics_opt_out: [],
+  undo: ['kind', 'mode'],
 };
 
 export const USER_PROPS = ['app_mode', 'layout', 'display', 'hero'] as const;

@@ -22,7 +22,7 @@ type ProjectPatch = Partial<Pick<Project, 'title' | 'description' | 'worldOrder'
 /** Ops that act inside one project. */
 type ProjectOpBody =
   | ({ kind: 'setItemStatus'; itemId: string; status: ItemStatus } & ItemAddr)
-  | ({ kind: 'addItem'; item: Item } & ItemAddr)
+  | ({ kind: 'addItem'; item: Item; /** Position in the list; end when omitted. */ index?: number } & ItemAddr)
   | ({ kind: 'updateItem'; itemId: string; patch: ItemPatch } & ItemAddr)
   | ({ kind: 'deleteItem'; itemId: string } & ItemAddr)
   | ({ kind: 'setCriterion'; criterionId: string; done: boolean } & LevelAddr)
@@ -127,7 +127,8 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
         throw new OpConflict('steps inside a dependency cannot be dependencies themselves', op);
       if (list().some((i) => i.id === op.item.id))
         throw new OpConflict(`${parent ? 'step' : 'item'} id "${op.item.id}" already taken`, op);
-      list().push(clone(op.item));
+      if (op.index === undefined || op.index >= list().length) list().push(clone(op.item));
+      else list().splice(Math.max(0, op.index), 0, clone(op.item));
       break;
     case 'updateItem': {
       const item = findItem(op.itemId);
@@ -277,6 +278,45 @@ function applyProjectOp(state: GameState, op: ProjectOp): GameState {
       const level = need(w.levels.find((l) => l.id === op.levelId), `level "${op.levelId}"`, op);
       applyLevelOp(level, op);
       return next;
+    }
+  }
+}
+
+/** Op kinds the app offers to undo. */
+export const UNDOABLE = new Set<Op['kind']>(['setItemStatus', 'setCriterion', 'updateItem', 'addItem', 'deleteItem']);
+
+/**
+ * The op that reverses `op`, given the workspace just before it was applied.
+ * Undefined when the op can't be reversed (or its target was already gone).
+ */
+export function inverseOp(op: OpBody, before: Workspace): OpBody | undefined {
+  if (!('levelId' in op) || !('worldId' in op)) return;
+  const level = before.projects[op.projectId]?.worlds[op.worldId]?.levels.find((l) => l.id === op.levelId);
+  if (!level) return;
+  const parentId = 'parentId' in op ? op.parentId : undefined;
+  const list: Item[] = parentId ? ((level.items.find((i) => i.id === parentId)?.subtasks ?? []) as Item[]) : level.items;
+  const at = { projectId: op.projectId, worldId: op.worldId, levelId: op.levelId, ...(parentId ? { parentId } : {}) };
+  switch (op.kind) {
+    case 'setItemStatus': {
+      const prev = list.find((i) => i.id === op.itemId);
+      return prev && { kind: 'setItemStatus', ...at, itemId: op.itemId, status: prev.status };
+    }
+    case 'setCriterion': {
+      const prev = level.successCriteria.find((c) => c.id === op.criterionId);
+      return prev && { kind: 'setCriterion', ...at, criterionId: op.criterionId, done: prev.done };
+    }
+    case 'updateItem': {
+      const prev = list.find((i) => i.id === op.itemId) as Record<string, unknown> | undefined;
+      if (!prev) return;
+      const patch = Object.fromEntries(Object.keys(op.patch).map((k) => [k, clone(prev[k])]));
+      return { kind: 'updateItem', ...at, itemId: op.itemId, patch };
+    }
+    case 'addItem':
+      return { kind: 'deleteItem', ...at, itemId: op.item.id };
+    case 'deleteItem': {
+      const index = list.findIndex((i) => i.id === op.itemId);
+      if (index < 0) return;
+      return { kind: 'addItem', ...at, item: clone(list[index]), index };
     }
   }
 }

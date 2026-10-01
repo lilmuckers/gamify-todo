@@ -1,6 +1,7 @@
 import { orderedWorlds } from '@quest/shared';
 import { track } from './analytics';
 import type { App } from './app';
+import { runPendingUndo } from './ui/toast';
 import { href, withToday, type Route } from './router';
 
 export interface NavLink {
@@ -120,8 +121,14 @@ function screenNav(app: App, r: Route): NavModel {
  */
 export function bindNavKeys(app: App) {
   window.addEventListener('keydown', (e) => {
-    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.defaultPrevented || e.altKey) return;
     if (document.activeElement?.matches('input, textarea, select, [contenteditable]')) return;
+    // Ctrl/Cmd+Z: take back the last edit while its UNDO toast is showing.
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      if (runPendingUndo()) e.preventDefault();
+      return;
+    }
+    if (e.metaKey || e.ctrlKey) return;
     if (document.querySelector('.overlay')) return;
     const nav = navFor(app);
     const r = app.route;

@@ -33,6 +33,8 @@ export interface DispatchResult {
   error?: string;
   /** Polish points added by this edit (perfectionism penalty). */
   polish?: number;
+  /** The op as queued, for undo. */
+  op?: Op;
 }
 
 interface Snapshot {
@@ -72,6 +74,8 @@ export class Store {
   private timer?: ReturnType<typeof setTimeout>;
   private syncing?: Promise<void>;
   private again = false;
+  /** Ops being committed right now: too late to retract. */
+  private inFlight = new Set<string>();
   private online: () => boolean;
   private debounceMs: number;
   private retryMs: number;
@@ -202,7 +206,7 @@ export class Store {
     void this.saveQueue();
     this.emit();
     this.schedule(this.debounceMs);
-    return { ok: true, polish };
+    return { ok: true, polish, op };
   }
 
   private polishDelta(a: Workspace, b: Workspace, projectId: string, worldId: string, levelId: string) {
@@ -224,6 +228,7 @@ export class Store {
       return this.syncing;
     }
     this.syncing = this.doSync().finally(() => {
+      this.inFlight.clear();
       this.syncing = undefined;
       if (this.again) {
         this.again = false;
@@ -245,6 +250,7 @@ export class Store {
     this.status = 'syncing';
     this.emit();
     const batch = [...this.outbox];
+    for (const o of batch) this.inFlight.add(o.opId);
     try {
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         const remote = await this.source.load();
@@ -295,6 +301,23 @@ export class Store {
       this.onSyncResult?.({ result: 'error', ops: batch.length, conflicts: 0, error: err });
     }
     this.emit();
+  }
+
+  /**
+   * Takes back an edit that hasn't been synced yet, as if it never happened
+   * (no commit, no polish counted). False when it's already synced or syncing.
+   */
+  retract(opId: string): boolean {
+    if (this.inFlight.has(opId) || !this.base) return false;
+    const before = this.outbox.length;
+    this.outbox = this.outbox.filter((o) => o.opId !== opId);
+    if (this.outbox.length === before) return false;
+    this.state = replay(this.base, this.outbox).state;
+    this.issues = validateWorkspace(this.state);
+    this.status = this.idleStatus();
+    void this.saveQueue();
+    this.emit();
+    return true;
   }
 
   dismissConflicts() {
