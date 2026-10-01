@@ -33,6 +33,14 @@
       "notes": "Shortlist: handmade-look zellige in sage, or plain white metro."
     },
     {
+      "id": "worktops-in",
+      "title": "Worktops fitted",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "fit/worktops",
+      "notes": "Splashback tiles sit on the worktop."
+    },
+    {
       "id": "tile",
       "title": "Tile the splashback",
       "type": "task",

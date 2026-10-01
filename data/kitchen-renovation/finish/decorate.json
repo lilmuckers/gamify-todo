@@ -32,6 +32,13 @@
       "status": "todo"
     },
     {
+      "id": "paint-samples",
+      "title": "Paint samples posted from the supplier",
+      "type": "dependency",
+      "status": "doing",
+      "notes": "Ordered Monday, 3–5 working days."
+    },
+    {
       "id": "two-coats-on-the-walls",
       "title": "Two coats on the walls",
       "type": "task",

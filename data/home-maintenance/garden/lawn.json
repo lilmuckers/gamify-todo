@@ -34,6 +34,13 @@
       "notes": "42 square metres."
     },
     {
+      "id": "borrow-scarifier",
+      "title": "Borrow the neighbour's scarifier",
+      "type": "dependency",
+      "status": "todo",
+      "notes": "They said \"any weekend after the 10th\"."
+    },
+    {
       "id": "clover-lawn-or-keep-grass",
       "title": "Clover lawn or keep grass",
       "type": "decision",

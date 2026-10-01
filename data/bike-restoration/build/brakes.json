@@ -33,6 +33,13 @@
       "notes": "Original centre-pulls with modern pads stop fine; keep them."
     },
     {
+      "id": "brake-cables",
+      "title": "Brake cables back in stock",
+      "type": "dependency",
+      "status": "todo",
+      "notes": "Back-ordered at the bike shop. They'll text."
+    },
+    {
       "id": "fit-new-brake-pads-and-cables",
       "title": "Fit new brake pads and cables",
       "type": "task",

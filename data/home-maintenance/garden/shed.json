@@ -20,6 +20,14 @@
       "status": "todo"
     },
     {
+      "id": "shed-insured",
+      "title": "Contents insurance covers the shed",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "paperwork/insurance",
+      "notes": "Bikes live in there now."
+    },
+    {
       "id": "tip-run-for-broken-stuff",
       "title": "Tip run for broken stuff",
       "type": "task",

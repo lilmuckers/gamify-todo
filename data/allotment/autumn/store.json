@@ -34,6 +34,14 @@
       "notes": "22kg."
     },
     {
+      "id": "maincrop-grown",
+      "title": "Maincrop potatoes grown",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "spring/potatoes",
+      "notes": "Nothing to store without them."
+    },
+    {
       "id": "dry-the-potatoes-for-a-day-before-baggin",
       "title": "Dry the potatoes for a day before bagging",
       "type": "task",
