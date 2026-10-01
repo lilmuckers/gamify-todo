@@ -34,6 +34,53 @@
       "notes": "Booked for 20 October."
     },
     {
+      "id": "external-auditor",
+      "title": "External accessibility auditor booked",
+      "type": "dependency",
+      "status": "todo",
+      "notes": "Procurement needs three quotes over £5k.",
+      "subtasks": [
+        {
+          "id": "shortlist",
+          "title": "Shortlist three auditors",
+          "type": "task",
+          "status": "done"
+        },
+        {
+          "id": "three-quotes",
+          "title": "Get three quotes",
+          "type": "task",
+          "status": "doing",
+          "dependsOn": [
+            "shortlist"
+          ]
+        },
+        {
+          "id": "procurement-form",
+          "title": "Procurement form signed off",
+          "type": "deliverable",
+          "status": "todo",
+          "dependsOn": [
+            "three-quotes"
+          ]
+        },
+        {
+          "id": "scope-pages",
+          "title": "Agree which journeys are in scope",
+          "type": "decision",
+          "status": "todo",
+          "notes": "Proposal: sign-in, bills, meter readings, move home."
+        },
+        {
+          "id": "slot-clash",
+          "title": "Auditor only free after the beta",
+          "type": "risk",
+          "status": "todo",
+          "mvp": false
+        }
+      ]
+    },
+    {
       "id": "screen-reader-pass-on-every-page",
       "title": "Screen-reader pass on every page",
       "type": "task",

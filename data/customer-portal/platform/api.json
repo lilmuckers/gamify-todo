@@ -41,6 +41,13 @@
       "link": "https://github.com/acme-utilities/portal/issues/40"
     },
     {
+      "id": "auth-live",
+      "title": "Sign-in service live",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "platform/auth"
+    },
+    {
       "id": "billing-api-adapter",
       "title": "Billing API adapter",
       "type": "task",

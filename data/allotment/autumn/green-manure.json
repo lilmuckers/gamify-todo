@@ -26,6 +26,13 @@
       "status": "todo"
     },
     {
+      "id": "crops-lifted",
+      "title": "Summer crops lifted and stored",
+      "type": "dependency",
+      "status": "todo",
+      "levelRef": "autumn/store"
+    },
+    {
       "id": "mulch-the-remaining-beds-with-compost",
       "title": "Mulch the remaining beds with compost",
       "type": "task",

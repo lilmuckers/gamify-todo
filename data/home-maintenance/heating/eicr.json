@@ -27,6 +27,53 @@
       "notes": "The last one was in 2019; recommended every ten years, but the fuse board is old."
     },
     {
+      "id": "book-electrician",
+      "title": "An electrician who can do the EICR",
+      "type": "dependency",
+      "status": "todo",
+      "notes": "Needs to be NICEIC or NAPIT registered.",
+      "subtasks": [
+        {
+          "id": "get-names",
+          "title": "Get two names from the neighbours",
+          "type": "task",
+          "status": "done"
+        },
+        {
+          "id": "check-registration",
+          "title": "Check they are NICEIC or NAPIT registered",
+          "type": "task",
+          "status": "todo",
+          "dependsOn": [
+            "get-names"
+          ]
+        },
+        {
+          "id": "pick-a-date",
+          "title": "Pick a date I can work from home",
+          "type": "decision",
+          "status": "todo",
+          "dependsOn": [
+            "check-registration"
+          ]
+        },
+        {
+          "id": "clear-the-consumer-unit",
+          "title": "Clear the cupboard round the consumer unit",
+          "type": "task",
+          "status": "todo"
+        },
+        {
+          "id": "power-off",
+          "title": "Power off for half a day",
+          "type": "risk",
+          "status": "todo",
+          "mvp": false,
+          "notes": "Freezer fine for 4 hours if left shut."
+        }
+      ]
+    },
+    {
       "id": "book",
       "title": "Book the EICR",
       "type": "task",

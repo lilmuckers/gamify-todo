@@ -27,6 +27,55 @@
       "status": "done"
     },
     {
+      "id": "pigeon-netting",
+      "title": "Pigeon netting from the society shop",
+      "type": "dependency",
+      "status": "doing",
+      "notes": "Shop opens Sunday mornings only.",
+      "subtasks": [
+        {
+          "id": "measure-the-bed",
+          "title": "Measure the brassica bed",
+          "type": "task",
+          "status": "done",
+          "notes": "1.2 x 4m, hoops 60cm high."
+        },
+        {
+          "id": "check-society-stock",
+          "title": "Ask if the shop has fine mesh in stock",
+          "type": "task",
+          "status": "done",
+          "dependsOn": [
+            "measure-the-bed"
+          ]
+        },
+        {
+          "id": "sunday-trip",
+          "title": "Sunday-morning trip to the shop",
+          "type": "task",
+          "status": "todo",
+          "dependsOn": [
+            "check-society-stock"
+          ]
+        },
+        {
+          "id": "cut-to-size",
+          "title": "Cut to size with a bit spare",
+          "type": "task",
+          "status": "todo",
+          "dependsOn": [
+            "sunday-trip"
+          ]
+        },
+        {
+          "id": "order-online",
+          "title": "Order online if they have none",
+          "type": "stretch",
+          "status": "todo"
+        }
+      ]
+    },
+    {
       "id": "net-against-pigeons-and-butterflies",
       "title": "Net against pigeons and butterflies",
       "type": "task",

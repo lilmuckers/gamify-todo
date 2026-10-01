@@ -27,6 +27,51 @@
       "notes": "Delivery slot matters more than waiting for sales."
     },
     {
+      "id": "appliance-delivery",
+      "title": "Appliance delivery slot",
+      "type": "dependency",
+      "status": "todo",
+      "notes": "Oven, hob, fridge-freezer and dishwasher on one van.",
+      "subtasks": [
+        {
+          "id": "confirm-models",
+          "title": "Confirm model numbers against the cut-outs",
+          "type": "task",
+          "status": "done"
+        },
+        {
+          "id": "pay-balance",
+          "title": "Pay the balance",
+          "type": "task",
+          "status": "done",
+          "dependsOn": [
+            "confirm-models"
+          ]
+        },
+        {
+          "id": "pick-a-slot",
+          "title": "Pick a weekday slot",
+          "type": "task",
+          "status": "todo",
+          "dependsOn": [
+            "pay-balance"
+          ]
+        },
+        {
+          "id": "clear-the-hall",
+          "title": "Clear the hall so they can get through",
+          "type": "task",
+          "status": "todo"
+        },
+        {
+          "id": "take-away-old",
+          "title": "Ask them to take the old fridge",
+          "type": "stretch",
+          "status": "todo"
+        }
+      ]
+    },
+    {
       "id": "connect-the-induction-hob",
       "title": "Connect the induction hob",
       "type": "task",
