@@ -11,6 +11,9 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
+This skill ships with a helper, `scripts/quest.py` (see "The helper script"), that validates data
+and pulls/pushes it through the GitHub API. Use it whenever you can run Python.
+
 ## Where the data lives: any repo
 
 The data repo is **whichever GitHub repository the user chooses**. Usually that's a repo of their
@@ -97,6 +100,10 @@ Put the matching `$schema` URL at the top of every file:
 
 Full definitions (JSON Schema 2020-12, `additionalProperties: false` everywhere — **no extra
 fields**): https://tasks.patrick-mckinley.com/schema/quest.schema.json. Fetch it if unsure.
+
+Every published schema is listed in a static manifest,
+**https://tasks.patrick-mckinley.com/schema/index.json** (`baseUrl` + each `file`). The skill
+package also bundles copies under `schemas/`, so validation works offline.
 
 ### Project (`data/<project-id>/project.json`)
 
@@ -227,6 +234,37 @@ Never write `stats`. Never touch other projects when working on one.
 When planning a new project: 2–5 worlds, 1–6 levels per world, under ~10 items per level,
 `timeboxDays` realistic but tight, 1–3 MVP criteria per level. Bias hard towards shippable.
 
+## The helper script: `scripts/quest.py`
+
+Standard-library Python 3.8+, no installs. It runs the same checks as the app and talks to GitHub
+for you, so prefer it over hand-written API calls.
+
+```bash
+python3 scripts/quest.py validate DIR                 # DIR contains data/; exit 1 lists every issue
+python3 scripts/quest.py info --repo OWNER/REPO       # default branch, can_push
+python3 scripts/quest.py pull --repo OWNER/REPO [--branch B] --dir quest-data
+python3 scripts/quest.py status --dir quest-data      # what changed since pull
+python3 scripts/quest.py push --dir quest-data -m "quest: done: Fit units (kitchen/fit/units)"
+python3 scripts/quest.py push --dir quest-data -m "..." --pr "Plan the garden project"   # PR instead
+```
+
+Workflow: `pull` → edit the JSON files under `quest-data/data/` → `validate quest-data` →
+`push`. `push` validates first and refuses invalid data. It makes **one** commit with only the
+files you changed. If the branch moved since your pull it still commits on top, unless someone
+changed the same files; then it stops and tells you to `pull --force` and re-apply your edits.
+The token comes from `GITHUB_TOKEN` (or `GH_TOKEN`); the script never prints it.
+
+Schemas load from the bundled `schemas/` folder, else the cached download, else the manifest
+above. `python3 scripts/quest.py schemas` shows which.
+
+Where you are running matters:
+
+| Environment | What works |
+|---|---|
+| Claude Code, a terminal, CI | Everything: `pull`, `validate`, `push`, `--pr`. |
+| Claude.ai / Claude apps (code execution) | `validate` always. `pull`/`push` only if the sandbox can reach `api.github.com`; if you get a network error, validate and output the files (§6.5). |
+| ChatGPT code interpreter | No internet: unzip the skill, run `validate` on the files you wrote, then output them (§6.5). |
+
 ## 6. Talking to GitHub
 
 ### Access token
@@ -315,11 +353,14 @@ curl -s "${H[@]}" -X PATCH "$R/git/refs/heads/main" -d "{\"sha\":\"$COMMIT\",\"f
 
 ### 6.5 No API access
 
-Output each file as its own fenced `json` block preceded by its path, e.g.
+If you can run Python, first run `python3 scripts/quest.py validate DIR` on the files you wrote
+and fix every issue. Then output each file as its own fenced `json` block preceded by its path, e.g.
 `data/desk-build/frame/cut-legs.json`, containing the **complete** file. Also list files to
 delete. The user can commit them or paste them into a pull request.
 
 ## 7. Before you commit: checklist
+
+`python3 scripts/quest.py validate DIR` checks all of this for you. Without Python, check by hand:
 
 - [ ] Every file is under `data/<project>/…` with the right name, and its `id` matches.
 - [ ] `worldOrder` / `levelOrder` list exactly the worlds / levels that exist.
@@ -342,16 +383,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          for k in quest project world level; do
-            curl -sfo "$k.schema.json" "https://tasks.patrick-mckinley.com/schema/$k.schema.json"
-          done
-          validate() { npx -y -p ajv-cli@5 -p ajv-formats@3 ajv validate --spec=draft2020 -c ajv-formats -r quest.schema.json -s "$1" -d "$2"; }
-          shopt -s nullglob
-          for f in data/*/project.json; do validate project.schema.json "$f"; done
-          for f in data/*/*/world.json; do validate world.schema.json "$f"; done
-          for f in data/*/*/*.json; do [ "$(basename "$f")" = world.json ] || validate level.schema.json "$f"; done
+      - run: curl -sfo quest.py https://tasks.patrick-mckinley.com/skills/quest-log/scripts/quest.py
+      - run: python3 quest.py validate .
 ```
 
-This checks each file against the schema; the app additionally checks the folder and
-cross-reference rules from §2 and §7 when it loads or reviews the data.
+It downloads the schemas through the manifest and runs the same schema, folder and
+cross-reference checks as the app.

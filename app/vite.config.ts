@@ -47,7 +47,11 @@ function dataIndex(): string {
  */
 function repoData(): Plugin {
   const dirs = ['data', 'schema', 'skills'];
-  const types: Record<string, string> = { '.json': 'application/json', '.md': 'text/markdown; charset=utf-8' };
+  const types: Record<string, string> = {
+    '.json': 'application/json',
+    '.md': 'text/markdown; charset=utf-8',
+    '.py': 'text/x-python; charset=utf-8',
+  };
   return {
     name: 'quest-repo-data',
     configureServer(server) {
@@ -70,7 +74,8 @@ function repoData(): Plugin {
     closeBundle() {
       // Schema and skill ship with every build; data only with the static Pages site.
       for (const d of target === 'pages' ? dirs : dirs.filter((d) => d !== 'data'))
-        if (existsSync(join(repoRoot, d))) cpSync(join(repoRoot, d), join(__dirname, 'dist', d), { recursive: true });
+        if (existsSync(join(repoRoot, d)))
+          cpSync(join(repoRoot, d), join(__dirname, 'dist', d), { recursive: true, filter: (src) => !/__pycache__|\.pyc$/.test(src) });
       if (target !== 'pages') return;
       mkdirSync(join(__dirname, 'dist', 'data'), { recursive: true });
       writeFileSync(join(__dirname, 'dist', 'data', 'index.json'), dataIndex());
