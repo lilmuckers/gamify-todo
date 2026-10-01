@@ -53,7 +53,7 @@
           "id": "sunday-trip",
           "title": "Sunday-morning trip to the shop",
           "type": "task",
-          "status": "todo",
+          "status": "done",
           "dependsOn": [
             "check-society-stock"
           ]
