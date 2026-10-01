@@ -73,7 +73,7 @@
           "id": "book-dry-slot",
           "title": "Book a slot with a dry forecast",
           "type": "task",
-          "status": "doing",
+          "status": "done",
           "dependsOn": [
             "check-insurance"
           ]
