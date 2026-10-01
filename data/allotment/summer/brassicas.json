@@ -98,7 +98,7 @@
       "id": "whitefly-on-the-kale",
       "title": "Whitefly on the kale",
       "type": "risk",
-      "status": "done",
+      "status": "todo",
       "notes": "Spraying with soapy water; mostly cosmetic."
     },
     {
@@ -109,6 +109,9 @@
     }
   ],
   "stats": {
-    "editsAfterClear": 1
+    "editsAfterClear": 1,
+    "itemEdits": {
+      "whitefly-on-the-kale": 1
+    }
   }
 }
