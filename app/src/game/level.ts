@@ -58,6 +58,8 @@ export class LevelScene extends QuestScene {
   private bubble?: { itemId: string; box: Phaser.GameObjects.Container; auto: boolean };
   /** Hero-stop item whose auto bubble the user closed; stays closed until the hero moves on. */
   private dismissedAuto?: string;
+  /** Criteria ticked per level at the last render, to animate the flag between states. */
+  private flagDone = new Map<string, number>();
   private skyGfx?: Phaser.GameObjects.Graphics;
   /** Parallax layers live outside `stage`: containers ignore child scrollFactor. */
   private parallax: Phaser.GameObjects.Image[] = [];
@@ -191,14 +193,10 @@ export class LevelScene extends QuestScene {
     stage.add(this.add.image(fx, GROUND_Y - TILE, 'used').setOrigin(0, 0));
     for (let i = 1; i < poleH; i++) stage.add(this.add.image(fx, GROUND_Y - TILE - i * TILE, 'pole').setOrigin(0, 0));
     stage.add(this.add.image(fx, GROUND_Y - TILE - poleH * TILE, 'pole-top').setOrigin(0, 0));
-    const flagY = cleared ? GROUND_Y - 3 * TILE : GROUND_Y - TILE - (poleH - 1) * TILE;
-    const flag = this.add.image(fx - 10, flagY, cleared ? 'flag' : 'flag-grey').setOrigin(0, 0).setFlipX(true);
-    stage.add(flag);
     const poleHit = this.add.zone(fx - 8, GROUND_Y - (poleH + 1) * TILE, 3 * TILE, (poleH + 1) * TILE).setOrigin(0, 0);
     this.clickable(poleHit, () => this.app.select({ kind: 'criteria' }));
     stage.add(poleHit);
-    const sc = scoreLevel(level);
-    stage.add(this.text(fx + 8, GROUND_Y + 6, `GOAL\n${sc.mvpDone}/${sc.mvpTotal} MVP`, 4, cleared ? '#63c74d' : '#fee761').setOrigin(0.5, 0));
+    this.drawCriteria(stage, level, fx, poleH, cleared);
     stage.add(this.add.image(L.castleX * TILE, GROUND_Y, 'castle').setOrigin(0, 1));
     if (cleared) stage.add(this.add.image(L.castleX * TILE + 36, GROUND_Y - 88, 'flag').setOrigin(0, 0));
 
@@ -218,6 +216,101 @@ export class LevelScene extends QuestScene {
     if (sel?.kind === 'criteria') this.highlight(stage, { x: L.flagX - 0.5, y: 0, w: 2, h: poleH + 1 } as LayoutEntity, 0xfee761);
 
     this.prev = new Map(level.items.map((i) => [i.id, i.status]));
+  }
+
+  /**
+   * The pole is split into one section per success criterion, bottom to top,
+   * each with a label bubble. The flag climbs one section per ticked criterion
+   * and reaches the top when they're all done.
+   */
+  private drawCriteria(stage: Phaser.GameObjects.Container, level: Level, fx: number, poleH: number, cleared: boolean) {
+    const criteria = level.successCriteria;
+    const n = Math.max(1, criteria.length);
+    const done = criteria.filter((c) => c.done).length;
+    const base = GROUND_Y - TILE; // top of the base block
+    const top = GROUND_Y - TILE - (poleH - 1) * TILE + 2; // just under the ball
+    const section = (base - top) / n;
+    const poleX = fx + 8;
+
+    // Section marks on the pole.
+    const marks = this.add.graphics();
+    marks.fillStyle(0xfee761, 1);
+    for (let i = 1; i < n; i++) marks.fillRect(poleX - 3, Math.round(base - i * section), 6, 1);
+    stage.add(marks);
+
+    // Flag: bottom with nothing ticked, top with everything ticked.
+    const flagAt = (k: number) => Math.round(base - 9 - ((base - 9 - top) * k) / n);
+    const flag = this.add.image(fx - 10, flagAt(done), cleared ? 'flag' : 'flag-grey').setOrigin(0, 0).setFlipX(true);
+    stage.add(flag);
+    const prev = this.flagDone.get(level.id);
+    if (prev !== undefined && prev !== done) {
+      flag.y = flagAt(prev);
+      this.tweens.add({ targets: flag, y: flagAt(done), duration: 600, ease: done > prev ? 'Back.out' : 'Quad.out' });
+    }
+    this.flagDone.set(level.id, done);
+
+    // A label bubble per criterion, at the middle of its section.
+    const edit = this.canEdit();
+    const cur = this.current();
+    const fontSize = section >= 14 ? 3.5 : 3;
+    const h = Math.max(7, Math.min(13, Math.floor(section) - 2));
+    const maxW = (this.layout.castleX - this.layout.flagX) * TILE - 26;
+    criteria.forEach((c, i) => {
+      const cy = Math.round(base - (i + 0.5) * section);
+      const box = this.add.container(poleX + 9, cy);
+      const box6 = Math.min(6, h - 3);
+      const label = this.text(box6 + 6, 0, c.text, fontSize, c.done ? '#5a6988' : '#1a1c2c').setOrigin(0, 0.5).setStroke('#ffffff', 0);
+      // Single line: trim to fit.
+      let txt = c.text;
+      while (label.displayWidth > maxW - box6 - 10 && txt.length > 4) {
+        txt = txt.slice(0, -2);
+        label.setText(`${txt.trimEnd()}...`);
+      }
+      const w = Math.ceil(label.displayWidth) + box6 + 10;
+      const g = this.add.graphics();
+      g.fillStyle(0xffffff, 1).fillRoundedRect(0, -h / 2, w, h, 2);
+      g.lineStyle(1, 0x1a1c2c, 1).strokeRoundedRect(0, -h / 2, w, h, 2);
+      // Tail to the pole.
+      g.fillStyle(0xffffff, 1).fillTriangle(0.5, -2, 0.5, 2, -5, 0);
+      g.lineStyle(1, 0x1a1c2c, 1).lineBetween(0, -2, -5, 0).lineBetween(-5, 0, 0, 2);
+      if (c.mvp) g.fillStyle(0xe43b44, 1).fillRect(1, -h / 2 + 1, 2, h - 2);
+      // Checkbox.
+      const bx = 4;
+      g.fillStyle(c.done ? 0x63c74d : 0xffffff, 1).fillRect(bx, -box6 / 2, box6, box6);
+      g.lineStyle(1, 0x1a1c2c, 1).strokeRect(bx, -box6 / 2, box6, box6);
+      if (c.done) g.lineStyle(1.2, 0xffffff, 1).lineBetween(bx + 1.2, 0, bx + box6 / 2 - 0.5, box6 / 2 - 1.2).lineBetween(bx + box6 / 2 - 0.5, box6 / 2 - 1.2, bx + box6 - 1, -box6 / 2 + 1.2);
+      box.add([g, label]);
+      const hit = this.add.zone(-5, -h / 2, w + 5, h).setOrigin(0);
+      box.add(hit);
+      hit.setInteractive({ useHandCursor: edit });
+      hit.on('pointerover', () => this.showCriterionTip(c.text, c.mvp, box.x + w / 2, cy - h / 2));
+      hit.on('pointerout', () => this.tooltip?.destroy());
+      hit.on('pointerup', () => {
+        if (this.dragged || !edit || !cur) return;
+        this.tooltip?.destroy();
+        this.app.dispatch({
+          kind: 'setCriterion',
+          projectId: cur.projectId,
+          worldId: cur.world.id,
+          levelId: level.id,
+          criterionId: c.id,
+          done: !c.done,
+        });
+      });
+      stage.add(box);
+    });
+
+    stage.add(
+      this.text(poleX, GROUND_Y + 6, `GOAL\n${done}/${criteria.length}`, 4, cleared ? '#63c74d' : '#fee761').setOrigin(0.5, 0),
+    );
+  }
+
+  private showCriterionTip(text: string, mvp: boolean, x: number, y: number) {
+    this.tooltip?.destroy();
+    const t = this.text(0, 0, `${text}${mvp ? '\nMVP: needed to clear' : '\nBonus'}`, 4, '#ffffff', 120).setOrigin(0.5, 1);
+    const b = t.getBounds();
+    const bg = this.add.rectangle(0, 2, b.width + 8, b.height + 6, 0x1a1c2c, 0.92).setOrigin(0.5, 1).setStrokeStyle(1, 0xfee761);
+    this.tooltip = this.add.container(x, y - 4, [bg, t]).setDepth(100);
   }
 
   private highlight(stage: Phaser.GameObjects.Container, e: Pick<LayoutEntity, 'x' | 'y' | 'w' | 'h'>, color: number) {

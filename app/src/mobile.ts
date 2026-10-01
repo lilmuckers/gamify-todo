@@ -9,6 +9,7 @@ import { renderHud } from './ui/hud';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { settingsDialog } from './ui/settings';
+import { skillHelpDialog } from './ui/skill-help';
 
 /** Compact, touch-first layout for phones: DOM screens plus a static level strip. */
 export function mountMobile(app: App, root: HTMLElement) {
@@ -109,6 +110,7 @@ function renderNav(app: App, nav: HTMLElement) {
     ),
     app.caps.canReviewPRs &&
       h('a', { href: href({ view: 'prs' }), class: app.route.view.startsWith('pr') ? 'on' : '' }, icon('warp-pipe', 'grass', 'icon sm'), h('span', null, 'Warp')),
+    h('button', { type: 'button', onclick: () => skillHelpDialog() }, h('span', { class: 'gear' }, '✦'), h('span', null, 'AI')),
     h('button', { type: 'button', onclick: () => settingsDialog(app) }, h('span', { class: 'gear' }, '⚙'), h('span', null, 'Settings')),
   );
 }
