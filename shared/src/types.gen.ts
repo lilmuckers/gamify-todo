@@ -230,7 +230,7 @@ export interface LevelStats {
    */
   itemsAddedAfterClear?: number;
   /**
-   * Map of item id to number of edits made after that item was done.
+   * Map of item id (or dependency/step for a sub-level step) to number of edits made after that item was done.
    */
   itemEdits?: {
     [k: string]: number;

@@ -119,6 +119,15 @@ export class GitHubClient {
     return ref.object.sha;
   }
 
+  /**
+   * How `head` relates to `base`: 'ahead', 'behind', 'identical' or 'diverged'.
+   * Both are commit shas on this repo.
+   */
+  async compare(base: string, head: string): Promise<string> {
+    const res = await this.request<{ status: string }>('GET', `/compare/${base}...${head}`);
+    return res.status;
+  }
+
   /** All data files at a commit. `repoFullName` lets PR heads live in forks. */
   async readDataAt(sha: string, repoFullName?: string): Promise<Record<string, string>> {
     const base = repoFullName ? `https://api.github.com/repos/${repoFullName}` : this.base;

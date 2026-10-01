@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp, makeOp, replay, OpConflict, commitMessage, validateWorkspace } from '../src/index';
-import { at, lvlOf, workspace } from './fixtures';
+import { at, level, lvlOf, workspace } from './fixtures';
 
 describe('applyOp', () => {
   it('is immutable and auto-starts the level', () => {
@@ -30,6 +30,15 @@ describe('applyOp', () => {
     let ws = applyOp(workspace(), makeOp({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' }));
     for (let n = 0; n < 4; n++) ws = applyOp(ws, makeOp({ kind: 'updateItem', ...at, itemId: 'a', patch: { notes: `v${n}` } }));
     expect(lvlOf(ws).stats?.itemEdits?.a).toBe(4);
+  });
+
+  it('lets a done sub-level step be reopened (dep/step edit key)', () => {
+    const dep = { id: 'dep', type: 'dependency' as const, title: 'Dep', status: 'todo' as const, subtasks: [{ id: 's', type: 'task' as const, title: 'S', status: 'todo' as const }] };
+    let ws = workspace(level({ items: [dep] }));
+    ws = applyOp(ws, makeOp({ kind: 'setItemStatus', ...at, parentId: 'dep', itemId: 's', status: 'done' }));
+    ws = applyOp(ws, makeOp({ kind: 'setItemStatus', ...at, parentId: 'dep', itemId: 's', status: 'todo' }));
+    expect(lvlOf(ws).stats?.itemEdits).toEqual({ 'dep/s': 1 });
+    expect(validateWorkspace(ws)).toEqual([]);
   });
 
   it('removes dependsOn references when deleting an item', () => {

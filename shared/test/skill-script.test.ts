@@ -89,6 +89,19 @@ describe('quest.py validate', () => {
     expect(r.code).toBe(0);
   });
 
+  it('accepts edit counts for sub-level steps with both validators', async () => {
+    const files = edit(good(), lvl, (d) => {
+      d.items[0].type = 'dependency';
+      d.items[0].subtasks = [{ id: 's', type: 'task', title: 'S', status: 'todo' }];
+      d.stats = { itemEdits: { 'a/s': 1, b: 2 } };
+    });
+    expect(validateFiles(files)).toEqual([]);
+    for (const env of ENGINES) {
+      const r = await run(['validate', writeTree(files)], env);
+      expect(r.code, r.out).toBe(0);
+    }
+  });
+
   it('accepts settings and inbox files with both validators', async () => {
     const files = {
       ...good(),

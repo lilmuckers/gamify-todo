@@ -155,4 +155,32 @@ describe('Store', () => {
     const r = store.dispatch({ kind: 'updateItem', ...at, itemId: 'a', patch: { title: 'Tweak' } });
     expect(r.polish).toBe(1);
   });
+  it('ignores a lagging read of an older head, but takes genuine remote changes', async () => {
+    const remote = fakeRemote(fixture());
+    const kv = memoryKV();
+    const first = new Store(remote.source, kv, opts({ v: true }));
+    await first.start();
+    first.dispatch({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' });
+    await first.sync();
+    const committed = first.version!;
+
+    // Reload while the branch read still returns the commit before ours.
+    const stale = { state: fixture(), version: 'v0' };
+    let behind = true;
+    const lagging: DataSource = {
+      ...remote.source,
+      load: async () => structuredClone(stale),
+      isBehind: async (r, k) => behind && r === 'v0' && k === committed,
+    };
+    const second = new Store(lagging, kv, opts({ v: true }));
+    await second.start();
+    expect(second.version).toBe(committed);
+    expect(lvlOf(second.state!).items[0].status).toBe('done');
+
+    // A remote that really moved on (not an ancestor) wins.
+    behind = false;
+    await second.refresh();
+    expect(second.version).toBe('v0');
+    expect(lvlOf(second.state!).items[0].status).toBe('todo');
+  });
 });
