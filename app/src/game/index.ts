@@ -21,11 +21,14 @@ function sceneFor(route: Route): { key: string; params: object } {
     case 'pr':
       return { key: 'world', params: { pr: route.pr } };
     case 'level':
-      return { key: 'level', params: { projectId: route.projectId, worldId: route.worldId, levelId: route.levelId } };
+      return {
+        key: 'level',
+        params: { projectId: route.projectId, worldId: route.worldId, levelId: route.levelId, subId: route.subId },
+      };
     case 'pr-level':
       return {
         key: 'level',
-        params: { projectId: route.projectId, worldId: route.worldId, levelId: route.levelId, pr: route.pr },
+        params: { projectId: route.projectId, worldId: route.worldId, levelId: route.levelId, subId: route.subId, pr: route.pr },
       };
   }
 }

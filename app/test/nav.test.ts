@@ -34,6 +34,14 @@ describe('navFor', () => {
     expect(nav.next).toBeUndefined();
   });
 
+  it('goes back up the pipe from a sub-level, to the dependency', () => {
+    const nav = navFor(fakeApp({ view: 'level', projectId: 'p', worldId: 'w', levelId: 'two', subId: 'dep' }));
+    expect(nav.crumbs.map((c) => c.label)).toEqual(['Quest Log', 'T', 'W', 'Two', '⬇ dep']);
+    expect(nav.up?.href).toBe('#/p/p/w/two/dep');
+    expect(nav.prev).toBeUndefined();
+    expect(nav.next).toBeUndefined();
+  });
+
   it('always offers a way back from the Warp Zone and projects', () => {
     expect(navFor(fakeApp({ view: 'prs' })).up?.href).toBe('#/');
     expect(navFor(fakeApp({ view: 'pr', pr: 3 })).up?.href).toBe('#/prs');

@@ -38,7 +38,31 @@
       "title": "Skip permit from the council",
       "type": "dependency",
       "status": "done",
-      "notes": "Skip sits on the road so it needs a permit. Took three working days."
+      "notes": "Skip sits on the road so it needs a permit. Took three working days.",
+      "subtasks": [
+        {
+          "id": "apply-online",
+          "title": "Apply on the council website",
+          "type": "task",
+          "status": "done"
+        },
+        {
+          "id": "pay-fee",
+          "title": "Pay the £40 fee",
+          "type": "task",
+          "status": "done",
+          "dependsOn": [
+            "apply-online"
+          ]
+        },
+        {
+          "id": "cones-and-lights",
+          "title": "Borrow cones and lights for the skip",
+          "type": "task",
+          "status": "done",
+          "notes": "Skip company lends them for free."
+        }
+      ]
     },
     {
       "id": "isolate",

@@ -52,7 +52,51 @@
       "title": "Powder coater turnaround",
       "type": "dependency",
       "status": "doing",
-      "notes": "Quoted three weeks. Chased once."
+      "notes": "Quoted three weeks. Chased once.",
+      "subtasks": [
+        {
+          "id": "strip-old-paint",
+          "title": "Strip the old paint",
+          "type": "task",
+          "status": "done"
+        },
+        {
+          "id": "mask-threads",
+          "title": "Mask threads and bearing seats",
+          "type": "task",
+          "status": "done",
+          "dependsOn": [
+            "strip-old-paint"
+          ]
+        },
+        {
+          "id": "drop-off",
+          "title": "Drop the frame at the coater",
+          "type": "task",
+          "status": "done",
+          "dependsOn": [
+            "mask-threads"
+          ]
+        },
+        {
+          "id": "chase-week-two",
+          "title": "Chase at the end of week two",
+          "type": "task",
+          "status": "done",
+          "dependsOn": [
+            "drop-off"
+          ]
+        },
+        {
+          "id": "pick-up",
+          "title": "Pick up the frame and check the finish",
+          "type": "task",
+          "status": "todo",
+          "dependsOn": [
+            "chase-week-two"
+          ]
+        }
+      ]
     },
     {
       "id": "apply-the-decals",

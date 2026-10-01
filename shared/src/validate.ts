@@ -35,7 +35,7 @@ function duplicates(ids: string[]): string[] {
 }
 
 /** Returns ids involved in a dependsOn cycle, if any. */
-export function findCycle(level: Level): string[] | undefined {
+export function findCycle(level: Pick<Level, 'items'>): string[] | undefined {
   const deps = new Map(level.items.map((i) => [i.id, i.dependsOn ?? []]));
   const state = new Map<string, 1 | 2>(); // 1 = visiting, 2 = done
   const stack: string[] = [];
@@ -101,6 +101,27 @@ export function semanticIssues(projectId: string, state: GameState): Issue[] {
           const ref = parseLevelRef(item.levelRef);
           const target = ref && worlds[ref.worldId]?.levels.some((l) => l.id === ref.levelId);
           if (!target) issues.push({ file: lfile, path: `${ip}/levelRef`, message: `unknown level "${item.levelRef}" in this project` });
+          else if (ref.worldId === key && ref.levelId === level.id)
+            issues.push({ file: lfile, path: `${ip}/levelRef`, message: 'a level cannot depend on itself' });
+        }
+        if (item.subtasks) {
+          if (item.type !== 'dependency')
+            issues.push({ file: lfile, path: `${ip}/subtasks`, message: 'only dependency items can have subtasks' });
+          if (item.levelRef)
+            issues.push({ file: lfile, path: `${ip}/subtasks`, message: 'use levelRef or subtasks, not both' });
+          const subIds = new Set(item.subtasks.map((s) => s.id));
+          for (const id of duplicates(item.subtasks.map((s) => s.id)))
+            issues.push({ file: lfile, path: `${ip}/subtasks`, message: `duplicate subtask id "${id}"` });
+          item.subtasks.forEach((sub, si) =>
+            (sub.dependsOn ?? []).forEach((d, di) => {
+              const sp = `${ip}/subtasks/${si}/dependsOn/${di}`;
+              if (d === sub.id) issues.push({ file: lfile, path: sp, message: 'subtask depends on itself' });
+              else if (!subIds.has(d)) issues.push({ file: lfile, path: sp, message: `unknown subtask "${d}"` });
+            }),
+          );
+          const subCycle = findCycle({ items: item.subtasks as Level['items'] });
+          if (subCycle)
+            issues.push({ file: lfile, path: `${ip}/subtasks`, message: `dependency cycle: ${subCycle.join(' → ')}` });
         }
       });
       const cycle = findCycle(level);

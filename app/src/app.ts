@@ -2,9 +2,11 @@ import {
   diffWorkspaces,
   findLevel,
   reviewLevel,
+  subLevel,
   validateWorkspace,
   type GameState,
   type Issue,
+  type Item,
   type Level,
   type LevelDiff,
   type OpBody,
@@ -28,6 +30,28 @@ export interface PullView {
   issues?: Issue[];
   loading: boolean;
   error?: string;
+}
+
+/** What the level view shows: a level, or a dependency's sub-level inside it. */
+export interface LevelView {
+  projectId: string;
+  world: World;
+  /** The level shown. For a sub-level, built from the dependency's subtasks (same id as its parent). */
+  level: Level;
+  diff?: LevelDiff;
+  readonly: boolean;
+  /** Set when showing a dependency's sub-level. */
+  sub?: { parent: Level; dep: Item };
+}
+
+/** Where item ops in the current level view point: add to every item op. */
+export function itemAddr(cur: LevelView) {
+  return {
+    projectId: cur.projectId,
+    worldId: cur.world.id,
+    levelId: cur.level.id,
+    ...(cur.sub ? { parentId: cur.sub.dep.id } : {}),
+  };
 }
 
 /** Which thing is selected in the level view (drives panel focus + sprite highlight). */
@@ -152,10 +176,30 @@ export class App {
     this.pulls.list = this.pulls.list?.filter((p) => p.number !== n);
   }
 
+  /**
+   * How the level scene should arrive at the next screen (hero pops out of a
+   * pipe, drops off a cloud...). Set just before navigating; read once.
+   */
+  arrival?: { kind: 'pipe-down' | 'pipe-up' | 'cloud'; itemId?: string };
+
+  takeArrival() {
+    const a = this.arrival;
+    this.arrival = undefined;
+    return a;
+  }
+
   /** Level being viewed on the current route, with review ghosts in PR mode. */
-  currentLevel():
-    | { projectId: string; world: World; level: Level; diff?: LevelDiff; readonly: boolean }
-    | undefined {
+  currentLevel(): LevelView | undefined {
+    const view = this.levelView();
+    const subId = (this.route.view === 'level' || this.route.view === 'pr-level') && this.route.subId;
+    if (!view || !subId) return view;
+    const dep = view.level.items.find((i) => i.id === subId && i.type === 'dependency');
+    // A stale link to a dependency that's gone: show the level itself.
+    if (!dep) return view;
+    return { ...view, level: subLevel(view.level, dep), diff: undefined, sub: { parent: view.level, dep } };
+  }
+
+  private levelView(): LevelView | undefined {
     const r = this.route;
     if (r.view === 'level' && this.state) {
       const world = this.state.worlds[r.worldId];

@@ -33,7 +33,9 @@ Checked by `npm run validate`, the app, and CI:
 - Folder and file names equal the ids inside them; `world` is reserved as a level id.
 - `worldOrder` / `levelOrder` list exactly the worlds / levels that exist.
 - Ids are unique in scope; `dependsOn` stays within a level with no cycles.
-- `levelRef`, `goalIds` and `unlocksAfter` point at things in the same project.
+- `levelRef`, `goalIds` and `unlocksAfter` point at things in the same project; a level can't depend on itself.
+- Only `dependency` items have `subtasks`, never together with `levelRef`; step ids are unique within the
+  dependency and their `dependsOn` stays among its steps, with no cycles.
 - Every level has at least one criterion with `"mvp": true`.
 - `startedAt`, `clearedAt` and `stats` are maintained by the app.
 

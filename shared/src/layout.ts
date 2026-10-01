@@ -1,9 +1,9 @@
 import type { Item, ItemType, Level } from './model';
-import { isMvpItem, isResolved } from './model';
+import { dependencyMode, isMvpItem, isResolved } from './model';
 import { isCleared } from './scoring';
 
 /** Sprite family for each item type. */
-export type EntityKind = 'qblock' | 'checkpoint' | 'wall' | 'pipe' | 'critter' | 'sign' | 'coins';
+export type EntityKind = 'qblock' | 'checkpoint' | 'wall' | 'pipe' | 'warp' | 'cloud' | 'critter' | 'sign' | 'coins';
 
 export const KIND_FOR_TYPE: Record<ItemType, EntityKind> = {
   task: 'qblock',
@@ -14,6 +14,14 @@ export const KIND_FOR_TYPE: Record<ItemType, EntityKind> = {
   decision: 'sign',
   stretch: 'coins',
 };
+
+/** Dependencies with a sub-level get a warp pipe; ones pointing at another level, a cloud. */
+export function kindFor(item: Item): EntityKind {
+  const mode = dependencyMode(item);
+  if (mode === 'warp') return 'warp';
+  if (mode === 'cloud') return 'cloud';
+  return KIND_FOR_TYPE[item.type];
+}
 
 /** All coordinates in tiles. x grows right; y is height above the ground surface. */
 export interface LayoutEntity {
@@ -58,6 +66,8 @@ const SIZE: Record<EntityKind, { w: number; h: number; y: number }> = {
   checkpoint: { w: 1, h: 4, y: 0 },
   wall: { w: 1, h: 3, y: 0 },
   pipe: { w: 2, h: 2, y: 0 },
+  warp: { w: 2, h: 3, y: 0 },
+  cloud: { w: 3, h: 1, y: 2 },
   critter: { w: 1, h: 1, y: 0 },
   sign: { w: 1, h: 2, y: 0 },
   coins: { w: 3, h: 1, y: 6 },
@@ -109,7 +119,15 @@ export function seeded(seed: string): () => number {
   };
 }
 
-export function layoutLevel(level: Level): LevelLayout {
+export interface LayoutOptions {
+  /**
+   * A dependency's sub-level: no flagpole or castle, just an exit pipe at
+   * `flagX`. The hero ends up waiting at it, cleared or not.
+   */
+  sub?: boolean;
+}
+
+export function layoutLevel(level: Level, opts: LayoutOptions = {}): LevelLayout {
   // Once MVP criteria are met nothing blocks any more: good enough wins.
   const cleared = isCleared(level);
   const r = ranks(level.items);
@@ -123,7 +141,7 @@ export function layoutLevel(level: Level): LevelLayout {
   let x = START_X;
   let prevRank = 0;
   for (const item of main) {
-    const kind = KIND_FOR_TYPE[item.type];
+    const kind = kindFor(item);
     const size = SIZE[kind];
     const rank = r.get(item.id)!;
     if (rank !== prevRank) x += RANK_GAP;
@@ -145,8 +163,8 @@ export function layoutLevel(level: Level): LevelLayout {
   const mainEnd = Math.max(x, START_X + 8);
   const flagX = mainEnd + 3;
   // Room right of the pole for the success-criteria labels.
-  const castleX = flagX + 9;
-  const width = castleX + 10;
+  const castleX = opts.sub ? flagX + 4 : flagX + 9;
+  const width = opts.sub ? flagX + 7 : castleX + 10;
 
   // Stretch coins float above whatever they depend on, else spread across the level.
   stretch.forEach((item, n) => {
@@ -177,7 +195,7 @@ export function layoutLevel(level: Level): LevelLayout {
       kind: 'item' as const,
     }));
   stops.push(
-    cleared ? { x: castleX + 2, kind: 'castle' } : { x: flagX - 1.5, kind: 'flag' },
+    cleared && !opts.sub ? { x: castleX + 2, kind: 'castle' } : { x: flagX - 1.5, kind: 'flag' },
   );
 
   const rand = seeded(level.id);

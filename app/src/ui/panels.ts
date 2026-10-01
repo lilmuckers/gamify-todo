@@ -1,5 +1,8 @@
 import {
+  dependencyMode,
+  findLevel,
   isBlocking,
+  isMvpItem,
   isResolved,
   isWorldLocked,
   layoutLevel,
@@ -18,7 +21,7 @@ import {
   type Level,
   type World,
 } from '@quest/shared';
-import type { App } from '../app';
+import { itemAddr, type App, type LevelView } from '../app';
 import { href } from '../router';
 import { fmtDuration, h, icon, relTime, stars } from './dom';
 import { criterionForm, goalForm, itemForm, levelForm, projectForm, STATUS_LABEL, TYPE_INFO, worldForm } from './forms';
@@ -305,8 +308,9 @@ function levelPanel(app: App) {
   const { projectId, world, level, diff, readonly } = cur;
   const edit = !readonly && app.caps.canEdit;
   const at = { projectId, worldId: world.id, levelId: level.id };
+  const itemAt = itemAddr(cur);
   const sc = scoreLevel(level);
-  const lay = layoutLevel(level);
+  const lay = layoutLevel(level, { sub: !!cur.sub });
   const order = new Map(lay.entities.map((e, i) => [e.itemId, i]));
   const items = [...level.items].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   const heroAt = lay.hero.itemId;
@@ -350,10 +354,9 @@ function levelPanel(app: App) {
     const d = diff?.items[item.id];
     const selected = sel?.kind === 'item' && sel.id === item.id;
     const optional = item.type === 'stretch' || item.mvp === false;
-    const ref = item.levelRef ? parseLevelRef(item.levelRef) : undefined;
     const quick = (status: Item['status'], label: string) =>
       item.status !== status &&
-      smallBtn(label, () => app.dispatch({ kind: 'setItemStatus', ...at, itemId: item.id, status }), status === 'done' ? 'go' : '');
+      smallBtn(label, () => app.dispatch({ kind: 'setItemStatus', ...itemAt, itemId: item.id, status }), status === 'done' ? 'go' : '');
     return h(
       'li',
       {
@@ -388,7 +391,7 @@ function levelPanel(app: App) {
           item.notes && h('p', { class: 'notes' }, item.notes),
           item.dependsOn?.length &&
             h('small', null, 'After: ', item.dependsOn.map((id) => level.items.find((i) => i.id === id)?.title ?? id).join(', ')),
-          ref && h('div', null, link(`↪ Warp to ${item.levelRef}`, href({ view: 'level', projectId, ...ref }))),
+          !cur.sub && dependencyLinks(app, cur, item),
           item.link && h('div', null, h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer', class: 'link' }, item.link)),
           d?.fields.length &&
             h(
@@ -398,17 +401,19 @@ function levelPanel(app: App) {
                 h('li', null, h('code', null, f.field), ': ', h('del', null, JSON.stringify(f.before) ?? '—'), ' → ', h('ins', null, JSON.stringify(f.after) ?? '—')),
               ),
             ),
-          edit && smallBtn('Edit item', () => itemForm(app, world.id, level, item)),
+          edit && smallBtn(cur.sub ? 'Edit step' : 'Edit item', () => itemForm(app, cur, item)),
         ),
     );
   };
 
   const quickAdd = () => {
-    const title = h('input', { type: 'text', placeholder: 'Add an item…', maxLength: 120, 'aria-label': 'New item title' });
+    const title = h('input', { type: 'text', placeholder: cur.sub ? 'Add a step…' : 'Add an item…', maxLength: 120, 'aria-label': 'New item title' });
     const type = h(
       'select',
       { 'aria-label': 'Item type' },
-      Object.entries(TYPE_INFO).map(([k, v]) => h('option', { value: k }, v.label)),
+      Object.entries(TYPE_INFO)
+        .filter(([k]) => !cur.sub || k !== 'dependency')
+        .map(([k, v]) => h('option', { value: k }, v.label)),
     );
     return h(
       'form',
@@ -416,19 +421,60 @@ function levelPanel(app: App) {
         class: 'quick-add',
         onsubmit: (e: Event) => {
           e.preventDefault();
-          if (!title.value.trim()) return itemForm(app, world.id, level, undefined, { type: type.value as Item['type'] });
+          if (!title.value.trim()) return itemForm(app, cur, undefined, { type: type.value as Item['type'] });
           const ids = level.items.map((i) => i.id);
           const id = uniqueId(title.value, ids);
-          if (app.dispatch({ kind: 'addItem', ...at, item: { id, type: type.value as Item['type'], title: title.value.trim(), status: 'todo' } }).ok)
+          if (app.dispatch({ kind: 'addItem', ...itemAt, item: { id, type: type.value as Item['type'], title: title.value.trim(), status: 'todo' } }).ok)
             title.value = '';
         },
       },
       title,
       type,
       h('button', { class: 'btn sm primary', type: 'submit' }, 'Add'),
-      smallBtn('More…', () => itemForm(app, world.id, level, undefined, { title: title.value, type: type.value as Item['type'] }), 'ghost'),
+      smallBtn('More…', () => itemForm(app, cur, undefined, { title: title.value, type: type.value as Item['type'] }), 'ghost'),
     );
   };
+
+  if (cur.sub) {
+    const { parent, dep } = cur.sub;
+    const up = { ...r, subId: undefined, itemId: dep.id } as typeof r;
+    const left = level.items.filter((i) => isMvpItem(i) && !isResolved(i)).length;
+    const setDep = (status: Item['status']) => {
+      app.arrival = { kind: 'pipe-up', itemId: dep.id };
+      if (app.dispatch({ kind: 'setItemStatus', ...at, itemId: dep.id, status }).ok) location.hash = href(up);
+    };
+    return h(
+      'div',
+      { class: 'panel-inner sub-level' },
+      h('nav', { class: 'crumbs' }, link(world.name, href({ view: 'world', projectId, worldId: world.id })), ' › ', link(parent.name, href(up))),
+      h('div', { class: 'title-row' }, h('h2', null, '⬇ ', dep.title), h('span', { class: `pill ${dep.status}` }, STATUS_LABEL[dep.status])),
+      h('p', { class: 'deliverable' }, 'Below the warp pipe: the steps it takes to get this dependency.'),
+      dep.notes && h('p', { class: 'muted' }, dep.notes),
+      h(
+        'p',
+        { class: `note ${sc.cleared ? 'win' : 'info'}` },
+        sc.cleared
+          ? 'Every must-do step is out of the way.'
+          : left
+            ? `${left} must-do step${left === 1 ? '' : 's'} to go. Clear them and the hero heads back up with it done.`
+            : 'Add the steps it takes to get this. Clear them and the hero heads back up with it done.',
+      ),
+      h(
+        'div',
+        { class: 'row actions' },
+        h('a', { class: 'btn sm', href: href(up), onclick: () => (app.arrival = { kind: 'pipe-up', itemId: dep.id }) }, '⬆ Back up the pipe'),
+        edit && !isResolved(dep) && smallBtn('✓ Got it', () => setDep('done'), 'go'),
+        edit && !isResolved(dep) && smallBtn('Jump over', () => setDep('dropped')),
+      ),
+      section(
+        `Steps · ${level.items.filter(isResolved).length}/${level.items.length}`,
+        null,
+        edit && quickAdd(),
+        items.length === 0 && h('p', { class: 'muted' }, 'No steps yet. What has to happen before you have this?'),
+        h('ul', { class: 'list items' }, items.map(itemCard)),
+      ),
+    );
+  }
 
   return h(
     'div',
@@ -469,6 +515,31 @@ function levelPanel(app: App) {
       h('ul', { class: 'list items' }, items.map(itemCard)),
     ),
   );
+}
+
+/** Ways into a dependency: down its warp pipe, onto its cloud, or (when editing) add steps. */
+function dependencyLinks(app: App, cur: LevelView, item: Item) {
+  const mode = dependencyMode(item);
+  if (!mode) return null;
+  const r = app.route;
+  if (mode === 'cloud') {
+    const ref = parseLevelRef(item.levelRef!);
+    const target = ref && app.state && findLevel(app.state, ref.worldId, ref.levelId);
+    if (!ref || !target || r.view !== 'level') return h('small', { class: 'muted' }, `Needs level ${item.levelRef}`);
+    const name = `${app.state!.worlds[ref.worldId]?.name ?? ref.worldId}: ${target.name}`;
+    return h('div', null, h('a', { class: 'link', href: href({ view: 'level', projectId: cur.projectId, ...ref }), onclick: () => (app.arrival = { kind: 'cloud' }) }, `☁ Ride the cloud to ${name}`));
+  }
+  if (r.view !== 'level' && r.view !== 'pr-level') return null;
+  const below = { ...r, subId: item.id, itemId: undefined };
+  const enter = () => (app.arrival = { kind: 'pipe-down' });
+  if (mode === 'warp') {
+    const steps = (item.subtasks ?? []) as Item[];
+    const done = steps.filter(isResolved).length;
+    return h('div', null, h('a', { class: 'link', href: href(below), onclick: enter }, `⬇ Warp in: ${done}/${steps.length} steps done`));
+  }
+  if (r.view === 'level' && !cur.readonly && app.caps.canEdit)
+    return h('div', null, h('a', { class: 'link', href: href(below), onclick: enter }, '+ Add steps (a warp pipe down to them)'));
+  return null;
 }
 
 function pullsPanel(app: App) {

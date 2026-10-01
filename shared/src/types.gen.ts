@@ -29,6 +29,10 @@ export type ItemType = "task" | "deliverable" | "blocker" | "dependency" | "risk
  * Current state of an item.
  */
 export type Status = "todo" | "doing" | "done" | "dropped";
+/**
+ * Item types allowed inside a dependency's sub-level: any type except 'dependency' (sub-levels don't nest).
+ */
+export type SubtaskType = "task" | "deliverable" | "blocker" | "risk" | "decision" | "stretch";
 
 /**
  * A project: one self-contained effort, stored at data/<project-id>/project.json. Its map (the overworld) shows its key goals and its worlds in order. Projects never reference each other.
@@ -173,9 +177,40 @@ export interface Item {
    */
   dependsOn?: Id[];
   /**
-   * For dependency items: another level IN THE SAME PROJECT this depends on, as '<world-id>/<level-id>'. Rendered as a warp pipe to that level.
+   * For dependency items: another level IN THE SAME PROJECT this depends on, as '<world-id>/<level-id>'. Rendered as a cloud that carries the hero to that level. Don't combine with 'subtasks'.
    */
   levelRef?: string;
+  /**
+   * For dependency items: the steps needed to get it, when you have to chase it yourself. Rendered as a warp pipe down into a bonus sub-level holding these; clearing them brings the hero back up. Don't combine with 'levelRef'. Omit when the dependency is just something to wait for.
+   *
+   * @maxItems 100
+   */
+  subtasks?: Subtask[];
+  /**
+   * Optional URL to a ticket, doc or PR.
+   */
+  link?: string;
+  notes?: Notes;
+}
+/**
+ * A step inside a dependency's sub-level. Like an item, but it can't be a dependency itself.
+ */
+export interface Subtask {
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  id: string;
+  type: SubtaskType;
+  title: Title;
+  status: Status;
+  /**
+   * true (default) = needed to close the dependency. false = optional. Ignored for 'stretch'.
+   */
+  mvp?: boolean;
+  /**
+   * Ids of OTHER SUBTASKS OF THE SAME DEPENDENCY that must come first. Must not form cycles.
+   */
+  dependsOn?: Id[];
   /**
    * Optional URL to a ticket, doc or PR.
    */

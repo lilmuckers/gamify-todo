@@ -1,7 +1,7 @@
 import type { Theme } from '@quest/shared';
 import { PALETTE, SPRITES, THEMES, type ThemeColors } from './pixels';
 
-export type ThemeKey = Theme | 'warp';
+export type ThemeKey = Theme | 'warp' | 'under';
 export const TILE = 16;
 
 const cache = new Map<string, HTMLCanvasElement>();

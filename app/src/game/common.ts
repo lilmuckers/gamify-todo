@@ -7,7 +7,7 @@ export const WORLD_H = 15 * TILE;
 export const GROUND_Y = 12 * TILE;
 export const FONT = '"Press Start 2P", monospace';
 export const THEMED = new Set(['ground-top', 'ground-fill', 'hill']);
-const THEME_KEYS: ThemeKey[] = ['grass', 'desert', 'water', 'ice', 'sky', 'castle', 'warp'];
+const THEME_KEYS: ThemeKey[] = ['grass', 'desert', 'water', 'ice', 'sky', 'castle', 'warp', 'under'];
 
 /** Texture key for a sprite; themed sprites get a per-theme key. */
 export function tex(name: string, theme: ThemeKey = 'grass') {

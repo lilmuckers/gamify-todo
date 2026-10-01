@@ -27,7 +27,8 @@ export function renderHud(app: App, el: HTMLElement) {
   const r = app.route;
 
   let middle: Node | null = null;
-  if (cur && r.view === 'level') {
+  // A sub-level has no time-box or stars of its own.
+  if (cur && r.view === 'level' && !cur.sub) {
     const sc = scoreLevel(cur.level);
     const tm = sc.timer;
     middle = h(

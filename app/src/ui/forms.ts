@@ -11,7 +11,7 @@ import {
   type Level,
   type World,
 } from '@quest/shared';
-import type { App } from '../app';
+import { itemAddr, type App, type LevelView } from '../app';
 import { go } from '../router';
 import { h } from './dom';
 import { confirmDialog, openModal } from './modal';
@@ -90,11 +90,18 @@ function requireFilled(...inputs: (HTMLInputElement | HTMLTextAreaElement)[]) {
   return true;
 }
 
-export function itemForm(app: App, worldId: string, level: Level, item?: Item, preset?: Partial<Item>) {
+/**
+ * Adds or edits an item in the level view `cur`. Inside a dependency's
+ * sub-level the item is one of its steps (and can't be a dependency).
+ */
+export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial<Item>) {
+  const { level } = cur;
+  const worldId = cur.world.id;
+  const inSub = !!cur.sub;
   const others = level.items.filter((i) => i.id !== item?.id);
   const title = text(item?.title ?? preset?.title);
   const type = select(
-    ITEM_TYPES.map((t) => ({ value: t, label: `${TYPE_INFO[t].label} — ${TYPE_INFO[t].hint}` })),
+    ITEM_TYPES.filter((t) => !inSub || t !== 'dependency').map((t) => ({ value: t, label: `${TYPE_INFO[t].label} — ${TYPE_INFO[t].hint}` })),
     item?.type ?? preset?.type ?? 'task',
   );
   const status = select(
@@ -121,10 +128,19 @@ export function itemForm(app: App, worldId: string, level: Level, item?: Item, p
   const link = h('input', { type: 'url', value: item?.link ?? '', placeholder: 'https://…' });
   const notes = area(item?.notes);
   const mvpRow = field('Critical path (MVP)', mvp, 'Unticked = optional: the hero walks past it.');
-  const refRow = field('Depends on level', levelRef, 'Renders as a warp pipe to that level.');
+  const stepCount = item?.subtasks?.length ?? 0;
+  // A dependency is either a ride to another level or a pipe down to its own steps.
+  if (stepCount) levelRef.disabled = true;
+  const refRow = field(
+    'Depends on level',
+    levelRef,
+    stepCount
+      ? `It has ${stepCount} step${stepCount === 1 ? '' : 's'} of its own (a warp pipe), so it can't also point at a level.`
+      : 'Shown as a cloud that carries the hero to that level. Leave empty to give it steps of its own instead (ADD STEPS on its bubble).',
+  );
   const sync = () => {
     mvpRow.hidden = type.value === 'stretch';
-    refRow.hidden = type.value !== 'dependency';
+    refRow.hidden = inSub || type.value !== 'dependency';
   };
   type.addEventListener('change', sync);
   sync();
@@ -137,7 +153,7 @@ export function itemForm(app: App, worldId: string, level: Level, item?: Item, p
     field('Status', status),
     mvpRow,
     refRow,
-    others.length ? field('Comes after', deps, 'Items in this level that must happen first.') : null,
+    others.length ? field('Comes after', deps, inSub ? 'Steps here that must happen first.' : 'Items in this level that must happen first.') : null,
     field('Link', link),
     field('Notes', notes),
   );
@@ -149,21 +165,26 @@ export function itemForm(app: App, worldId: string, level: Level, item?: Item, p
       return false;
     }
     const t = type.value as ItemType;
+    if (item?.subtasks?.length && t !== 'dependency') {
+      type.setCustomValidity('Only dependencies can have steps: delete its steps first.');
+      type.reportValidity();
+      type.setCustomValidity('');
+      return false;
+    }
     const values: Omit<Item, 'id'> = {
       title: title.value.trim(),
       type: t,
       status: status.value as Item['status'],
       mvp: t === 'stretch' || mvp.checked ? undefined : false,
       dependsOn: orUndef(checked(deps)),
-      levelRef: t === 'dependency' ? trimOrUndef(levelRef.value) : undefined,
+      levelRef: t === 'dependency' && !inSub && !stepCount ? trimOrUndef(levelRef.value) : undefined,
       link: trimOrUndef(link.value),
       notes: trimOrUndef(notes.value),
     };
-    const at = { worldId, levelId: level.id };
+    const at = itemAddr(cur);
     const r = item
-      ? app.dispatch({ projectId: app.projectId!, kind: 'updateItem', ...at, itemId: item.id, patch: values })
+      ? app.dispatch({ kind: 'updateItem', ...at, itemId: item.id, patch: values })
       : app.dispatch({
-          projectId: app.projectId!,
           kind: 'addItem',
           ...at,
           item: stripUndefined({ id: uniqueId(values.title, level.items.map((i) => i.id)), ...values }),
@@ -178,9 +199,10 @@ export function itemForm(app: App, worldId: string, level: Level, item?: Item, p
             label: 'Delete',
             kind: 'danger' as const,
             run: async () => {
-              if (!(await confirmDialog('Delete item', `Delete "${item.title}"? Dropping it keeps history.`, 'Delete', true)))
+              const extra = stepCount ? ` Its ${stepCount} step${stepCount === 1 ? '' : 's'} go too.` : '';
+              if (!(await confirmDialog('Delete item', `Delete "${item.title}"?${extra} Dropping it keeps history.`, 'Delete', true)))
                 return false;
-              app.dispatch({ projectId: app.projectId!, kind: 'deleteItem', worldId, levelId: level.id, itemId: item.id });
+              app.dispatch({ kind: 'deleteItem', ...itemAddr(cur), itemId: item.id });
               app.select(undefined);
             },
           },
@@ -189,7 +211,7 @@ export function itemForm(app: App, worldId: string, level: Level, item?: Item, p
     { label: 'Cancel' },
     { label: item ? 'Save' : 'Add', kind: 'primary' as const, run: save },
   ];
-  openModal(item ? 'Edit item' : 'New item', body, actions);
+  openModal(item ? (inSub ? 'Edit step' : 'Edit item') : inSub ? `New step for "${cur.sub!.dep.title}"` : 'New item', body, actions);
 }
 
 function stripUndefined<T extends object>(o: T): T {

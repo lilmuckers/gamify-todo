@@ -13,8 +13,8 @@ export interface Strip {
 }
 
 /** Static 2D-canvas render of a level for the mobile view (no Phaser needed). */
-export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selected?: string): Strip {
-  const L = layoutLevel(level);
+export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selected?: string, sub = false): Strip {
+  const L = layoutLevel(level, { sub });
   const width = L.width * TILE;
   const c = document.createElement('canvas');
   c.width = width;
@@ -35,7 +35,7 @@ export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selec
     ctx.globalAlpha = 1;
   };
   for (const d of L.decorations) {
-    if (d.kind === 'cloud') draw('cloud', d.x * TILE, (13 - d.y) * TILE - 8, 0.95, 0.5 + d.size * 0.25);
+    if (d.kind === 'cloud' && !sub) draw('cloud', d.x * TILE, (13 - d.y) * TILE - 8, 0.95, 0.5 + d.size * 0.25);
     if (d.kind === 'hill') {
       const s = 0.6 + d.size * 0.3;
       draw('hill', d.x * TILE, GROUND - 40 * s, 1, s);
@@ -52,11 +52,22 @@ export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selec
   }
   const cleared = scoreLevel(level).cleared;
   const fx = L.flagX * TILE;
-  draw('used', fx, GROUND - TILE);
-  for (let i = 1; i < 9; i++) draw('pole', fx, GROUND - TILE - i * TILE);
-  draw('pole-top', fx, GROUND - 10 * TILE);
-  draw(cleared ? 'flag' : 'flag-grey', fx - 10, cleared ? GROUND - 3 * TILE : GROUND - 9 * TILE);
-  draw('castle', L.castleX * TILE, GROUND - 80);
+  if (sub) {
+    // Underground: brick ceiling, entry pipe from above, exit pipe up.
+    for (let x = 0; x < width; x += TILE) draw('brick', x, 0);
+    draw('pipe-body', TILE, TILE);
+    draw('pipe-body', TILE, 2 * TILE);
+    draw('pipe-top', TILE, 3 * TILE);
+    draw('pipe-top', fx, GROUND - 2 * TILE);
+    draw('pipe-body', fx, GROUND - TILE);
+    if (cleared) draw('arrow-up', fx + 8, GROUND - 3 * TILE - 4);
+  } else {
+    draw('used', fx, GROUND - TILE);
+    for (let i = 1; i < 9; i++) draw('pole', fx, GROUND - TILE - i * TILE);
+    draw('pole-top', fx, GROUND - 10 * TILE);
+    draw(cleared ? 'flag' : 'flag-grey', fx - 10, cleared ? GROUND - 3 * TILE : GROUND - 9 * TILE);
+    draw('castle', L.castleX * TILE, GROUND - 80);
+  }
 
   const byId = new Map(level.items.map((i) => [i.id, i]));
   for (const e of L.entities) {
@@ -83,6 +94,14 @@ export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selec
         draw('pipe-top', x, top, a);
         for (let i = 1; i < e.h; i++) draw('pipe-body', x, top + i * TILE, a);
         break;
+      case 'warp':
+        if (!done && item.status !== 'dropped') draw('arrow-down', x + 8, top - TILE);
+        draw('pipe-top', x, top, a);
+        for (let i = 1; i < e.h; i++) draw('pipe-body', x, top + i * TILE, a);
+        break;
+      case 'cloud':
+        draw('cloud-ride', x, top - 4, done ? 0.6 : a, 1.5);
+        break;
       case 'critter':
         draw(done ? 'critter-flat' : 'critter', x, top, a);
         break;
@@ -104,7 +123,7 @@ export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selec
     }
   }
   const heroX = L.hero.x * TILE;
-  if (!cleared) draw('hero', heroX, GROUND - TILE);
+  if (!cleared || sub) draw('hero', heroX, GROUND - TILE);
 
   return {
     canvas: c,
