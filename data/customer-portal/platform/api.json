@@ -82,7 +82,7 @@
       "id": "crm-test-environment-unavailable",
       "title": "CRM test environment unavailable",
       "type": "blocker",
-      "status": "doing",
+      "status": "done",
       "link": "https://github.com/acme-utilities/portal/issues/57",
       "notes": "CRM team says next sprint."
     },
