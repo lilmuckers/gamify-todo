@@ -1,5 +1,6 @@
 import {
   ITEM_TYPES,
+  layoutLevel,
   STATUSES,
   THEMES,
   orderedWorlds,
@@ -73,6 +74,52 @@ function checks(options: { value: string; label: string }[], selected: string[] 
   return box;
 }
 
+/**
+ * "Waits for" picker: the other items in walking order, split into those
+ * before and after this one, with their status. Items that already wait for
+ * this one (directly or through others) can't be picked: that would be a loop.
+ */
+function waitsFor(level: Level, item: Item | undefined, others: Item[], selected: string[] = []) {
+  const order = new Map(layoutLevel(level).entities.map((e, i) => [e.itemId, i]));
+  const pos = (id: string) => order.get(id) ?? Number.MAX_SAFE_INTEGER;
+  const sorted = [...others].sort((a, b) => pos(a.id) - pos(b.id));
+  const here = item ? pos(item.id) : Number.MAX_SAFE_INTEGER;
+
+  // Everything downstream of this item.
+  const waiting = new Set<string>();
+  if (item) {
+    const queue = [item.id];
+    while (queue.length) {
+      const id = queue.shift()!;
+      for (const o of others)
+        if (o.dependsOn?.includes(id) && !waiting.has(o.id)) {
+          waiting.add(o.id);
+          queue.push(o.id);
+        }
+    }
+  }
+
+  const mark: Record<Item['status'], string> = { done: '✓', doing: '▶', todo: '', dropped: '✕' };
+  const option = (o: Item) => {
+    const loop = waiting.has(o.id);
+    return h(
+      'label',
+      { class: `check ${o.status}${loop ? ' loop' : ''}`, title: loop ? `"${o.title}" already waits for this one` : STATUS_LABEL[o.status] },
+      h('input', { type: 'checkbox', value: o.id, checked: selected.includes(o.id), disabled: loop }),
+      h('span', { class: 'dep-mark', 'aria-hidden': 'true' }, mark[o.status]),
+      h('span', { class: 'dep-title' }, o.title),
+      loop ? h('small', null, 'waits for this') : o.status !== 'todo' && h('small', null, STATUS_LABEL[o.status].toLowerCase()),
+    );
+  };
+  const group = (title: string, items: Item[]) => (items.length ? [h('div', { class: 'checks-group' }, title), items.map(option)] : null);
+  return h(
+    'div',
+    { class: 'checks deps' },
+    group(item ? 'Earlier in the level' : 'Already in the level', sorted.filter((o) => pos(o.id) < here)),
+    group('Later in the level', sorted.filter((o) => pos(o.id) > here)),
+  );
+}
+
 const checked = (box: HTMLElement) =>
   [...box.querySelectorAll<HTMLInputElement>('input:checked')].map((i) => i.value);
 
@@ -109,10 +156,7 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
     item?.status ?? 'todo',
   );
   const mvp = h('input', { type: 'checkbox', checked: item ? item.mvp !== false : preset?.mvp !== false });
-  const deps = checks(
-    others.map((i) => ({ value: i.id, label: i.title })),
-    item?.dependsOn,
-  );
+  const deps = waitsFor(level, item, others, item?.dependsOn);
   const state = app.state!;
   const levelRef = select(
     [
@@ -153,7 +197,13 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
     field('Status', status),
     mvpRow,
     refRow,
-    others.length ? field('Comes after', deps, inSub ? 'Steps here that must happen first.' : 'Items in this level that must happen first.') : null,
+    others.length
+      ? field(
+          'Waits for',
+          deps,
+          `Tick anything that has to be finished before this ${inSub ? 'step' : 'item'} can start. Leave it all unticked if it can happen any time.`,
+        )
+      : null,
     field('Link', link),
     field('Notes', notes),
   );
