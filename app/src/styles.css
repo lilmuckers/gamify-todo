@@ -1480,3 +1480,28 @@ a:focus-visible {
     transform: rotate(3deg);
   }
 }
+
+/* Close: a pen cross on the pad's binding, big enough to tap. */
+.pad-close {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fdf3a7;
+  border: 2px solid #6f1d1c;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  color: #c8242c;
+  font: 700 24px/1 'Caveat', cursive;
+  text-decoration: none;
+  transform: rotate(6deg);
+}
+.pad-close:hover,
+.pad-close:focus-visible {
+  background: #fff7c2;
+  outline: none;
+}

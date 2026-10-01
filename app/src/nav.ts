@@ -27,8 +27,11 @@ export function navFor(app: App): NavModel {
   switch (r.view) {
     case 'projects':
       return { crumbs: [home] };
-    case 'today':
-      return { crumbs: [home, link('Today', r)], up: link('All projects', { view: 'projects' }) };
+    case 'today': {
+      // Closing Today returns to wherever it was opened from.
+      const prev = app.previousRoute && app.previousRoute.view !== 'today' ? app.previousRoute : undefined;
+      return { crumbs: [home, link('Today', r)], up: prev ? link('Back', prev) : link('All projects', { view: 'projects' }) };
+    }
     case 'prs':
       return { crumbs: [home, link('Warp Zone', r)], up: link('All projects', { view: 'projects' }) };
     case 'overworld':

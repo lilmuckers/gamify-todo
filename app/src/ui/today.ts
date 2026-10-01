@@ -1,5 +1,6 @@
 import { seeded, todayList, type TodayItem, type TodayLevel } from '@quest/shared';
 import type { App } from '../app';
+import { navFor } from '../nav';
 import { href } from '../router';
 import { fmtDuration, h } from './dom';
 
@@ -134,6 +135,7 @@ export function todayPad(app: App, opts: { enter?: boolean } = {}): HTMLElement 
     'div',
     { class: `legal-pad${opts.enter ? ' enter' : ''}`, style: `--tilt:${tilt.toFixed(2)}deg`, role: 'region', 'aria-label': "Today's plan" },
     h('div', { class: 'pad-binding', 'aria-hidden': 'true' }),
+    h('a', { class: 'pad-close', href: navFor(app).up?.href ?? '#/', title: 'Close (Esc)', 'aria-label': "Close today's plan" }, '✕'),
     h(
       'div',
       { class: 'pad-sheet' },
