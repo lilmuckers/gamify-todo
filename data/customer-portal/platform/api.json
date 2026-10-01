@@ -75,7 +75,7 @@
       "id": "contracts",
       "title": "Contract tests in CI",
       "type": "task",
-      "status": "doing",
+      "status": "done",
       "notes": "Billing and metering done; CRM blocked on its test environment."
     },
     {
