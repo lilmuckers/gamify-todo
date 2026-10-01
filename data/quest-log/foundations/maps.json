@@ -24,7 +24,7 @@
       "id": "world-map",
       "title": "World node map",
       "type": "task",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "level-dep",
