@@ -4,6 +4,7 @@
   "name": "Offline PWA",
   "deliverable": "Home-screen app that queues edits offline and syncs later",
   "timeboxDays": 5,
+  "startedAt": "2026-10-01T00:28:52.875Z",
   "successCriteria": [
     {
       "id": "installs",
