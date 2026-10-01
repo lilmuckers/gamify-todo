@@ -65,8 +65,6 @@ export type Selection = { kind: 'item'; id: string } | { kind: 'criteria' } | un
 /** Glue between the store, the URL and whichever UI (desktop or mobile) is mounted. */
 export class App {
   route: Route = currentRoute();
-  /** The screen before the current one (in this session), for "close" buttons. */
-  previousRoute?: Route;
   selection: Selection = selectionFrom(this.route);
   /** An item bubble is open in the level scene (Esc closes it before navigating). */
   bubbleOpen = false;
@@ -77,7 +75,6 @@ export class App {
   constructor(public store: Store) {
     store.subscribe(() => this.emit());
     window.addEventListener('hashchange', () => {
-      this.previousRoute = this.route;
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
       pageView(this.route);

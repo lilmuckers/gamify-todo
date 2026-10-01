@@ -34,7 +34,7 @@ async function main() {
   const root = document.getElementById('app')!;
   const mobile = useMobile();
   // Phones open on today's plan.
-  if (mobile && /^#?\/?$/.test(location.hash)) history.replaceState(history.state, '', '#/today');
+  if (mobile && /^#?\/?$/.test(location.hash)) history.replaceState(history.state, '', '#/~today');
   const store = new Store(await createSource(), browserKV());
   store.attachBrowserEvents();
   const app = new App(store);

@@ -193,6 +193,7 @@ h3 {
 
 /* ---------- Desktop layout ---------- */
 main.desktop {
+  position: relative;
   flex: 1;
   display: flex;
   min-height: 0;
@@ -1196,26 +1197,6 @@ a:focus-visible {
   padding: 2px 3px;
 }
 
-.pad-host {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-  padding: 4% 6% 70px;
-  pointer-events: none;
-}
-.pad-host[hidden] {
-  display: none;
-}
-.pad-host.mobile {
-  position: static;
-  display: block;
-  padding: 18px 14px 28px;
-  pointer-events: auto;
-}
-
 .legal-pad {
   --ink-blue: #1f3a93;
   --pen-red: #c8242c;
@@ -1234,19 +1215,6 @@ a:focus-visible {
     0 18px 34px rgba(0, 0, 0, 0.45);
   font-family: 'Caveat', 'Comic Sans MS', cursive;
   color: var(--ink-blue);
-}
-.pad-host.mobile .legal-pad {
-  width: 100%;
-  transform: rotate(calc(var(--tilt) / 2));
-}
-.legal-pad.enter {
-  animation: pad-in 260ms ease-out;
-}
-@keyframes pad-in {
-  from {
-    opacity: 0;
-    transform: translateY(48px) rotate(calc(var(--tilt) - 7deg));
-  }
 }
 
 /* Glued red binding with a perforated edge. */
@@ -1448,9 +1416,6 @@ a:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .legal-pad.enter {
-    animation: none;
-  }
   .struck .pad-strike {
     transition: none;
   }
@@ -1458,20 +1423,6 @@ a:focus-visible {
 .pad-line.more {
   opacity: 0.6;
   font-size: 19px;
-}
-.pad-host.mobile {
-  overflow: hidden;
-}
-.pad-host.mobile .legal-pad {
-  width: calc(100% - 6px);
-  margin: 0 auto;
-}
-.pad-host.mobile .pad-sheet {
-  padding-left: 56px;
-  padding-right: 12px;
-}
-.pad-host.mobile .pad-where {
-  white-space: normal;
 }
 @media (max-width: 520px) {
   .pad-date {
@@ -1504,4 +1455,125 @@ a:focus-visible {
 .pad-close:focus-visible {
   background: #fff7c2;
   outline: none;
+}
+
+/* ---------- Today: held up over the current screen ---------- */
+.today-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 16px 16px 0;
+  overflow: hidden;
+  background: rgba(10, 12, 24, 0.55);
+  animation: today-dim 200ms ease-out;
+}
+.today-overlay[hidden] {
+  display: none;
+}
+.today-overlay.mobile {
+  position: fixed;
+  padding: 12px 10px 0;
+}
+.today-overlay.leaving {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+@keyframes today-dim {
+  from {
+    background: rgba(10, 12, 24, 0);
+  }
+}
+
+/* The pad is held from below: it rises from the bottom edge and sways a little. */
+.today-overlay .legal-pad {
+  width: min(540px, 100%);
+  max-height: calc(100% - 28px);
+  margin-bottom: -26px;
+  transform-origin: 50% 100%;
+  animation: pad-hold 5s ease-in-out infinite alternate;
+}
+.today-overlay .legal-pad.enter {
+  animation:
+    pad-up 420ms cubic-bezier(0.2, 1.3, 0.4, 1),
+    pad-hold 5s ease-in-out 420ms infinite alternate;
+}
+.today-overlay .legal-pad.leaving {
+  animation: pad-down 220ms ease-in forwards;
+}
+.today-overlay .pad-sheet {
+  padding-bottom: 54px;
+}
+@keyframes pad-up {
+  from {
+    transform: translateY(105%) rotate(calc(var(--tilt) - 6deg));
+  }
+}
+@keyframes pad-hold {
+  from {
+    transform: translateY(0) rotate(var(--tilt));
+  }
+  to {
+    transform: translateY(-4px) rotate(calc(var(--tilt) + 0.8deg));
+  }
+}
+@keyframes pad-down {
+  to {
+    transform: translateY(105%) rotate(calc(var(--tilt) + 5deg));
+  }
+}
+
+/* Thumbs over the bottom edge, in the hero's skin tone. */
+.pad-thumb {
+  position: absolute;
+  bottom: 6px;
+  z-index: 2;
+  width: 34px;
+  height: 58px;
+  border: 2px solid #1a1c2c;
+  border-radius: 16px 16px 10px 10px;
+  background: var(--skin, #ead4aa);
+  box-shadow: inset -4px 0 0 rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+.pad-thumb::before {
+  /* Thumbnail. */
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  width: 18px;
+  height: 14px;
+  border-radius: 8px 8px 4px 4px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(26, 28, 44, 0.35);
+}
+.pad-thumb.left {
+  left: 14%;
+  transform: rotate(14deg);
+}
+.pad-thumb.right {
+  right: 14%;
+  transform: rotate(-14deg);
+}
+
+.today-overlay.mobile .legal-pad {
+  width: calc(100% - 4px);
+}
+.today-overlay.mobile .pad-sheet {
+  padding-left: 56px;
+  padding-right: 12px;
+}
+.today-overlay.mobile .pad-where {
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-overlay,
+  .today-overlay .legal-pad,
+  .today-overlay .legal-pad.enter {
+    animation: none;
+  }
 }

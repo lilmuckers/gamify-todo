@@ -1,7 +1,8 @@
 import { seeded, todayList, type TodayItem, type TodayLevel } from '@quest/shared';
+import { HEROES } from '../sprites/heroes';
+import { PALETTE } from '../sprites/pixels';
 import type { App } from '../app';
-import { navFor } from '../nav';
-import { href } from '../router';
+import { href, withToday } from '../router';
 import { fmtDuration, h } from './dom';
 
 const DAY_MS = 86_400_000;
@@ -36,7 +37,7 @@ function itemHref(r: TodayItem) {
  * what's in progress and where the hero is waiting, across every project.
  * Every line deep-links to its level, item or dependency step.
  */
-export function todayPad(app: App, opts: { enter?: boolean } = {}): HTMLElement {
+export function todayPad(app: App, opts: { enter?: boolean; onClose?: () => void } = {}): HTMLElement {
   const ws = app.workspace;
   const list = ws ? todayList(ws) : { overdue: [], doing: [], next: [] };
   const edit = app.caps.canEdit;
@@ -135,7 +136,24 @@ export function todayPad(app: App, opts: { enter?: boolean } = {}): HTMLElement 
     'div',
     { class: `legal-pad${opts.enter ? ' enter' : ''}`, style: `--tilt:${tilt.toFixed(2)}deg`, role: 'region', 'aria-label': "Today's plan" },
     h('div', { class: 'pad-binding', 'aria-hidden': 'true' }),
-    h('a', { class: 'pad-close', href: navFor(app).up?.href ?? '#/', title: 'Close (Esc)', 'aria-label': "Close today's plan" }, '✕'),
+    h(
+      'a',
+      {
+        class: 'pad-close',
+        href: href(withToday(app.route, false)),
+        title: 'Put it away (Esc)',
+        'aria-label': "Close today's plan",
+        onclick: (e: Event) => {
+          if (!opts.onClose) return;
+          e.preventDefault();
+          opts.onClose();
+        },
+      },
+      '✕',
+    ),
+    // Your hero's thumbs, holding the pad up.
+    h('span', { class: 'pad-thumb left', 'aria-hidden': 'true' }),
+    h('span', { class: 'pad-thumb right', 'aria-hidden': 'true' }),
     h(
       'div',
       { class: 'pad-sheet' },
@@ -148,6 +166,56 @@ export function todayPad(app: App, opts: { enter?: boolean } = {}): HTMLElement 
       !ws && h('p', { class: 'pad-empty' }, 'Loading…'),
     ),
   );
+}
+
+/**
+ * Holds today's plan up over whatever screen is showing, whenever the route
+ * has the today flag. Clicking the backdrop or the cross puts it away.
+ */
+export function mountTodayOverlay(app: App, host: HTMLElement) {
+  let open = false;
+  let queued = false;
+  host.classList.add('today-overlay');
+  host.hidden = true;
+  host.addEventListener('click', (e) => {
+    if (e.target === host) close();
+  });
+
+  const close = () => {
+    const pad = host.querySelector('.legal-pad');
+    const done = () => (location.hash = href(withToday(app.route, false)));
+    if (!pad || matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
+    pad.classList.add('leaving');
+    host.classList.add('leaving');
+    setTimeout(done, 220);
+  };
+
+  const render = () => {
+    queued = false;
+    const show = !!app.route.today;
+    host.hidden = !show;
+    host.classList.remove('leaving');
+    if (!show) {
+      open = false;
+      host.replaceChildren();
+      return;
+    }
+    // Keep the reader's place on the pad across updates.
+    const scroll = host.querySelector('.pad-sheet')?.scrollTop ?? 0;
+    const pad = todayPad(app, { enter: !open, onClose: close });
+    const skin = HEROES[app.heroId]?.colors?.['3'] ?? PALETTE.s;
+    pad.style.setProperty('--skin', skin);
+    host.replaceChildren(pad);
+    const sheet = host.querySelector('.pad-sheet');
+    if (sheet) sheet.scrollTop = scroll;
+    open = true;
+  };
+  app.subscribe(() => {
+    if (queued) return;
+    queued = true;
+    setTimeout(render, 0);
+  });
+  render();
 }
 
 /** Overdue levels plus items in progress: the HUD badge count. */
