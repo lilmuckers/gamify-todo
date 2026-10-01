@@ -4,6 +4,7 @@
   "name": "Electrical safety check",
   "deliverable": "An Electrical Installation Condition Report with no unresolved C1 or C2 items",
   "timeboxDays": 30,
+  "startedAt": "2026-10-01T16:26:44.880Z",
   "successCriteria": [
     {
       "id": "eicr-carried-out",
@@ -67,7 +68,7 @@
           "id": "power-off",
           "title": "Power off for half a day",
           "type": "risk",
-          "status": "todo",
+          "status": "done",
           "mvp": false,
           "notes": "Freezer fine for 4 hours if left shut."
         }
