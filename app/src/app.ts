@@ -15,7 +15,11 @@ import {
 } from '@quest/shared';
 import type { PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
-import { currentRoute, routeProject, type Route } from './router';
+import { currentRoute, href, routeProject, type Route } from './router';
+
+function selectionFrom(route: Route): Selection {
+  return 'itemId' in route && route.itemId ? { kind: 'item', id: route.itemId } : undefined;
+}
 import { toast } from './ui/toast';
 
 export interface PullView {
@@ -32,7 +36,7 @@ export type Selection = { kind: 'item'; id: string } | { kind: 'criteria' } | un
 /** Glue between the store, the URL and whichever UI (desktop or mobile) is mounted. */
 export class App {
   route: Route = currentRoute();
-  selection: Selection;
+  selection: Selection = selectionFrom(this.route);
   pulls: { list?: PullSummary[]; loading: boolean; error?: string } = { loading: false };
   private pullViews = new Map<number, PullView>();
   private listeners = new Set<() => void>();
@@ -41,7 +45,7 @@ export class App {
     store.subscribe(() => this.emit());
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
-      this.selection = undefined;
+      this.selection = selectionFrom(this.route);
       this.onRoute();
       this.emit();
     });
@@ -76,8 +80,15 @@ export class App {
     return this.store.caps;
   }
 
+  /** Selects an item and mirrors it in the URL (replacing history, so Back skips selections). */
   select(sel: Selection) {
     this.selection = sel;
+    const r = this.route;
+    if (r.view === 'level' || r.view === 'pr-level') {
+      this.route = { ...r, itemId: sel?.kind === 'item' ? sel.id : undefined };
+      const url = href(this.route);
+      if (location.hash !== url) history.replaceState(history.state, '', url);
+    }
     this.emit();
   }
 

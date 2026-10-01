@@ -51,8 +51,13 @@ export class LevelScene extends QuestScene {
   private following = true;
   private busy?: Promise<void>;
   private tooltip?: Phaser.GameObjects.Container;
-  /** Speech bubble with an item's details and quick actions. */
-  private bubble?: { itemId: string; box: Phaser.GameObjects.Container; status: Item['status'] };
+  /**
+   * Speech bubble with an item's details and quick actions. `auto` bubbles
+   * follow the hero; explicit ones come from a click or the URL.
+   */
+  private bubble?: { itemId: string; box: Phaser.GameObjects.Container; auto: boolean };
+  /** Hero-stop item whose auto bubble the user closed; stays closed until the hero moves on. */
+  private dismissedAuto?: string;
   private skyGfx?: Phaser.GameObjects.Graphics;
   /** Parallax layers live outside `stage`: containers ignore child scrollFactor. */
   private parallax: Phaser.GameObjects.Image[] = [];
@@ -69,6 +74,8 @@ export class LevelScene extends QuestScene {
     this.prev.clear();
     this.stage = undefined;
     this.sig = '';
+    this.bubble = undefined;
+    this.dismissedAuto = undefined;
   }
 
   private current() {
@@ -108,6 +115,12 @@ export class LevelScene extends QuestScene {
       if (typing() || !this.bubble || !this.canEdit()) return;
       this.setStatus(this.bubble.itemId, 'done');
     });
+
+    // A deep-linked item gets its bubble; otherwise show the one the hero waits at.
+    // Wait one frame so the camera has settled on the hero.
+    this.time.delayedCall(0, () => {
+      if (!this.syncBubbleToSelection()) this.autoBubble();
+    });
   }
 
   protected onResize() {
@@ -123,11 +136,12 @@ export class LevelScene extends QuestScene {
     if (sig === this.sig) return;
     const changed = this.diffStatuses(cur.level);
     this.build(cur.world, cur.level, cur.diff);
-    // Keep an open bubble in step with the item (it moves when the layout does).
-    if (this.bubble) {
+    // Keep an open bubble in step with its item (it moves when the layout does),
+    // and with the selection, which the URL can change.
+    if (!this.syncBubbleToSelection() && this.bubble) {
       const item = cur.level.items.find((i) => i.id === this.bubble!.itemId);
       if (!item || item.status === 'done') this.closeBubble();
-      else this.openBubble(item.id, false);
+      else this.openBubble(item.id, { pop: false, auto: this.bubble.auto });
     }
     void this.animate(cur.level, changed);
   }
@@ -301,11 +315,7 @@ export class LevelScene extends QuestScene {
     const hit = this.add.zone(0, e.kind === 'pipe' && view.top ? -TILE : 0, e.w * TILE, (e.h + (e.kind === 'pipe' ? 1 : 0)) * TILE).setOrigin(0, 0);
     root.add(hit);
     this.clickable(hit, () => {
-      if (this.bubble?.itemId === item.id) {
-        this.closeBubble();
-        this.app.select(undefined);
-        return;
-      }
+      if (this.bubble?.itemId === item.id) return this.closeBubble();
       this.openBubble(item.id);
       this.app.select({ kind: 'item', id: item.id });
     });
@@ -347,12 +357,43 @@ export class LevelScene extends QuestScene {
     });
   }
 
+  /** Closing an auto bubble remembers it; closing a chosen one clears the selection (and URL). */
   private closeBubble() {
-    this.bubble?.box.destroy();
+    const b = this.bubble;
+    if (!b) return;
+    b.box.destroy();
     this.bubble = undefined;
+    if (b.auto) this.dismissedAuto = b.itemId;
+    else if (this.app.selection?.kind === 'item' && this.app.selection.id === b.itemId) this.app.select(undefined);
   }
 
-  private openBubble(itemId: string, pop = true) {
+  /** Opens the bubble for the selected item, if any. Returns true when a selection drives it. */
+  private syncBubbleToSelection(): boolean {
+    const sel = this.app.selection;
+    if (sel?.kind !== 'item') {
+      if (this.bubble && !this.bubble.auto) {
+        this.bubble.box.destroy();
+        this.bubble = undefined;
+      }
+      return false;
+    }
+    if (!this.views.has(sel.id)) return false;
+    if (this.bubble?.itemId !== sel.id || this.bubble.auto) this.openBubble(sel.id, { pop: this.bubble?.itemId !== sel.id });
+    else this.openBubble(sel.id, { pop: false });
+    return true;
+  }
+
+  /** Shows the bubble for the item the hero is waiting at, unless the user closed it. */
+  private autoBubble() {
+    const id = this.layout.hero.itemId;
+    if (this.dismissedAuto && this.dismissedAuto !== id) this.dismissedAuto = undefined;
+    if (!id || id === this.dismissedAuto) return;
+    if (this.bubble && (!this.bubble.auto || this.bubble.itemId === id)) return;
+    this.openBubble(id, { auto: true });
+  }
+
+  private openBubble(itemId: string, opts: { pop?: boolean; auto?: boolean } = {}) {
+    const { pop = true, auto = false } = opts;
     const cur = this.current();
     const v = this.views.get(itemId);
     this.bubble?.box.destroy();
@@ -361,100 +402,147 @@ export class LevelScene extends QuestScene {
     this.tooltip?.destroy();
     const { item, entity: e } = v;
     const edit = this.canEdit();
-    const W = 132;
-    const PAD = 6;
-    const INK = '#1a1c2c';
-    const box = this.add.container(0, 0).setDepth(150);
-    const say = (y: number, str: string, size: number, color = INK) => {
-      const t = this.text(-W / 2 + PAD, y, str, size, color, W - 2 * PAD).setOrigin(0, 0).setStroke('#ffffff', 0).setAlign('left');
-      box.add(t);
-      return y + t.displayHeight + 3;
-    };
 
-    // Content, top to bottom.
+    const PAD = 6;
+    const GAP = 3;
+    const MAX_W = 164;
+    const CLOSE = 9;
+    const INK = '#1a1c2c';
+    const MUTED = '#5a6988';
+    const inner = MAX_W - 2 * PAD;
+    const box = this.add.container(0, 0).setDepth(150);
+    const label = (str: string, size: number, color: string, wrap: number) =>
+      this.text(0, 0, str, size, color, wrap).setOrigin(0, 0).setStroke('#ffffff', 0).setAlign('left');
+
+    // 1. Text blocks, wrapped to the widest the bubble may be.
     const info = TYPE_INFO[item.type];
     const optional = item.type === 'stretch' || item.mvp === false;
-    let y = say(0, item.title, 5);
-    y = say(y, `${info.label.toUpperCase()} · ${STATUS_LABEL[item.status].toUpperCase()}${optional ? ' · OPTIONAL' : ''}`, 3.5, '#5a6988');
-    if (item.notes) y = say(y, item.notes.length > 160 ? `${item.notes.slice(0, 157)}...` : item.notes, 4);
+    const title = label(item.title, 5, INK, inner - CLOSE - 4);
+    const lines: Phaser.GameObjects.Text[] = [
+      label(`${info.label.toUpperCase()} · ${STATUS_LABEL[item.status].toUpperCase()}${optional ? ' · OPTIONAL' : ''}`, 3.5, MUTED, inner),
+    ];
+    if (item.notes) lines.push(label(item.notes.length > 160 ? `${item.notes.slice(0, 157)}...` : item.notes, 4, INK, inner));
     if (item.dependsOn?.length) {
       const names = item.dependsOn.map((id) => cur.level.items.find((i) => i.id === id)?.title ?? id);
-      y = say(y, `After: ${names.join(', ')}`, 3.5, '#5a6988');
+      lines.push(label(`After: ${names.join(', ')}`, 3.5, MUTED, inner));
     }
-    if (item.levelRef) y = say(y, `Needs level ${item.levelRef}`, 3.5, '#5a6988');
+    if (item.levelRef) lines.push(label(`Needs level ${item.levelRef}`, 3.5, MUTED, inner));
 
-    // Buttons.
-    const buttons: [string, number, () => void][] = [];
+    // 2. Action buttons (all the same height).
+    type Btn = { text: Phaser.GameObjects.Text; w: number; color: number; run: () => void };
+    const buttons: Btn[] = [];
+    const button = (text: string, color: number, run: () => void) => {
+      const t = label(text, 4, INK, 200).setOrigin(0.5);
+      buttons.push({ text: t, w: Math.ceil(t.displayWidth) + 8, color, run });
+    };
     if (edit) {
       if (item.status === 'done' || item.status === 'dropped')
-        buttons.push([item.status === 'done' ? 'REOPEN' : 'RESTORE', 0x8b9bb4, () => this.setStatus(item.id, 'todo')]);
+        button(item.status === 'done' ? 'REOPEN' : 'RESTORE', 0xc0cbdc, () => this.setStatus(item.id, 'todo'));
       else {
-        buttons.push(['DONE!', 0x63c74d, () => this.setStatus(item.id, 'done')]);
-        if (item.status === 'todo') buttons.push(['START', 0xfeae34, () => this.setStatus(item.id, 'doing')]);
+        button('DONE!', 0x63c74d, () => this.setStatus(item.id, 'done'));
+        if (item.status === 'todo') button('START', 0xfeae34, () => this.setStatus(item.id, 'doing'));
       }
-      buttons.push([
-        'EDIT',
-        0xc0cbdc,
-        () => {
-          this.closeBubble();
-          itemForm(this.app, cur.world.id, cur.level, item);
-        },
-      ]);
+      button('EDIT', 0xdfe9f0, () => {
+        this.closeBubble();
+        itemForm(this.app, cur.world.id, cur.level, item);
+      });
     }
-    buttons.push(['X', 0xe4a672, () => this.closeBubble()]);
-    let bx = -W / 2 + PAD;
-    let by = y + 1;
-    let bh = 0;
-    for (const [label, color, run] of buttons) {
-      const t = this.text(0, 0, label, 4.5, INK).setStroke('#ffffff', 0).setOrigin(0.5);
-      const bw = t.displayWidth + 8;
-      bh = t.displayHeight + 6;
-      // Wrap to a new row rather than overflow the bubble.
-      if (bx > -W / 2 + PAD && bx + bw > W / 2 - PAD) {
-        bx = -W / 2 + PAD;
-        by += bh + 4;
-      }
-      const rect = this.add.rectangle(bx, by, bw, bh, color).setOrigin(0).setStrokeStyle(1, 0x1a1c2c);
-      t.setPosition(bx + bw / 2, by + bh / 2);
-      this.clickable(rect, run);
-      rect.on('pointerover', () => rect.setFillStyle(Phaser.Display.Color.IntegerToColor(color).brighten(15).color));
-      rect.on('pointerout', () => rect.setFillStyle(color));
-      box.add([rect, t]);
-      bx += bw + 4;
-    }
-    const H = by + bh + PAD;
 
-    // Place above the item (tail pointing down), or below it near the top.
-    const cam = this.cameras.main;
-    const view = cam.worldView;
+    // 3. Size the bubble to its content.
+    const btnH = buttons.length ? Math.ceil(buttons[0].text.displayHeight) + 6 : 0;
+    const rowW = buttons.reduce((w, b) => w + b.w, 0) + GAP * Math.max(0, buttons.length - 1);
+    const contentW = Math.max(
+      title.displayWidth + CLOSE + 6,
+      ...lines.map((l) => l.displayWidth),
+      Math.min(rowW, inner),
+    );
+    // +1 slack so rounding never pushes the last button onto a second row.
+    const W = Math.ceil(Phaser.Math.Clamp(contentW + 2 * PAD + 1, 84, MAX_W));
+
+    // 4. Lay out top to bottom.
+    let y = PAD;
+    title.setPosition(PAD, y);
+    y += Math.max(title.displayHeight, CLOSE) + GAP;
+    for (const l of lines) {
+      l.setPosition(PAD, y);
+      y += l.displayHeight + 2;
+    }
+    let rule = -1;
+    const rects: Phaser.GameObjects.Rectangle[] = [];
+    if (buttons.length) {
+      y += 2;
+      rule = Math.round(y);
+      y += GAP + 1;
+      let x = PAD;
+      for (const b of buttons) {
+        if (x > PAD && x + b.w > W - PAD + 0.5) {
+          x = PAD;
+          y += btnH + GAP;
+        }
+        const rect = this.add.rectangle(Math.round(x), Math.round(y), b.w, btnH, b.color).setOrigin(0).setStrokeStyle(1, 0x1a1c2c);
+        const hover = Phaser.Display.Color.IntegerToColor(b.color).brighten(12).color;
+        this.clickable(rect, b.run);
+        rect.on('pointerover', () => rect.setFillStyle(hover));
+        rect.on('pointerout', () => rect.setFillStyle(b.color));
+        rects.push(rect);
+        b.text.setPosition(Math.round(x + b.w / 2), Math.round(y + btnH / 2));
+        x += b.w + GAP;
+      }
+      y += btnH;
+    }
+    const H = Math.round(y + PAD);
+
+    // 5. Bubble, tail and a window-style close button.
+    // Keep inside the level (not the momentary view: the camera may still be moving).
+    const bounds = this.cameras.main.getBounds();
     const cx = e.x * TILE + (e.w * TILE) / 2;
     const top = GROUND_Y - (e.y + e.h) * TILE - (e.kind === 'pipe' && item.status !== 'done' ? TILE : 0);
     const bottom = GROUND_Y - e.y * TILE;
-    const TAIL = 8;
-    const above = top - TAIL - H - PAD > view.y + 2;
-    const boxX = Phaser.Math.Clamp(cx, view.x + W / 2 + 3, view.x + view.width - W / 2 - 3);
-    const boxY = above ? top - TAIL - H + PAD : bottom + TAIL + PAD;
-    box.setPosition(boxX, boxY);
+    const TAIL = 7;
+    const above = top - TAIL - H > Math.max(bounds.y, 0) + 2;
+    const left = Math.round(Phaser.Math.Clamp(cx - W / 2, bounds.x + 3, bounds.right - W - 3));
+    const boxTop = Math.round(above ? top - TAIL - H - 1 : bottom + TAIL + 1);
+    box.setPosition(left, boxTop);
 
     const g = this.add.graphics();
-    g.fillStyle(0xffffff, 1).lineStyle(1.5, 0x1a1c2c, 1);
-    g.fillRoundedRect(-W / 2, -PAD, W, H, 5).strokeRoundedRect(-W / 2, -PAD, W, H, 5);
-    const tx = Phaser.Math.Clamp(cx - boxX, -W / 2 + 10, W / 2 - 10);
-    const edge = above ? H - PAD : -PAD;
-    const tip = above ? edge + TAIL : edge - TAIL;
-    g.fillTriangle(tx - 5, edge, tx + 5, edge, tx, tip);
-    g.lineBetween(tx - 5, edge, tx, tip).lineBetween(tx + 5, edge, tx, tip);
-    g.lineStyle(2, 0xffffff, 1).lineBetween(tx - 4, edge, tx + 4, edge);
-    // Swallow clicks on the bubble itself so they don't close it.
-    const hit = this.add.zone(-W / 2, -PAD, W, H).setOrigin(0).setInteractive();
-    box.addAt(g, 0);
-    box.addAt(hit, 1);
+    g.fillStyle(0xffffff, 1).fillRoundedRect(0, 0, W, H, 4);
+    g.lineStyle(1.5, 0x1a1c2c, 1).strokeRoundedRect(0, 0, W, H, 4);
+    if (rule >= 0) g.lineStyle(1, 0xdfe9f0, 1).lineBetween(PAD, rule, W - PAD, rule);
+    const tx = Math.round(Phaser.Math.Clamp(cx - left, 9, W - 9));
+    const edgeY = above ? H : 0;
+    const tipY = above ? H + TAIL : -TAIL;
+    g.fillStyle(0xffffff, 1).fillTriangle(tx - 5, edgeY, tx + 5, edgeY, tx, tipY);
+    g.lineStyle(1.5, 0x1a1c2c, 1).lineBetween(tx - 5, edgeY, tx, tipY).lineBetween(tx + 5, edgeY, tx, tipY);
+    g.lineStyle(2, 0xffffff, 1).lineBetween(tx - 4, edgeY, tx + 4, edgeY);
+
+    const close = this.add.container(W - PAD - CLOSE, PAD);
+    const closeBg = this.add.rectangle(0, 0, CLOSE, CLOSE, 0xe43b44).setOrigin(0).setStrokeStyle(1, 0x1a1c2c);
+    const cross = this.add.graphics().lineStyle(1.5, 0xffffff, 1);
+    cross.lineBetween(2.5, 2.5, CLOSE - 2.5, CLOSE - 2.5).lineBetween(CLOSE - 2.5, 2.5, 2.5, CLOSE - 2.5);
+    close.add([closeBg, cross]);
+    this.clickable(closeBg, () => this.closeBubble());
+    closeBg.on('pointerover', () => closeBg.setFillStyle(0xf6757a));
+    closeBg.on('pointerout', () => closeBg.setFillStyle(0xe43b44));
+
+    // Swallow clicks on the bubble body so they don't close it.
+    const hit = this.add.zone(0, 0, W, H).setOrigin(0).setInteractive();
+    box.add([g, hit, title, ...lines, ...rects, ...buttons.map((b) => b.text), close]);
 
     if (pop) {
-      box.setScale(0.6).setAlpha(0);
-      this.tweens.add({ targets: box, scale: 1, alpha: 1, duration: 120, ease: 'Back.out' });
+      box.setY(boxTop + (above ? 4 : -4));
+      this.tweens.add({ targets: box, y: boxTop, duration: 140, ease: 'Back.out' });
+      // A clicked or deep-linked item may be off to the side: bring its bubble into view.
+      // Computed from scroll/zoom: worldView isn't valid until the first render.
+      const cam = this.cameras.main;
+      const viewW = cam.width / cam.zoom;
+      const viewX = cam.scrollX + (cam.width - viewW) / 2;
+      if (!auto && (left < viewX || left + W > viewX + viewW)) {
+        this.following = false;
+        cam.stopFollow();
+        cam.pan(left + W / 2, cam.midPoint.y, 350, 'Sine.easeInOut');
+      }
     }
-    this.bubble = { itemId, box, status: item.status };
+    this.bubble = { itemId, box, auto };
   }
 
   // ---- Animation ----
@@ -541,7 +629,10 @@ export class LevelScene extends QuestScene {
       this.hero.x = this.layout.castleX * TILE;
     }
     this.wasCleared = cleared;
-    if (!cleared) await this.walkTo(this.layout.hero.x * TILE);
+    if (!cleared) {
+      await this.walkTo(this.layout.hero.x * TILE);
+      this.autoBubble();
+    }
   }
 
   private popCoin(x: number, y: number, delay = 0) {

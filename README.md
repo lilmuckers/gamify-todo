@@ -87,6 +87,18 @@ headers (DNS rebinding) and requires a custom header plus same-origin `Origin` o
 that host to `ALLOWED_HOSTS` in `docker-compose.yml`. Service workers need HTTPS off-localhost, so
 for a phone the Pages PWA is the better route.
 
+## Links
+
+Every screen has a shareable URL, and a level link can open an item's bubble directly:
+
+```
+#/                                       project select
+#/p/<project>                            project map
+#/p/<project>/<world>                    world map
+#/p/<project>/<world>/<level>/<item>     level, with that item's bubble open
+#/prs, #/pr/<n>/<project>/<world>/<level>/<item>   pull request review
+```
+
 ## Reviewing pull requests: the Warp Zone
 
 Open pull requests that touch `data/` appear in the **Warp Zone** (the purple cartridge on the project select screen).
