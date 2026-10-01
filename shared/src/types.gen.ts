@@ -128,6 +128,10 @@ export interface Level {
    */
   clearedAt?: string;
   /**
+   * true = parked on the someday shelf (from the weekly review): the level isn't being worked on, so it drops out of Today, the review's overdue/stale lists and 'next level' suggestions. Parking clears startedAt, so the time-box starts afresh when work resumes; marking an item doing/done or ticking a criterion unparks it. Omit when false.
+   */
+  someday?: boolean;
+  /**
    * Checks that decide the level is done. At least one must have mvp=true. MVP criteria raise the flagpole; non-MVP criteria are bonus coins.
    *
    * @minItems 1
@@ -169,6 +173,10 @@ export interface Item {
   title: Title;
   status: Status;
   /**
+   * When this item was last marked done. Set automatically when status becomes 'done' and removed when it changes away from done. Feeds the weekly review's "shipped this week". Optional: older data won't have it.
+   */
+  doneAt?: string;
+  /**
    * true (default) = on the critical path: the hero stops here until it is done or dropped. false = optional. Ignored for 'stretch' (never MVP).
    */
   mvp?: boolean;
@@ -204,6 +212,10 @@ export interface Subtask {
   title: Title;
   status: Status;
   /**
+   * When this step was last marked done. Set automatically when status becomes 'done' and removed when it changes away from done. Feeds the weekly review's "shipped this week". Optional: older data won't have it.
+   */
+  doneAt?: string;
+  /**
    * true (default) = needed to close the dependency. false = optional. Ignored for 'stretch'.
    */
   mvp?: boolean;
@@ -235,6 +247,10 @@ export interface LevelStats {
   itemEdits?: {
     [k: string]: number;
   };
+  /**
+   * Days added to timeboxDays after the level started (the weekly review's 'extend the time-box'). The in-time star and the time bonus are still scored against the original time-box (timeboxDays minus this).
+   */
+  timeboxExtendedDays?: number;
 }
 /**
  * Repo-wide display settings, stored at data/settings.json. Optional: without it the app uses its defaults.

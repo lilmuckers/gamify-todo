@@ -39,7 +39,10 @@ Checked by `npm run validate`, the app, and CI:
 - Only `dependency` items have `subtasks`, never together with `levelRef`; step ids are unique within the
   dependency and their `dependsOn` stays among its steps, with no cycles.
 - Every level has at least one criterion with `"mvp": true`.
-- `startedAt`, `clearedAt` and `stats` are maintained by the app.
+- `startedAt`, `clearedAt`, `doneAt` (on items and steps) and `stats` are maintained by the app.
+  Tools writing data by hand should set `doneAt` when they mark something `done` and remove it when
+  they reopen it, so the weekly review can see what shipped.
+- `someday: true` parks a level (no `startedAt` while parked; never on a cleared level).
 
 ## Generating data with an LLM
 

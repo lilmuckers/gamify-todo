@@ -21,7 +21,13 @@ type ProjectPatch = Partial<Pick<Project, 'title' | 'description' | 'worldOrder'
 
 /** Ops that act inside one project. */
 type ProjectOpBody =
-  | ({ kind: 'setItemStatus'; itemId: string; status: ItemStatus } & ItemAddr)
+  | ({
+      kind: 'setItemStatus';
+      itemId: string;
+      status: ItemStatus;
+      /** Undo only: the done stamp to put back (null = none), instead of stamping now. */
+      doneAt?: string | null;
+    } & ItemAddr)
   | ({
       kind: 'addItem';
       item: Item;
@@ -38,6 +44,10 @@ type ProjectOpBody =
   | ({ kind: 'deleteCriterion'; criterionId: string } & LevelAddr)
   | ({ kind: 'startLevel' } & LevelAddr)
   | ({ kind: 'updateLevel'; patch: LevelPatch } & LevelAddr)
+  /** Adds days to a started level's time-box; still scored against the original (stats.timeboxExtendedDays). */
+  | ({ kind: 'extendTimebox'; days: number } & LevelAddr)
+  /** Parks a level on the someday shelf (clearing its start), or brings it back. */
+  | ({ kind: 'setSomeday'; someday: boolean } & LevelAddr)
   | ({ kind: 'deleteLevel' } & LevelAddr)
   | ({ kind: 'moveLevel'; index: number } & LevelAddr)
   | { kind: 'addLevel'; worldId: string; level: Level }
@@ -90,7 +100,24 @@ export function makeOp(body: OpBody, now = new Date()): Op {
 const isScopeCut = (op: Op) =>
   op.kind === 'deleteItem' ||
   op.kind === 'deleteCriterion' ||
-  (op.kind === 'setItemStatus' && op.status === 'dropped');
+  (op.kind === 'setItemStatus' && op.status === 'dropped') ||
+  (op.kind === 'setSomeday' && op.someday);
+
+/** Keeps `doneAt` in step with the status: stamped when it becomes done, gone otherwise. */
+function stampDone(item: Pick<Item, 'status' | 'doneAt'>, wasDone: boolean, at: string) {
+  if (item.status !== 'done') delete item.doneAt;
+  else if (!wasDone || !item.doneAt) item.doneAt = at;
+}
+
+/** Real progress on a parked level takes it off the someday shelf. */
+function isProgress(op: Op): boolean {
+  if (op.kind === 'setItemStatus') return op.status === 'doing' || op.status === 'done';
+  if (op.kind === 'updateItem') return op.patch.status === 'doing' || op.patch.status === 'done';
+  return op.kind === 'setCriterion' && op.done;
+}
+
+/** Longest time-box a level can have (schema maximum). */
+export const MAX_TIMEBOX_DAYS = 90;
 
 function need<T>(value: T | undefined, what: string, op: Op): T {
   if (value === undefined) throw new OpConflict(`${what} no longer exists`, op);
@@ -132,7 +159,13 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
     case 'setItemStatus': {
       const item = findItem(op.itemId);
       if (!wasCleared && item.status === 'done' && op.status !== 'dropped') bumpItem(statKey(item.id));
+      const wasDone = item.status === 'done';
       item.status = op.status;
+      stampDone(item, wasDone, op.at);
+      if (op.status === 'done' && op.doneAt !== undefined) {
+        if (op.doneAt) item.doneAt = op.doneAt;
+        else delete item.doneAt;
+      }
       break;
     }
     case 'addItem':
@@ -149,8 +182,10 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
     case 'updateItem': {
       const item = findItem(op.itemId);
       if (!wasCleared && item.status === 'done' && op.patch.status !== 'dropped') bumpItem(statKey(item.id));
+      const wasDone = item.status === 'done';
       Object.assign(item, clone(op.patch));
       for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (item as any)[k];
+      if (op.patch.status !== undefined) stampDone(item, wasDone, op.at);
       break;
     }
     case 'deleteItem': {
@@ -190,13 +225,32 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
       Object.assign(level, clone(op.patch));
       for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (level as any)[k];
       break;
+    case 'extendTimebox': {
+      if (!Number.isInteger(op.days) || op.days < 1) throw new OpConflict('extend the time-box by a whole number of days', op);
+      const added = Math.min(MAX_TIMEBOX_DAYS, level.timeboxDays + op.days) - level.timeboxDays;
+      if (added <= 0) throw new OpConflict(`the time-box is already at the ${MAX_TIMEBOX_DAYS}-day maximum`, op);
+      level.timeboxDays += added;
+      // Before the level starts it's just planning; after, it's on the record.
+      if (level.startedAt)
+        level.stats = { ...level.stats, timeboxExtendedDays: (level.stats?.timeboxExtendedDays ?? 0) + added };
+      break;
+    }
+    case 'setSomeday':
+      if (op.someday && wasCleared) throw new OpConflict("a cleared level can't go on the someday shelf", op);
+      if (op.someday) {
+        level.someday = true;
+        // The clock starts afresh when work resumes.
+        delete level.startedAt;
+      } else delete level.someday;
+      break;
   }
+  if (level.someday && isProgress(op)) delete level.someday;
 
   const busy = (i: Pick<Item, 'status'>) => i.status === 'doing' || i.status === 'done';
   const active =
     level.items.some((i) => busy(i) || (i.subtasks ?? []).some(busy)) ||
     level.successCriteria.some((c) => c.done);
-  if (!level.startedAt && active) level.startedAt = op.at;
+  if (!level.startedAt && active && !level.someday) level.startedAt = op.at;
   const nowCleared = isCleared(level);
   if (nowCleared && !level.clearedAt) level.clearedAt = op.at;
   if (!nowCleared && level.clearedAt) delete level.clearedAt;
@@ -389,7 +443,10 @@ export function inverseOp(op: OpBody, before: Workspace): OpBody | undefined {
   switch (op.kind) {
     case 'setItemStatus': {
       const prev = list.find((i) => i.id === op.itemId);
-      return prev && { kind: 'setItemStatus', ...at, itemId: op.itemId, status: prev.status };
+      if (!prev) return;
+      // Reopening a done item and undoing it keeps the original done stamp.
+      const stamp = prev.status === 'done' ? { doneAt: prev.doneAt ?? null } : {};
+      return { kind: 'setItemStatus', ...at, itemId: op.itemId, status: prev.status, ...stamp };
     }
     case 'setCriterion': {
       const prev = level.successCriteria.find((c) => c.id === op.criterionId);
@@ -479,6 +536,10 @@ export function describeOp(op: Op, state?: Workspace): string {
       return `start level${where}`;
     case 'updateLevel':
       return `edit level${where}`;
+    case 'extendTimebox':
+      return `extend time-box by ${op.days} day${op.days === 1 ? '' : 's'}${where}`;
+    case 'setSomeday':
+      return `${op.someday ? 'move to someday' : 'back from someday'}${where}`;
     case 'deleteLevel':
       return `delete level${where}`;
     case 'moveLevel':

@@ -170,6 +170,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `timeboxDays` | ✓ | integer 1–90 | time budget, counted from `startedAt` |
 | `startedAt` | | ISO date-time | see §5 |
 | `clearedAt` | | ISO date-time | see §5 |
+| `someday` | | boolean | `true` = parked on the someday shelf (see "weekly review" below). Omit otherwise. |
 | `successCriteria` | ✓ | Criterion[] (1–20) | at least one with `mvp: true` |
 | `items` | ✓ | Item[] (≤200) | may be empty |
 | `stats` | | object | **app-maintained; never write or change it** |
@@ -185,6 +186,7 @@ Item:
 | `type` | ✓ | see below |
 | `title` | ✓ | ≤120, imperative for tasks |
 | `status` | ✓ | `todo` \| `doing` \| `done` \| `dropped` |
+| `doneAt` | | ISO date-time: when it was marked `done` (see §5). Only on done items. |
 | `mvp` | | default `true` (on the critical path). Set `false` for optional items. Omit for `stretch`. |
 | `dependsOn` | | ids of items **in the same level** that come first; no cycles |
 | `levelRef` | | dependency items only: `"<world-id>/<level-id>"` in the **same project**, not the item's own level |
@@ -207,7 +209,7 @@ earns stars). `dropped` is a good status: cutting scope is encouraged.
 
 `subtasks` is an array of steps shaped like items: `id` (unique among that dependency's steps),
 `type` (any type **except** `dependency`; sub-levels don't nest), `title`, `status`, and optional
-`mvp`, `dependsOn` (ids of **sibling steps**), `link`, `notes`. Keep it to the few steps that
+`doneAt`, `mvp`, `dependsOn` (ids of **sibling steps**), `link`, `notes`. Keep it to the few steps that
 matter. When every must-do step is `done` or `dropped`, the dependency itself is ready to mark
 `done`: do that in the same change when the user says it's sorted.
 
@@ -312,9 +314,11 @@ Always read the current files first, change the minimum, and keep the rest byte-
 | Add a level | Create `data/<p>/<w>/<l>.json` **and** append `<l>` to `levelOrder` in `world.json`. |
 | Add an item | Append to `items` in the level file with a new unique id and `"status": "todo"`. |
 | Start work | Set item `status` to `doing`. If the level has no `startedAt`, set it to the current UTC time. |
-| Finish work | Set item `status` to `done` (or `dropped` to cut it). |
+| Finish work | Set item `status` to `done` and `doneAt` to the current UTC time (or `status` `dropped` to cut it, no `doneAt`). |
+| Reopen work | Set `status` back to `todo`/`doing` and remove `doneAt`. |
 | Add a step to a dependency | Append to that item's `subtasks` (create the array if missing) with a new id unique among its steps. Never on an item with `levelRef`. |
-| Finish a step | Set the step's `status` inside `subtasks`. The dependency's own `status` is separate. |
+| Finish a step | Set the step's `status` inside `subtasks` (and `doneAt` when it's `done`, as for items). The dependency's own `status` is separate. |
+| Park a level (someday) | Set `"someday": true` and remove `startedAt`. Never on a cleared level. Bring it back by removing `someday` (and set `startedAt` to now if work is starting). |
 | Tick a criterion | Set `done: true`. If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
 | Delete a level | Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. |
 | Delete a step | Remove it from `subtasks` and from its siblings' `dependsOn`; drop the `subtasks` key if it's now empty. |
@@ -357,6 +361,24 @@ Read the data and answer the way the app's **Today** page does, across all proje
    suggest the first uncleared level of the first world.
 
 Nudge towards finishing what's started and cutting scope (`dropped` is a fine answer).
+Skip levels with `"someday": true` everywhere above.
+
+### Running a weekly review
+
+When asked for a weekly review (the app's **Review** page does the same):
+
+1. **Shipped this week:** levels whose `clearedAt` is in the last 7 days, and items/steps whose
+   `status` is `done` with a `doneAt` in the last 7 days. Celebrate these first.
+2. **Overdue:** started, uncleared levels past `startedAt + timeboxDays`. Offer scope cuts: drop
+   the optional items still open (`mvp: false` or `stretch`, not done/dropped) by setting their
+   `status` to `dropped`, all in **one commit**; or extend the time-box. The app records an
+   extension in `stats.timeboxExtendedDays` and still scores the in-time star against the
+   original time-box; since `stats` is app-maintained, suggest the user extends it in the app
+   (Review page) rather than editing `timeboxDays` yourself.
+3. **Gone quiet:** started, uncleared levels with no activity (latest of `startedAt`, `clearedAt`,
+   any `doneAt`) for 14+ days. Offer: keep going, park it (someday), or delete the level.
+4. **Next week:** suggest at most 3 levels to focus on. (The app keeps the chosen focus in the
+   browser, not in `data/`.)
 
 ### Linking the user to things
 
@@ -369,7 +391,7 @@ the user runs it), then:
 | `#/p/<project>/<world>` | a world |
 | `#/p/<project>/<world>/<level>` | a level; add `/<item>` to open that item's bubble |
 | `#/p/<project>/<world>/<level>/@<dependency>/<step>` | a step inside a dependency |
-| `#/~today`, `#/~inbox` | the Today or Inbox page (add `/~today` or `/~inbox` to any link to hold it up over that screen) |
+| `#/~today`, `#/~inbox`, `#/~review` | the Today, Inbox or Weekly review page (add `/~today`, `/~inbox` or `/~review` to any link to hold it up over that screen) |
 
 When the user is reading the app from another repo, it shows that repo only after they've
 connected it in ⚙ Settings.

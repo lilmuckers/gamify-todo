@@ -38,6 +38,8 @@ describe('router deep links', () => {
     expect(parseRoute('#/p/p/w/l/i/~today')).toEqual({ view: 'level', projectId: 'p', worldId: 'w', levelId: 'l', itemId: 'i', pad: 'today' });
     // The old link still opens it; unknown pages are just ids.
     expect(parseRoute('#/today')).toEqual({ view: 'projects', pad: 'today' });
+    expect(parseRoute('#/review')).toEqual({ view: 'projects', pad: 'review' });
+    expect(parseRoute('#/p/p/~review')).toEqual({ view: 'overworld', projectId: 'p', pad: 'review' });
     expect(withPad({ view: 'prs', pad: 'today' }, undefined)).toEqual({ view: 'prs' });
     expect(togglePad({ view: 'prs', pad: 'inbox' }, 'inbox')).toEqual({ view: 'prs' });
     expect(togglePad({ view: 'prs', pad: 'today' }, 'inbox')).toEqual({ view: 'prs', pad: 'inbox' });

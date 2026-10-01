@@ -256,7 +256,7 @@ function worldPanel(app: App, worldId: string) {
               icon({ cleared: 'node-clear', 'in-progress': 'node-active', open: 'node', locked: 'node-lock' }[st], 'grass', 'icon sm'),
               link(l.name, href({ view: 'level', projectId: pid, worldId: w.id, levelId: l.id })),
               h('span', { class: 'grow' }),
-              sc.cleared ? stars(sc.stars) : h('small', { class: 'muted' }, `${sc.mvpDone}/${sc.mvpTotal} MVP`),
+              sc.cleared ? stars(sc.stars) : h('small', { class: 'muted' }, `${l.someday ? '💤 someday · ' : ''}${sc.mvpDone}/${sc.mvpTotal} MVP`),
               edit &&
                 h(
                   'span',
@@ -277,6 +277,13 @@ function timerBlock(app: App, world: World, level: Level, readonly: boolean) {
   const sc = scoreLevel(level);
   const t = sc.timer;
   const edit = !readonly && app.caps.canEdit;
+  if (level.someday)
+    return h(
+      'div',
+      { class: 'timer idle someday' },
+      h('span', null, '💤 On the someday shelf: off Today and the weekly review. The clock starts afresh when you pick it up.'),
+      edit && smallBtn('Bring it back', () => app.dispatch({ projectId: app.projectId!, kind: 'setSomeday', worldId: world.id, levelId: level.id, someday: false })),
+    );
   if (t.phase === 'not-started')
     return h(
       'div',
@@ -296,6 +303,12 @@ function timerBlock(app: App, world: World, level: Level, readonly: boolean) {
     { class: `timer ${t.phase}` },
     h('span', null, `⏱ ${label}`),
     t.phase !== 'cleared' && h('div', { class: 'bar' }, h('i', { style: `width:${pct}%` })),
+    sc.extendedDays > 0 &&
+      h(
+        'small',
+        { class: 'muted' },
+        `Extended by ${sc.extendedDays}d: the in-time ★ and time bonus still count the original ${level.timeboxDays - sc.extendedDays}d.`,
+      ),
   );
 }
 

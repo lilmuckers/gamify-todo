@@ -52,5 +52,7 @@ describe('navFor', () => {
     expect(today.crumbs[3].href).toBe('#/p/p/w/two');
     expect(today.up).toEqual({ label: 'Close', href: '#/p/p/w/two' });
     expect(today.prev).toBeUndefined();
+    const review = navFor(fakeApp({ view: 'projects', pad: 'review' }));
+    expect(review.crumbs.map((c) => c.label)).toEqual(['Quest Log', 'Weekly review']);
   });
 });
