@@ -50,6 +50,14 @@ export class GitHubSource implements DataSource {
     return { state: fromFiles(await this.client.readDataAt(sha)), version: sha };
   }
 
+  /**
+   * Right after a commit, reading the branch can briefly return the commit
+   * before it. True when `remote` is an ancestor of the `known` head we saw.
+   */
+  async isBehind(remote: string, known: string): Promise<boolean> {
+    return (await this.client.compare(remote, known)) === 'ahead';
+  }
+
   commit(changes: Record<string, string | null>, message: string, baseVersion: string) {
     return this.client.commitFiles(changes, message, baseVersion);
   }

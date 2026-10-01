@@ -46,6 +46,8 @@ export interface DataSource {
   label: string;
   caps: Capabilities;
   load(): Promise<Loaded>;
+  /** True when `remoteVersion` is older than `knownVersion` (a lagging read). */
+  isBehind?(remoteVersion: string, knownVersion: string): Promise<boolean>;
   /** Writes (string) / deletes (null) files in one commit on top of `baseVersion`. Throws ConflictError. */
   commit?(changes: Record<string, string | null>, message: string, baseVersion: string): Promise<string>;
   pulls?: PullProvider;

@@ -143,7 +143,7 @@ export class Store {
   async refresh(): Promise<void> {
     if (this.outbox.length && this.caps.canEdit) return this.sync();
     try {
-      const remote = await this.source.load();
+      const remote = await this.freshest(await this.source.load());
       this.setBase(remote.state, remote.version);
       this.lastSyncedAt = new Date().toISOString();
       this.status = this.idleStatus();
@@ -153,6 +153,22 @@ export class Store {
       this.fail(err);
     }
     this.emit();
+  }
+
+  /**
+   * The loaded remote, unless it's older than the head we already know (a read
+   * that lags behind our own commit): then the known head, so a reload doesn't
+   * roll recent edits back.
+   */
+  private async freshest(remote: { state: Workspace; version: string }) {
+    const known = this.base && this.version;
+    if (!known || remote.version === this.version || !this.source.isBehind) return remote;
+    try {
+      if (await this.source.isBehind(remote.version, this.version!)) return { state: this.base!, version: this.version! };
+    } catch {
+      // Can't tell: trust the remote.
+    }
+    return remote;
   }
 
   private fail(err: unknown) {
@@ -253,7 +269,7 @@ export class Store {
     for (const o of batch) this.inFlight.add(o.opId);
     try {
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        const remote = await this.source.load();
+        const remote = await this.freshest(await this.source.load());
         const r = replay(remote.state, batch);
         let version = remote.version;
         if (r.applied.length) {
