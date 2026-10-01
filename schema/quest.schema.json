@@ -520,9 +520,9 @@
         },
         "itemEdits": {
           "type": "object",
-          "description": "Map of item id to number of edits made after that item was done.",
+          "description": "Map of item id (or dependency/step for a sub-level step) to number of edits made after that item was done.",
           "propertyNames": {
-            "$ref": "#/$defs/Id"
+            "$ref": "#/$defs/ItemEditKey"
           },
           "additionalProperties": {
             "type": "integer",
@@ -530,6 +530,12 @@
           }
         }
       }
+    },
+    "ItemEditKey": {
+      "type": "string",
+      "description": "An item id, or \"<dependency>/<step>\" for a step inside a dependency's sub-level.",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)?$",
+      "maxLength": 129
     },
     "HeroId": {
       "description": "Which player character walks the levels.",
