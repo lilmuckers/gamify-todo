@@ -1,3 +1,4 @@
+import { track } from '../analytics';
 import { BASE_URL, repoRef } from '../config';
 import { h } from './dom';
 import { openModal } from './modal';
@@ -50,6 +51,7 @@ const code = (s: string) => h('code', null, s);
 
 /** How to install SKILL.md in Claude or ChatGPT, and what it does. */
 export function skillHelpDialog() {
+  track('skill_help_open');
   const repo = repoRef();
   const repoName = repo ? `${repo.owner}/${repo.repo}` : 'your data repo';
   const busy = (btn: HTMLButtonElement, run: () => Promise<void>) => async () => {
@@ -66,14 +68,24 @@ export function skillHelpDialog() {
   const copyBtn = h('button', { class: 'btn sm', type: 'button' }, 'Copy link');
   copyBtn.onclick = busy(copyBtn, async () => {
     await navigator.clipboard.writeText(skillUrl());
+    track('skill_download', { format: 'link' });
     toast('Skill link copied', 'win');
   });
   const mdBtn = h('button', { class: 'btn sm', type: 'button' }, 'Download SKILL.md');
-  mdBtn.onclick = busy(mdBtn, async () => download('SKILL.md', await skillText(), 'text/markdown'));
+  mdBtn.onclick = busy(mdBtn, async () => {
+    download('SKILL.md', await skillText(), 'text/markdown');
+    track('skill_download', { format: 'md' });
+  });
   const zipBtn = h('button', { class: 'btn sm primary', type: 'button' }, 'Download skill (.zip)');
-  zipBtn.onclick = busy(zipBtn, async () => download('quest-log-skill.zip', zip(await skillPackage()) as BlobPart, 'application/zip'));
+  zipBtn.onclick = busy(zipBtn, async () => {
+    download('quest-log-skill.zip', zip(await skillPackage()) as BlobPart, 'application/zip');
+    track('skill_download', { format: 'zip' });
+  });
   const pyBtn = h('button', { class: 'btn sm', type: 'button' }, 'Download quest.py');
-  pyBtn.onclick = busy(pyBtn, async () => download('quest.py', await text(SCRIPT_PATH), 'text/x-python'));
+  pyBtn.onclick = busy(pyBtn, async () => {
+    download('quest.py', await text(SCRIPT_PATH), 'text/x-python');
+    track('skill_download', { format: 'py' });
+  });
 
   const body = h(
     'div',

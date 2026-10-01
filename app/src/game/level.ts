@@ -18,6 +18,7 @@ import { THEMES } from '../sprites/pixels';
 import { TILE, type ThemeKey } from '../sprites/render';
 import { toast } from '../ui/toast';
 import { itemForm, STATUS_LABEL, TYPE_INFO } from '../ui/forms';
+import { bucket, track } from '../analytics';
 import { itemAddr, type App } from '../app';
 import { go } from '../router';
 import { GROUND_Y, heroWalk, QuestScene, tex, WORLD_H } from './common';
@@ -30,6 +31,9 @@ export interface LevelParams {
   subId?: string;
   pr?: number;
 }
+
+/** Levels whose time-box warning was reported today (once per level per day). */
+const warned = new Set<string>();
 
 /** Bubble id for a sub-level's exit pipe (not an item; ids can't contain '!'). */
 const EXIT = '!exit';
@@ -123,7 +127,13 @@ export class LevelScene extends QuestScene {
     this.build(cur.world, cur.level, cur.diff);
     this.heroTargetX = this.layout.hero.x * TILE;
     this.hero.x = this.heroTargetX;
-    this.wasCleared = scoreLevel(cur.level).cleared;
+    const score = scoreLevel(cur.level);
+    this.wasCleared = score.cleared;
+    if (!cur.sub && !this.params.pr && (score.timer.phase === 'hurry' || score.timer.phase === 'overdue')) {
+      const key = `${cur.projectId}/${cur.world.id}/${cur.level.id}:${new Date().toDateString()}`;
+      if (!warned.has(key)) track('timebox_warning', { phase: score.timer.phase });
+      warned.add(key);
+    }
     // In a cleared level the hero has gone into the castle; a sub-level has none.
     if (this.wasCleared && !cur.sub) this.hero.setVisible(false);
     const arrival = this.app.takeArrival();
@@ -640,8 +650,14 @@ export class LevelScene extends QuestScene {
       if (resolved) button(item.status === 'done' ? 'REOPEN' : 'RESTORE', 0xc0cbdc, () => this.setStatus(item.id, 'todo'));
       else if (mode === 'warp' || mode === 'cloud') {
         // Close it (you've got what you needed) or skip it (turns out you don't need it).
-        button('GOT IT!', 0xfee761, () => this.setStatus(item.id, 'done'));
-        button('JUMP OVER', 0xfeae34, () => this.setStatus(item.id, 'dropped'));
+        button('GOT IT!', 0xfee761, () => {
+          track('dependency_resolve', { action: 'close', dep_mode: mode });
+          this.setStatus(item.id, 'done');
+        });
+        button('JUMP OVER', 0xfeae34, () => {
+          track('dependency_resolve', { action: 'skip', dep_mode: mode });
+          this.setStatus(item.id, 'dropped');
+        });
       } else {
         button('DONE!', 0x63c74d, () => this.setStatus(item.id, 'done'));
         if (item.status === 'todo') button('START', 0xfeae34, () => this.setStatus(item.id, 'doing'));
@@ -949,6 +965,8 @@ export class LevelScene extends QuestScene {
     this.closeBubble();
     await this.busy;
     const e = v.entity;
+    const steps = v.item.subtasks?.length ?? 0;
+    track('warp_enter', { steps_bucket: bucket(steps), adding: steps === 0 });
     const mouth = GROUND_Y - e.h * TILE;
     const x = e.x * TILE + (e.w * TILE - this.hero.width) / 2;
     await this.approach(e.x * TILE - TILE);
@@ -967,6 +985,7 @@ export class LevelScene extends QuestScene {
     this.leaving = true;
     this.closeBubble();
     const dep = cur.sub.dep;
+    track('warp_exit', { closed: close && !isResolved(dep) });
     await this.approach(pipe.x - TILE);
     await this.hopTo(pipe.x + (pipe.w - this.hero.width) / 2, pipe.top);
     await this.sink(TILE * 2);
@@ -987,6 +1006,7 @@ export class LevelScene extends QuestScene {
     await this.busy;
     const e = v.entity;
     const cloudTop = GROUND_Y - (e.y + e.h) * TILE + 2;
+    track('cloud_ride');
     await this.approach(e.x * TILE - TILE);
     this.tweens.killTweensOf(v.top!);
     await this.hopTo(e.x * TILE + TILE, cloudTop);

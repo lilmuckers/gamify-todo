@@ -1,5 +1,7 @@
 import '@fontsource/press-start-2p/latin-400.css';
 import './styles.css';
+import { GitHubError } from '@quest/shared';
+import { bucket, initAnalytics, setUserProps, track } from './analytics';
 import { App } from './app';
 import { chosenBranch, rememberBranch, repoRef, TARGET, tokenStore, uiPrefs } from './config';
 import { GitHubSource } from './data/github';
@@ -32,6 +34,27 @@ async function main() {
   store.attachBrowserEvents();
   const app = new App(store);
   const mobile = useMobile();
+  const userProps = () => ({
+    app_mode: TARGET === 'local' ? 'local' : store.caps.canEdit ? 'github' : 'readonly',
+    layout: mobile ? 'mobile' : 'desktop',
+    display: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
+    hero: app.heroId,
+  });
+  initAnalytics(app.route, userProps());
+  // Hero and edit mode settle once data loads.
+  let lastProps = JSON.stringify(userProps());
+  app.subscribe(() => {
+    const props = userProps();
+    const sig = JSON.stringify(props);
+    if (sig !== lastProps) setUserProps(props);
+    lastProps = sig;
+  });
+  store.onSyncResult = (r) => {
+    track('sync', { result: r.result, ops_bucket: bucket(r.ops) });
+    if (r.conflicts) track('sync_conflict', { count: r.conflicts });
+    if (r.error instanceof GitHubError && (r.error.status === 429 || /rate limit/i.test(r.error.message))) track('rate_limited');
+  };
+  window.addEventListener('appinstalled', () => track('pwa_install'));
   document.body.classList.toggle('is-mobile', mobile);
   if (mobile) (await import('./mobile')).mountMobile(app, root);
   else {

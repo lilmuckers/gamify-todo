@@ -70,6 +70,8 @@ export const heroStore = {
 
 export interface UiPrefs {
   mobile?: 'auto' | 'on' | 'off';
+  /** Google Analytics; undefined = default (on, unless Global Privacy Control). */
+  analytics?: boolean;
 }
 
 export function uiPrefs(): UiPrefs {

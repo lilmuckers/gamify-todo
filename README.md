@@ -64,9 +64,27 @@ PRs. A token without push rights gives a read-only view.
 Anyone can view it. To edit from the site (or from your phone), open **⚙ Settings** and paste a
 fine-grained personal access token limited to this repository with **Contents: read & write**,
 **Pull requests: read & write** and **Checks: read**. The token is kept in that browser's
-`localStorage`, is only ever sent to `api.github.com`, and the page runs under a strict
-Content-Security-Policy that blocks other destinations. Anything that can run script on the page, or
-anyone with access to that browser profile, can read it, so keep the token scoped to this one repo.
+`localStorage`, and the app only ever sends it to `api.github.com`. The page runs under a strict
+Content-Security-Policy that allows only GitHub's API and Google Analytics (below). Anything that
+can run script on the page (including the Google Analytics script), or anyone with access to that
+browser profile, can read it, so keep the token scoped to this one repo.
+
+### Analytics and privacy
+
+The Pages site uses Google Analytics 4 to see which screens and features get used. It is on by
+default and can be switched off in **⚙ Settings → Privacy**. It is also off by default for
+browsers that send Global Privacy Control. Docker/local builds include no analytics unless you
+build with `VITE_GA_ID`; set `VITE_GA_ID=` (empty) to build the site without it.
+
+What is sent: screen types (`/level`, `/world`…, never the ids in the URL), and actions as
+categories: item type and status, dependency mode, hero, sync result and counts in buckets. No
+project, world, level or item titles or ids, notes, repo names, logins or tokens. The allow-list
+is in [`app/src/analytics.ts`](app/src/analytics.ts).
+
+If you run your own copy with your own GA property, in the web stream's **Enhanced
+measurement** settings turn off **"Page changes based on browser history events"** (the app
+sends its own id-free page views; history-based ones would include ids from the URL). Consider
+turning off **Outbound clicks** too, since item links are your own content.
 
 ### Mobile / offline
 
