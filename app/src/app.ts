@@ -37,6 +37,8 @@ export type Selection = { kind: 'item'; id: string } | { kind: 'criteria' } | un
 export class App {
   route: Route = currentRoute();
   selection: Selection = selectionFrom(this.route);
+  /** An item bubble is open in the level scene (Esc closes it before navigating). */
+  bubbleOpen = false;
   pulls: { list?: PullSummary[]; loading: boolean; error?: string } = { loading: false };
   private pullViews = new Map<number, PullView>();
   private listeners = new Set<() => void>();
