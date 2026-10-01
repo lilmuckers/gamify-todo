@@ -64,7 +64,7 @@
       "id": "copy-reviewed-by-the-plain-english-team",
       "title": "Copy reviewed by the plain-English team",
       "type": "dependency",
-      "status": "done"
+      "status": "todo"
     },
     {
       "id": "empty-states-for-new-customers",
@@ -107,5 +107,10 @@
       "type": "stretch",
       "status": "todo"
     }
-  ]
+  ],
+  "stats": {
+    "itemEdits": {
+      "copy-reviewed-by-the-plain-english-team": 1
+    }
+  }
 }
