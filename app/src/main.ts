@@ -78,6 +78,8 @@ async function main() {
     (await import('./desktop')).mountDesktop(app, root);
   }
   await store.start();
+  // The tab closed mid-game last time: ask about that session's edits now.
+  if (store.held.size) app.reviewHeld('resumed');
 }
 
 void main();

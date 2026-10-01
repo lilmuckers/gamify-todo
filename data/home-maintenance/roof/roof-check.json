@@ -6,18 +6,19 @@
   "description": "Overdue because of weather, not effort. Do not start the damp job until this is done.",
   "timeboxDays": 14,
   "startedAt": "2026-09-10T09:00:00Z",
+  "clearedAt": "2026-10-01T20:33:22.836Z",
   "successCriteria": [
     {
       "id": "roofer-has-inspected-the-roof",
       "mvp": true,
       "text": "Roofer has inspected the roof",
-      "done": false
+      "done": true
     },
     {
       "id": "slipped-slates-replaced",
       "mvp": true,
       "text": "Slipped slates replaced",
-      "done": false
+      "done": true
     },
     {
       "id": "photos-of-the-roof-saved",
@@ -51,7 +52,7 @@
       "id": "visit",
       "title": "Roofer visit",
       "type": "dependency",
-      "status": "doing",
+      "status": "done",
       "notes": "Booked twice, cancelled twice for rain. Next slot: Monday.",
       "subtasks": [
         {
@@ -97,7 +98,7 @@
       "id": "replace-the-three-slipped-slates",
       "title": "Replace the three slipped slates",
       "type": "task",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "visit"
       ]
@@ -106,7 +107,7 @@
       "id": "re-point-the-chimney-flashing",
       "title": "Re-point the chimney flashing",
       "type": "task",
-      "status": "todo",
+      "status": "done",
       "mvp": false
     },
     {
@@ -120,7 +121,7 @@
       "id": "check-the-loft-for-daylight-through-the",
       "title": "Check the loft for daylight through the roof",
       "type": "stretch",
-      "status": "todo"
+      "status": "done"
     }
   ]
 }

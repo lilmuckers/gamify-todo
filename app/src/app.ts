@@ -26,6 +26,10 @@ import { heroStore } from './config';
 import type { PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { currentRoute, href, routeProject, type Route } from './router';
+import { playSummary } from './ui/play-summary';
+
+/** Why a play session ended: shapes the summary's wording. */
+export type PlayEnd = 'stopped' | 'idle' | 'cleared' | 'left' | 'resumed';
 
 function selectionFrom(route: Route): Selection {
   return 'itemId' in route && route.itemId ? { kind: 'item', id: route.itemId } : undefined;
@@ -102,6 +106,8 @@ export class App {
   selection: Selection = selectionFrom(this.route);
   /** An item bubble is open in the level scene (Esc closes it before navigating). */
   bubbleOpen = false;
+  /** Play mode: the hero is driven by gamepad or keyboard instead of walking himself. */
+  playing = false;
   /** Next time the inbox page renders, put the cursor in its scribble line. */
   focusCapture = false;
   pulls: { list?: PullSummary[]; loading: boolean; error?: string } = { loading: false };
@@ -113,11 +119,51 @@ export class App {
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
+      // Warping or riding a cloud keeps playing; leaving the levels stops.
+      if (!this.canPlay && this.playing) this.endPlay('left');
       pageView(this.route);
       this.onRoute();
       this.emit();
     });
     this.onRoute();
+    // Closing the tab mid-session: the browser asks; next load shows the summary.
+    window.addEventListener('beforeunload', (e) => {
+      if (!this.store.held.size) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+  }
+
+  /** Play mode is for levels (not PR review) with no pad page held up. */
+  get canPlay() {
+    return this.route.view === 'level' && !this.route.pad;
+  }
+
+  /**
+   * Starts or ends play mode. While playing, edits are held back from syncing;
+   * ending shows what changed and asks which to commit.
+   */
+  setPlaying(on: boolean, why: PlayEnd = 'stopped') {
+    on &&= this.canPlay;
+    if (on === this.playing) return;
+    if (on) {
+      this.playing = true;
+      this.store.hold(true);
+    } else this.endPlay(why);
+    this.emit();
+  }
+
+  private endPlay(why: PlayEnd) {
+    this.playing = false;
+    this.store.hold(false);
+    this.reviewHeld(why);
+  }
+
+  /** Asks which held play-session edits to commit (nothing held: just carries on syncing). */
+  reviewHeld(why: PlayEnd) {
+    const ops = this.store.heldOps();
+    if (!ops.length) this.store.release([]);
+    else playSummary(this, ops, why);
   }
 
   subscribe(fn: () => void) {

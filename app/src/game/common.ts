@@ -114,7 +114,8 @@ export abstract class QuestScene extends Phaser.Scene {
     });
     const keys = this.input.keyboard;
     // Leave arrow keys alone while the user is typing in a form field.
-    const typing = () => !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
+    // Play mode steers the hero with them instead.
+    const typing = () => this.app.playing || !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
     keys?.on('keydown-LEFT', () => typing() || (onUserScroll?.(), (this.cameras.main.scrollX -= 48)));
     keys?.on('keydown-RIGHT', () => typing() || (onUserScroll?.(), (this.cameras.main.scrollX += 48)));
     this.scale.on('resize', this.onResize, this);

@@ -183,4 +183,46 @@ describe('Store', () => {
     expect(second.version).toBe('v0');
     expect(lvlOf(second.state!).items[0].status).toBe('todo');
   });
+
+  it('holds play-session edits until released, committing only the kept ones', async () => {
+    const remote = fakeRemote(fixture());
+    const kv = memoryKV();
+    const store = new Store(remote.source, kv, opts({ v: true }));
+    await store.start();
+    store.hold(true);
+    const a = store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' }).op!;
+    const b = store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'b', status: 'done' }).op!;
+    await store.sync();
+    expect(remote.commits).toHaveLength(0);
+    expect(store.heldOps().map((o) => o.opId)).toEqual([a.opId, b.opId]);
+
+    // A reload mid-session still knows which edits were held, and still waits.
+    const reloaded = new Store(remote.source, kv, opts({ v: true }));
+    await reloaded.start();
+    expect([...reloaded.held]).toEqual([a.opId, b.opId]);
+    expect(remote.commits).toHaveLength(0);
+
+    store.hold(false);
+    store.release([b.opId]);
+    await store.sync();
+    expect(remote.commits).toEqual([expect.stringContaining('done')]);
+    expect(store.held.size).toBe(0);
+    const items = lvlOf(store.state!).items;
+    expect(items.find((i) => i.id === 'a')?.status).not.toBe('done');
+    expect(items.find((i) => i.id === 'b')?.status).toBe('done');
+  });
+
+  it('skipping everything undoes the session and syncs nothing', async () => {
+    const remote = fakeRemote(fixture());
+    const store = new Store(remote.source, memoryKV(), opts({ v: true }));
+    await store.start();
+    store.hold(true);
+    store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' });
+    store.hold(false);
+    store.release([]);
+    await store.sync();
+    expect(remote.commits).toHaveLength(0);
+    expect(store.outbox).toHaveLength(0);
+    expect(lvlOf(store.state!).items.find((i) => i.id === 'a')?.status).not.toBe('done');
+  });
 });

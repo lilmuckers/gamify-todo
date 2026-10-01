@@ -3,6 +3,7 @@ import { startGame } from './game';
 import { bindNavKeys, navFor } from './nav';
 import { h, mount } from './ui/dom';
 import { renderHud } from './ui/hud';
+import { controllerCanvas } from './sprites/cartridge';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { mountPadOverlay } from './ui/today';
@@ -26,15 +27,32 @@ export function mountDesktop(app: App, root: HTMLElement) {
   startGame(app, game);
 }
 
-/** Up / previous / next controls floating over the game view. */
+/** Up / play / previous / next controls floating over the game view. */
 function renderGameNav(app: App, el: HTMLElement) {
   const { up, prev, next } = navFor(app);
   el.hidden = !up && !prev && !next;
   mount(
     el,
     up && h('a', { class: 'btn nav-up', href: up.href, title: `${up.label} (Esc)` }, '▲ ', up.label),
+    app.canPlay &&
+      h(
+        'button',
+        { class: `btn nav-play${app.playing ? ' on' : ''}`, title: app.playing ? 'Stop playing (P or Esc)' : 'Play with a gamepad or the keyboard (P)', onclick: (e: MouseEvent) => {
+            // Space jumps: don't leave it pressing this button again.
+            (e.currentTarget as HTMLElement).blur();
+            app.setPlaying(!app.playing);
+          },
+        },
+        app.playing ? '■ STOP' : [h('img', { class: 'pad-icon', src: padIcon(), alt: '' }), ' PLAY'],
+      ),
     h('span', { class: 'grow' }),
     prev && h('a', { class: 'btn', href: prev.href, title: `${prev.label} ([)` }, '◀ ', h('span', { class: 'nav-label' }, prev.label)),
     next && h('a', { class: 'btn', href: next.href, title: `${next.label} (])` }, h('span', { class: 'nav-label' }, next.label), ' ▶'),
   );
+}
+
+let padIconUrl: string | undefined;
+/** The bedroom's controller sprite, as a button icon. */
+function padIcon() {
+  return (padIconUrl ??= controllerCanvas().toDataURL());
 }

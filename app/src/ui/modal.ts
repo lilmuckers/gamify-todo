@@ -17,7 +17,13 @@ function setOpen(delta: number) {
   document.dispatchEvent(new CustomEvent('quest:modal', { detail: open > 0 }));
 }
 
-export function openModal(title: string, body: Node, actions: ModalAction[] = [{ label: 'Close' }]) {
+export interface ModalOptions {
+  /** False: only an action closes it (no Esc, no backdrop click). */
+  dismissable?: boolean;
+}
+
+export function openModal(title: string, body: Node, actions: ModalAction[] = [{ label: 'Close' }], opts: ModalOptions = {}) {
+  const dismissable = opts.dismissable ?? true;
   let closed = false;
   const close = () => {
     if (closed) return;
@@ -26,7 +32,7 @@ export function openModal(title: string, body: Node, actions: ModalAction[] = [{
     document.removeEventListener('keydown', onKey);
     setOpen(-1);
   };
-  const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+  const onKey = (e: KeyboardEvent) => dismissable && e.key === 'Escape' && close();
   const buttons = actions.map((a) =>
     h(
       'button',
@@ -49,7 +55,7 @@ export function openModal(title: string, body: Node, actions: ModalAction[] = [{
     h('div', { class: 'modal-body' }, body),
     h('div', { class: 'modal-actions' }, buttons),
   );
-  const overlay = h('div', { class: 'overlay', onclick: (e: Event) => e.target === overlay && close() }, dialog);
+  const overlay = h('div', { class: 'overlay', onclick: (e: Event) => dismissable && e.target === overlay && close() }, dialog);
   document.body.append(overlay);
   document.addEventListener('keydown', onKey);
   setOpen(1);
