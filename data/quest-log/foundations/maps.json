@@ -5,12 +5,13 @@
   "deliverable": "Overworld and world maps to navigate between levels",
   "timeboxDays": 4,
   "startedAt": "2026-10-01T00:15:12.093Z",
+  "clearedAt": "2026-10-01T00:15:22.413Z",
   "successCriteria": [
     {
       "id": "navigate",
       "mvp": true,
       "text": "Can reach every level from the overworld",
-      "done": false
+      "done": true
     }
   ],
   "items": [
