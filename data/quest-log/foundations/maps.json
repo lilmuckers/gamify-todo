@@ -4,6 +4,7 @@
   "name": "World Maps",
   "deliverable": "Overworld and world maps to navigate between levels",
   "timeboxDays": 4,
+  "startedAt": "2026-10-01T00:15:12.093Z",
   "successCriteria": [
     {
       "id": "navigate",
@@ -17,7 +18,7 @@
       "id": "overworld",
       "title": "Overworld islands",
       "type": "task",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "world-map",
