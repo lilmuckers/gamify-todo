@@ -68,9 +68,10 @@ function repoData(): Plugin {
       });
     },
     closeBundle() {
-      if (target !== 'pages') return;
-      for (const d of dirs)
+      // Schema and skill ship with every build; data only with the static Pages site.
+      for (const d of target === 'pages' ? dirs : dirs.filter((d) => d !== 'data'))
         if (existsSync(join(repoRoot, d))) cpSync(join(repoRoot, d), join(__dirname, 'dist', d), { recursive: true });
+      if (target !== 'pages') return;
       mkdirSync(join(__dirname, 'dist', 'data'), { recursive: true });
       writeFileSync(join(__dirname, 'dist', 'data', 'index.json'), dataIndex());
     },

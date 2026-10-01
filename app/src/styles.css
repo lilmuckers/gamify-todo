@@ -1030,3 +1030,31 @@ a:focus-visible {
   font: 8px/1.5 var(--pixel);
   text-shadow: 1px 1px 0 var(--ink);
 }
+
+.skill-help h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+
+.skill-help ul,
+.skill-help .steps {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skill-help code {
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--ink);
+  padding: 1px 4px;
+}
+
+.skill-help .actions {
+  margin: 6px 0;
+}
+
+.skill-help a.link {
+  overflow-wrap: anywhere;
+}

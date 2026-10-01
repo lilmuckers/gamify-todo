@@ -3,6 +3,7 @@ import type { App } from '../app';
 import { href } from '../router';
 import { fmtDuration, h, icon, mount, stars } from './dom';
 import { settingsDialog } from './settings';
+import { skillHelpDialog } from './skill-help';
 import { toast } from './toast';
 import { confirmDialog } from './modal';
 
@@ -95,6 +96,7 @@ export function renderHud(app: App, el: HTMLElement) {
       { class: `sync-pill ${s.status}`, type: 'button', title: s.error ?? 'Sync details', onclick: () => settingsDialog(app) },
       syncLabel,
     ),
+    h('button', { class: 'btn sm', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
     h('button', { class: 'btn ghost gear-btn', type: 'button', title: 'Settings', 'aria-label': 'Settings', onclick: () => settingsDialog(app) }, '⚙'),
   );
 }

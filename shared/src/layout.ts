@@ -144,7 +144,8 @@ export function layoutLevel(level: Level): LevelLayout {
 
   const mainEnd = Math.max(x, START_X + 8);
   const flagX = mainEnd + 3;
-  const castleX = flagX + 5;
+  // Room right of the pole for the success-criteria labels.
+  const castleX = flagX + 9;
   const width = castleX + 10;
 
   // Stretch coins float above whatever they depend on, else spread across the level.

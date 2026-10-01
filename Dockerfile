@@ -8,6 +8,7 @@ COPY server/package.json server/
 RUN npm ci --no-audit --no-fund
 COPY tsconfig.base.json ./
 COPY schema schema
+COPY skills skills
 COPY shared shared
 COPY app app
 COPY server server
