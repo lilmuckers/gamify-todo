@@ -30,7 +30,7 @@
       "id": "level-dep",
       "title": "Level view",
       "type": "dependency",
-      "status": "todo",
+      "status": "done",
       "levelRef": "foundations/level-view"
     }
   ]
