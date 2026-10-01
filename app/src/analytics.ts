@@ -48,6 +48,8 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   pwa_install: [],
   analytics_opt_out: [],
   undo: ['kind', 'mode'],
+  inbox_add: ['item_type', 'via'],
+  inbox_place: ['count', 'target'],
 };
 
 export const USER_PROPS = ['app_mode', 'layout', 'display', 'hero'] as const;
@@ -69,7 +71,7 @@ export function sanitize(allowed: readonly string[], params: Params = {}): Recor
 
 /** Screen name for a route, with no ids in it. */
 export function routeType(route: Route): string {
-  if (route.today) return '/today';
+  if (route.pad) return `/${route.pad}`;
   switch (route.view) {
     case 'projects':
       return '/projects';

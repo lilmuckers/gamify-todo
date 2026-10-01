@@ -47,7 +47,7 @@ describe('navFor', () => {
     expect(navFor(fakeApp({ view: 'pr', pr: 3 })).up?.href).toBe('#/prs');
     expect(navFor(fakeApp({ view: 'overworld', projectId: 'p' })).up?.href).toBe('#/');
     expect(navFor(fakeApp({ view: 'projects' })).up).toBeUndefined();
-    const today = navFor(fakeApp({ view: 'level', projectId: 'p', worldId: 'w', levelId: 'two', today: true }));
+    const today = navFor(fakeApp({ view: 'level', projectId: 'p', worldId: 'w', levelId: 'two', pad: 'today' }));
     expect(today.crumbs.map((c) => c.label)).toEqual(['Quest Log', 'T', 'W', 'Two', 'Today']);
     expect(today.crumbs[3].href).toBe('#/p/p/w/two');
     expect(today.up).toEqual({ label: 'Close', href: '#/p/p/w/two' });

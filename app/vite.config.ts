@@ -142,6 +142,12 @@ export default defineConfig({
         description: 'A project tracker you play. Ship good enough, then move on.',
         start_url: '.',
         scope: '.',
+        // Share a link or text to the installed app (Android) and it lands in the inbox.
+        share_target: {
+          action: './',
+          method: 'GET',
+          params: { title: 'share-title', text: 'share-text', url: 'share-url' },
+        },
         display: 'standalone',
         orientation: 'any',
         background_color: '#1a1c2c',

@@ -45,6 +45,13 @@ describe('inverseOp', () => {
     expect(lvlOf(step.back).items).toEqual(lvlOf(ws).items);
   });
 
+  it('restores the items that waited for a deleted item', () => {
+    const ws = workspace(); // b waits for a
+    const { after, back } = roundTrip(ws, { kind: 'deleteItem', ...at, itemId: 'a' });
+    expect(lvlOf(after).items.find((i) => i.id === 'b')?.dependsOn).toBeUndefined();
+    expect(lvlOf(back).items).toEqual(lvlOf(ws).items);
+  });
+
   it('inserts at an index with addItem', () => {
     const ws = applyOp(workspace(), makeOp({ kind: 'addItem', ...at, item: { id: 'x', type: 'task', title: 'X', status: 'todo' }, index: 1 }));
     expect(lvlOf(ws).items.map((i) => i.id)).toEqual(['a', 'x', 'b', 'c']);

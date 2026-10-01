@@ -78,6 +78,12 @@ export function eventsForOp(op: Op | OpBody, before: Workspace | undefined, afte
     case 'updateSettings':
       // Reported as hero_select by App.setHero.
       break;
+    case 'inboxAdd':
+      out.push({ name: 'inbox_add', params: { item_type: op.item.type } });
+      break;
+    case 'inboxPlace':
+      out.push({ name: 'inbox_place', params: { count: op.ids.length, target: op.parentId ? 'steps' : 'level' } });
+      break;
     default:
       out.push({ name: 'data_edit', params: { kind: op.kind } });
   }

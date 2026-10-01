@@ -227,6 +227,8 @@ def make_checker(registry):
 def classify(path):
     if path == 'data/settings.json':
         return ('settings', None, None, None)
+    if path == 'data/inbox.json':
+        return ('inbox', None, None, None)
     m = PROJECT_RE.match(path)
     if m:
         return ('project', m.group(1), None, None)
@@ -314,8 +316,8 @@ def validate_files(files, registry, by_name):
         if not kind:
             if path.startswith('data/') and path.endswith('.json'):
                 issues.append((path, '/', 'unexpected file: use data/<project>/project.json, '
-                                          'data/<project>/<world>/world.json, data/<project>/<world>/<level>.json '
-                                          'or data/settings.json'))
+                                          'data/<project>/<world>/world.json, data/<project>/<world>/<level>.json, '
+                                          'data/settings.json or data/inbox.json'))
             continue
         try:
             doc = json.loads(text)
@@ -326,6 +328,11 @@ def validate_files(files, registry, by_name):
         k, p, w, lv = kind
         issues += [(path, at, msg) for at, msg in check(doc, by_name[k])]
         if k == 'settings':
+            continue
+        if k == 'inbox':
+            ids = [i.get('id') for i in doc.get('items', []) if isinstance(i, dict)] if isinstance(doc, dict) else []
+            for dup in sorted({i for i in ids if ids.count(i) > 1}):
+                issues.append((path, '/items', f'duplicate inbox item id "{dup}"'))
             continue
         expected = {'project': p, 'world': w, 'level': lv}[k]
         if isinstance(doc, dict) and doc.get('id') != expected:

@@ -1,4 +1,4 @@
-import { validateLevel, validateProject, validateSettings, validateWorld } from './validators.gen.js';
+import { validateInbox, validateLevel, validateProject, validateSettings, validateWorld } from './validators.gen.js';
 import type { GameState, Level, Workspace } from './model';
 import { parseLevelRef } from './model';
 import { classifyPath, DATA_ROOT, fromFiles, levelPath, projectPath, toFiles, worldPath } from './serialize';
@@ -12,11 +12,12 @@ export interface Issue {
 }
 
 type Compiled = typeof validateWorld;
-const VALIDATORS: Record<'project' | 'world' | 'level' | 'settings', Compiled> = {
+const VALIDATORS: Record<'project' | 'world' | 'level' | 'settings' | 'inbox', Compiled> = {
   project: validateProject,
   world: validateWorld,
   level: validateLevel,
   settings: validateSettings,
+  inbox: validateInbox,
 };
 
 function schemaIssues(fn: Compiled, data: unknown, file: string): Issue[] {
@@ -147,7 +148,7 @@ export function validateFiles(files: Record<string, string>): Issue[] {
     const f = classifyPath(path);
     if (!f) {
       if (path.startsWith(`${DATA_ROOT}/`) && path.endsWith('.json'))
-        issues.push({ file: path, path: '/', message: `unexpected file: use ${DATA_ROOT}/<project>/project.json, ${DATA_ROOT}/<project>/<world>/world.json, ${DATA_ROOT}/<project>/<world>/<level>.json or ${DATA_ROOT}/settings.json` });
+        issues.push({ file: path, path: '/', message: `unexpected file: use ${DATA_ROOT}/<project>/project.json, ${DATA_ROOT}/<project>/<world>/world.json, ${DATA_ROOT}/<project>/<world>/<level>.json, ${DATA_ROOT}/settings.json or ${DATA_ROOT}/inbox.json` });
       continue;
     }
     try {
@@ -159,6 +160,13 @@ export function validateFiles(files: Record<string, string>): Issue[] {
     const data = parsed[path] as { id?: unknown };
     issues.push(...schemaIssues(VALIDATORS[f.kind], data, path));
     if (f.kind === 'settings') continue;
+    if (f.kind === 'inbox') {
+      const items = (data as { items?: { id?: string }[] }).items;
+      if (Array.isArray(items))
+        for (const id of duplicates(items.map((i) => String(i?.id))))
+          issues.push({ file: path, path: '/items', message: `duplicate inbox item id "${id}"` });
+      continue;
+    }
     const expected = f.kind === 'project' ? f.projectId : f.kind === 'world' ? f.worldId : f.levelId;
     if (data && typeof data === 'object' && data.id !== expected)
       issues.push({ file: path, path: '/id', message: `id "${String(data.id)}" must match its ${f.kind === 'project' ? 'folder' : f.kind === 'world' ? 'folder' : 'file name'} "${expected}"` });

@@ -37,6 +37,13 @@
       "id": "https://tasks.patrick-mckinley.com/schema/settings.schema.json",
       "description": "Repo-wide display settings, stored at data/settings.json (optional).",
       "appliesTo": "data/settings.json"
+    },
+    {
+      "name": "inbox",
+      "file": "inbox.schema.json",
+      "id": "https://tasks.patrick-mckinley.com/schema/inbox.schema.json",
+      "description": "Captured ideas not yet placed in a level, stored at data/inbox.json (optional).",
+      "appliesTo": "data/inbox.json"
     }
   ]
 }

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tasks.patrick-mckinley.com/schema/inbox.schema.json",
+  "title": "Quest Log inbox",
+  "description": "Captured ideas not yet placed in a level, stored at data/inbox.json (optional).",
+  "$ref": "quest.schema.json#/$defs/Inbox"
+}

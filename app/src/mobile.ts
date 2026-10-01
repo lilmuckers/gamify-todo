@@ -1,6 +1,6 @@
 import { isWorldLocked, orderedProjects, orderedWorlds, seeded, suggestNext, totals, worldTotals } from '@quest/shared';
 import type { App } from './app';
-import { go, href, withToday } from './router';
+import { go, href, togglePad } from './router';
 import { island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
 import { heroKey } from './sprites/heroes';
@@ -10,8 +10,7 @@ import { renderHud } from './ui/hud';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { settingsDialog } from './ui/settings';
-import { skillHelpDialog } from './ui/skill-help';
-import { mountTodayOverlay } from './ui/today';
+import { mountPadOverlay } from './ui/today';
 
 /** Compact, touch-first layout for phones: DOM screens plus a static level strip. */
 export function mountMobile(app: App, root: HTMLElement) {
@@ -32,7 +31,7 @@ export function mountMobile(app: App, root: HTMLElement) {
     return h('div', null, visual, renderPanel(app));
   });
   window.addEventListener('hashchange', () => (stripScroll = undefined));
-  mountTodayOverlay(app, today);
+  mountPadOverlay(app, today);
 }
 
 function renderVisual(app: App, scroll?: number): HTMLElement | null {
@@ -104,7 +103,8 @@ function renderNav(app: App, nav: HTMLElement) {
   const next = state && suggestNext(state);
   mount(
     nav,
-    h('a', { href: href(withToday(app.route, !app.route.today)), class: app.route.today ? 'on' : '' }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
+    h('a', { href: href(togglePad(app.route, 'today')), class: app.route.pad === 'today' ? 'on' : '' }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
+    h('a', { href: href(togglePad(app.route, 'inbox')), class: app.route.pad === 'inbox' ? 'on' : '' }, h('span', { class: 'gear' }, '✉'), h('span', null, 'Inbox')),
     h('a', { href: href({ view: 'projects' }), class: app.route.view === 'projects' ? 'on' : '' }, icon('node-clear', 'grass', 'icon sm'), h('span', null, 'Projects')),
     pid &&
       h('a', { href: href({ view: 'overworld', projectId: pid }), class: app.route.view === 'overworld' ? 'on' : '' }, icon('node', 'grass', 'icon sm'), h('span', null, 'Map')),
@@ -116,7 +116,6 @@ function renderNav(app: App, nav: HTMLElement) {
     ),
     app.caps.canReviewPRs &&
       h('a', { href: href({ view: 'prs' }), class: app.route.view.startsWith('pr') ? 'on' : '' }, icon('warp-pipe', 'grass', 'icon sm'), h('span', null, 'Warp')),
-    h('button', { type: 'button', onclick: () => skillHelpDialog() }, h('span', { class: 'gear' }, '✦'), h('span', null, 'AI')),
     h('button', { type: 'button', onclick: () => settingsDialog(app) }, h('span', { class: 'gear' }, '⚙'), h('span', null, 'Settings')),
   );
 }

@@ -2,7 +2,7 @@ import { orderedWorlds } from '@quest/shared';
 import { track } from './analytics';
 import type { App } from './app';
 import { runPendingUndo } from './ui/toast';
-import { href, withToday, type Route } from './router';
+import { href, togglePad, withPad, type Route } from './router';
 
 export interface NavLink {
   label: string;
@@ -21,12 +21,12 @@ const link = (label: string, route: Route): NavLink => ({ label, href: href(rout
 
 export function navFor(app: App): NavModel {
   const r = app.route;
-  const screen = screenNav(app, withToday(r, false));
-  if (!r.today) return screen;
-  // Today's plan is held up over the screen: closing it puts it away again.
+  const screen = screenNav(app, withPad(r, undefined));
+  if (!r.pad) return screen;
+  // A pad page is held up over the screen: closing it puts it away again.
   return {
-    crumbs: [...screen.crumbs, link('Today', r)],
-    up: link('Close', withToday(r, false)),
+    crumbs: [...screen.crumbs, link(r.pad === 'inbox' ? 'Inbox' : 'Today', r)],
+    up: link('Close', withPad(r, undefined)),
   };
 }
 
@@ -117,7 +117,8 @@ function screenNav(app: App, r: Route): NavModel {
 /**
  * Keyboard: Esc goes up a screen (unless a popup or item bubble is open) or
  * puts today's plan away, [ and ] step to the previous / next level or world,
- * t holds today's plan up (or puts it away).
+ * t / i hold up the Today / Inbox page of the pad (or put it away), n opens
+ * the inbox ready to write on.
  */
 export function bindNavKeys(app: App) {
   window.addEventListener('keydown', (e) => {
@@ -132,11 +133,14 @@ export function bindNavKeys(app: App) {
     if (document.querySelector('.overlay')) return;
     const nav = navFor(app);
     const r = app.route;
-    const today = { label: 'Today', href: href(withToday(r, !r.today)) };
+    const today = { label: 'Today', href: href(togglePad(r, 'today')) };
+    const inbox = { label: 'Inbox', href: href(togglePad(r, 'inbox')) };
+    // n: jot something down (the inbox page, ready to write on).
+    const capture = { label: 'Inbox', href: href(withPad(r, 'inbox')) };
     const target =
       e.key === 'Escape'
         ? // A level's item bubble takes Esc first (the flag can be stale on other screens).
-          !r.today && app.bubbleOpen && (r.view === 'level' || r.view === 'pr-level')
+          !r.pad && app.bubbleOpen && (r.view === 'level' || r.view === 'pr-level')
           ? undefined
           : nav.up
         : e.key === '['
@@ -145,9 +149,14 @@ export function bindNavKeys(app: App) {
             ? nav.next
             : e.key === 't'
               ? today
-              : undefined;
+              : e.key === 'i'
+                ? inbox
+                : e.key === 'n'
+                  ? capture
+                  : undefined;
     if (!target) return;
     e.preventDefault();
+    if (e.key === 'n') app.focusCapture = true;
     track('nav_shortcut', { key: e.key === 'Escape' ? 'escape' : e.key });
     location.hash = target.href;
   });

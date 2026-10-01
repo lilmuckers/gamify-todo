@@ -1,4 +1,4 @@
-import type { GameState, Level, Project, Settings, World, WorldFile, Workspace } from './model';
+import type { GameState, InboxItem, Level, Project, Settings, World, WorldFile, Workspace } from './model';
 
 export const DATA_ROOT = 'data';
 /** Published schema location; data files point here so they validate anywhere. */
@@ -14,16 +14,20 @@ export const worldPath = (p: string, w: string) => `${DATA_ROOT}/${p}/${w}/world
 export const levelPath = (p: string, w: string, l: string) => `${DATA_ROOT}/${p}/${w}/${l}.json`;
 /** Optional repo-wide settings (default hero...). */
 export const SETTINGS_PATH = `${DATA_ROOT}/settings.json`;
+/** Optional repo-wide inbox of captured ideas. */
+export const INBOX_PATH = `${DATA_ROOT}/inbox.json`;
 
 export type DataFile =
   | { kind: 'project'; projectId: string }
   | { kind: 'world'; projectId: string; worldId: string }
   | { kind: 'level'; projectId: string; worldId: string; levelId: string }
-  | { kind: 'settings' };
+  | { kind: 'settings' }
+  | { kind: 'inbox' };
 
 /** What a repo path holds, or undefined if it isn't a Quest Log data file. */
 export function classifyPath(path: string): DataFile | undefined {
   if (path === SETTINGS_PATH) return { kind: 'settings' };
+  if (path === INBOX_PATH) return { kind: 'inbox' };
   let m = PROJECT_RE.exec(path);
   if (m) return { kind: 'project', projectId: m[1] };
   m = WORLD_RE.exec(path);
@@ -85,7 +89,7 @@ export function stringify(value: unknown): string {
   return JSON.stringify(canonical(value), null, 2) + '\n';
 }
 
-const schemaRef = (kind: 'project' | 'world' | 'level' | 'settings') => `${SCHEMA_BASE}${kind}.schema.json`;
+const schemaRef = (kind: 'project' | 'world' | 'level' | 'settings' | 'inbox') => `${SCHEMA_BASE}${kind}.schema.json`;
 
 /** Files for one project. */
 export function projectFiles(projectId: string, state: GameState): Record<string, string> {
@@ -108,6 +112,7 @@ export function toFiles(ws: Workspace): Record<string, string> {
   for (const [id, state] of Object.entries(ws.projects)) Object.assign(files, projectFiles(id, state));
   if (ws.settings && Object.keys(ws.settings).length)
     files[SETTINGS_PATH] = stringify({ ...ws.settings, $schema: schemaRef('settings') });
+  if (ws.inbox?.length) files[INBOX_PATH] = stringify({ $schema: schemaRef('inbox'), items: ws.inbox });
   return files;
 }
 
@@ -140,12 +145,16 @@ export function fromFiles(files: Record<string, string>): Workspace {
   };
   const projects: Record<string, GameState> = {};
   let settings: Workspace['settings'];
+  let inbox: InboxItem[] | undefined;
   const worldFiles: Record<string, Record<string, WorldFile>> = {};
   const levels: Record<string, Record<string, Record<string, Level>>> = {};
   for (const path of Object.keys(files)) {
     const f = classifyPath(path);
     if (!f) continue;
-    if (f.kind === 'settings') {
+    if (f.kind === 'inbox') {
+      const b = parse<{ items?: InboxItem[] }>(path);
+      if (b && Array.isArray(b.items) && b.items.length) inbox = b.items;
+    } else if (f.kind === 'settings') {
       const s = parse<Settings>(path);
       if (s && typeof s === 'object') settings = strip(s);
     } else if (f.kind === 'project') {
@@ -172,5 +181,5 @@ export function fromFiles(files: Record<string, string>): Workspace {
       state.worlds[wid] = { ...(rest as Omit<World, 'levels'>), levels: ordered };
     }
   }
-  return settings ? { projects, settings } : { projects };
+  return { projects, ...(settings ? { settings } : {}), ...(inbox ? { inbox } : {}) };
 }

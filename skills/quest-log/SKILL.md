@@ -59,6 +59,7 @@ Nothing else gates it. The whole point is "good enough, then move on": keep MVP 
 ```
 data/
   settings.json                ← Settings (optional, repo-wide)
+  inbox.json                   ← Inbox (optional): captured ideas not yet placed
   <project-id>/
     project.json               ← Project
     <world-id>/
@@ -86,7 +87,7 @@ Rules:
 - `project.json` → `worldOrder` lists **exactly** the world folders in that project.
 - `world.json` → `levelOrder` lists **exactly** the level files in that folder.
 - A level id may not be `world` (that name is the world file).
-- The only file directly in `data/` is the optional `settings.json`. No other `.json` files anywhere under `data/`.
+- The only files directly in `data/` are the optional `settings.json` and `inbox.json`. No other `.json` files anywhere under `data/`.
 - Files are UTF-8 JSON, 2-space indent, trailing newline.
 
 ## 3. Schemas
@@ -99,6 +100,7 @@ Put the matching `$schema` URL at the top of every file:
 | `world.json` | `https://tasks.patrick-mckinley.com/schema/world.schema.json` |
 | `<level-id>.json` | `https://tasks.patrick-mckinley.com/schema/level.schema.json` |
 | `data/settings.json` | `https://tasks.patrick-mckinley.com/schema/settings.schema.json` |
+| `data/inbox.json` | `https://tasks.patrick-mckinley.com/schema/inbox.schema.json` |
 
 Full definitions (JSON Schema 2020-12, `additionalProperties: false` everywhere — **no extra
 fields**): https://tasks.patrick-mckinley.com/schema/quest.schema.json. Fetch it if unsure.
@@ -188,6 +190,27 @@ matter. When every must-do step is `done` or `dropped`, the dependency itself is
     { "id": "pay-fee", "type": "task", "title": "Pay the fee", "status": "todo", "dependsOn": ["apply-online"] }
   ] }
 ```
+
+### Inbox (`data/inbox.json`, optional)
+
+Ideas captured before anyone has decided where they belong. Only basic fields; they become real
+items when placed in a level.
+
+```json
+{ "$schema": "https://tasks.patrick-mckinley.com/schema/inbox.schema.json",
+  "items": [ { "id": "buy-tiles", "type": "task", "title": "Buy tiles", "link": "https://…", "addedAt": "2026-10-01T09:00:00Z" } ] }
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `id` | ✓ | unique within the inbox |
+| `type` | ✓ | any item type |
+| `title` | ✓ | ≤120 |
+| `notes`, `link`, `addedAt` | | as for items; `addedAt` is when it was captured |
+
+To **capture**, append to `items` (create the file if missing). To **place** an idea, add it to a
+level's `items` as a normal item (`"status": "todo"`, a fresh id unique in that level) **and** remove
+it from `data/inbox.json` in the same commit. Delete the file when `items` is empty.
 
 ### Settings (`data/settings.json`, optional)
 

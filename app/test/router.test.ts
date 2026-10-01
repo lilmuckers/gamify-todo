@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { href, parseRoute, withToday, type Route } from '../src/router';
+import { href, parseRoute, togglePad, withPad, type Route } from '../src/router';
 
 describe('router deep links', () => {
   const routes: Route[] = [
     { view: 'projects' },
-    { view: 'projects', today: true },
-    { view: 'level', projectId: 'house', worldId: 'kitchen', levelId: 'demo', itemId: 'rent-skip', today: true },
+    { view: 'projects', pad: 'today' },
+    { view: 'level', projectId: 'house', worldId: 'kitchen', levelId: 'demo', itemId: 'rent-skip', pad: 'today' },
+    { view: 'world', projectId: 'house', worldId: 'kitchen', pad: 'inbox' },
     { view: 'overworld', projectId: 'house' },
     { view: 'world', projectId: 'house', worldId: 'kitchen' },
     { view: 'level', projectId: 'house', worldId: 'kitchen', levelId: 'demo' },
@@ -31,13 +32,15 @@ describe('router deep links', () => {
     expect(parseRoute('#/p/p/w/l/i')).toEqual({ view: 'level', projectId: 'p', worldId: 'w', levelId: 'l', itemId: 'i' });
   });
 
-  it('holds today\'s plan up over any screen', () => {
-    expect(href({ view: 'projects', today: true })).toBe('#/~today');
-    expect(href({ view: 'world', projectId: 'p', worldId: 'w', today: true })).toBe('#/p/p/w/~today');
-    expect(parseRoute('#/p/p/w/l/i/~today')).toEqual({ view: 'level', projectId: 'p', worldId: 'w', levelId: 'l', itemId: 'i', today: true });
-    // The old link still opens it.
-    expect(parseRoute('#/today')).toEqual({ view: 'projects', today: true });
-    expect(withToday({ view: 'prs', today: true }, false)).toEqual({ view: 'prs' });
+  it('holds a pad page up over any screen', () => {
+    expect(href({ view: 'projects', pad: 'today' })).toBe('#/~today');
+    expect(href({ view: 'world', projectId: 'p', worldId: 'w', pad: 'inbox' })).toBe('#/p/p/w/~inbox');
+    expect(parseRoute('#/p/p/w/l/i/~today')).toEqual({ view: 'level', projectId: 'p', worldId: 'w', levelId: 'l', itemId: 'i', pad: 'today' });
+    // The old link still opens it; unknown pages are just ids.
+    expect(parseRoute('#/today')).toEqual({ view: 'projects', pad: 'today' });
+    expect(withPad({ view: 'prs', pad: 'today' }, undefined)).toEqual({ view: 'prs' });
+    expect(togglePad({ view: 'prs', pad: 'inbox' }, 'inbox')).toEqual({ view: 'prs' });
+    expect(togglePad({ view: 'prs', pad: 'today' }, 'inbox')).toEqual({ view: 'prs', pad: 'inbox' });
   });
 
   it('falls back to the project list for unknown hashes', () => {

@@ -9,6 +9,8 @@ function container() {
 }
 
 function dismiss(el: HTMLElement) {
+  // A fading toast can't be clicked any more.
+  for (const b of el.querySelectorAll('button')) b.disabled = true;
   el.classList.add('out');
   setTimeout(() => el.remove(), 400);
 }
@@ -49,11 +51,13 @@ export function undoToast(text: string, run: () => void) {
   const t = toast(text, 'info', 6000, {
     label: 'UNDO',
     run: () => {
+      // Only the latest offer can run.
+      if (pendingUndo !== offer) return;
       pendingUndo = undefined;
       run();
     },
   });
-  const offer = {
+  const offer: { close: () => void; run: () => void } = {
     close: t.close,
     run: () => {
       t.close();

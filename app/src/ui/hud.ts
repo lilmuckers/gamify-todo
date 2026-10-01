@@ -1,12 +1,13 @@
 import { scoreLevel, totals } from '@quest/shared';
 import type { App } from '../app';
-import { href, withToday } from '../router';
+import { href, togglePad } from '../router';
 import { fmtDuration, h, icon, mount, stars } from './dom';
 import { track } from '../analytics';
 import { navFor } from '../nav';
 import { heroKey } from '../sprites/heroes';
 import { settingsDialog } from './settings';
 import { skillHelpDialog } from './skill-help';
+import { inboxCount } from './inbox';
 import { todayCount } from './today';
 import { toast } from './toast';
 import { confirmDialog } from './modal';
@@ -113,10 +114,19 @@ export function renderHud(app: App, el: HTMLElement) {
     ),
     h(
       'a',
-      { class: `btn sm hud-today${r.today ? ' on' : ''}`, href: href(withToday(r, !r.today)), title: "Today's plan (T)" },
+      { class: `btn sm hud-today${r.pad === 'today' ? ' on' : ''}`, href: href(togglePad(r, 'today')), title: "Today's plan (T)" },
       'TODAY',
       (() => {
         const n = todayCount(app);
+        return n ? h('b', { class: 'hud-badge' }, n) : null;
+      })(),
+    ),
+    h(
+      'a',
+      { class: `btn sm hud-today${r.pad === 'inbox' ? ' on' : ''}`, href: href(togglePad(r, 'inbox')), title: 'Inbox: jot ideas down, sort them later (I, or N to write)' },
+      'INBOX',
+      (() => {
+        const n = inboxCount(app);
         return n ? h('b', { class: 'hud-badge' }, n) : null;
       })(),
     ),
