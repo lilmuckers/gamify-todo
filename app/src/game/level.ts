@@ -71,6 +71,7 @@ export class LevelScene extends QuestScene {
 
   init(params: LevelParams) {
     super.init();
+    this.app.bubbleOpen = false;
     this.params = params;
     this.views.clear();
     this.prev.clear();
@@ -456,6 +457,7 @@ export class LevelScene extends QuestScene {
     if (!b) return;
     b.box.destroy();
     this.bubble = undefined;
+    this.app.bubbleOpen = false;
     if (b.auto) this.dismissedAuto = b.itemId;
     else if (this.app.selection?.kind === 'item' && this.app.selection.id === b.itemId) this.app.select(undefined);
   }
@@ -467,6 +469,7 @@ export class LevelScene extends QuestScene {
       if (this.bubble && !this.bubble.auto) {
         this.bubble.box.destroy();
         this.bubble = undefined;
+        this.app.bubbleOpen = false;
       }
       return false;
     }
@@ -491,6 +494,7 @@ export class LevelScene extends QuestScene {
     const v = this.views.get(itemId);
     this.bubble?.box.destroy();
     this.bubble = undefined;
+    this.app.bubbleOpen = false;
     if (!cur || !v) return;
     this.tooltip?.destroy();
     const { item, entity: e } = v;
@@ -636,6 +640,7 @@ export class LevelScene extends QuestScene {
       }
     }
     this.bubble = { itemId, box, auto };
+    this.app.bubbleOpen = true;
   }
 
   // ---- Animation ----

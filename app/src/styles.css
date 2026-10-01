@@ -969,22 +969,8 @@ a:focus-visible {
   font-variant-emoji: text;
 }
 
-.is-mobile .hud-name {
-  display: none;
-}
 
-.hud-project {
-  color: var(--gold-hi);
-  text-decoration: none;
-  white-space: nowrap;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.is-mobile .hud-project {
-  max-width: 120px;
-}
 
 .nested-world {
   display: flex;
@@ -1057,4 +1043,80 @@ a:focus-visible {
 
 .skill-help a.link {
   overflow-wrap: anywhere;
+}
+
+/* ---------- Navigation ---------- */
+.hud-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.hud-crumbs a {
+  color: var(--paper);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.hud-crumbs a:hover {
+  color: var(--gold-hi);
+}
+
+.hud-crumbs a.here {
+  color: var(--gold-hi);
+}
+
+.hud-crumbs .sep {
+  color: var(--muted);
+}
+
+.is-mobile .hud-crumbs a:not(.hud-home):not(.here),
+.is-mobile .hud-crumbs .sep:not(:last-of-type) {
+  display: none;
+}
+
+.game-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+}
+
+.game-nav {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.game-nav[hidden] {
+  display: none;
+}
+
+.game-nav .btn {
+  pointer-events: auto;
+  background: rgba(26, 28, 44, 0.85);
+  border-color: var(--line);
+  max-width: 34%;
+}
+
+.game-nav .btn:hover {
+  background: var(--panel-2);
+}
+
+.game-nav .nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-nav .nav-up {
+  background: rgba(181, 80, 136, 0.9);
 }

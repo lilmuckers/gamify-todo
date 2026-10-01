@@ -2,6 +2,7 @@ import { scoreLevel, totals } from '@quest/shared';
 import type { App } from '../app';
 import { href } from '../router';
 import { fmtDuration, h, icon, mount, stars } from './dom';
+import { navFor } from '../nav';
 import { settingsDialog } from './settings';
 import { skillHelpDialog } from './skill-help';
 import { toast } from './toast';
@@ -32,7 +33,6 @@ export function renderHud(app: App, el: HTMLElement) {
     middle = h(
       'div',
       { class: `hud-level ${tm.phase}` },
-      h('span', { class: 'hud-name' }, cur.level.name),
       stars(sc.stars),
       h(
         'span',
@@ -44,9 +44,20 @@ export function renderHud(app: App, el: HTMLElement) {
             : `⏱ ${fmtDuration(tm.remainingMs!)}`,
       ),
     );
-  } else if (r.view === 'pr' || r.view === 'pr-level') {
-    middle = h('div', { class: 'hud-level warp' }, h('span', { class: 'hud-name' }, `WARP WORLD #${r.pr}`));
   }
+
+  // Breadcrumb trail: every step back up is one click away.
+  const crumbs = navFor(app).crumbs;
+  const trail = h(
+    'nav',
+    { class: 'hud-crumbs', 'aria-label': 'You are here' },
+    crumbs.map((c, i) => [
+      i > 0 && h('span', { class: 'sep', 'aria-hidden': 'true' }, '›'),
+      i === 0
+        ? h('a', { class: 'hud-home', href: c.href, title: 'All projects' }, icon('hero', 'grass', 'icon'), h('span', null, 'QUEST LOG'))
+        : h('a', { href: c.href, class: i === crumbs.length - 1 ? 'here' : '', 'aria-current': i === crumbs.length - 1 ? 'page' : undefined }, c.label),
+    ]),
+  );
 
   const syncLabel = `${STATUS_TEXT[s.status] ?? s.status}${s.outbox.length ? ` (${s.outbox.length})` : ''}`;
   const publish =
@@ -76,9 +87,7 @@ export function renderHud(app: App, el: HTMLElement) {
 
   mount(
     el,
-    h('a', { class: 'hud-home', href: href({ view: 'projects' }), title: 'All projects' }, icon('hero', 'grass', 'icon'), h('span', null, 'QUEST LOG')),
-    app.state &&
-      h('a', { class: 'hud-project', href: href({ view: 'overworld', projectId: app.projectId! }), title: 'Project map' }, app.state.overworld.title),
+    trail,
     middle,
     h('span', { class: 'grow' }),
     t && h('span', { class: 'hud-stat', title: 'Experience' }, `${t.xp} XP`),

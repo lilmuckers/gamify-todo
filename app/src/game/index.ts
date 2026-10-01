@@ -10,8 +10,10 @@ import { WorldScene } from './world';
 function sceneFor(route: Route): { key: string; params: object } {
   switch (route.view) {
     case 'projects':
-    case 'prs':
       return { key: 'projects', params: {} };
+    case 'prs':
+      // Its own scene: reusing the project floor left it faded out after the boot sequence.
+      return { key: 'world', params: { prs: true } };
     case 'overworld':
       return { key: 'overworld', params: { projectId: route.projectId } };
     case 'world':

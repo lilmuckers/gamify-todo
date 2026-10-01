@@ -9,6 +9,8 @@ export interface WorldParams {
   projectId?: string;
   worldId?: string;
   pr?: number;
+  /** The Warp Zone: one pipe per open PR. */
+  prs?: boolean;
 }
 
 interface Node {
@@ -54,16 +56,34 @@ export class WorldScene extends QuestScene {
     this.render();
   }
 
-  private nodes(): { theme: ThemeKey; nodes: Node[] } | undefined {
+  private nodes(): { theme: ThemeKey; nodes: Node[]; empty?: string } | undefined {
     const p = this.params;
+    if (p.prs) {
+      const pulls = this.app.pulls;
+      if (!this.app.caps.canReviewPRs) return { theme: 'warp', nodes: [], empty: 'Connect GitHub in Settings to review PRs' };
+      if (pulls.error) return { theme: 'warp', nodes: [], empty: "Couldn't load PRs" };
+      if (!pulls.list) return { theme: 'warp', nodes: [], empty: 'Scanning pipes...' };
+      return {
+        theme: 'warp',
+        empty: 'No open PRs change quest data. All quiet!',
+        nodes: pulls.list.map((pr) => ({
+          key: `pr-${pr.number}`,
+          name: `#${pr.number} ${pr.title}`,
+          sprite: 'warp-pipe',
+          onClick: () => go({ view: 'pr', pr: pr.number }),
+        })),
+      };
+    }
     if (p.pr) {
       const v = this.app.pullView(p.pr);
-      if (!v?.diff || !v.data) return { theme: 'warp', nodes: [] };
+      if (v?.error) return { theme: 'warp', nodes: [], empty: "Couldn't load this PR" };
+      if (!v?.diff || !v.data) return { theme: 'warp', nodes: [], empty: 'Loading warp world...' };
       const { head, base } = v.data;
       const find = (ws: typeof head, d: LevelDiff) =>
         ws.projects[d.projectId]?.worlds[d.worldId]?.levels.find((x) => x.id === d.levelId);
       return {
         theme: 'warp',
+        empty: 'This PR changes no levels',
         nodes: v.diff.levels.map((d) => {
           const l = (find(head, d) ?? find(base, d)) as Level;
           return {
@@ -100,7 +120,7 @@ export class WorldScene extends QuestScene {
   private render() {
     const data = this.nodes();
     if (!data) return;
-    const sig = JSON.stringify(data.nodes.map((n) => [n.key, n.name, n.sprite, n.stars, n.change, n.here]));
+    const sig = JSON.stringify([data.empty, data.nodes.map((n) => [n.key, n.name, n.sprite, n.stars, n.change, n.here])]);
     if (sig === this.sig) return;
     this.sig = sig;
     const { theme, nodes } = data;
@@ -134,7 +154,7 @@ export class WorldScene extends QuestScene {
 
     if (!nodes.length)
       layer.add(
-        this.text(this.viewWidth / 2, 80, this.params.pr ? 'Loading warp world…' : 'No levels yet', 6, '#ffffff').setOrigin(0.5),
+        this.text(this.viewWidth / 2, 80, data.empty ?? 'No levels yet', 6, '#ffffff', this.viewWidth - 40).setOrigin(0.5),
       );
 
     nodes.forEach((n, i) => {
