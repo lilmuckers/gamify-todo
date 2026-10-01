@@ -1591,14 +1591,6 @@ a:focus-visible {
 .checks-group:first-child {
   margin-top: 0;
 }
-.checks.deps .dep-mark {
-  width: 1em;
-  text-align: center;
-  color: var(--green);
-}
-.checks.deps .doing .dep-mark {
-  color: var(--gold);
-}
 .checks.deps .dropped,
 .checks.deps .done .dep-title {
   opacity: 0.6;
@@ -1606,8 +1598,12 @@ a:focus-visible {
 .checks.deps .dropped .dep-title {
   text-decoration: line-through;
 }
-.checks.deps small {
+.checks.deps .dep-tag,
+.checks.deps .pill {
   margin-left: auto;
+  flex: none;
+}
+.checks.deps .dep-tag {
   color: var(--muted);
 }
 .checks.deps .loop {
