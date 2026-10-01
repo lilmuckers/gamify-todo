@@ -6,6 +6,12 @@
       "title": "Do a thing",
       "type": "deliverable",
       "addedAt": "2026-10-01T16:16:03.393Z"
+    },
+    {
+      "id": "don-t-do-a-thing",
+      "title": "Don't do a thing",
+      "type": "blocker",
+      "addedAt": "2026-10-01T16:16:12.125Z"
     }
   ]
 }
