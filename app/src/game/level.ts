@@ -103,7 +103,11 @@ export class LevelScene extends QuestScene {
   private exitPipe?: { x: number; w: number; top: number };
   /** Set while the hero is warping or riding away, so nothing else moves him. */
   private leaving = false;
+  /** What the stage was last built from (the level, not the selection). */
   private sig = '';
+  /** Selection the highlight was last drawn for. */
+  private selSig = '';
+  private selGfx?: Phaser.GameObjects.Graphics;
   /** Play mode: the hero is steered by gamepad or keyboard (see app.playing). */
   private playing = false;
   private controls?: PlayControls;
@@ -134,6 +138,8 @@ export class LevelScene extends QuestScene {
     this.prev.clear();
     this.stage = undefined;
     this.sig = '';
+    this.selSig = '';
+    this.selGfx = undefined;
     this.bubble = undefined;
     this.dismissedAuto = undefined;
     this.exitPipe = undefined;
@@ -226,8 +232,15 @@ export class LevelScene extends QuestScene {
     // strand the hero's ride mid-tween. The next scene draws fresh state.
     if (!cur || this.leaving) return;
     if (this.app.playing !== this.playing) void (this.app.playing ? this.enterPlay() : this.exitPlay());
-    const sig = JSON.stringify([cur.level, cur.diff?.change, this.app.selection]);
-    if (sig === this.sig) return;
+    const sig = JSON.stringify([cur.level, cur.diff?.change]);
+    if (sig === this.sig) {
+      // Only the selection moved: shift the highlight, don't rebuild the stage
+      // (that restarts every bobbing and pacing tween, a visible jump).
+      if (JSON.stringify(this.app.selection ?? null) === this.selSig) return;
+      this.drawSelection();
+      this.syncBubbleToSelection();
+      return;
+    }
     const changed = this.diffStatuses(cur.level);
     this.build(cur.world, cur.level, cur.diff);
     // Keep an open bubble in step with its item (it moves when the layout does),
@@ -251,7 +264,7 @@ export class LevelScene extends QuestScene {
   }
 
   private build(world: World, level: Level, diff?: LevelDiff) {
-    this.sig = JSON.stringify([level, diff?.change, this.app.selection]);
+    this.sig = JSON.stringify([level, diff?.change]);
     const sub = !!this.current()?.sub;
     const theme: ThemeKey = this.params.pr ? 'warp' : sub ? 'under' : world.theme;
     const colors = THEMES[theme];
@@ -293,13 +306,7 @@ export class LevelScene extends QuestScene {
       if (item) this.drawEntity(stage, e, item, diff);
     }
 
-    // Selection highlight.
-    const sel = this.app.selection;
-    if (sel?.kind === 'item') {
-      const v = this.views.get(sel.id);
-      if (v) this.highlight(stage, v.entity, 0xfee761);
-    }
-    if (sel?.kind === 'criteria' && !sub) this.highlight(stage, { x: L.flagX - 0.5, y: 0, w: 2, h: poleH + 1 } as LayoutEntity, 0xfee761);
+    this.drawSelection();
 
     this.prev = new Map(level.items.map((i) => [i.id, i.status]));
     if (this.body) this.rebuildWorld();
@@ -447,11 +454,24 @@ export class LevelScene extends QuestScene {
     this.tooltip = this.add.container(x, y - 4, [bg, t]).setDepth(100);
   }
 
-  private highlight(stage: Phaser.GameObjects.Container, e: Pick<LayoutEntity, 'x' | 'y' | 'w' | 'h'>, color: number) {
-    const g = this.add.graphics();
-    g.lineStyle(1, color, 1);
+  /** Pulsing outline round the selected item, or the flagpole for the criteria. */
+  private drawSelection() {
+    this.selGfx?.destroy();
+    this.selGfx = undefined;
+    const sel = this.app.selection;
+    this.selSig = JSON.stringify(sel ?? null);
+    const L = this.layout;
+    const e: Pick<LayoutEntity, 'x' | 'y' | 'w' | 'h'> | undefined =
+      sel?.kind === 'item'
+        ? this.views.get(sel.id)?.entity
+        : sel?.kind === 'criteria' && !this.current()?.sub
+          ? { x: L.flagX - 0.5, y: 0, w: 2, h: 10 }
+          : undefined;
+    if (!e || !this.stage) return;
+    const g = (this.selGfx = this.add.graphics());
+    g.lineStyle(1, 0xfee761, 1);
     g.strokeRect(e.x * TILE - 2, GROUND_Y - (e.y + e.h) * TILE - 2, e.w * TILE + 4, e.h * TILE + 4);
-    stage.add(g);
+    this.stage.add(g);
     this.tweens.add({ targets: g, alpha: 0.2, yoyo: true, repeat: -1, duration: 400 });
   }
 
@@ -657,13 +677,13 @@ export class LevelScene extends QuestScene {
       if (!pipe || !dep) return;
       const cleared = scoreLevel(cur.level).cleared;
       spec.title = cleared ? 'All clear!' : 'Exit pipe';
-      spec.lines.push({
-        text: cleared
-          ? `Every must-do step for "${dep.title}" is out of the way.`
-          : 'Back up to the level. Your steps stay here for next time.',
-        size: 4,
-      });
-      this.playHint(spec);
+      if (!this.playing)
+        spec.lines.push({
+          text: cleared
+            ? `Every must-do step for "${dep.title}" is out of the way.`
+            : 'Back up to the level. Your steps stay here for next time.',
+          size: 4,
+        });
       if (edit && !isResolved(dep) && cleared) button('GOT IT! WARP UP', 0x63c74d, () => void this.leaveSub(true));
       button('WARP UP', 0xdfe9f0, () => void this.leaveSub(false));
       spec.anchor = { cx: pipe.x + pipe.w / 2, top: pipe.top, bottom: GROUND_Y };
@@ -673,13 +693,13 @@ export class LevelScene extends QuestScene {
     const v = this.views.get(id);
     if (!v) return;
     const { item, entity: e } = v;
-    this.playHint(spec);
     const info = TYPE_INFO[item.type];
     const optional = item.type === 'stretch' || item.mvp === false;
     spec.title = item.title;
     spec.lines.push({ text: `${info.label.toUpperCase()} · ${STATUS_LABEL[item.status].toUpperCase()}${optional ? ' · OPTIONAL' : ''}`, size: 3.5, muted: true });
-    if (item.notes) spec.lines.push({ text: item.notes.length > 160 ? `${item.notes.slice(0, 157)}...` : item.notes, size: 4 });
-    if (item.dependsOn?.length) {
+    // Playing: just the name and status, so the bubble hides less of the level.
+    if (item.notes && !this.playing) spec.lines.push({ text: item.notes.length > 160 ? `${item.notes.slice(0, 157)}...` : item.notes, size: 4 });
+    if (item.dependsOn?.length && !this.playing) {
       const names = item.dependsOn.map((d) => cur.level.items.find((i) => i.id === d)?.title ?? d);
       spec.lines.push({ text: `After: ${names.join(', ')}`, size: 3.5, muted: true });
     }
@@ -689,12 +709,12 @@ export class LevelScene extends QuestScene {
     if (mode === 'warp') {
       const steps = (item.subtasks ?? []) as Item[];
       const left = steps.filter((st) => isMvpItem(st) && !isResolved(st)).length;
-      spec.lines.push({ text: left ? `Warp pipe: ${left} of ${steps.length} steps to go below.` : `Warp pipe: all ${steps.length} steps done below.`, size: 3.5, muted: true });
+      if (!this.playing) spec.lines.push({ text: left ? `Warp pipe: ${left} of ${steps.length} steps to go below.` : `Warp pipe: all ${steps.length} steps done below.`, size: 3.5, muted: true });
       button('WARP IN', 0x63c74d, () => void this.enterPipe(item.id));
     }
     if (mode === 'cloud') {
       const target = this.refTarget(item);
-      spec.lines.push({ text: target ? `Cloud to ${target.label}${target.cleared ? ' (cleared)' : ''}` : `Cloud to ${item.levelRef}`, size: 3.5, muted: true });
+      if (!this.playing) spec.lines.push({ text: target ? `Cloud to ${target.label}${target.cleared ? ' (cleared)' : ''}` : `Cloud to ${item.levelRef}`, size: 3.5, muted: true });
       if (target) button('HOP ON', 0x8fd3ff, () => void this.rideCloud(item.id));
     }
 
@@ -730,13 +750,6 @@ export class LevelScene extends QuestScene {
     return spec;
   }
 
-  /** In play mode, how to reach the bubble's buttons from the pad. */
-  private playHint(spec: BubbleSpec) {
-    if (!this.playing) return;
-    const text = this.picking ? 'LEFT/RIGHT PICK · A PRESS · B BACK' : 'UP TO PICK A BUTTON';
-    spec.lines.push({ text, size: 3, muted: true });
-  }
-
   /** The level a cloud goes to, if it still exists. */
   private refTarget(item: Item) {
     const state = this.app.state;
@@ -755,11 +768,18 @@ export class LevelScene extends QuestScene {
     const spec = this.bubbleSpec(itemId);
     if (!spec) return;
     this.tooltip?.destroy();
+    // Playing: a smaller bubble whose buttons only show once you pick (Up).
+    const compact = this.playing;
+    const actions = spec.buttons;
+    if (compact) {
+      if (!this.picking) spec.buttons = [];
+      if (actions.length) spec.lines.push({ text: this.picking ? 'LEFT/RIGHT · A PRESS · B BACK' : 'UP: ACTIONS', size: 3, muted: true });
+    }
 
-    const PAD = 6;
-    const GAP = 3;
-    const MAX_W = 164;
-    const CLOSE = 9;
+    const PAD = compact ? 4 : 6;
+    const GAP = compact ? 2 : 3;
+    const MAX_W = compact ? 112 : 164;
+    const CLOSE = compact ? 7 : 9;
     const INK = '#1a1c2c';
     const MUTED = '#5a6988';
     const inner = MAX_W - 2 * PAD;
@@ -768,7 +788,7 @@ export class LevelScene extends QuestScene {
       this.text(0, 0, str, size, color, wrap).setOrigin(0, 0).setStroke('#ffffff', 0).setAlign('left');
 
     // 1. Text blocks, wrapped to the widest the bubble may be.
-    const title = label(spec.title, 5, INK, inner - CLOSE - 4);
+    const title = label(spec.title, compact ? 4 : 5, INK, inner - CLOSE - 4);
     const lines = spec.lines.map((l) => label(l.text, l.size, l.muted ? MUTED : INK, inner));
 
     // 2. Action buttons (all the same height).
@@ -786,7 +806,7 @@ export class LevelScene extends QuestScene {
       Math.min(rowW, inner),
     );
     // +1 slack so rounding never pushes the last button onto a second row.
-    const W = Math.ceil(Phaser.Math.Clamp(contentW + 2 * PAD + 1, 84, MAX_W));
+    const W = Math.ceil(Phaser.Math.Clamp(contentW + 2 * PAD + 1, compact ? 48 : 84, MAX_W));
 
     // 4. Lay out top to bottom.
     let y = PAD;
