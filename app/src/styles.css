@@ -1561,9 +1561,6 @@ a:focus-visible {
   transform: rotate(-14deg);
 }
 
-.today-overlay.mobile .legal-pad {
-  width: calc(100% - 4px);
-}
 .today-overlay.mobile .pad-sheet {
   padding-left: 56px;
   padding-right: 12px;
@@ -1629,44 +1626,72 @@ a:focus-visible {
 }
 
 /* ---------- Pad pages: Today and Inbox ---------- */
+/* Sticky index flags stuck under the sheet, peeking out of the right edge. */
 .pad-tabs {
   position: absolute;
-  top: -27px;
-  left: 22px;
+  top: 30px;
+  right: -30px;
+  z-index: -1;
   display: flex;
-  gap: 6px;
-  z-index: 1;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 .pad-tab {
-  position: relative;
-  padding: 2px 14px 6px;
-  border: 2px solid rgba(26, 28, 44, 0.35);
-  border-bottom: none;
-  border-radius: 9px 9px 0 0;
+  --flag: #fdf3a7;
+  --tip: rgba(230, 196, 40, 0.8);
+  display: flex;
+  align-items: center;
+  /* Sideways label; the left part of the flag is stuck under the sheet. */
+  writing-mode: vertical-rl;
+  padding: 10px 9px 10px 26px;
   font: 700 19px/1 'Caveat', cursive;
+  letter-spacing: 1px;
   color: var(--ink-blue);
   text-decoration: none;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.25);
-  transform: translateY(4px);
-  transition: transform 120ms;
+  /* Paper flag with a coloured, see-through tip on the end that sticks out. */
+  background: linear-gradient(90deg, var(--flag) calc(100% - 6px), var(--tip) calc(100% - 6px));
+  box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.3);
+  transform: translateX(-9px) rotate(var(--lean));
+  transition: transform 140ms ease-out;
 }
 .pad-tab.on,
-.pad-tab:hover {
-  transform: translateY(0);
+.pad-tab:hover,
+.pad-tab:focus-visible {
+  transform: translateX(0) rotate(var(--lean));
+  outline: none;
 }
 .pad-tab.tab-today {
-  background: #fdf3a7;
+  --lean: 1.5deg;
 }
 .pad-tab.tab-inbox {
-  background: #fde4e1;
+  --flag: #fde4e1;
+  --tip: rgba(228, 98, 120, 0.75);
+  --lean: -2deg;
 }
 .pad-tab b {
-  margin-left: 5px;
-  padding: 0 5px;
+  margin-top: 5px;
+  padding: 4px 0;
+  width: 18px;
   border-radius: 8px;
   background: var(--pen-red);
   color: #fff;
   font: 700 13px/18px 'Caveat', cursive;
+  writing-mode: horizontal-tb;
+  text-align: center;
+}
+/* Room on the right for the flags, so the overlay doesn't clip them. */
+.today-overlay .legal-pad {
+  max-width: calc(100% - 32px);
+}
+.today-overlay.mobile .legal-pad {
+  width: calc(100% - 26px);
+  margin-right: 22px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pad-tab {
+    transition: none;
+  }
 }
 
 /* The inbox page is pink paper, same blue rules. */
