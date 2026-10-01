@@ -24,7 +24,7 @@ export interface Workspace {
   settings?: Omit<Settings, '$schema'>;
 }
 
-export const HERO_IDS: HeroId[] = ['classic', 'bearded', 'redhead', 'afro-puff', 'denim-jacket', 'hoodie'];
+export const HERO_IDS: HeroId[] = ['classic', 'bearded', 'redhead', 'mustard-jumper', 'denim-jacket', 'hoodie'];
 
 export function orderedProjects(ws: Workspace): GameState[] {
   return Object.values(ws.projects).sort((a, b) => a.overworld.title.localeCompare(b.overworld.title));

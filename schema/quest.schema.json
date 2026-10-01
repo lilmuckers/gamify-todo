@@ -544,8 +544,8 @@
           "description": "Long red hair, tank top and jeans."
         },
         {
-          "const": "afro-puff",
-          "description": "Afro puff, glasses, mustard jumper, dark trousers."
+          "const": "mustard-jumper",
+          "description": "Hair up, glasses, mustard jumper, dark trousers."
         },
         {
           "const": "denim-jacket",
