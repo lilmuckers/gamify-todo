@@ -1577,3 +1577,40 @@ a:focus-visible {
     animation: none;
   }
 }
+
+/* "Waits for" picker in the item form. */
+.checks.deps {
+  max-height: 220px;
+}
+.checks-group {
+  font: 7px var(--pixel);
+  color: var(--muted);
+  text-transform: uppercase;
+  margin: 4px 0 1px;
+}
+.checks-group:first-child {
+  margin-top: 0;
+}
+.checks.deps .dep-mark {
+  width: 1em;
+  text-align: center;
+  color: var(--green);
+}
+.checks.deps .doing .dep-mark {
+  color: var(--gold);
+}
+.checks.deps .dropped,
+.checks.deps .done .dep-title {
+  opacity: 0.6;
+}
+.checks.deps .dropped .dep-title {
+  text-decoration: line-through;
+}
+.checks.deps small {
+  margin-left: auto;
+  color: var(--muted);
+}
+.checks.deps .loop {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
