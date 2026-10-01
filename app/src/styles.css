@@ -1118,6 +1118,21 @@ a:focus-visible {
   text-overflow: ellipsis;
 }
 
+.game-nav .nav-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.game-nav .nav-play.on {
+  background: rgba(228, 59, 68, 0.9);
+}
+
+.game-nav .pad-icon {
+  height: 12px;
+  image-rendering: pixelated;
+}
+
 .game-nav .nav-up {
   background: rgba(181, 80, 136, 0.9);
 }

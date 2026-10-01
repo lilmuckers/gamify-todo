@@ -102,6 +102,8 @@ export class App {
   selection: Selection = selectionFrom(this.route);
   /** An item bubble is open in the level scene (Esc closes it before navigating). */
   bubbleOpen = false;
+  /** Play mode: the hero is driven by gamepad or keyboard instead of walking himself. */
+  playing = false;
   /** Next time the inbox page renders, put the cursor in its scribble line. */
   focusCapture = false;
   pulls: { list?: PullSummary[]; loading: boolean; error?: string } = { loading: false };
@@ -113,11 +115,25 @@ export class App {
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
+      // Warping or riding a cloud keeps playing; leaving the levels stops.
+      if (!this.canPlay) this.playing = false;
       pageView(this.route);
       this.onRoute();
       this.emit();
     });
     this.onRoute();
+  }
+
+  /** Play mode is for levels (not PR review) with no pad page held up. */
+  get canPlay() {
+    return this.route.view === 'level' && !this.route.pad;
+  }
+
+  setPlaying(on: boolean) {
+    on &&= this.canPlay;
+    if (on === this.playing) return;
+    this.playing = on;
+    this.emit();
   }
 
   subscribe(fn: () => void) {

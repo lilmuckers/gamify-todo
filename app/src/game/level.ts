@@ -22,6 +22,8 @@ import { bucket, track } from '../analytics';
 import { itemAddr, type App } from '../app';
 import { go } from '../router';
 import { GROUND_Y, heroWalk, QuestScene, tex, WORLD_H } from './common';
+import { PlayControls, type Controls } from './play/input';
+import { buildWorld, EXIT_ID, FLAG_ID, HITBOX, nearest, newBody, step, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
 
 export interface LevelParams {
   projectId: string;
@@ -36,7 +38,7 @@ export interface LevelParams {
 const warned = new Set<string>();
 
 /** Bubble id for a sub-level's exit pipe (not an item; ids can't contain '!'). */
-const EXIT = '!exit';
+const EXIT = EXIT_ID;
 
 interface View {
   entity: LayoutEntity;
@@ -79,7 +81,14 @@ export class LevelScene extends QuestScene {
    * Speech bubble with an item's details and quick actions. `auto` bubbles
    * follow the hero; explicit ones come from a click or the URL.
    */
-  private bubble?: { itemId: string; box: Phaser.GameObjects.Container; auto: boolean };
+  private bubble?: {
+    itemId: string;
+    box: Phaser.GameObjects.Container;
+    auto: boolean;
+    /** Buttons, for picking one with a gamepad in play mode. */
+    buttons: { rect: Phaser.GameObjects.Rectangle; run: () => void }[];
+    focus: number;
+  };
   /** Hero-stop item whose auto bubble the user closed; stays closed until the hero moves on. */
   private dismissedAuto?: string;
   /** Criteria ticked per level at the last render, to animate the flag between states. */
@@ -92,6 +101,15 @@ export class LevelScene extends QuestScene {
   /** Set while the hero is warping or riding away, so nothing else moves him. */
   private leaving = false;
   private sig = '';
+  /** Play mode: the hero is steered by gamepad or keyboard (see app.playing). */
+  private playing = false;
+  private controls?: PlayControls;
+  private body?: Body;
+  private world?: PlayWorld;
+  /** Items completed by playing since the last rebuild, so they don't fire twice. */
+  private played = new Set<string>();
+  /** Touching the flagpole (fires once per touch). */
+  private atFlag = false;
 
   constructor() {
     super('level');
@@ -109,6 +127,10 @@ export class LevelScene extends QuestScene {
     this.dismissedAuto = undefined;
     this.exitPipe = undefined;
     this.leaving = false;
+    this.playing = false;
+    this.body = undefined;
+    this.world = undefined;
+    this.controls = undefined;
   }
 
   private current() {
@@ -146,7 +168,11 @@ export class LevelScene extends QuestScene {
       this.cameras.main.stopFollow();
     });
     this.idle();
+    this.controls = new PlayControls(this);
     this.watch(() => this.refresh());
+    const onPad = () => !this.app.playing && toast('Controller connected: press START to play this level.', 'info', 4000);
+    window.addEventListener('gamepadconnected', onPad);
+    this.events.once('shutdown', () => window.removeEventListener('gamepadconnected', onPad));
 
     // Clicking empty space, or Esc, closes the bubble; Enter completes the item.
     this.input.on('pointerup', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
@@ -166,7 +192,8 @@ export class LevelScene extends QuestScene {
         this.busy = this.arrive(arrival);
         await this.busy;
       }
-      if (!this.syncBubbleToSelection()) this.autoBubble();
+      if (this.app.playing) void this.enterPlay();
+      else if (!this.syncBubbleToSelection()) this.autoBubble();
     });
   }
 
@@ -181,6 +208,7 @@ export class LevelScene extends QuestScene {
     // On the way out (pipe or cloud), leave the stage alone: a rebuild would
     // strand the hero's ride mid-tween. The next scene draws fresh state.
     if (!cur || this.leaving) return;
+    if (this.app.playing !== this.playing) void (this.app.playing ? this.enterPlay() : this.exitPlay());
     const sig = JSON.stringify([cur.level, cur.diff?.change, this.app.selection]);
     if (sig === this.sig) return;
     const changed = this.diffStatuses(cur.level);
@@ -257,6 +285,7 @@ export class LevelScene extends QuestScene {
     if (sel?.kind === 'criteria' && !sub) this.highlight(stage, { x: L.flagX - 0.5, y: 0, w: 2, h: poleH + 1 } as LayoutEntity, 0xfee761);
 
     this.prev = new Map(level.items.map((i) => [i.id, i.status]));
+    if (this.body) this.rebuildWorld();
   }
 
   /** Flagpole + castle at the end of a normal level. */
@@ -585,7 +614,7 @@ export class LevelScene extends QuestScene {
 
   /** Shows the bubble for the item the hero is waiting at, unless the user closed it. */
   private autoBubble() {
-    if (this.leaving) return;
+    if (this.leaving || this.playing) return;
     // In a sub-level, the hero waiting at the exit pipe means "you're done here".
     const atExit = !!this.current()?.sub && this.layout.hero.kind === 'flag' && scoreLevel(this.current()!.level).cleared;
     const id = atExit ? EXIT : this.layout.hero.itemId;
@@ -615,6 +644,7 @@ export class LevelScene extends QuestScene {
           : 'Back up to the level. Your steps stay here for next time.',
         size: 4,
       });
+      if (this.playing) spec.lines.push({ text: 'LEFT/RIGHT PICK · A PRESS · B CLOSE', size: 3, muted: true });
       if (edit && !isResolved(dep) && cleared) button('GOT IT! WARP UP', 0x63c74d, () => void this.leaveSub(true));
       button('WARP UP', 0xdfe9f0, () => void this.leaveSub(false));
       spec.anchor = { cx: pipe.x + pipe.w / 2, top: pipe.top, bottom: GROUND_Y };
@@ -624,6 +654,7 @@ export class LevelScene extends QuestScene {
     const v = this.views.get(id);
     if (!v) return;
     const { item, entity: e } = v;
+    if (this.playing) spec.lines.push({ text: 'LEFT/RIGHT PICK · A PRESS · B CLOSE', size: 3, muted: true });
     const info = TYPE_INFO[item.type];
     const optional = item.type === 'stretch' || item.mvp === false;
     spec.title = item.title;
@@ -812,14 +843,224 @@ export class LevelScene extends QuestScene {
         cam.pan(left + W / 2, cam.midPoint.y, 350, 'Sine.easeInOut');
       }
     }
-    this.bubble = { itemId, box, auto };
+    this.bubble = { itemId, box, auto, buttons: rects.map((rect, i) => ({ rect, run: buttons[i].run })), focus: 0 };
     this.app.bubbleOpen = true;
+    if (this.playing) this.focusButton(0);
+  }
+
+  /** Outlines the bubble button a gamepad would press. */
+  private focusButton(i: number) {
+    const b = this.bubble;
+    if (!b?.buttons.length) return;
+    b.focus = (i + b.buttons.length) % b.buttons.length;
+    b.buttons.forEach(({ rect }, k) => rect.setStrokeStyle(k === b.focus ? 2 : 1, k === b.focus ? 0x0099db : 0x1a1c2c));
+  }
+
+  // ---- Play mode ----
+
+  /** Hands the hero to the player once any scripted animation has finished. */
+  private async enterPlay() {
+    this.playing = true;
+    this.closeBubble();
+    await this.busy;
+    if (!this.playing || this.leaving || this.body) return;
+    const L = this.layout;
+    this.tweens.killTweensOf(this.hero);
+    // A cleared level's hero is waiting in the castle: start again from the left.
+    const x = this.hero.visible && this.hero.x < L.castleX * TILE ? this.hero.x : 2 * TILE;
+    this.hero.setVisible(true).setAlpha(1).setDepth(40).setPosition(x, GROUND_Y);
+    this.idle();
+    this.body = newBody(x + HITBOX.offX, GROUND_Y);
+    this.rebuildWorld();
+    this.controls?.capture(true, this);
+    this.following = true;
+    this.cameras.main.startFollow(this.hero, true, 0.1, 0.1, 0, 0);
+    track('play_mode', { on: true });
+    toast('PLAY! Arrows or stick to move, A or Space to jump (hold Shift/B to run), Up to look, Down into pipes. START or Esc stops.', 'info', 5000);
+  }
+
+  /** Back to the hero walking himself to wherever he's needed. */
+  private exitPlay() {
+    this.playing = false;
+    this.controls?.capture(false, this);
+    if (!this.body) return;
+    this.body = undefined;
+    this.world = undefined;
+    this.closeBubble();
+    track('play_mode', { on: false });
+    if (this.leaving) return;
+    this.hero.setAlpha(1).setFlipX(false);
+    this.following = true;
+    this.cameras.main.startFollow(this.hero, true, 0.08, 0.08, -this.viewWidth / 6, 0);
+    const prev = this.busy;
+    this.busy = (async () => {
+      await prev;
+      if (this.playing || this.leaving) return;
+      if (this.hero.y < GROUND_Y) await this.hopTo(this.hero.x, GROUND_Y);
+      // A level cleared while playing: the hero's place is in the castle.
+      if (this.wasCleared && !this.current()?.sub) return this.fadeHero();
+      await this.walkTo(this.layout.hero.x * TILE);
+      this.autoBubble();
+    })();
+  }
+
+  private rebuildWorld() {
+    this.world = buildWorld(this.layout, { tile: TILE, groundY: GROUND_Y, sub: !!this.current()?.sub });
+    this.played.clear();
+  }
+
+  update(_time: number, delta: number) {
+    const controls = this.controls;
+    if (!controls) return;
+    const c = controls.read();
+    // A form is open: keys belong to it.
+    if (!this.input.manager.enabled || document.activeElement?.matches('input, textarea, select, [contenteditable]')) return;
+    if (!this.playing) {
+      if (c.quitPressed && this.app.canPlay) this.app.setPlaying(true);
+      return;
+    }
+    if (c.quitPressed && !this.bubble) return this.app.setPlaying(false);
+    const body = this.body;
+    const world = this.world;
+    if (!body || !world || this.leaving) return;
+
+    let input: Controls = c;
+    if (this.bubble) {
+      // A bubble is up: the pad picks its buttons and the hero stands still.
+      if (c.leftPressed) this.focusButton(this.bubble.focus - 1);
+      if (c.rightPressed) this.focusButton(this.bubble.focus + 1);
+      if (c.backPressed || c.quitPressed) this.closeBubble();
+      else if (c.confirmPressed) this.bubble.buttons[this.bubble.focus]?.run();
+      input = { ...c, x: 0, jumpHeld: false, jumpPressed: false, downPressed: false };
+    } else if (c.upPressed) this.lookAt(nearest(body, world)?.id);
+    if (!this.bubble && !this.following) {
+      this.following = true;
+      this.cameras.main.startFollow(this.hero, true, 0.1, 0.1, 0, 0);
+    }
+
+    const events = step(body, input, world, delta / 1000, this.played);
+    let flag = false;
+    for (const e of events) {
+      if (e.kind === 'flag') flag = true;
+      else this.onPlayEvent(e);
+      // Entering a pipe or cloud hands the hero to its own animation.
+      if (this.leaving || !this.body) return;
+    }
+    if (flag && !this.atFlag) this.touchFlag(body);
+    this.atFlag = flag;
+    this.drawHero(body);
+  }
+
+  /** Mirrors the physics body onto the sprite, with the right frame. */
+  private drawHero(body: Body) {
+    const h = this.hero;
+    const walk = heroWalk(this.app.heroId);
+    h.setPosition(Math.round(body.x - HITBOX.offX), Math.round(body.y + body.h));
+    h.setFlipX(body.facing < 0);
+    if (!body.onGround) {
+      h.anims.stop();
+      h.setTexture(this.heroTex('jump'));
+    } else if (Math.abs(body.vx) > 8) {
+      if (h.anims.currentAnim?.key !== walk || !h.anims.isPlaying) h.play(walk);
+      h.anims.timeScale = Math.max(0.6, Math.abs(body.vx) / TUNING.walk);
+    } else if (h.anims.isPlaying || h.texture.key !== this.heroTex()) this.idle();
+    // Flicker while recovering from a hit.
+    h.setAlpha(body.invuln > 0 && Math.floor(body.invuln * 12) % 2 ? 0.25 : 1);
+  }
+
+  /** Up: open the bubble for whatever the hero is at. */
+  private lookAt(id?: string) {
+    if (!id) return;
+    if (id === FLAG_ID) return this.app.select({ kind: 'criteria' });
+    this.openBubble(id);
+  }
+
+  private onPlayEvent(e: Exclude<PlayEvent, { kind: 'flag' }>) {
+    if (e.kind === 'jump') return;
+    if (e.kind === 'hurt') {
+      this.cameras.main.shake(120, 0.003);
+      return;
+    }
+    const cur = this.current();
+    if (!cur) return;
+    if (e.kind === 'enter') {
+      if (e.id === EXIT) return void this.leaveSub(scoreLevel(cur.level).cleared && this.canEdit());
+      const v = this.views.get(e.id);
+      if (!v || cur.sub) return;
+      if (v.entity.kind === 'warp') void this.enterPipe(e.id);
+      else if (v.entity.kind === 'cloud' && this.refTarget(v.item)) void this.rideCloud(e.id);
+      return;
+    }
+    // Bump, stomp or collect: that item's done.
+    this.played.add(e.id);
+    const v = this.views.get(e.id);
+    if (!v) return;
+    if (this.canEdit()) {
+      track('play_complete', { how: e.kind });
+      this.setStatus(e.id, 'done');
+      return;
+    }
+    // Read-only: the same show, nothing saved.
+    const { entity: en } = v;
+    const topY = GROUND_Y - (en.y + en.h) * TILE;
+    if (e.kind === 'bump') {
+      if (v.top) {
+        this.tweens.killTweensOf(v.top);
+        (v.top as Phaser.GameObjects.Image).setTexture('used').setY(0);
+        this.tweens.add({ targets: v.top, y: -4, yoyo: true, duration: 90 });
+      }
+      this.popCoin(en.x * TILE + TILE / 2, topY);
+    } else if (e.kind === 'stomp') {
+      v.root.setVisible(false);
+      this.poof(en.x * TILE + TILE / 2, GROUND_Y - 8);
+    } else {
+      v.root.setVisible(false);
+      for (let i = 0; i < 3; i++) this.popCoin(en.x * TILE + i * TILE + 8, topY, i * 80);
+    }
+  }
+
+  /** The flagpole: the finale once the level's cleared, otherwise a nudge back. */
+  private touchFlag(body: Body) {
+    const level = this.current()?.level;
+    if (!level) return;
+    const score = scoreLevel(level);
+    if (!score.cleared) {
+      body.vx = -TUNING.walk;
+      body.vy = -200;
+      body.onGround = false;
+      const goals = level.successCriteria;
+      toast(`Not yet! ${goals.filter((g) => g.done).length}/${goals.length} goals ticked and every must-do item cleared opens the castle.`, 'info', 3500);
+      this.app.select({ kind: 'criteria' });
+      return;
+    }
+    // Slide down the pole, then the usual castle walk and fireworks.
+    this.body = undefined;
+    this.leaving = true;
+    this.hero.anims.stop();
+    this.hero.setFlipX(false).setAlpha(1).setTexture(this.heroTex('jump'));
+    this.tweens.add({
+      targets: this.hero,
+      x: this.layout.flagX * TILE - TILE + 6,
+      y: GROUND_Y,
+      duration: 600,
+      ease: 'Quad.in',
+      onComplete: async () => {
+        this.idle();
+        await this.celebrate(level);
+        this.wasCleared = true;
+        this.leaving = false;
+        // Stopped mid-finale: nothing will emit, so finish up here.
+        if (this.app.playing) this.app.setPlaying(false);
+        else this.exitPlay();
+      },
+    });
   }
 
   // ---- Animation ----
 
   private idle() {
     this.hero.anims.stop();
+    this.hero.anims.timeScale = 1;
     this.hero.setTexture(this.heroTex());
   }
 
@@ -879,7 +1120,7 @@ export class LevelScene extends QuestScene {
       const topY = GROUND_Y - (e.y + e.h) * TILE;
       if (item.status === 'done') {
         if (e.kind === 'qblock') {
-          if (Math.abs(this.hero.x - e.x * TILE) < TILE * 2) await this.jump();
+          if (!this.playing && Math.abs(this.hero.x - e.x * TILE) < TILE * 2) await this.jump();
           if (v.top) this.tweens.add({ targets: v.top, y: -4, yoyo: true, duration: 90 });
           this.popCoin(cx, topY);
         } else if (e.kind === 'wall') this.crumble(e);
@@ -896,6 +1137,11 @@ export class LevelScene extends QuestScene {
 
     const sub = this.current()?.sub;
     if (this.leaving) return;
+    // Playing: the player walks to the exit pipe or flagpole themselves.
+    if (this.playing) {
+      this.wasCleared = cleared;
+      return;
+    }
     if (sub) {
       // Clearing the last step takes the hero back up the pipe, dependency closed.
       const wasCleared = this.wasCleared;
@@ -971,8 +1217,7 @@ export class LevelScene extends QuestScene {
     track('warp_enter', { steps_bucket: bucket(steps), adding: steps === 0 });
     const mouth = GROUND_Y - e.h * TILE;
     const x = e.x * TILE + (e.w * TILE - this.hero.width) / 2;
-    await this.approach(e.x * TILE - TILE);
-    await this.hopTo(x, mouth);
+    await this.getOnto(e.x * TILE - TILE, x, mouth);
     v.top?.setVisible(false);
     await this.sink(TILE * 2);
     this.app.arrival = { kind: 'pipe-down' };
@@ -988,8 +1233,7 @@ export class LevelScene extends QuestScene {
     this.closeBubble();
     const dep = cur.sub.dep;
     track('warp_exit', { closed: close && !isResolved(dep) });
-    await this.approach(pipe.x - TILE);
-    await this.hopTo(pipe.x + (pipe.w - this.hero.width) / 2, pipe.top);
+    await this.getOnto(pipe.x - TILE, pipe.x + (pipe.w - this.hero.width) / 2, pipe.top);
     await this.sink(TILE * 2);
     if (close && !isResolved(dep))
       this.app.dispatch({ kind: 'setItemStatus', projectId: cur.projectId, worldId: cur.world.id, levelId: cur.level.id, itemId: dep.id, status: 'done' });
@@ -1009,9 +1253,8 @@ export class LevelScene extends QuestScene {
     const e = v.entity;
     const cloudTop = GROUND_Y - (e.y + e.h) * TILE + 2;
     track('cloud_ride');
-    await this.approach(e.x * TILE - TILE);
     this.tweens.killTweensOf(v.top!);
-    await this.hopTo(e.x * TILE + TILE, cloudTop);
+    await this.getOnto(e.x * TILE - TILE, e.x * TILE + TILE, cloudTop);
     this.cameras.main.stopFollow();
     this.following = false;
     await new Promise<void>((resolve) =>
@@ -1026,6 +1269,21 @@ export class LevelScene extends QuestScene {
     );
     this.app.arrival = { kind: 'cloud' };
     go({ view: 'level', projectId: cur.projectId, worldId: target.worldId, levelId: target.levelId });
+  }
+
+  /**
+   * Gets the hero on top of a pipe or cloud at (`x`, `top`): walking up to
+   * `from` and hopping on, or (when playing, already up there) shuffling over.
+   */
+  private async getOnto(from: number, x: number, top: number) {
+    if (this.playing && Math.abs(this.hero.y - top) < 4) {
+      this.hero.y = top;
+      await new Promise<void>((resolve) => this.tweens.add({ targets: this.hero, x, duration: 120, onComplete: () => resolve() }));
+      this.idle();
+      return;
+    }
+    await this.approach(from);
+    await this.hopTo(x, top);
   }
 
   /** Slides the hero down behind the scenery (into a pipe), then fades out. */

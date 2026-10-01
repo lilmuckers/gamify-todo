@@ -35,6 +35,8 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   dependency_resolve: ['action', 'dep_mode'],
   hero_select: ['hero', 'saved_to_repo'],
   nav_shortcut: ['key'],
+  play_mode: ['on'],
+  play_complete: ['how'],
   skill_help_open: [],
   skill_download: ['format'],
   github_connect: ['can_push'],

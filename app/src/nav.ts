@@ -118,7 +118,7 @@ function screenNav(app: App, r: Route): NavModel {
  * Keyboard: Esc goes up a screen (unless a popup or item bubble is open) or
  * puts today's plan away, [ and ] step to the previous / next level or world,
  * t / i hold up the Today / Inbox page of the pad (or put it away), n opens
- * the inbox ready to write on.
+ * the inbox ready to write on, p starts or stops play mode.
  */
 export function bindNavKeys(app: App) {
   window.addEventListener('keydown', (e) => {
@@ -131,6 +131,21 @@ export function bindNavKeys(app: App) {
     }
     if (e.metaKey || e.ctrlKey) return;
     if (document.querySelector('.overlay')) return;
+    // p: play the level with a gamepad or the keyboard. While playing, keys
+    // steer the hero; Esc stops (once any bubble is closed).
+    if (e.key === 'p' && (app.playing || app.canPlay)) {
+      e.preventDefault();
+      track('nav_shortcut', { key: 'p' });
+      app.setPlaying(!app.playing);
+      return;
+    }
+    if (app.playing) {
+      if (e.key === 'Escape' && !app.bubbleOpen) {
+        e.preventDefault();
+        app.setPlaying(false);
+      }
+      return;
+    }
     const nav = navFor(app);
     const r = app.route;
     const today = { label: 'Today', href: href(togglePad(r, 'today')) };
