@@ -408,10 +408,17 @@ function levelPanel(app: App) {
   };
 
   const quickAdd = () => {
-    const title = h('input', { type: 'text', placeholder: cur.sub ? 'Add a step…' : 'Add an item…', maxLength: 120, 'aria-label': 'New item title' });
+    // data-keep: survives panel re-renders (value, focus, cursor), so you can add item after item.
+    const title = h('input', {
+      type: 'text',
+      placeholder: cur.sub ? 'Add a step…' : 'Add an item…',
+      maxLength: 120,
+      'aria-label': 'New item title',
+      'data-keep': `quick-add:${cur.level.id}:${cur.sub?.dep.id ?? ''}`,
+    });
     const type = h(
       'select',
-      { 'aria-label': 'Item type' },
+      { 'aria-label': 'Item type', 'data-keep': `quick-add-type:${cur.level.id}:${cur.sub?.dep.id ?? ''}` },
       Object.entries(TYPE_INFO)
         .filter(([k]) => !cur.sub || k !== 'dependency')
         .map(([k, v]) => h('option', { value: k }, v.label)),
