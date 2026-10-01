@@ -92,7 +92,7 @@
       "id": "stake-the-broccoli-before-autumn-winds",
       "title": "Stake the broccoli before autumn winds",
       "type": "task",
-      "status": "done"
+      "status": "todo"
     },
     {
       "id": "whitefly-on-the-kale",
@@ -112,6 +112,7 @@
     "editsAfterClear": 1,
     "itemEdits": {
       "check-under-the-leaves-for-caterpillars": 1,
+      "stake-the-broccoli-before-autumn-winds": 1,
       "whitefly-on-the-kale": 1
     }
   }
