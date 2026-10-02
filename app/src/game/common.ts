@@ -158,6 +158,12 @@ export abstract class QuestScene extends Phaser.Scene {
     this.events.once('shutdown', () => this.app.locators.get(name) === fn && this.app.locators.delete(name));
   }
 
+  /** Registers a tour demo: an animation that shows something off without changing any data. */
+  protected demo(name: string, run: () => Promise<void>) {
+    this.app.demos.set(name, run);
+    this.events.once('shutdown', () => this.app.demos.get(name) === run && this.app.demos.delete(name));
+  }
+
   /** A world-space rectangle in page (client) pixels. */
   protected toScreen(r: { x: number; y: number; w: number; h: number }): DOMRect {
     const cam = this.cameras.main;

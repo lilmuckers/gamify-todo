@@ -262,6 +262,86 @@ export class LevelScene extends QuestScene {
     });
   }
 
+  /**
+   * The tour's show-and-tell: the hero bumps a ? block, dives into a warp pipe
+   * and pops back out, or hops up the criteria stairs. Pure animation: no
+   * statuses change, and he walks back to where he was waiting.
+   */
+  private registerDemos() {
+    const pick = (kinds: string[]) => {
+      const views = [...this.views.values()].filter((v) => kinds.includes(v.entity.kind));
+      return views.find((v) => v.item.status !== 'done' && v.item.status !== 'dropped') ?? views[0];
+    };
+    const run = (show: () => Promise<void>) => async () => {
+      if (this.leaving || this.playing || reducedMotion()) return;
+      await this.busy;
+      this.closeBubble();
+      this.busy = (async () => {
+        await show();
+        // Back to his post (or into the castle, once cleared).
+        if (this.wasCleared) await this.fadeHero();
+        else if (this.layout.hero.kind === 'flag' && this.topReachable() !== undefined) await this.climbTo(this.topReachable());
+        else await this.walkTo(this.layout.hero.x * TILE);
+      })();
+      await this.busy;
+    };
+    this.demo(
+      'qblock',
+      run(async () => {
+        const v = pick(['qblock']);
+        if (!v) return;
+        const e = v.entity;
+        await this.approach(e.x * TILE + (e.w * TILE - this.hero.width) / 2);
+        // Up into the block's underside: it bounces and a coin pops out.
+        await this.jump(Math.max(22, e.y * TILE - this.hero.height + 4));
+        if (v.top) this.tweens.add({ targets: v.top, y: v.top.y - 4, yoyo: true, duration: 90 });
+        this.popCoin(e.x * TILE + (e.w * TILE) / 2, GROUND_Y - (e.y + e.h) * TILE);
+        await this.pause(500);
+      }),
+    );
+    this.demo(
+      'dependency',
+      run(async () => {
+        const v = pick(['warp', 'pipe', 'cloud']);
+        if (!v) return;
+        const e = v.entity;
+        const top = GROUND_Y - (e.y + e.h) * TILE;
+        const x = e.x * TILE + (e.w * TILE - this.hero.width) / 2;
+        await this.approach(e.x * TILE - TILE);
+        if (e.kind === 'cloud') {
+          // Hop on, bob along with it, hop off.
+          await this.hopTo(x, top + 2);
+          await this.pause(700);
+        } else {
+          // Hop onto the mouth, slide down out of sight, then pop back up.
+          await this.hopTo(x, top);
+          this.hero.setDepth(-1);
+          await new Promise<void>((resolve) => this.tweens.add({ targets: this.hero, y: top + 2 * TILE, duration: 450, onComplete: () => resolve() }));
+          await this.pause(500);
+          await new Promise<void>((resolve) => this.tweens.add({ targets: this.hero, y: top, duration: 450, onComplete: () => resolve() }));
+          this.hero.setDepth(40);
+        }
+        await this.hopTo((e.x + e.w) * TILE + 4, GROUND_Y);
+      }),
+    );
+    this.demo(
+      'goal',
+      run(async () => {
+        if (this.current()?.sub || !this.layout.stairs.length) return;
+        // Up the first few steps (as if ticked), then back down to the foot.
+        await this.approach(this.footX());
+        for (let i = 0; i < Math.min(3, this.layout.stairs.length); i++) {
+          const spot = this.stepSpot(i);
+          await this.hopTo(spot.x, spot.y, 260);
+          this.perch = i;
+          await this.pause(180);
+        }
+        await this.pause(400);
+        await this.toGround();
+      }),
+    );
+  }
+
   /** Spotlight targets for the tour: the first ? block, the first pipe or cloud, the stairs and pole. */
   private registerLocators() {
     const entity = (kinds: string[]) => () => {
@@ -277,6 +357,7 @@ export class LevelScene extends QuestScene {
       return r;
     };
     this.locator('qblock', entity(['qblock']));
+    this.registerDemos();
     this.locator('dependency', entity(['warp', 'cloud', 'pipe']));
     this.locator('goal', () => {
       if (this.current()?.sub) return;
