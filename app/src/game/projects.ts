@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { orderedProjects, orderedWorlds, suggestNext, totals, type GameState } from '@quest/shared';
+import { orderedProjects, orderedWorlds, suggestNextLevel, totals, type GameState } from '@quest/shared';
 import { go } from '../router';
 import { track } from '../analytics';
 import { quip, type Thing } from './quips';
@@ -172,8 +172,7 @@ export class ProjectsScene extends QuestScene {
 
   private gameCart(p: GameState): Cart {
     const t = totals(p);
-    const next = suggestNext(p);
-    const nextLevel = next && p.worlds[next.worldId]?.levels.find((l) => l.id === next.levelId);
+    const nextLevel = suggestNextLevel(p)?.level;
     const id = p.overworld.id;
     return {
       key: id,
@@ -463,14 +462,6 @@ export class ProjectsScene extends QuestScene {
     const left = cam.worldView.x;
     const ix = Phaser.Math.Clamp(x, left + w / 2 + 4, left + cam.worldView.width - w / 2 - 4);
     this.info = this.add.container(ix, iy, [bg, t1, t2]).setDepth(1000);
-  }
-
-  private tween(config: Phaser.Types.Tweens.TweenBuilderConfig): Promise<void> {
-    return new Promise((resolve) => this.tweens.add({ ...config, onComplete: () => resolve() }));
-  }
-
-  private wait(ms: number): Promise<void> {
-    return new Promise((resolve) => this.time.delayedCall(ms, () => resolve()));
   }
 
   /** Slot the cartridge in, look up at the TV, boot, then start the project. */

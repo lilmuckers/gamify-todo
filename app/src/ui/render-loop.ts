@@ -1,6 +1,5 @@
 import type { App, Change } from '../app';
-
-type Keepable = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+import { keepFields } from './dom';
 
 /**
  * Re-renders HUD + panel on app changes, batched per task (not per frame, so
@@ -27,33 +26,17 @@ export function scheduler(app: App, panel: HTMLElement, render: () => HTMLElemen
   const run = () => {
     queued = false;
     if (!full) return renderSync();
-    const active = document.activeElement as Keepable | null;
-    const activeKey = active && panel.contains(active) ? active.dataset.keep : undefined;
-    if (typing() && !activeKey) {
+    const kept = keepFields(panel);
+    if (typing() && !kept.activeKey) {
       deferred = true;
       return renderSync();
     }
     full = false;
-    const kept = new Map<string, { value: string; start: number | null; end: number | null }>();
-    for (const el of panel.querySelectorAll<Keepable>('[data-keep]'))
-      kept.set(el.dataset.keep!, {
-        value: el.value,
-        start: 'selectionStart' in el ? el.selectionStart : null,
-        end: 'selectionEnd' in el ? el.selectionEnd : null,
-      });
     const scroll = panel.scrollTop;
     const content = render();
     panel.replaceChildren(content);
     panel.scrollTop = scroll;
-    for (const el of panel.querySelectorAll<Keepable>('[data-keep]')) {
-      const k = kept.get(el.dataset.keep!);
-      if (!k) continue;
-      el.value = k.value;
-      if (el.dataset.keep === activeKey) {
-        el.focus({ preventScroll: true });
-        if ('setSelectionRange' in el && k.start !== null) el.setSelectionRange(k.start, k.end);
-      }
-    }
+    kept.restore();
     const sel = app.selection?.kind === 'item' ? app.selection.id : app.selection?.kind ?? '';
     if (sel && sel !== lastSel)
       (panel.querySelector(sel === 'criteria' ? '.criteria' : `#item-${CSS.escape(sel)}`) as HTMLElement | null)?.scrollIntoView({

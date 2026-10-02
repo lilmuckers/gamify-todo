@@ -1,5 +1,6 @@
 import type { HeroId } from '@quest/shared';
 import { HEROES } from './heroes';
+import { canvas } from './canvas';
 import { PALETTE } from './pixels';
 
 /**
@@ -568,11 +569,9 @@ const cache = new Map<string, HTMLCanvasElement>();
 /** A 32x32 canvas of a hero's portrait (scale it up with CSS, pixelated). */
 export function portraitCanvas(id: HeroId, f: Face = 'neutral'): HTMLCanvasElement {
   const key = `${id}:${f}`;
-  let c = cache.get(key);
-  if (c) return c;
-  c = document.createElement('canvas');
-  c.width = c.height = N;
-  const ctx = c.getContext('2d')!;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const [c, ctx] = canvas(N, N);
   const colors = portraitColors(id);
   PORTRAITS[id][f].forEach((row, y) =>
     [...row].forEach((ch, x) => {
@@ -599,11 +598,9 @@ export const EMOTES: Record<Mood, string[]> = {
 
 export function emoteCanvas(m: Mood): HTMLCanvasElement {
   const key = `emote:${m}`;
-  let c = cache.get(key);
-  if (c) return c;
-  c = document.createElement('canvas');
-  c.width = c.height = 7;
-  const ctx = c.getContext('2d')!;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const [c, ctx] = canvas(7, 7);
   ctx.fillStyle = PALETTE.w;
   EMOTES[m].forEach((row, y) => [...row].forEach((ch, x) => ch === 'w' && ctx.fillRect(x, y, 1, 1)));
   cache.set(key, c);

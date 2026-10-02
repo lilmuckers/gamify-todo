@@ -1,5 +1,5 @@
 import type { Criterion, GameState, Goal, InboxItem, Item, ItemStatus, Level, Project, Settings, World, Workspace } from './model';
-import { clone, uniqueId } from './model';
+import { clone, findLevelAt, uniqueId } from './model';
 import { isCleared } from './scoring';
 
 interface LevelAddr {
@@ -493,7 +493,7 @@ export function replay(state: Workspace, ops: Op[]): ReplayResult {
 }
 
 function itemTitle(ws: Workspace, op: { projectId: string; itemId: string } & ItemAddr): string {
-  const level = ws.projects[op.projectId]?.worlds[op.worldId]?.levels.find((l) => l.id === op.levelId);
+  const level = findLevelAt(ws, op);
   const parent = op.parentId ? level?.items.find((i) => i.id === op.parentId) : undefined;
   const list = op.parentId ? parent?.subtasks : level?.items;
   const title = list?.find((i) => i.id === op.itemId)?.title ?? op.itemId;

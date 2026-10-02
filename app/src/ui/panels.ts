@@ -1,18 +1,17 @@
 import {
   dependencyMode,
-  findLevel,
   isBlocking,
   isMvpItem,
   isResolved,
   isWorldLocked,
   layoutLevel,
   levelNodeState,
+  levelRefTarget,
   nudges,
   orderedProjects,
   orderedWorlds,
-  parseLevelRef,
   scoreLevel,
-  suggestNext,
+  suggestNextLevel,
   totals,
   uniqueId,
   worldTotals,
@@ -23,7 +22,9 @@ import {
 } from '@quest/shared';
 import { bucket, track } from '../analytics';
 import { itemAddr, type App, type LevelView } from '../app';
+import { pullLookup } from '../data/source';
 import { href } from '../router';
+import { NODE_SPRITE } from '../sprites/pixels';
 import { fmtDuration, h, icon, relTime, stars } from './dom';
 import { criterionForm, goalForm, itemForm, levelForm, projectForm, STATUS_LABEL, TYPE_INFO, worldForm } from './forms';
 import { mergeDialog, reviewDialog } from './review';
@@ -50,8 +51,7 @@ function projectsPanel(app: App) {
       { class: 'list' },
       projects.map((p) => {
         const t = totals(p);
-        const next = suggestNext(p);
-        const nextLevel = next && p.worlds[next.worldId]?.levels.find((l) => l.id === next.levelId);
+        const nextLevel = suggestNextLevel(p)?.level;
         return h(
           'li',
           null,
@@ -74,12 +74,17 @@ function projectsPanel(app: App) {
       }),
     ),
     app.caps.canReviewPRs &&
-      h('a', { class: 'btn warp block', href: href({ view: 'prs' }) }, icon('warp-pipe', 'grass', 'icon'), ' Warp Zone: review PRs'),
+      warpZoneButton(),
     syncFooter(app),
   );
 }
 
 type Kid = Node | string | null | false | undefined | Kid[];
+
+/** Big button into the Warp Zone (PR review). */
+function warpZoneButton() {
+  return h('a', { class: 'btn warp block', href: href({ view: 'prs' }) }, icon('warp-pipe', 'grass', 'icon'), ' Warp Zone: review PRs');
+}
 
 function section(title: string, action: HTMLElement | null, ...children: Kid[]) {
   return h('section', { class: 'card' }, h('header', null, h('h3', null, title), action), ...children);
@@ -121,10 +126,9 @@ export function renderPanel(app: App): HTMLElement {
 function overworldPanel(app: App) {
   const s = app.state!;
   const t = totals(s);
-  const next = suggestNext(s);
+  const next = suggestNextLevel(s);
   const edit = app.caps.canEdit;
   const worlds = orderedWorlds(s);
-  const nextLevel = next && s.worlds[next.worldId]?.levels.find((l) => l.id === next.levelId);
 
   const pid = app.projectId!;
   return h(
@@ -146,11 +150,11 @@ function overworldPanel(app: App) {
       h('div', null, h('b', null, `${t.stars}/${t.maxStars}`), h('span', null, 'stars')),
       h('div', null, h('b', null, `${t.levelsCleared}/${t.levels}`), h('span', null, 'levels')),
     ),
-    nextLevel &&
+    next &&
       h(
         'a',
-        { class: 'btn primary block', href: href({ view: 'level', projectId: pid, ...next! }) },
-        `▶ Next: ${nextLevel.name}`,
+        { class: 'btn primary block', href: href({ view: 'level', projectId: pid, worldId: next.worldId, levelId: next.levelId }) },
+        `▶ Next: ${next.level.name}`,
       ),
     section(
       'Goals',
@@ -205,7 +209,7 @@ function overworldPanel(app: App) {
       ),
     ),
     app.caps.canReviewPRs &&
-      h('a', { class: 'btn warp block', href: href({ view: 'prs' }) }, icon('warp-pipe', 'grass', 'icon'), ' Warp Zone: review PRs'),
+      warpZoneButton(),
     syncFooter(app),
   );
 }
@@ -253,7 +257,7 @@ function worldPanel(app: App, worldId: string) {
             h(
               'div',
               { class: 'row' },
-              icon({ cleared: 'node-clear', 'in-progress': 'node-active', open: 'node', locked: 'node-lock' }[st], 'grass', 'icon sm'),
+              icon(NODE_SPRITE[st], 'grass', 'icon sm'),
               link(l.name, href({ view: 'level', projectId: pid, worldId: w.id, levelId: l.id })),
               h('span', { class: 'grow' }),
               sc.cleared ? stars(sc.stars) : h('small', { class: 'muted' }, `${l.someday ? '💤 someday · ' : ''}${sc.mvpDone}/${sc.mvpTotal} MVP`),
@@ -335,7 +339,10 @@ function levelPanel(app: App) {
       : link(world.name, href({ view: 'world', projectId, worldId: world.id }));
   const projectTitle =
     r.view === 'pr-level'
-      ? (app.pullView(r.pr)?.data?.head.projects[projectId] ?? app.pullView(r.pr)?.data?.base.projects[projectId])?.overworld.title
+      ? (() => {
+          const data = app.pullView(r.pr)?.data;
+          return data && pullLookup(data).project(projectId)?.overworld.title;
+        })()
       : app.state?.overworld.title;
 
   const critList = h(
@@ -460,10 +467,14 @@ function levelPanel(app: App) {
     const { parent, dep } = cur.sub;
     const up = { ...r, subId: undefined, itemId: dep.id } as typeof r;
     const left = level.items.filter((i) => isMvpItem(i) && !isResolved(i)).length;
+    // Back up the pipe: the hero pops out of the dependency's pipe in the level.
+    const goUp = (closed: boolean) => {
+      track('warp_exit', { closed });
+      app.arrival = { kind: 'pipe-up', itemId: dep.id };
+    };
     const setDep = (status: Item['status']) => {
       track('dependency_resolve', { action: status === 'done' ? 'close' : 'skip', dep_mode: 'warp' });
-      track('warp_exit', { closed: status === 'done' });
-      app.arrival = { kind: 'pipe-up', itemId: dep.id };
+      goUp(status === 'done');
       if (app.dispatch({ kind: 'setItemStatus', ...at, itemId: dep.id, status }).ok) location.hash = href(up);
     };
     return h(
@@ -490,10 +501,7 @@ function levelPanel(app: App) {
           {
             class: 'btn sm',
             href: href(up),
-            onclick: () => {
-              track('warp_exit', { closed: false });
-              app.arrival = { kind: 'pipe-up', itemId: dep.id };
-            },
+            onclick: () => goUp(false),
           },
           '⬆ Back up the pipe',
         ),
@@ -557,15 +565,14 @@ function dependencyLinks(app: App, cur: LevelView, item: Item) {
   if (!mode) return null;
   const r = app.route;
   if (mode === 'cloud') {
-    const ref = parseLevelRef(item.levelRef!);
-    const target = ref && app.state && findLevel(app.state, ref.worldId, ref.levelId);
-    if (!ref || !target || r.view !== 'level') return h('small', { class: 'muted' }, `Needs level ${item.levelRef}`);
-    const name = `${app.state!.worlds[ref.worldId]?.name ?? ref.worldId}: ${target.name}`;
+    const target = app.state && levelRefTarget(app.state, item);
+    if (!target || r.view !== 'level') return h('small', { class: 'muted' }, `Needs level ${item.levelRef}`);
     const ride = () => {
       track('cloud_ride');
       app.arrival = { kind: 'cloud' };
     };
-    return h('div', null, h('a', { class: 'link', href: href({ view: 'level', projectId: cur.projectId, ...ref }), onclick: ride }, `☁ Ride the cloud to ${name}`));
+    const to = href({ view: 'level', projectId: cur.projectId, worldId: target.worldId, levelId: target.levelId });
+    return h('div', null, h('a', { class: 'link', href: to, onclick: ride }, `☁ Ride the cloud to ${target.world.name}: ${target.level.name}`));
   }
   if (r.view !== 'level' && r.view !== 'pr-level') return null;
   const below = { ...r, subId: item.id, itemId: undefined };
@@ -624,16 +631,15 @@ export function pullPanel(app: App, n: number) {
   if (!v || v.loading) return wrap(h('p', null, 'Warping…'));
   if (v.error || !v.data || !v.diff)
     return wrap(h('p', { class: 'note alert' }, v.error ?? 'Failed to load'), smallBtn('Retry', () => void app.loadPull(n, true)));
-  const { detail, head, base } = v.data;
+  const { detail } = v.data;
   const d = v.diff;
   const valid = (v.issues ?? []).length === 0;
   const mergeable = detail.mergeable !== false && valid;
   const checks = detail.checks;
-  const projectOf = (pid: string) => head.projects[pid] ?? base.projects[pid];
-  const worldName = (pid: string, wid: string) =>
-    head.projects[pid]?.worlds[wid]?.name ?? base.projects[pid]?.worlds[wid]?.name ?? wid;
-  const levelName = (pid: string, wid: string, lid: string) =>
-    (head.projects[pid]?.worlds[wid] ?? base.projects[pid]?.worlds[wid])?.levels.find((x) => x.id === lid)?.name ?? lid;
+  const find = pullLookup(v.data);
+  const projectOf = find.project;
+  const worldName = (pid: string, wid: string) => find.world(pid, wid)?.name ?? wid;
+  const levelName = (pid: string, wid: string, lid: string) => find.level({ projectId: pid, worldId: wid, levelId: lid })?.name ?? lid;
   return wrap(
     h('h2', null, `#${detail.number} ${detail.title}`),
     h('p', { class: 'muted' }, `${detail.author} wants to merge ${detail.headRef} → ${detail.baseRef}`),

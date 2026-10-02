@@ -1,5 +1,5 @@
 import type { GameState, Level, World } from './model';
-import { isMvpItem, isResolved, orderedWorlds } from './model';
+import { findLevel, isMvpItem, isResolved, orderedWorlds } from './model';
 
 export const BASE_XP = 100;
 export const TIME_BONUS_XP = 100;
@@ -187,6 +187,13 @@ export function suggestNext(state: GameState): { worldId: string; levelId: strin
     if (isWorldLocked(state, w)) continue;
     for (const l of w.levels) if (!isCleared(l) && !l.someday) return { worldId: w.id, levelId: l.id };
   }
+}
+
+/** The suggested next level itself, with where it is. */
+export function suggestNextLevel(state: GameState): { worldId: string; levelId: string; level: Level } | undefined {
+  const next = suggestNext(state);
+  const level = next && findLevel(state, next.worldId, next.levelId);
+  return next && level ? { ...next, level } : undefined;
 }
 
 export interface Nudge {

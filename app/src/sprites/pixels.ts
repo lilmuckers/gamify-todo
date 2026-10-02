@@ -1,7 +1,13 @@
 // Original pixel art, drawn as character maps. One char = one pixel; '.' = transparent.
 // Colours come from PALETTE, with per-theme overrides for ground/sky (see THEMES).
 
-import type { Theme } from '@quest/shared';
+import type { NodeState, Theme } from '@quest/shared';
+
+/** Review colours for what a PR does to a level, item or criterion. */
+export const DIFF_COLOR = { added: '#63c74d', modified: '#feae34', removed: '#e43b44' } as const;
+
+/** Map-node sprite for each level state. */
+export const NODE_SPRITE: Record<NodeState, string> = { cleared: 'node-clear', 'in-progress': 'node-active', open: 'node', locked: 'node-lock' };
 
 export const PALETTE: Record<string, string> = {
   k: '#1a1c2c', // outline

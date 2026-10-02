@@ -3,11 +3,13 @@ import {
   changedFiles,
   commitMessage,
   ConflictError,
+  findLevelAt,
   makeOp,
   OpConflict,
   polishPoints,
   replay,
   validateWorkspace,
+  type LevelAt,
   type Workspace,
   type Issue,
   type Op,
@@ -147,8 +149,13 @@ export class Store {
   private setBase(base: Workspace, version: string) {
     this.base = base;
     this.version = version;
+    this.rebuild();
+  }
+
+  /** State = the remote base plus every queued edit (keeping what didn't change). */
+  private rebuild() {
     const prev = this.state;
-    this.state = keepUnchanged(prev, replay(base, this.outbox).state);
+    this.state = keepUnchanged(prev, replay(this.base!, this.outbox).state);
     // Same state, same issues: skip revalidating everything.
     if (this.state !== prev) this.issues = validateWorkspace(this.state);
   }
@@ -250,7 +257,7 @@ export class Store {
       const fresh = issues.find((i) => !known.has(i.file + i.path + i.message)) ?? issues[0];
       return { ok: false, error: `${fresh.path}: ${fresh.message}` };
     }
-    const polish = 'levelId' in op ? this.polishDelta(this.state, next, op.projectId, op.worldId, op.levelId) : 0;
+    const polish = 'levelId' in op ? this.polishDelta(this.state, next, op) : 0;
     this.state = next;
     this.issues = issues;
     this.outbox.push(op);
@@ -291,10 +298,9 @@ export class Store {
     return { ok: true, ops };
   }
 
-  private polishDelta(a: Workspace, b: Workspace, projectId: string, worldId: string, levelId: string) {
-    const find = (ws: Workspace) => ws.projects[projectId]?.worlds[worldId]?.levels.find((l) => l.id === levelId);
-    const la = find(a);
-    const lb = find(b);
+  private polishDelta(a: Workspace, b: Workspace, at: LevelAt) {
+    const la = findLevelAt(a, at);
+    const lb = findLevelAt(b, at);
     return la && lb ? polishPoints(lb) - polishPoints(la) : 0;
   }
 
@@ -318,8 +324,7 @@ export class Store {
     this.held.clear();
     if (drop.size && this.base) {
       this.outbox = this.outbox.filter((o) => !drop.has(o.opId));
-      this.state = replay(this.base, this.outbox).state;
-      this.issues = validateWorkspace(this.state);
+      this.rebuild();
     }
     this.status = this.idleStatus();
     void this.saveQueue();
@@ -425,8 +430,7 @@ export class Store {
     this.outbox = this.outbox.filter((o) => o.opId !== opId);
     if (this.outbox.length === before) return false;
     this.held.delete(opId);
-    this.state = replay(this.base, this.outbox).state;
-    this.issues = validateWorkspace(this.state);
+    this.rebuild();
     this.status = this.idleStatus();
     void this.saveQueue();
     this.emit();

@@ -1,14 +1,6 @@
 import { fromFiles } from '@quest/shared';
-import { BASE_URL } from '../config';
+import { BASE_URL, fetchText } from '../config';
 import type { DataSource, Loaded } from './source';
-
-async function text(url: string): Promise<string> {
-  const res = await fetch(url, { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`${url}: ${res.status}`);
-  // A server's catch-all can answer a missing file with the app page.
-  if (res.headers.get('content-type')?.includes('text/html')) throw new Error(`${url}: not found (this build has no example data)`);
-  return res.text();
-}
 
 async function hash(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(s));
@@ -28,7 +20,7 @@ export class StaticSource implements DataSource {
   constructor(private prefix = '') {}
 
   private get(path: string) {
-    return text(`${BASE_URL}${this.prefix}${path}`);
+    return fetchText(`${BASE_URL}${this.prefix}${path}`, 'this build has no example data');
   }
 
   /** Every deployed data file, by path. */

@@ -4,6 +4,7 @@ import { SPRITES } from '../sprites/pixels';
 import { HERO_IDS } from '@quest/shared';
 import { heroKey, type HeroFrame } from '../sprites/heroes';
 import { island, sprite, TILE, type ThemeKey } from '../sprites/render';
+import { isTyping } from '../ui/dom';
 
 export const WORLD_H = 15 * TILE;
 export const GROUND_Y = 12 * TILE;
@@ -117,7 +118,7 @@ export abstract class QuestScene extends Phaser.Scene {
     const keys = this.input.keyboard;
     // Leave arrow keys alone while the user is typing in a form field.
     // Play mode steers the hero with them instead.
-    const typing = () => this.app.playing || !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
+    const typing = () => this.app.playing || isTyping();
     keys?.on('keydown-LEFT', () => typing() || (onUserScroll?.(), (this.cameras.main.scrollX -= 48)));
     keys?.on('keydown-RIGHT', () => typing() || (onUserScroll?.(), (this.cameras.main.scrollX += 48)));
     this.listenResize();
@@ -196,6 +197,16 @@ export abstract class QuestScene extends Phaser.Scene {
     if (x >= v.x + 8 && x + w <= v.x + v.width - 8) return;
     cam.stopFollow();
     cam.centerOnX(x + w / 2);
+  }
+
+  /** Runs a tween and resolves when it completes (never, if the scene stops first). */
+  protected tween(config: Phaser.Types.Tweens.TweenBuilderConfig): Promise<void> {
+    return new Promise((resolve) => this.tweens.add({ ...config, onComplete: () => resolve() }));
+  }
+
+  /** Resolves after `ms` of scene time. */
+  protected wait(ms: number): Promise<void> {
+    return new Promise((resolve) => this.time.delayedCall(ms, () => resolve()));
   }
 
   /** Re-render on app changes until the scene shuts down (sync status alone shows nowhere in the game). */

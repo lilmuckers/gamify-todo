@@ -4,6 +4,17 @@ import { MAX_FOCUS, parseRepo, type RepoRef, type ReviewDay } from '@quest/share
 export const TARGET: 'local' | 'pages' = import.meta.env.VITE_TARGET === 'local' ? 'local' : 'pages';
 export const BASE_URL: string = import.meta.env.BASE_URL;
 
+/**
+ * A file from this site, fresh (no HTTP cache). `missing` explains a file
+ * the server answered with the app page instead (a catch-all route).
+ */
+export async function fetchText(url: string, missing = 'not found'): Promise<string> {
+  const res = await fetch(url, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`Couldn't load ${url} (${res.status})`);
+  if (res.headers.get('content-type')?.includes('text/html')) throw new Error(`Couldn't load ${url} (${missing})`);
+  return res.text();
+}
+
 const DEFAULT_REPO = import.meta.env.VITE_GH_REPO as string | undefined;
 const DEFAULT_BRANCH = (import.meta.env.VITE_GH_BRANCH as string | undefined) ?? 'main';
 

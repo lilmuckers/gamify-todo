@@ -30,6 +30,44 @@ function append(el: Element, children: Child[]) {
   }
 }
 
+/** True while a form field has the keyboard (game and shortcut keys stay out of its way). */
+export function isTyping(): boolean {
+  return !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
+}
+
+type Keepable = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
+/**
+ * Carries [data-keep] field values, focus and cursor under `root` over a
+ * re-render: call before rebuilding, then `restore` after. `activeKey` is
+ * the data-keep of the focused field, if it has one.
+ */
+export function keepFields(root: HTMLElement) {
+  const active = document.activeElement as Keepable | null;
+  const activeKey = active && root.contains(active) ? active.dataset.keep : undefined;
+  const values = new Map<string, { value: string; start: number | null; end: number | null }>();
+  for (const el of root.querySelectorAll<Keepable>('[data-keep]'))
+    values.set(el.dataset.keep!, {
+      value: el.value,
+      start: 'selectionStart' in el ? el.selectionStart : null,
+      end: 'selectionEnd' in el ? el.selectionEnd : null,
+    });
+  return {
+    activeKey,
+    restore() {
+      for (const el of root.querySelectorAll<Keepable>('[data-keep]')) {
+        const k = values.get(el.dataset.keep!);
+        if (!k) continue;
+        el.value = k.value;
+        if (el.dataset.keep === activeKey) {
+          el.focus({ preventScroll: true });
+          if ('setSelectionRange' in el && k.start !== null) el.setSelectionRange(k.start, k.end);
+        }
+      }
+    },
+  };
+}
+
 export function mount(el: Element, ...children: Child[]) {
   el.replaceChildren();
   append(el, children);
@@ -45,6 +83,11 @@ export function stars(n: number, max = 3) {
     { class: 'stars', title: `${n}/${max} stars` },
     Array.from({ length: max }, (_, i) => icon(i < n ? 'star' : 'star-empty', 'grass', 'icon sm')),
   );
+}
+
+/** `s` cut to at most `max` characters, ending in `tail` when cut. */
+export function truncate(s: string, max: number, tail = '…'): string {
+  return s.length > max ? `${s.slice(0, max - tail.length)}${tail}` : s;
 }
 
 export function fmtDuration(ms: number): string {
