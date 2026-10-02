@@ -62,6 +62,11 @@ export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selec
     draw('pipe-body', fx, GROUND - TILE);
     if (cleared) draw('arrow-up', fx + 8, GROUND - 3 * TILE - 4);
   } else {
+    // The staircase of success criteria up to the pole.
+    for (const st of L.stairs)
+      for (let row = 0; row < st.h; row++)
+        for (let col = 0; col < st.w; col++)
+          draw(st.mvp ? (st.done ? 'stair' : 'stair-off') : 'stair-bonus', (st.x + col) * TILE, GROUND - (row + 1) * TILE, !st.mvp && !st.done ? 0.5 : 1);
     draw('used', fx, GROUND - TILE);
     for (let i = 1; i < 9; i++) draw('pole', fx, GROUND - TILE - i * TILE);
     draw('pole-top', fx, GROUND - 10 * TILE);

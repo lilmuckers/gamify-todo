@@ -75,3 +75,23 @@ export function quip(thing: Thing, label = '', last?: string, r: () => number = 
   const fresh = lines.length > 1 ? lines.filter((q) => q !== last) : lines;
   return fresh[Math.floor(r() * fresh.length)];
 }
+
+/** What the flagpole says when you reach it with must-do steps left. `{n}` is how many. */
+const POLE_QUIPS = [
+  'Oi! You missed something.',
+  'Nice try. Check the steps.',
+  'Not so fast, the boring bits count too.',
+  "Did you forget something? Because I didn't.",
+  "That's not how stairs work.",
+  'Required means required.',
+  "Come back when you've done your homework.",
+  '{n} short. Off you pop.',
+];
+
+/** A telling-off from the flagpole, never the same as `last` twice in a row. */
+export function poleQuip(left: number, last?: string, r: () => number = Math.random): string {
+  const n = `${left} step${left === 1 ? '' : 's'}`;
+  const lines = POLE_QUIPS.map((q) => q.replaceAll('{n}', n));
+  const fresh = lines.filter((q) => q !== last);
+  return fresh[Math.floor(r() * fresh.length)];
+}

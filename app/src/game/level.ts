@@ -12,6 +12,7 @@ import {
   type LevelDiff,
   type LevelLayout,
   type LayoutEntity,
+  type StairStep,
   type World,
 } from '@quest/shared';
 import { THEMES } from '../sprites/pixels';
@@ -23,7 +24,8 @@ import { itemAddr, type App } from '../app';
 import { go } from '../router';
 import { GROUND_Y, heroWalk, QuestScene, tex, WORLD_H } from './common';
 import { PlayControls, type Controls } from './play/input';
-import { ahead, buildWorld, EXIT_ID, FLAG_ID, HITBOX, nearest, newBody, step, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
+import { ahead, buildWorld, criterionOf, EXIT_ID, FLAG_ID, HITBOX, nearest, newBody, step, stepId, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
+import { poleQuip } from './quips';
 
 export interface LevelParams {
   projectId: string;
@@ -58,6 +60,24 @@ interface BubbleSpec {
   /** Where the tail points: centre x, and the top/bottom of the thing. */
   anchor: { cx: number; top: number; bottom: number };
 }
+
+/** A drawn stair step: its blocks, so ticking can light them. */
+interface StepView {
+  step: StairStep;
+  blocks: Phaser.GameObjects.Image[];
+}
+
+/** Flagpole sections, bottom to top, each nested in the one below so the pole can bend. */
+interface PoleView {
+  segs: Phaser.GameObjects.Container[];
+  flag: Phaser.GameObjects.Image;
+  /** Pole centre and the top of its base block, in pixels. */
+  x: number;
+  base: number;
+}
+
+const POLE_H = 9;
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const WALK_TILES_PER_SEC = 7;
 const STATUS_COLOR: Record<Item['status'], string> = {
@@ -94,8 +114,20 @@ export class LevelScene extends QuestScene {
   };
   /** Hero-stop item whose auto bubble the user closed; stays closed until the hero moves on. */
   private dismissedAuto?: string;
-  /** Criteria ticked per level at the last render, to animate the flag between states. */
-  private flagDone = new Map<string, number>();
+  /** Flag height (criteria ticked, all of them once cleared) per level at the last render, to animate it. */
+  private flagState = new Map<string, { k: number; cleared: boolean }>();
+  /** The pole's flag waiting for the finale to raise it (to this y). */
+  private flagPending?: { img: Phaser.GameObjects.Image; y: number };
+  private steps = new Map<string, StepView>();
+  private pole?: PoleView;
+  /** Criteria ticked at the last render, to see which changed. */
+  private prevCrit = new Map<string, boolean>();
+  /** Newly ticked steps the hero hasn't landed on yet: drawn unlit until he does. */
+  private unlit = new Set<string>();
+  /** Stair step the hero is standing on (index), when he's up the stairs. */
+  private perch?: number;
+  private poleSpeech?: Phaser.GameObjects.Container;
+  private lastPoleQuip?: string;
   private skyGfx?: Phaser.GameObjects.Graphics;
   /** Parallax layers live outside `stage`: containers ignore child scrollFactor. */
   private parallax: Phaser.GameObjects.Image[] = [];
@@ -136,6 +168,13 @@ export class LevelScene extends QuestScene {
     this.params = params;
     this.views.clear();
     this.prev.clear();
+    this.steps.clear();
+    this.prevCrit.clear();
+    this.unlit.clear();
+    this.perch = undefined;
+    this.pole = undefined;
+    this.flagPending = undefined;
+    this.poleSpeech = undefined;
     this.stage = undefined;
     this.sig = '';
     this.selSig = '';
@@ -205,7 +244,9 @@ export class LevelScene extends QuestScene {
     this.input.keyboard?.on('keydown-ESC', () => !typing() && !this.playing && this.closeBubble());
     this.input.keyboard?.on('keydown-ENTER', () => {
       if (typing() || !this.bubble || !this.canEdit()) return;
-      this.setStatus(this.bubble.itemId, 'done');
+      const cid = criterionOf(this.bubble.itemId);
+      if (cid) this.setCriterion(cid, true);
+      else this.setStatus(this.bubble.itemId, 'done');
     });
 
     // A deep-linked item gets its bubble; otherwise show the one the hero waits at.
@@ -242,16 +283,30 @@ export class LevelScene extends QuestScene {
       return;
     }
     const changed = this.diffStatuses(cur.level);
+    const crit = this.diffCriteria(cur.level);
+    // The hero lights a newly ticked step by landing on it.
+    if (!this.playing && !cur.sub && !reducedMotion()) for (const c of crit) if (c.done) this.unlit.add(c.id);
     this.build(cur.world, cur.level, cur.diff);
     // Keep an open bubble in step with its item (it moves when the layout does),
     // and with the selection, which the URL can change.
     if (!this.syncBubbleToSelection() && this.bubble) {
       const item = cur.level.items.find((i) => i.id === this.bubble!.itemId);
+      const cid = criterionOf(this.bubble.itemId);
       if (this.bubble.itemId === EXIT) this.openBubble(EXIT, { pop: false, auto: this.bubble.auto });
+      else if (cid && this.steps.has(cid)) this.openBubble(this.bubble.itemId, { pop: false, auto: this.bubble.auto });
+      else if (cid) this.closeBubble();
       else if (!item || item.status === 'done') this.closeBubble();
       else this.openBubble(item.id, { pop: false, auto: this.bubble.auto });
     }
-    void this.animate(cur.level, changed);
+    void this.animate(cur.level, changed, crit);
+  }
+
+  /** Criteria ticked or unticked since the last render. */
+  private diffCriteria(level: Level) {
+    return level.successCriteria.filter((c) => {
+      const before = this.prevCrit.get(c.id);
+      return before !== undefined && before !== c.done;
+    });
   }
 
   private diffStatuses(level: Level) {
@@ -295,9 +350,10 @@ export class LevelScene extends QuestScene {
 
     const cleared = scoreLevel(level).cleared;
     const fx = L.flagX * TILE;
-    const poleH = 9;
+    this.steps.clear();
+    this.pole = undefined;
     if (sub) this.drawUnderground(stage, level, fx, cleared);
-    else this.drawGoal(stage, level, fx, poleH, cleared);
+    else this.drawGoal(stage, level, fx, cleared);
 
     // Items.
     const byId = new Map(level.items.map((i) => [i.id, i]));
@@ -309,21 +365,118 @@ export class LevelScene extends QuestScene {
     this.drawSelection();
 
     this.prev = new Map(level.items.map((i) => [i.id, i.status]));
+    this.prevCrit = new Map(level.successCriteria.map((c) => [c.id, c.done]));
     if (this.body) this.rebuildWorld();
   }
 
-  /** Flagpole + castle at the end of a normal level. */
-  private drawGoal(stage: Phaser.GameObjects.Container, level: Level, fx: number, poleH: number, cleared: boolean) {
+  /** Staircase, flagpole and castle at the end of a normal level. */
+  private drawGoal(stage: Phaser.GameObjects.Container, level: Level, fx: number, cleared: boolean) {
     const L = this.layout;
-    stage.add(this.add.image(fx, GROUND_Y - TILE, 'used').setOrigin(0, 0));
-    for (let i = 1; i < poleH; i++) stage.add(this.add.image(fx, GROUND_Y - TILE - i * TILE, 'pole').setOrigin(0, 0));
-    stage.add(this.add.image(fx, GROUND_Y - TILE - poleH * TILE, 'pole-top').setOrigin(0, 0));
-    const poleHit = this.add.zone(fx - 8, GROUND_Y - (poleH + 1) * TILE, 3 * TILE, (poleH + 1) * TILE).setOrigin(0, 0);
+    this.drawStairs(stage, level);
+    const base = GROUND_Y - TILE;
+    stage.add(this.add.image(fx, base, 'used').setOrigin(0, 0));
+    // Each section hangs off the one below, so the pole can bend like a sprung rod.
+    const segs: Phaser.GameObjects.Container[] = [];
+    let parent = this.add.container(fx + 8, base);
+    stage.add(parent);
+    for (let i = 1; i <= POLE_H; i++) {
+      segs.push(parent);
+      parent.add(this.add.image(-8, -TILE, i === POLE_H ? 'pole-top' : 'pole').setOrigin(0, 0));
+      if (i === POLE_H) break;
+      const next = this.add.container(0, -TILE);
+      parent.add(next);
+      parent = next;
+    }
+    const poleHit = this.add.zone(fx - 8, GROUND_Y - (POLE_H + 1) * TILE, 3 * TILE, (POLE_H + 1) * TILE).setOrigin(0, 0);
     this.clickable(poleHit, () => this.app.select({ kind: 'criteria' }));
     stage.add(poleHit);
-    this.drawCriteria(stage, level, fx, poleH, cleared);
+
+    // The flag climbs one notch per ticked criterion, and to the top once cleared.
+    const criteria = level.successCriteria;
+    const n = Math.max(1, criteria.length);
+    const done = criteria.filter((c) => c.done).length;
+    const k = cleared ? n : done;
+    const top = base - (POLE_H - 1) * TILE + 2;
+    const flagAt = (j: number) => Math.round(base - 9 - ((base - 9 - top) * j) / n);
+    const flag = this.add.image(fx - 10, flagAt(k), cleared ? 'flag' : 'flag-grey').setOrigin(0, 0).setFlipX(true);
+    stage.add(flag);
+    const prev = this.flagState.get(level.id);
+    this.flagPending = undefined;
+    if (prev && prev.k !== k) {
+      flag.y = flagAt(prev.k);
+      // Just cleared: the flag goes up as the hero slides down (see finale).
+      if (cleared && !prev.cleared && !reducedMotion()) this.flagPending = { img: flag, y: flagAt(k) };
+      else this.tweens.add({ targets: flag, y: flagAt(k), duration: 600, ease: k > prev.k ? 'Back.out' : 'Quad.out' });
+    }
+    this.flagState.set(level.id, { k, cleared });
+    this.pole = { segs, flag, x: fx + 8, base };
+
+    stage.add(this.text(fx + 8, GROUND_Y + 6, `GOAL\n${done}/${criteria.length}`, 4, cleared ? '#63c74d' : '#fee761').setOrigin(0.5, 0));
     stage.add(this.add.image(L.castleX * TILE, GROUND_Y, 'castle').setOrigin(0, 1));
     if (cleared) stage.add(this.add.image(L.castleX * TILE + 36, GROUND_Y - 88, 'flag').setOrigin(0, 0));
+  }
+
+  /**
+   * One step per success criterion, climbing to the pole. Must-do steps are
+   * greyed until ticked, then lit; bonus steps are pink and see-through until
+   * ticked. Labels sit in the dirt, alternating rows so neighbours don't clash.
+   */
+  private drawStairs(stage: Phaser.GameObjects.Container, level: Level) {
+    for (const st of this.layout.stairs) {
+      const c = level.successCriteria[st.index];
+      const lit = st.done && !this.unlit.has(st.criterionId);
+      const blocks: Phaser.GameObjects.Image[] = [];
+      for (let row = 0; row < st.h; row++)
+        for (let col = 0; col < st.w; col++) {
+          const b = this.add.image((st.x + col) * TILE, GROUND_Y - (row + 1) * TILE, this.stepTex(st, lit)).setOrigin(0, 0);
+          if (!st.mvp && !lit) b.setAlpha(0.5);
+          blocks.push(b);
+          stage.add(b);
+        }
+      this.steps.set(st.criterionId, { step: st, blocks });
+
+      // Label in the dirt, trimmed to the room it has.
+      const cx = (st.x + st.w / 2) * TILE;
+      const maxW = 2 * st.w * TILE - 6;
+      const full = `${st.mvp ? '' : '+ '}${c.text}`;
+      const label = this.text(cx, GROUND_Y + 6 + (st.index % 2) * 12, full, 4, st.done ? '#63c74d' : st.mvp ? '#ffffff' : '#c0cbdc').setOrigin(0.5, 0);
+      let txt = full;
+      while (label.displayWidth > maxW && txt.length > 4) {
+        txt = txt.slice(0, -2);
+        label.setText(`${txt.trimEnd()}...`);
+      }
+      stage.add(label);
+
+      const topY = GROUND_Y - st.h * TILE;
+      const hit = this.add.zone(st.x * TILE, topY - TILE, st.w * TILE, (st.h + 1) * TILE).setOrigin(0, 0);
+      const id = stepId(st.criterionId);
+      this.clickable(hit, () => {
+        if (this.bubble?.itemId === id) return this.closeBubble();
+        this.openBubble(id);
+        this.app.select({ kind: 'criteria' });
+      });
+      hit.on('pointerover', () => this.bubble?.itemId !== id && this.showCriterionTip(c.text, c.mvp, cx, topY - 2));
+      hit.on('pointerout', () => this.tooltip?.destroy());
+      stage.add(hit);
+    }
+  }
+
+  private stepTex(st: StairStep, lit: boolean) {
+    return !st.mvp ? 'stair-bonus' : lit ? 'stair' : 'stair-off';
+  }
+
+  /** Lights every step still waiting for the hero (he didn't get there). */
+  private lightAll() {
+    for (const id of [...this.unlit]) this.lightStep(id);
+  }
+
+  /** Lights (or greys) a step's blocks in place, without a rebuild. */
+  private lightStep(criterionId: string, on = true) {
+    const v = this.steps.get(criterionId);
+    this.unlit.delete(criterionId);
+    if (!v) return;
+    for (const b of v.blocks) b.setTexture(this.stepTex(v.step, on)).setAlpha(!v.step.mvp && !on ? 0.5 : 1);
+    if (on) this.poof((v.step.x + v.step.w / 2) * TILE, GROUND_Y - v.step.h * TILE - 4);
   }
 
   /**
@@ -359,93 +512,6 @@ export class LevelScene extends QuestScene {
     stage.add(hit);
   }
 
-  /**
-   * The pole is split into one section per success criterion, bottom to top,
-   * each with a label bubble. The flag climbs one section per ticked criterion
-   * and reaches the top when they're all done.
-   */
-  private drawCriteria(stage: Phaser.GameObjects.Container, level: Level, fx: number, poleH: number, cleared: boolean) {
-    const criteria = level.successCriteria;
-    const n = Math.max(1, criteria.length);
-    const done = criteria.filter((c) => c.done).length;
-    const base = GROUND_Y - TILE; // top of the base block
-    const top = GROUND_Y - TILE - (poleH - 1) * TILE + 2; // just under the ball
-    const section = (base - top) / n;
-    const poleX = fx + 8;
-
-    // Section marks on the pole.
-    const marks = this.add.graphics();
-    marks.fillStyle(0xfee761, 1);
-    for (let i = 1; i < n; i++) marks.fillRect(poleX - 3, Math.round(base - i * section), 6, 1);
-    stage.add(marks);
-
-    // Flag: bottom with nothing ticked, top with everything ticked.
-    const flagAt = (k: number) => Math.round(base - 9 - ((base - 9 - top) * k) / n);
-    const flag = this.add.image(fx - 10, flagAt(done), cleared ? 'flag' : 'flag-grey').setOrigin(0, 0).setFlipX(true);
-    stage.add(flag);
-    const prev = this.flagDone.get(level.id);
-    if (prev !== undefined && prev !== done) {
-      flag.y = flagAt(prev);
-      this.tweens.add({ targets: flag, y: flagAt(done), duration: 600, ease: done > prev ? 'Back.out' : 'Quad.out' });
-    }
-    this.flagDone.set(level.id, done);
-
-    // A label bubble per criterion, at the middle of its section.
-    const edit = this.canEdit();
-    const cur = this.current();
-    const fontSize = section >= 14 ? 3.5 : 3;
-    const h = Math.max(7, Math.min(13, Math.floor(section) - 2));
-    const maxW = (this.layout.castleX - this.layout.flagX) * TILE - 26;
-    criteria.forEach((c, i) => {
-      const cy = Math.round(base - (i + 0.5) * section);
-      const box = this.add.container(poleX + 9, cy);
-      const box6 = Math.min(6, h - 3);
-      const label = this.text(box6 + 6, 0, c.text, fontSize, c.done ? '#5a6988' : '#1a1c2c').setOrigin(0, 0.5).setStroke('#ffffff', 0);
-      // Single line: trim to fit.
-      let txt = c.text;
-      while (label.displayWidth > maxW - box6 - 10 && txt.length > 4) {
-        txt = txt.slice(0, -2);
-        label.setText(`${txt.trimEnd()}...`);
-      }
-      const w = Math.ceil(label.displayWidth) + box6 + 10;
-      const g = this.add.graphics();
-      g.fillStyle(0xffffff, 1).fillRoundedRect(0, -h / 2, w, h, 2);
-      g.lineStyle(1, 0x1a1c2c, 1).strokeRoundedRect(0, -h / 2, w, h, 2);
-      // Tail to the pole.
-      g.fillStyle(0xffffff, 1).fillTriangle(0.5, -2, 0.5, 2, -5, 0);
-      g.lineStyle(1, 0x1a1c2c, 1).lineBetween(0, -2, -5, 0).lineBetween(-5, 0, 0, 2);
-      if (c.mvp) g.fillStyle(0xe43b44, 1).fillRect(1, -h / 2 + 1, 2, h - 2);
-      // Checkbox.
-      const bx = 4;
-      g.fillStyle(c.done ? 0x63c74d : 0xffffff, 1).fillRect(bx, -box6 / 2, box6, box6);
-      g.lineStyle(1, 0x1a1c2c, 1).strokeRect(bx, -box6 / 2, box6, box6);
-      if (c.done) g.lineStyle(1.2, 0xffffff, 1).lineBetween(bx + 1.2, 0, bx + box6 / 2 - 0.5, box6 / 2 - 1.2).lineBetween(bx + box6 / 2 - 0.5, box6 / 2 - 1.2, bx + box6 - 1, -box6 / 2 + 1.2);
-      box.add([g, label]);
-      const hit = this.add.zone(-5, -h / 2, w + 5, h).setOrigin(0);
-      box.add(hit);
-      hit.setInteractive({ useHandCursor: edit });
-      hit.on('pointerover', () => this.showCriterionTip(c.text, c.mvp, box.x + w / 2, cy - h / 2));
-      hit.on('pointerout', () => this.tooltip?.destroy());
-      hit.on('pointerup', () => {
-        if (this.dragged || !edit || !cur) return;
-        this.tooltip?.destroy();
-        this.app.dispatch({
-          kind: 'setCriterion',
-          projectId: cur.projectId,
-          worldId: cur.world.id,
-          levelId: level.id,
-          criterionId: c.id,
-          done: !c.done,
-        });
-      });
-      stage.add(box);
-    });
-
-    stage.add(
-      this.text(poleX, GROUND_Y + 6, `GOAL\n${done}/${criteria.length}`, 4, cleared ? '#63c74d' : '#fee761').setOrigin(0.5, 0),
-    );
-  }
-
   private showCriterionTip(text: string, mvp: boolean, x: number, y: number) {
     this.tooltip?.destroy();
     const t = this.text(0, 0, `${text}${mvp ? '\nMVP: needed to clear' : '\nBonus'}`, 4, '#ffffff', 120).setOrigin(0.5, 1);
@@ -465,7 +531,8 @@ export class LevelScene extends QuestScene {
       sel?.kind === 'item'
         ? this.views.get(sel.id)?.entity
         : sel?.kind === 'criteria' && !this.current()?.sub
-          ? { x: L.flagX - 0.5, y: 0, w: 2, h: 10 }
+          ? // The staircase and the pole.
+            { x: (L.stairs[0]?.x ?? L.flagX) - 0.25, y: 0, w: L.flagX + 1.25 - (L.stairs[0]?.x ?? L.flagX) + 0.25, h: 10 }
           : undefined;
     if (!e || !this.stage) return;
     const g = (this.selGfx = this.add.graphics());
@@ -621,6 +688,14 @@ export class LevelScene extends QuestScene {
     this.app.dispatch({ kind: 'setItemStatus', ...itemAddr(cur), itemId, status });
   }
 
+  private setCriterion(criterionId: string, done: boolean) {
+    const cur = this.current();
+    if (!cur) return;
+    // Ticking sends the hero up the stairs: get the bubble out of his way.
+    if (done) this.closeBubble();
+    this.app.dispatch({ kind: 'setCriterion', projectId: cur.projectId, worldId: cur.world.id, levelId: cur.level.id, criterionId, done });
+  }
+
   /** Closing an auto bubble remembers it; closing a chosen one clears the selection (and URL). */
   private closeBubble() {
     const b = this.bubble;
@@ -631,11 +706,19 @@ export class LevelScene extends QuestScene {
     this.picking = false;
     if (b.auto) this.dismissedAuto = b.itemId;
     else if (this.app.selection?.kind === 'item' && this.app.selection.id === b.itemId) this.app.select(undefined);
+    else if (this.app.selection?.kind === 'criteria' && criterionOf(b.itemId)) this.app.select(undefined);
   }
 
   /** Opens the bubble for the selected item, if any. Returns true when a selection drives it. */
   private syncBubbleToSelection(): boolean {
     const sel = this.app.selection;
+    // A stair step's bubble goes with the criteria being selected.
+    const cid = this.bubble && criterionOf(this.bubble.itemId);
+    if (sel?.kind === 'criteria' && cid) {
+      if (this.steps.has(cid)) this.openBubble(stepId(cid), { pop: false });
+      else this.closeBubble();
+      return true;
+    }
     if (sel?.kind !== 'item') {
       if (this.bubble && !this.bubble.auto) {
         this.bubble.box.destroy();
@@ -687,6 +770,24 @@ export class LevelScene extends QuestScene {
       if (edit && !isResolved(dep) && cleared) button('GOT IT! WARP UP', 0x63c74d, () => void this.leaveSub(true));
       button('WARP UP', 0xdfe9f0, () => void this.leaveSub(false));
       spec.anchor = { cx: pipe.x + pipe.w / 2, top: pipe.top, bottom: GROUND_Y };
+      return spec;
+    }
+
+    const cid = criterionOf(id);
+    if (cid) {
+      const sv = this.steps.get(cid);
+      const c = cur.level.successCriteria.find((x) => x.id === cid);
+      if (!sv || !c) return;
+      spec.title = c.text;
+      spec.lines.push({ text: `${c.mvp ? 'MUST-DO STEP' : 'BONUS STEP'} · ${c.done ? 'TICKED' : 'NOT YET'}`, size: 3.5, muted: true });
+      if (!this.playing)
+        spec.lines.push({ text: c.mvp ? 'Needed to clear the level.' : 'Optional: skip it if it is not worth it.', size: 3.5, muted: true });
+      if (edit) {
+        if (c.done) button('UNTICK', 0xc0cbdc, () => this.setCriterion(cid, false));
+        else button('TICK!', 0x63c74d, () => this.setCriterion(cid, true));
+      }
+      const st = sv.step;
+      spec.anchor = { cx: (st.x + st.w / 2) * TILE, top: GROUND_Y - st.h * TILE, bottom: GROUND_Y };
       return spec;
     }
 
@@ -915,9 +1016,13 @@ export class LevelScene extends QuestScene {
     this.tweens.killTweensOf(this.hero);
     // A cleared level's hero is waiting in the castle: start again from the left.
     const x = this.hero.visible && this.hero.x < L.castleX * TILE ? this.hero.x : 2 * TILE;
-    this.hero.setVisible(true).setAlpha(1).setDepth(40).setPosition(x, GROUND_Y);
+    // Up the stairs he stays up the stairs; anywhere else he starts on the ground.
+    const y = this.perch !== undefined && this.hero.visible ? this.hero.y : GROUND_Y;
+    this.perch = undefined;
+    this.hero.setVisible(true).setAlpha(1).setDepth(40).setPosition(x, y);
     this.idle();
     this.body = newBody(x + HITBOX.offX, GROUND_Y);
+    this.body.y = y - this.body.h;
     this.rebuildWorld();
     this.controls?.capture(true, this);
     this.lastInput = Date.now();
@@ -946,7 +1051,7 @@ export class LevelScene extends QuestScene {
     this.busy = (async () => {
       await prev;
       if (this.playing || this.leaving) return;
-      if (this.hero.y < GROUND_Y) await this.hopTo(this.hero.x, GROUND_Y);
+      await this.toGround();
       // A level cleared while playing: the hero's place is in the castle.
       if (this.wasCleared && !this.current()?.sub) return this.fadeHero();
       await this.walkTo(this.layout.hero.x * TILE);
@@ -1011,7 +1116,7 @@ export class LevelScene extends QuestScene {
       // Entering a pipe or cloud hands the hero to its own animation.
       if (this.leaving || !this.body) return;
     }
-    if (flag && !this.atFlag) this.touchFlag(body);
+    if (flag && !this.atFlag) return this.touchFlag(body);
     this.atFlag = flag;
     this.drawHero(body);
   }
@@ -1038,7 +1143,8 @@ export class LevelScene extends QuestScene {
     if (!id) return;
     if (id === FLAG_ID) return this.app.select({ kind: 'criteria' });
     this.openBubble(id);
-    if (id !== EXIT) this.app.select({ kind: 'item', id });
+    if (criterionOf(id)) this.app.select({ kind: 'criteria' });
+    else if (id !== EXIT) this.app.select({ kind: 'item', id });
   }
 
   /** Y / E: the bubble follows whatever's ahead, or goes away. */
@@ -1084,8 +1190,19 @@ export class LevelScene extends QuestScene {
       this.cameras.main.shake(120, 0.003);
       return;
     }
+    if (e.kind === 'flagWhack') return this.whack(e.left);
     const cur = this.current();
     if (!cur) return;
+    if (e.kind === 'step') {
+      // Landed on a step: its criterion is ticked.
+      this.played.add(e.id);
+      const cid = criterionOf(e.id)!;
+      if (this.canEdit()) {
+        track('play_complete', { how: 'step' });
+        this.setCriterion(cid, true);
+      } else this.lightStep(cid);
+      return;
+    }
     if (e.kind === 'enter') {
       if (e.id === EXIT) return void this.leaveSub(scoreLevel(cur.level).cleared && this.canEdit());
       const v = this.views.get(e.id);
@@ -1122,40 +1239,89 @@ export class LevelScene extends QuestScene {
     }
   }
 
-  /** The flagpole: the finale once the level's cleared, otherwise a nudge back. */
+  /**
+   * Touched the pole with every must-do step ticked (the physics whacks you
+   * back otherwise): grab it where you are, slide down, into the castle.
+   */
   private touchFlag(body: Body) {
     const level = this.current()?.level;
     if (!level) return;
-    const score = scoreLevel(level);
-    if (!score.cleared) {
-      body.vx = -TUNING.walk;
-      body.vy = -200;
-      body.onGround = false;
-      const goals = level.successCriteria;
-      toast(`Not yet! ${goals.filter((g) => g.done).length}/${goals.length} goals ticked and every must-do item cleared opens the castle.`, 'info', 3500);
-      this.app.select({ kind: 'criteria' });
-      return;
-    }
-    // Slide down the pole, then the usual castle walk and fireworks.
     this.body = undefined;
     this.leaving = true;
-    this.hero.anims.stop();
-    this.hero.setFlipX(false).setAlpha(1).setTexture(this.heroTex('jump'));
-    this.tweens.add({
-      targets: this.hero,
-      x: this.layout.flagX * TILE - TILE + 6,
-      y: GROUND_Y,
-      duration: 600,
-      ease: 'Quad.in',
-      onComplete: async () => {
-        this.idle();
-        await this.celebrate(level);
-        this.wasCleared = true;
-        this.leaving = false;
-        // Stopped mid-finale: nothing will emit, so finish up here.
-        if (this.app.playing) this.app.setPlaying(false, 'cleared');
-        else this.exitPlay();
-      },
+    this.hero.setPosition(this.hero.x, Math.round(body.y + body.h));
+    void (async () => {
+      await this.finale(level);
+      this.wasCleared = true;
+      this.leaving = false;
+      // Stopped mid-finale: nothing will emit, so finish up here.
+      if (this.app.playing) this.app.setPlaying(false, 'cleared');
+      else this.exitPlay();
+    })();
+  }
+
+  /**
+   * The pole fights back: it bends away, whips forward (the physics has
+   * already knocked the hero back) and tells him off.
+   */
+  private whack(left: number) {
+    track('play_complete', { how: 'whack' });
+    this.hero.setTint(0xf6757a);
+    this.time.delayedCall(180, () => this.hero.clearTint());
+    this.say(poleQuip(left, this.lastPoleQuip));
+    const pole = this.pole;
+    if (!pole || reducedMotion()) return;
+    this.cameras.main.shake(140, 0.004);
+    const n = pole.segs.length;
+    const bend = { v: 0 };
+    const flagX = pole.flag.x - pole.x;
+    const flagY = pole.flag.y;
+    const apply = () => {
+      // Each section turns a little more than the one below: a curve, not a tilt.
+      pole.segs.forEach((seg, i) => seg.setRotation(bend.v * 0.07 * ((i + 1) / n)));
+      // The flag rides along with the section it hangs from.
+      const i = Phaser.Math.Clamp(Math.floor((pole.base - flagY) / TILE), 0, n - 1);
+      const seg = pole.segs[i];
+      const p = seg.getWorldTransformMatrix().transformPoint(flagX, flagY - (pole.base - i * TILE), new Phaser.Math.Vector2());
+      const angle = pole.segs.slice(0, i + 1).reduce((a, sg) => a + sg.rotation, 0);
+      pole.flag.setPosition(p.x, p.y).setRotation(angle);
+    };
+    this.tweens.chain({
+      tweens: [
+        { targets: bend, v: 1, duration: 110, ease: 'Quad.out', onUpdate: apply },
+        { targets: bend, v: -1.6, duration: 90, ease: 'Quad.in', onUpdate: apply },
+        { targets: bend, v: 0, duration: 700, ease: 'Elastic.out', onUpdate: apply, onComplete: apply },
+      ],
+    });
+    this.tweens.add({ targets: pole.flag, scaleX: 0.6, yoyo: true, repeat: 3, duration: 90 });
+  }
+
+  /** A speech bubble from the top of the flagpole that goes away on its own. */
+  private say(line: string) {
+    this.lastPoleQuip = line;
+    this.poleSpeech?.destroy();
+    const pole = this.pole;
+    if (!pole) return;
+    const t = this.text(0, 0, line, 4, '#1a1c2c', 90).setOrigin(0.5, 1).setStroke('#ffffff', 0);
+    const w = Math.ceil(t.displayWidth) + 10;
+    const hgt = Math.ceil(t.displayHeight) + 8;
+    const g = this.add.graphics();
+    g.fillStyle(0xffffff, 1).fillRoundedRect(-w / 2, -hgt, w, hgt, 3);
+    g.lineStyle(1, 0x1a1c2c, 1).strokeRoundedRect(-w / 2, -hgt, w, hgt, 3);
+    // Tail down-right, towards the pole top.
+    g.fillStyle(0xffffff, 1).fillTriangle(w / 2 - 14, -1, w / 2 - 6, -1, w / 2 - 2, 6);
+    g.lineStyle(1, 0x1a1c2c, 1).lineBetween(w / 2 - 14, 0, w / 2 - 2, 6).lineBetween(w / 2 - 6, 0, w / 2 - 2, 6);
+    t.setPosition(0, -4);
+    const top = pole.base - POLE_H * TILE - 8;
+    const box = this.add.container(pole.x - w / 2 + 2, top, [g, t]).setDepth(160);
+    this.poleSpeech = box;
+    if (!reducedMotion()) {
+      box.setScale(0.6);
+      this.tweens.add({ targets: box, scale: 1, duration: 140, ease: 'Back.out' });
+    }
+    this.time.delayedCall(2600, () => {
+      if (this.poleSpeech !== box) return;
+      this.tweens.add({ targets: box, alpha: 0, duration: 200, onComplete: () => box.destroy() });
+      this.poleSpeech = undefined;
     });
   }
 
@@ -1167,7 +1333,9 @@ export class LevelScene extends QuestScene {
     this.hero.setTexture(this.heroTex());
   }
 
-  private walkTo(x: number): Promise<void> {
+  private async walkTo(x: number): Promise<void> {
+    // Up the stairs: hop down before walking anywhere.
+    if (!this.playing && this.hero.y < GROUND_Y - 1) await this.toGround();
     return new Promise((resolve) => {
       const dist = Math.abs(x - this.hero.x);
       if (dist < 1) return resolve();
@@ -1207,13 +1375,13 @@ export class LevelScene extends QuestScene {
     });
   }
 
-  private async animate(level: Level, changed: Item[]) {
+  private async animate(level: Level, changed: Item[], crit: Level['successCriteria'] = []) {
     await this.busy;
-    this.busy = this.runAnimations(level, changed);
+    this.busy = this.runAnimations(level, changed, crit);
     await this.busy;
   }
 
-  private async runAnimations(level: Level, changed: Item[]) {
+  private async runAnimations(level: Level, changed: Item[], crit: Level['successCriteria'] = []) {
     const cleared = scoreLevel(level).cleared;
     for (const item of changed) {
       const v = this.views.get(item.id);
@@ -1239,6 +1407,7 @@ export class LevelScene extends QuestScene {
     }
 
     const sub = this.current()?.sub;
+    if (this.leaving || this.playing) this.lightAll();
     if (this.leaving) return;
     // Playing: the player walks to the exit pipe or flagpole themselves.
     if (this.playing) {
@@ -1254,16 +1423,115 @@ export class LevelScene extends QuestScene {
       this.autoBubble();
       return;
     }
-    if (cleared && !this.wasCleared) await this.celebrate(level);
-    else if (!cleared && this.wasCleared) {
-      this.hero.setVisible(true);
-      this.hero.x = this.layout.castleX * TILE;
+    if (cleared && !this.wasCleared) {
+      // Up the stairs to the step just ticked, then the leap to the pole.
+      const ticked = crit.filter((c) => c.done).at(-1);
+      await this.climbTo(ticked ? this.stepIndex(ticked.id) : this.topReachable());
+      await this.finale(level);
+    } else {
+      if (!cleared && this.wasCleared) {
+        this.hero.setVisible(true).setPosition(this.layout.castleX * TILE, GROUND_Y);
+        this.perch = undefined;
+      }
+      for (const c of crit) {
+        if (!c.done) await this.stepOff(this.stepIndex(c.id));
+        // A bonus ticked after clearing: the hero's in the castle, the step just lights.
+        else if (this.hero.visible) await this.climbTo(this.stepIndex(c.id));
+        else this.lightStep(c.id);
+      }
+      // Still things to do first: back to them after a moment on the step.
+      if (crit.some((c) => c.done) && this.layout.hero.kind !== 'flag') await this.pause(350);
     }
+    this.lightAll();
     this.wasCleared = cleared;
     if (!cleared) {
-      await this.walkTo(this.layout.hero.x * TILE);
+      // Waiting at the goal: up the stairs is as good a spot as any.
+      if (!(this.layout.hero.kind === 'flag' && this.perch !== undefined)) await this.walkTo(this.layout.hero.x * TILE);
       this.autoBubble();
     }
+  }
+
+  // ---- Stairs ----
+
+  private pause(ms: number) {
+    return new Promise<void>((resolve) => this.time.delayedCall(ms, resolve));
+  }
+
+  private stepIndex(criterionId: string): number | undefined {
+    return this.steps.get(criterionId)?.step.index;
+  }
+
+  private ticked(i: number) {
+    const st = this.layout.stairs[i];
+    return !!st && this.current()?.level.successCriteria.find((c) => c.id === st.criterionId)?.done === true;
+  }
+
+  /** The highest ticked step (the hero can hop between ticked ones, gaps and all). */
+  private topReachable(): number | undefined {
+    for (let i = this.layout.stairs.length - 1; i >= 0; i--) if (this.ticked(i)) return i;
+  }
+
+  /** Where the hero stands on step `i`, and where he waits at the foot of the stairs. */
+  private stepSpot(i: number) {
+    const st = this.layout.stairs[i];
+    return { x: Math.round((st.x + st.w / 2) * TILE - this.hero.width / 2), y: GROUND_Y - st.h * TILE };
+  }
+
+  private footX() {
+    return this.layout.stops.at(-1)?.kind === 'flag' ? this.layout.stops.at(-1)!.x * TILE : ((this.layout.stairs[0]?.x ?? this.layout.flagX) - 1.5) * TILE;
+  }
+
+  /**
+   * Up to step `k`: to the foot of the stairs, then hop by hop up the ticked
+   * steps below it (skipping un-ticked gaps), and onto `k`, which lights up.
+   */
+  private async climbTo(k: number | undefined) {
+    if (k === undefined) return;
+    const st = this.layout.stairs[k];
+    if (!st) return;
+    const id = st.criterionId;
+    if (reducedMotion()) {
+      const spot = this.stepSpot(k);
+      this.tweens.killTweensOf(this.hero);
+      this.hero.setVisible(true).setAlpha(1).setPosition(spot.x, spot.y);
+      this.perch = k;
+      this.lightStep(id);
+      return;
+    }
+    if (this.perch === undefined) await this.approach(this.footX());
+    const from = this.perch ?? -1;
+    const path = from < k ? this.layout.stairs.map((_, i) => i).filter((i) => i > from && i < k && this.ticked(i)) : [];
+    for (const i of [...path, k]) {
+      const spot = this.stepSpot(i);
+      await this.hopTo(spot.x, spot.y, 260);
+      this.perch = i;
+    }
+    this.lightStep(id);
+  }
+
+  /** Step `k` was unticked: if the hero's on it, down to the next ticked step below, or the ground. */
+  private async stepOff(k: number | undefined) {
+    if (k === undefined || this.perch !== k) return;
+    let below: number | undefined;
+    for (let i = k - 1; i >= 0; i--) if (this.ticked(i)) (below = i), (i = -1);
+    if (below === undefined) return this.toGround();
+    const spot = this.stepSpot(below);
+    if (reducedMotion()) this.hero.setPosition(spot.x, spot.y);
+    else await this.hopTo(spot.x, spot.y, 260);
+    this.perch = below;
+  }
+
+  /** Off the stairs (or down from wherever play mode left him) onto the ground. */
+  private async toGround() {
+    const wasUp = this.perch !== undefined;
+    this.perch = undefined;
+    if (this.hero.y >= GROUND_Y - 1) return;
+    const L = this.layout;
+    // Over the stairs: down at their foot rather than into a step.
+    const overStairs = wasUp || (L.stairs.length > 0 && this.hero.x + this.hero.width > L.stairs[0].x * TILE && this.hero.x < L.flagX * TILE);
+    const x = overStairs ? this.footX() : this.hero.x;
+    if (reducedMotion()) this.hero.setPosition(x, GROUND_Y);
+    else await this.hopTo(x, GROUND_Y, 300);
   }
 
   // ---- Pipes and clouds ----
@@ -1511,25 +1779,58 @@ export class LevelScene extends QuestScene {
     }
   }
 
-  private async celebrate(level: Level) {
+  /**
+   * The end of the level: leap from wherever the hero is onto the pole,
+   * catching it at that height, slide down as the flag goes up, hop off,
+   * run into the castle, fireworks.
+   */
+  private async finale(level: Level) {
     const L = this.layout;
     const fx = L.flagX * TILE;
-    await this.walkTo(fx - TILE);
-    await this.jump(90);
+    const grabX = fx - TILE + 6;
+    const pending = this.flagPending;
+    this.flagPending = undefined;
+    this.perch = undefined;
+    if (reducedMotion()) {
+      if (pending?.img.active) pending.img.setY(pending.y);
+      this.hero.setVisible(false).setPosition(L.castleX * TILE + 32, GROUND_Y);
+      this.fireworks(level);
+      return;
+    }
+    this.hero.setVisible(true).setAlpha(1);
+    // Catch the pole at the height he's at: higher step, higher catch.
+    const grabY = Phaser.Math.Clamp(this.hero.y, GROUND_Y - (POLE_H - 1) * TILE, GROUND_Y);
+    if (Math.abs(this.hero.x - grabX) > 1 || Math.abs(this.hero.y - grabY) > 1) await this.hopTo(grabX, grabY, 300);
+    this.hero.anims.stop();
+    this.hero.setFlipX(false).setTexture(this.heroTex('jump'));
+    const slide = Math.max(250, (GROUND_Y - this.hero.y) * 6);
+    if (pending?.img.active) this.tweens.add({ targets: pending.img, y: pending.y, duration: slide, ease: 'Quad.out' });
+    await new Promise<void>((resolve) => this.tweens.add({ targets: this.hero, y: GROUND_Y, duration: slide, ease: 'Quad.in', onComplete: () => resolve() }));
+    this.idle();
+    await this.pause(120);
+    // Hop off over the base block and run for the castle.
+    await this.hopTo(fx + TILE + 4, GROUND_Y, 300);
     await this.walkTo(L.castleX * TILE + 32);
     this.tweens.add({ targets: this.hero, alpha: 0, duration: 300, onComplete: () => this.hero.setVisible(false).setAlpha(1) });
-    for (let i = 0; i < 5; i++)
-      this.time.delayedCall(200 + i * 250, () => {
-        const x = L.castleX * TILE + Phaser.Math.Between(0, 80);
-        const y = Phaser.Math.Between(40, 100);
-        for (let k = 0; k < 10; k++) {
-          const s = this.add.image(x, y, k % 2 ? 'sparkle' : 'star').setScale(0.4);
-          this.fx.add(s);
-          const a = (k / 10) * Math.PI * 2;
-          this.tweens.add({ targets: s, x: x + Math.cos(a) * 26, y: y + Math.sin(a) * 26, alpha: 0, duration: 700, onComplete: () => s.destroy() });
-        }
-      });
+    this.fireworks(level);
+  }
+
+  private fireworks(level: Level) {
+    const L = this.layout;
+    if (!reducedMotion())
+      for (let i = 0; i < 5; i++)
+        this.time.delayedCall(200 + i * 250, () => {
+          const x = L.castleX * TILE + Phaser.Math.Between(0, 80);
+          const y = Phaser.Math.Between(40, 100);
+          for (let k = 0; k < 10; k++) {
+            const s = this.add.image(x, y, k % 2 ? 'sparkle' : 'star').setScale(0.4);
+            this.fx.add(s);
+            const a = (k / 10) * Math.PI * 2;
+            this.tweens.add({ targets: s, x: x + Math.cos(a) * 26, y: y + Math.sin(a) * 26, alpha: 0, duration: 700, onComplete: () => s.destroy() });
+          }
+        });
     const sc = scoreLevel(level);
+    if (!sc.cleared) return toast('LEVEL CLEAR! (Read-only: nothing was saved.)', 'win', 5000);
     toast(`LEVEL CLEAR! ${'★'.repeat(sc.stars)}${'☆'.repeat(3 - sc.stars)} +${sc.xp} XP — on to the next one.`, 'win', 6000);
   }
 

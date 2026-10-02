@@ -6,6 +6,14 @@ launch — completely separate efforts) is its own Mario-style **overworld**; th
 blockers are brick walls, dependencies are pipes, risks are critters, decisions are signposts and
 stretch goals are floating coins. A hero auto-walks to whatever is blocking you next.
 
+Each level ends with a **staircase** up to the flagpole: one step per success criterion, in order.
+Must-do steps are grey until ticked, then light up; bonus steps are pink and see-through. Click a
+step to tick it (or untick it) and the hero hops up onto it. Tick the last must-do and he leaps
+onto the pole at the height he's at, slides down and runs into the castle. In **play mode** (P or
+a gamepad) you climb the stairs yourself: landing on a step ticks it, bonus steps can be jumped
+over, and a must-do step can't be skipped. Reach the pole with one missing and it whacks you back
+with a few words.
+
 **Today** (the TODAY button or `t`; the first thing you see on phones) is a legal pad your hero
 holds up over whatever you're looking at, with the day's plan scrawled on it: levels running out
 of time, what's in progress and where the hero is waiting in every project, each with its level
@@ -50,7 +58,7 @@ default for everyone; in read-only views your own choice wins over that default.
 
 The game is built to beat perfectionism:
 
-- **Flagpole = MVP.** A level clears when its MVP success criteria are ticked. Nothing else gates it,
+- **Flagpole = MVP.** A level clears when its MVP success criteria (the must-do steps) are ticked. Nothing else gates it,
   and once cleared, leftover items stop blocking.
 - **Time-box clock.** Each level has a budget in days. Under 25% left, it nags you to ship or cut scope;
   overdue, it names optional items to drop.

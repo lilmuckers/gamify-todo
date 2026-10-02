@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { quip } from '../src/game/quips';
+import { poleQuip, quip } from '../src/game/quips';
 
 describe('quip', () => {
   it('fills in the printed label and never leaves a placeholder', () => {
@@ -18,5 +18,22 @@ describe('quip', () => {
       expect(q).not.toBe(last);
       last = q;
     }
+  });
+});
+
+describe('poleQuip', () => {
+  it('never tells you off the same way twice in a row, and counts what is left', () => {
+    let last: string | undefined;
+    const seen = new Set<string>();
+    for (let i = 0; i < 80; i++) {
+      const q = poleQuip(2, last);
+      expect(q).not.toBe(last);
+      expect(q).not.toContain('{n}');
+      seen.add(q);
+      last = q;
+    }
+    expect(seen.size).toBeGreaterThan(3);
+    expect(poleQuip(2, undefined, () => 0.999)).toBe('2 steps short. Off you pop.');
+    expect(poleQuip(1, undefined, () => 0.999)).toBe('1 step short. Off you pop.');
   });
 });
