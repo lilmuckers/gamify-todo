@@ -8,6 +8,7 @@ import {
   OpConflict,
   polishPoints,
   replay,
+  revalidate,
   validateWorkspace,
   type LevelAt,
   type Workspace,
@@ -157,7 +158,7 @@ export class Store {
     const prev = this.state;
     this.state = keepUnchanged(prev, replay(this.base!, this.outbox).state);
     // Same state, same issues: skip revalidating everything.
-    if (this.state !== prev) this.issues = validateWorkspace(this.state);
+    if (this.state !== prev) this.issues = revalidate(prev, this.issues, this.state);
   }
 
   async start(): Promise<void> {
@@ -251,7 +252,7 @@ export class Store {
       throw err;
     }
     const before = this.issues.length;
-    const issues = validateWorkspace(next);
+    const issues = revalidate(this.state, this.issues, next);
     if (issues.length > before) {
       const known = new Set(this.issues.map((i) => i.file + i.path + i.message));
       const fresh = issues.find((i) => !known.has(i.file + i.path + i.message)) ?? issues[0];
@@ -285,7 +286,7 @@ export class Store {
       if (err instanceof OpConflict) return { ok: false, error: err.message };
       throw err;
     }
-    const issues = validateWorkspace(next);
+    const issues = revalidate(this.state, this.issues, next);
     if (issues.length > this.issues.length) return { ok: false, error: `${issues[0].path}: ${issues[0].message}` };
     this.state = next;
     this.issues = issues;
@@ -374,8 +375,10 @@ export class Store {
         const r = replay(remote.state, batch);
         let version = remote.version;
         if (r.applied.length) {
-          const remoteOk = validateWorkspace(remote.state).length === 0;
-          const issues = validateWorkspace(r.state);
+          const remoteIssues = validateWorkspace(remote.state);
+          const remoteOk = remoteIssues.length === 0;
+          // Replayed edits share untouched projects with the remote: only re-check the rest.
+          const issues = revalidate(remote.state, remoteIssues, r.state);
           if (remoteOk && issues.length) {
             this.status = 'error';
             this.error = `Queued edits would make data invalid: ${issues[0].path} ${issues[0].message}`;

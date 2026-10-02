@@ -118,10 +118,15 @@ export function toFiles(ws: Workspace): Record<string, string> {
   return files;
 }
 
-/** Files to write (string) or delete (null) to go from `prev` to `next`. */
+/**
+ * Files to write (string) or delete (null) to go from `prev` to `next`.
+ * Projects that are the same object in both are skipped without
+ * serializing them (ops copy only what they change).
+ */
 export function changedFiles(prev: Workspace, next: Workspace): Record<string, string | null> {
-  const a = toFiles(prev);
-  const b = toFiles(next);
+  const unchanged = (pid: string) => prev.projects[pid] === next.projects[pid];
+  const a = toFiles({ ...prev, projects: Object.fromEntries(Object.entries(prev.projects).filter(([pid]) => !unchanged(pid))) });
+  const b = toFiles({ ...next, projects: Object.fromEntries(Object.entries(next.projects).filter(([pid]) => !unchanged(pid))) });
   const out: Record<string, string | null> = {};
   for (const [path, content] of Object.entries(b)) if (a[path] !== content) out[path] = content;
   for (const path of Object.keys(a)) if (!(path in b)) out[path] = null;

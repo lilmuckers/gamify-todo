@@ -330,15 +330,40 @@ export function applyOp(ws: Workspace, op: Op): Workspace {
   return { ...ws, projects: { ...ws.projects, [op.projectId]: applyProjectOp(state, op) } };
 }
 
+/**
+ * Applies a project op copy-on-write: only the overworld, worlds and levels
+ * it changes are copied, everything else is shared with `state`. So views
+ * (and validation, and file diffs) can tell what changed by reference.
+ * Nothing may write into `state` itself.
+ */
 function applyProjectOp(state: GameState, op: ProjectOp): GameState {
-  const next = clone(state);
-  const world = (id: string) => need(next.worlds[id], `world "${id}"`, op);
+  const next: GameState = { overworld: state.overworld, worlds: { ...state.worlds } };
+  /** The overworld, copied the first time an op writes to it. */
+  const overworld = () => (next.overworld === state.overworld ? (next.overworld = clone(state.overworld)) : next.overworld);
+  /** A world (with its own level list), copied the first time an op writes to it. */
+  const world = (id: string) => {
+    const w = need(next.worlds[id], `world "${id}"`, op);
+    return w === state.worlds[id] ? (next.worlds[id] = { ...w, levels: [...w.levels] }) : w;
+  };
+  /** A level of a writable world, copied the first time an op writes to it. */
+  const level = (w: World, id: string) => {
+    const i = w.levels.findIndex((l) => l.id === id);
+    const l = need(w.levels[i], `level "${id}"`, op);
+    return state.worlds[w.id]?.levels.includes(l) ? (w.levels[i] = clone(l)) : l;
+  };
+  /** Clears levelRefs that match, copying only the levels that have one. */
+  const dropRefs = (matches: (ref: string) => boolean) => {
+    for (const wid of Object.keys(next.worlds))
+      for (const l of next.worlds[wid].levels)
+        if (l.items.some((i) => i.levelRef && matches(i.levelRef)))
+          for (const i of level(world(wid), l.id).items) if (i.levelRef && matches(i.levelRef)) delete i.levelRef;
+  };
 
   switch (op.kind) {
     case 'addWorld':
       if (next.worlds[op.world.id]) throw new OpConflict(`world id "${op.world.id}" already taken`, op);
       next.worlds[op.world.id] = clone(op.world);
-      if (!next.overworld.worldOrder.includes(op.world.id)) next.overworld.worldOrder.push(op.world.id);
+      if (!next.overworld.worldOrder.includes(op.world.id)) overworld().worldOrder.push(op.world.id);
       return next;
     case 'updateWorld':
       Object.assign(world(op.worldId), clone(op.patch));
@@ -346,32 +371,36 @@ function applyProjectOp(state: GameState, op: ProjectOp): GameState {
     case 'deleteWorld': {
       world(op.worldId);
       delete next.worlds[op.worldId];
-      next.overworld.worldOrder = next.overworld.worldOrder.filter((id) => id !== op.worldId);
-      for (const w of Object.values(next.worlds)) {
-        if (w.unlocksAfter?.includes(op.worldId))
-          w.unlocksAfter = w.unlocksAfter.filter((id) => id !== op.worldId);
-        for (const l of w.levels)
-          for (const i of l.items) if (i.levelRef?.startsWith(`${op.worldId}/`)) delete i.levelRef;
-      }
+      overworld().worldOrder = next.overworld.worldOrder.filter((id) => id !== op.worldId);
+      for (const wid of Object.keys(next.worlds))
+        if (next.worlds[wid].unlocksAfter?.includes(op.worldId)) {
+          const w = world(wid);
+          w.unlocksAfter = w.unlocksAfter!.filter((id) => id !== op.worldId);
+        }
+      dropRefs((ref) => ref.startsWith(`${op.worldId}/`));
       return next;
     }
     case 'updateProject':
-      Object.assign(next.overworld, clone(op.patch));
+      Object.assign(overworld(), clone(op.patch));
       return next;
     case 'addGoal':
       if (next.overworld.goals.some((g) => g.id === op.goal.id))
         throw new OpConflict(`goal id "${op.goal.id}" already taken`, op);
-      next.overworld.goals.push(clone(op.goal));
+      overworld().goals.push(clone(op.goal));
       return next;
     case 'updateGoal':
       Object.assign(
-        need(next.overworld.goals.find((g) => g.id === op.goalId), `goal "${op.goalId}"`, op),
+        need(overworld().goals.find((g) => g.id === op.goalId), `goal "${op.goalId}"`, op),
         clone(op.patch),
       );
       return next;
     case 'deleteGoal':
-      next.overworld.goals = next.overworld.goals.filter((g) => g.id !== op.goalId);
-      for (const w of Object.values(next.worlds)) w.goalIds = w.goalIds.filter((g) => g !== op.goalId);
+      overworld().goals = next.overworld.goals.filter((g) => g.id !== op.goalId);
+      for (const wid of Object.keys(next.worlds))
+        if (next.worlds[wid].goalIds.includes(op.goalId)) {
+          const w = world(wid);
+          w.goalIds = w.goalIds.filter((g) => g !== op.goalId);
+        }
       return next;
     case 'addLevel': {
       const w = world(op.worldId);
@@ -385,24 +414,20 @@ function applyProjectOp(state: GameState, op: ProjectOp): GameState {
       need(w.levels.find((l) => l.id === op.levelId), `level "${op.levelId}"`, op);
       w.levels = w.levels.filter((l) => l.id !== op.levelId);
       const ref = `${op.worldId}/${op.levelId}`;
-      for (const ow of Object.values(next.worlds))
-        for (const l of ow.levels) for (const i of l.items) if (i.levelRef === ref) delete i.levelRef;
+      dropRefs((r) => r === ref);
       return next;
     }
     case 'moveLevel': {
       const w = world(op.worldId);
       const from = w.levels.findIndex((l) => l.id === op.levelId);
       if (from < 0) throw new OpConflict(`level "${op.levelId}" no longer exists`, op);
-      const [level] = w.levels.splice(from, 1);
-      w.levels.splice(Math.max(0, Math.min(op.index, w.levels.length)), 0, level);
+      const [moved] = w.levels.splice(from, 1);
+      w.levels.splice(Math.max(0, Math.min(op.index, w.levels.length)), 0, moved);
       return next;
     }
-    default: {
-      const w = world(op.worldId);
-      const level = need(w.levels.find((l) => l.id === op.levelId), `level "${op.levelId}"`, op);
-      applyLevelOp(level, op);
+    default:
+      applyLevelOp(level(world(op.worldId), op.levelId), op);
       return next;
-    }
   }
 }
 
