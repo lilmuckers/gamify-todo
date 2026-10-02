@@ -196,7 +196,12 @@ class MockGitHub {
       const path = url.pathname.replace(/^\/repos\/o\/r/, '');
       const body = await readBody(req);
       let m: RegExpExecArray | null;
-      if (req.method === 'GET' && path === '') return send(200, { full_name: 'o/r', default_branch: 'main', permissions: { push: true }, size: 1 });
+      // size 0 like a fresh repo with only a README: emptiness comes from the commit log.
+      if (req.method === 'GET' && path === '') return send(200, { full_name: 'o/r', default_branch: 'main', permissions: { push: true }, size: 0 });
+      if (req.method === 'GET' && path === '/commits') {
+        const sha = this.refs.get('main');
+        return sha ? send(200, [{ sha }]) : send(409, { message: 'Git Repository is empty.' });
+      }
       if ((m = /^\/git\/ref\/heads\/(.+)$/.exec(path)) && req.method === 'GET') {
         const sha = this.refs.get(decodeURIComponent(m[1]));
         return sha ? send(200, { object: { sha } }) : send(404, { message: 'Not Found' });
@@ -291,7 +296,7 @@ describe('quest.py GitHub sync', () => {
   it('reports repo info without printing the token', async () => {
     const r = await run(['info', '--repo', 'o/r'], env);
     expect(r.code).toBe(0);
-    expect(JSON.parse(r.out)).toMatchObject({ default_branch: 'main', can_push: true });
+    expect(JSON.parse(r.out)).toMatchObject({ default_branch: 'main', can_push: true, empty: false });
     expect(r.out).not.toContain('test-token');
   });
 
