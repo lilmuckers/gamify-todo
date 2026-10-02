@@ -12,6 +12,8 @@ import { DESKTOP_ONLY, forTouch, pickGuide, pickVariants, TOUR_LINES, TOUR_STEPS
 /** Where each stop happens: the screen to show and what to spotlight there. */
 interface Stop {
   title: string;
+  /** A scene animation to loop while this stop is up (app.demos). */
+  demo?: string;
   route: (p: TourPlaces) => string;
   target: (app: App) => DOMRect | undefined;
 }
@@ -56,9 +58,9 @@ const STOPS: Record<TourStepId, Stop> = {
   bedroom: { title: 'THE BEDROOM', route: () => '#/', target: first(located('cartridge'), el('.cart-floor .cart')) },
   project: { title: 'THE PROJECT MAP', route: (p) => (p.projectId ? href({ view: 'overworld', projectId: p.projectId }) : '#/'), target: first(el('.game'), el('.islands')) },
   world: { title: 'A WORLD', route: (p) => (p.worldId ? href({ view: 'world', projectId: p.projectId!, worldId: p.worldId }) : '#/'), target: first(el('.game'), el('.mobile-body .list')) },
-  level: { title: 'INSIDE A LEVEL', route: levelRoute, target: first(located('qblock'), el('.strip')) },
-  deps: { title: 'DEPENDENCIES', route: levelRoute, target: first(located('dependency'), el('.strip')) },
-  flag: { title: 'THE FLAGPOLE', route: levelRoute, target: first(located('goal'), el('.mobile-body .list.criteria')) },
+  level: { title: 'INSIDE A LEVEL', demo: 'qblock', route: levelRoute, target: first(located('qblock'), el('.strip')) },
+  deps: { title: 'DEPENDENCIES', demo: 'dependency', route: levelRoute, target: first(located('dependency'), el('.strip')) },
+  flag: { title: 'THE FLAGPOLE', demo: 'goal', route: levelRoute, target: first(located('goal'), el('.mobile-body .list.criteria')) },
   pad: { title: 'TODAY AND INBOX', route: levelRoute, target: first(all('.tab-pad'), all('.hud-today:not(.hud-review)')) },
   play: { title: 'PLAY MODE', route: levelRoute, target: el('.nav-play') },
   ai: { title: 'YOUR AI SIDEKICK', route: levelRoute, target: el('.hud-ai') },
@@ -170,6 +172,26 @@ export function startTour(app: App, opts: { resume?: boolean } = {}) {
       onDone: () => (last ? undefined : go(1)),
     });
     setTimeout(place, 50);
+    void playDemo(stop.demo, ++shown);
+  };
+
+  /**
+   * Loops a stop's scene animation (the hero bumping a ? block, diving into
+   * a pipe, climbing the stairs) until the stop changes. Waits for the scene
+   * to arrive after navigating.
+   */
+  let shown = 0;
+  const playDemo = async (name: string | undefined, token: number) => {
+    if (!name || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    for (let tries = 0; !app.locators.has(name) && tries < 20; tries++) await wait(250);
+    await wait(900);
+    while (active && token === shown) {
+      const run = app.demos.get(name);
+      if (!run) return;
+      await run();
+      await wait(1600);
+    }
   };
 
   const go = (d: number) => {

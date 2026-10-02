@@ -118,6 +118,8 @@ export class App {
    * registered by whichever scene shows them, for the tour's spotlight.
    */
   locators = new Map<string, () => DOMRect | undefined>();
+  /** Little show-and-tell animations for the tour, by the same names (no data changes). */
+  demos = new Map<string, () => Promise<void>>();
   pulls: { list?: PullSummary[]; loading: boolean; error?: string } = { loading: false };
   private pullViews = new Map<number, PullView>();
   private listeners = new Set<() => void>();
