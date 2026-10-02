@@ -7,7 +7,7 @@ import { HEROES } from '../../sprites/heroes';
 import { parseLine, showDialogue, type Dialogue } from '../dialogue';
 import { h } from '../dom';
 import { modalOpen } from '../modal';
-import { pickGuide, pickVariants, TOUR_LINES, TOUR_STEPS, type TourStepId } from './tour-lines';
+import { DESKTOP_ONLY, forTouch, pickGuide, pickVariants, TOUR_LINES, TOUR_STEPS, type TourStepId } from './tour-lines';
 
 /** Where each stop happens: the screen to show and what to spotlight there. */
 interface Stop {
@@ -57,9 +57,9 @@ const STOPS: Record<TourStepId, Stop> = {
   project: { title: 'THE PROJECT MAP', route: (p) => (p.projectId ? href({ view: 'overworld', projectId: p.projectId }) : '#/'), target: first(el('.game'), el('.islands')) },
   world: { title: 'A WORLD', route: (p) => (p.worldId ? href({ view: 'world', projectId: p.projectId!, worldId: p.worldId }) : '#/'), target: first(el('.game'), el('.mobile-body .list')) },
   level: { title: 'INSIDE A LEVEL', route: levelRoute, target: first(located('qblock'), el('.strip')) },
-  deps: { title: 'DEPENDENCIES', route: levelRoute, target: located('dependency') },
-  flag: { title: 'THE FLAGPOLE', route: levelRoute, target: located('goal') },
-  pad: { title: 'TODAY AND INBOX', route: levelRoute, target: all('.hud-today:not(.hud-review), .tab-pad') },
+  deps: { title: 'DEPENDENCIES', route: levelRoute, target: first(located('dependency'), el('.strip')) },
+  flag: { title: 'THE FLAGPOLE', route: levelRoute, target: first(located('goal'), el('.mobile-body .list.criteria')) },
+  pad: { title: 'TODAY AND INBOX', route: levelRoute, target: first(all('.tab-pad'), all('.hud-today:not(.hud-review)')) },
   play: { title: 'PLAY MODE', route: levelRoute, target: el('.nav-play') },
   ai: { title: 'YOUR AI SIDEKICK', route: levelRoute, target: el('.hud-ai') },
 };
@@ -89,7 +89,10 @@ export function startTour(app: App, opts: { resume?: boolean } = {}) {
   active?.stop();
   const prefs = uiPrefs();
   const resume = opts.resume && typeof prefs.tourStep === 'number' && prefs.tourStep >= 0 && HERO_IDS.includes(prefs.tourGuide as HeroId);
-  let step = resume ? Math.min(prefs.tourStep!, TOUR_STEPS.length - 1) : 0;
+  // Phones have no play mode: their tour skips that stop. Steps count within this list.
+  const phone = document.body.classList.contains('is-mobile');
+  const steps = TOUR_STEPS.filter((id) => !phone || !DESKTOP_ONLY.includes(id));
+  let step = resume ? Math.min(prefs.tourStep!, steps.length - 1) : 0;
   const picked = resume ? { guide: prefs.tourGuide as HeroId, random: !heroStore.get() } : pickGuide(HERO_IDS, heroStore.get(), prefs.tourGuide);
   const guide = picked.guide;
   const variants = resume && prefs.tourVariants?.length === TOUR_STEPS.length ? prefs.tourVariants : pickVariants(prefs.tourVariants);
@@ -110,8 +113,10 @@ export function startTour(app: App, opts: { resume?: boolean } = {}) {
   let timer: ReturnType<typeof setInterval> | undefined;
 
   const place = () => {
-    const stop = STOPS[TOUR_STEPS[step]];
-    const r = stop.target(app);
+    const stop = STOPS[steps[step]];
+    const found = stop.target(app);
+    // Off screen (a phone's top bar scrolls sideways): better no spotlight than one pointing at nothing.
+    const r = found && found.right > 0 && found.bottom > 0 && found.left < innerWidth && found.top < innerHeight ? found : undefined;
     const pad = 6;
     spot.hidden = !r;
     layer.classList.toggle('no-target', !r);
@@ -123,7 +128,7 @@ export function startTour(app: App, opts: { resume?: boolean } = {}) {
   };
 
   const show = () => {
-    const id = TOUR_STEPS[step];
+    const id = steps[step];
     const stop = STOPS[id];
     places = tourPlaces(app.workspace);
     const route = stop.route(places);
@@ -131,14 +136,14 @@ export function startTour(app: App, opts: { resume?: boolean } = {}) {
     patchUiPrefs({ tourStep: step });
     track('tour_step', { step: id });
     dialogue?.close();
-    const last = step === TOUR_STEPS.length - 1;
+    const last = step === steps.length - 1;
     const button = (label: string, cls: string, run: () => void) =>
       h('button', { class: `btn sm ${cls}`, type: 'button', onclick: (e: Event) => (e.stopPropagation(), run()) }, label);
     const keep = !heroStore.get() && last;
     const footer = h(
       'div',
       { class: 'tour-bar' },
-      h('div', { class: 'tour-dots', 'aria-hidden': 'true' }, TOUR_STEPS.map((_, i) => h('span', { class: i <= step ? 'on' : '' }))),
+      h('div', { class: 'tour-dots', 'aria-hidden': 'true' }, steps.map((_, i) => h('span', { class: i <= step ? 'on' : '' }))),
       !last && button('Skip tour', 'link tour-skip', () => end(false)),
       step > 0 && button('◀ BACK', 'tour-back', () => go(-1)),
       last
@@ -153,13 +158,14 @@ export function startTour(app: App, opts: { resume?: boolean } = {}) {
           ]
         : button('NEXT ▶', 'primary', () => go(1)),
     );
+    const raw = TOUR_LINES[guide][id][variants[TOUR_STEPS.indexOf(id)]];
     dialogue = showDialogue({
       hero: guide,
-      line: parseLine(TOUR_LINES[guide][id][variants[step]]),
+      line: parseLine(phone ? forTouch(raw) : raw),
       host: layer,
-      px: innerWidth < 600 ? 2 : 3,
+      px: phone || innerWidth < 600 ? 2 : 3,
       instant: matchMedia('(prefers-reduced-motion: reduce)').matches,
-      header: h('p', { class: 'tour-step' }, `STEP ${step + 1} OF ${TOUR_STEPS.length} · ${stop.title}`),
+      header: h('p', { class: 'tour-step' }, `STEP ${step + 1} OF ${steps.length} · ${stop.title}`),
       footer,
       onDone: () => (last ? undefined : go(1)),
     });
@@ -168,7 +174,7 @@ export function startTour(app: App, opts: { resume?: boolean } = {}) {
 
   const go = (d: number) => {
     const next = step + d;
-    if (next < 0 || next >= TOUR_STEPS.length) return;
+    if (next < 0 || next >= steps.length) return;
     step = next;
     show();
   };
@@ -193,7 +199,7 @@ export function startTour(app: App, opts: { resume?: boolean } = {}) {
   const end = (finished: boolean, next?: 'demo' | 'start') => {
     stop();
     patchUiPrefs({ tourStep: undefined });
-    track(finished ? 'tour_finish' : 'tour_skip', { step: TOUR_STEPS[step] });
+    track(finished ? 'tour_finish' : 'tour_skip', { step: steps[step] });
     if (next === 'demo') return reloadWithMode('demo', '#/');
     if (next === 'start') {
       // The example data stays loaded under the wizard; it reloads once connected.

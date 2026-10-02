@@ -249,3 +249,23 @@ export function pickVariants(last: readonly number[] | undefined, r: () => numbe
     return r() < 0.5 ? 0 : 1;
   });
 }
+
+/** Stops that need a mouse and keyboard: phones have no play mode. */
+export const DESKTOP_ONLY: TourStepId[] = ['play'];
+
+/**
+ * Rewords a line for a touch screen, keeping the guide's voice: no hovering,
+ * taps instead of clicks, and the Today/Inbox tabs instead of shortcut keys.
+ */
+export function forTouch(raw: string): string {
+  const keys = /(?:(?:Press|Keys(?: are)?|Shortcuts|Binds|Hotkeys):?\s*)?T, I,? (?:and |or )?N(?: to jot)?(?:, if you like keys)?/g;
+  return raw
+    .replace(keys, 'Tabs at the bottom')
+    .replace(/\bHover reads it, click opens it\b/, 'Tap one to open it')
+    // "Hover to read it" becomes "Read it", capitalised only where a sentence starts.
+    .replace(/\b([Hh])over to (\w)/g, (_m, h: string, c: string) => (h === 'H' ? c.toUpperCase() : c))
+    .replace(/\b([Hh])over for /g, (_m, h: string) => (h === 'H' ? 'Check ' : 'check '))
+    .replace(/\b([Hh])over\b/g, (_m, h: string) => (h === 'H' ? 'Look' : 'look'))
+    .replace(/\b([Pp])oint at\b/g, (_m, p: string) => (p === 'P' ? 'Pick' : 'pick'))
+    .replace(/\b([Cc])lick\b/g, (_m, c: string) => (c === 'C' ? 'Tap' : 'tap'));
+}
