@@ -6,34 +6,57 @@ import { PALETTE } from './pixels';
  * 32x32 head-and-shoulders portraits for dialogue, one per hero and
  * expression. The one deliberate exception to "everything is 16px".
  *
- * Each portrait is a character map like the sprites (same digit colour slots
- * as the hero, plus PALETTE letters), composed from a shared head and face
- * and the hero's own hair, clothes and accessories. Light comes from the top
- * left: shapes get at most a base and a shade (and the odd highlight), and a
- * 1px dark outline goes round the silhouette at the end.
+ * Each portrait is a character map like the sprites (the hero's digit colour
+ * slots plus PALETTE letters). They share one hand-shaped head: it fills the
+ * frame, light comes from the top left (a base and a shade per colour, the
+ * shade sweeping across the jaw), eyes have a lid, white, iris and pupil, and
+ * brows carry the expression. Each hero adds its own hair, clothes and
+ * accessories to match its sprite, then a 1px dark outline goes round the
+ * silhouette.
  */
 export type Face = 'neutral' | 'reacting';
 export const FACES: Face[] = ['neutral', 'reacting'];
 export const PORTRAIT_SIZE = 32;
 
 const N = PORTRAIT_SIZE;
-type Grid = string[][];
 
-/** Colour roles: hero slots for most, palette letters for the classic hero. */
+/**
+ * Colour roles, written into the grid as symbols that aren't palette
+ * letters and swapped for the hero's own characters at the end.
+ */
+const SKIN = '@';
+const SHADE = '%';
+const HAIR = '#';
+const HAIR_SHADE = '=';
+const BROW = '~';
+const IRIS = '&';
+const MOUTH = '^';
+
 interface Roles {
   skin: string;
   skinShade: string;
   hair: string;
   hairShade: string;
   brow: string;
+  iris: string;
   mouth: string;
 }
 
-const SLOTS: Roles = { skin: '3', skinShade: '4', hair: '1', hairShade: '2', brow: '2', mouth: 'R' };
+const SLOTS: Roles = { skin: '3', skinShade: '4', hair: '1', hairShade: '2', brow: '2', iris: 'N', mouth: 'R' };
 
-class Canvas {
-  g: Grid = Array.from({ length: N }, () => Array<string>(N).fill('.'));
-  constructor(public c: Roles) {}
+// ---- The head ----
+
+/** Half-width of the head on each row (centre 15.5): broad temples and cheeks, tapering to the chin. */
+const HALF: Record<number, number> = {
+  2: 3, 3: 5, 4: 7, 5: 8, 6: 9, 7: 9, 8: 10, 9: 10, 10: 10, 11: 10, 12: 10, 13: 10, 14: 10, 15: 10, 16: 10, 17: 10,
+  18: 10, 19: 9, 20: 9, 21: 8, 22: 8, 23: 7, 24: 6, 25: 5, 26: 3,
+};
+const left = (y: number) => 16 - HALF[y];
+const right = (y: number) => 15 + HALF[y];
+const inHead = (x: number, y: number) => HALF[y] !== undefined && x >= left(y) && x <= right(y);
+
+class Portrait {
+  g: string[][] = Array.from({ length: N }, () => Array<string>(N).fill('.'));
 
   set(x: number, y: number, ch: string) {
     if (x >= 0 && y >= 0 && x < N && y < N) this.g[y][x] = ch;
@@ -44,215 +67,233 @@ class Canvas {
   rect(x: number, y: number, w: number, h: number, ch: string) {
     for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) this.set(i, j, ch);
   }
-  /** Fills cells inside an ellipse; `paint` picks the character per cell (or skips with undefined). */
-  ellipse(cx: number, cy: number, rx: number, ry: number, paint: string | ((x: number, y: number) => string | undefined)) {
-    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++)
-      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
-        const dx = (x + 0.5 - cx) / rx;
-        const dy = (y + 0.5 - cy) / ry;
-        if (dx * dx + dy * dy > 1) continue;
-        const ch = typeof paint === 'string' ? paint : paint(x, y);
-        if (ch) this.set(x, y, ch);
-      }
-  }
-  /** Rows of a pattern, '.' leaves the cell alone. */
+  /** Rows of a pattern at (x, y); '.' leaves the cell alone. */
   stamp(x: number, y: number, rows: string[]) {
     rows.forEach((row, j) => [...row].forEach((ch, i) => ch !== '.' && this.set(x + i, y + j, ch)));
   }
-  /** Replaces one character with another within a box. */
-  recolor(x: number, y: number, w: number, h: number, from: string, to: string) {
-    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (this.get(i, j) === from) this.set(i, j, to);
+  /** Calls `fn` for every cell; returning a character paints it. */
+  each(fn: (x: number, y: number, ch: string) => string | undefined | void) {
+    for (let y = 0; y < N; y++)
+      for (let x = 0; x < N; x++) {
+        const out = fn(x, y, this.g[y][x]);
+        if (out) this.g[y][x] = out;
+      }
   }
   /** 1px dark outline round the silhouette (inner edges keep their own shade). */
   outline() {
     const solid = (x: number, y: number) => this.get(x, y) !== '.';
     const add: [number, number][] = [];
-    for (let y = 0; y < N; y++)
-      for (let x = 0; x < N; x++)
-        if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) add.push([x, y]);
+    this.each((x, y) => {
+      if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) add.push([x, y]);
+    });
     for (const [x, y] of add) this.set(x, y, 'k');
   }
-  rows() {
-    return this.g.map((r) => r.join(''));
+  rows(r: Roles) {
+    const map: Record<string, string> = { [SKIN]: r.skin, [SHADE]: r.skinShade, [HAIR]: r.hair, [HAIR_SHADE]: r.hairShade, [BROW]: r.brow, [IRIS]: r.iris, [MOUTH]: r.mouth };
+    return this.g.map((row) => row.map((ch) => map[ch] ?? ch).join(''));
   }
 }
 
-// ---- Shared head ----
+/** Light from the top left: the right side and, lower down, a diagonal across the jaw are in shade. */
+const shaded = (x: number, y: number) => x + Math.max(0, y - 17) >= 22 || y >= 25;
 
-const HEAD = { cx: 16, cy: 14.5, rx: 8.6, ry: 10.6 };
-const inHead = (x: number, y: number, pad = 0) => {
-  const dx = (x + 0.5 - HEAD.cx) / (HEAD.rx + pad);
-  const dy = (y + 0.5 - HEAD.cy) / (HEAD.ry + pad);
-  return dx * dx + dy * dy <= 1;
-};
-
-/** Shoulders (in `top`), neck, ears and the head, shaded from the top left. */
-function body(p: Canvas, top = '5') {
-  const { skin, skinShade } = p.c;
-  // Shoulders: a trapezoid that runs off the bottom edge.
-  for (let y = 25; y < N; y++) {
-    const half = Math.min(15, 8 + (y - 25) * 3);
-    p.rect(16 - half, y, half * 2, 1, top);
-  }
-  // Neck, in the chin's shadow.
-  p.rect(12, 21, 8, 6, skinShade);
-  p.rect(12, 21, 2, 4, skin);
-  // Ears.
-  p.rect(6, 13, 2, 4, skin);
-  p.rect(24, 13, 2, 4, skinShade);
-  p.set(7, 14, skinShade);
-  p.set(24, 14, skin);
-  // Head: shade down the right side and under the jaw.
-  p.ellipse(HEAD.cx, HEAD.cy, HEAD.rx, HEAD.ry, (x, y) => (x >= 21 || (y >= 22 && x >= 12) || (y >= 23) ? skinShade : skin));
+/** Shoulders in `top`, then the neck, ears and head. */
+function body(p: Portrait, top = '5') {
+  p.rect(5, 27, 22, 1, top);
+  p.rect(3, 28, 26, 1, top);
+  p.rect(1, 29, 30, 3, top);
+  // Neck, mostly in the chin's shadow.
+  p.rect(11, 23, 10, 6, SHADE);
+  p.rect(11, 23, 2, 4, SKIN);
+  // Ears: the left one catches the light, the right one doesn't.
+  p.stamp(4, 12, ['.@', '@%', '@%', '@%', '@%', '.@']);
+  p.stamp(26, 12, ['%.', '%%', '%%', '%%', '%%', '%.']);
+  p.each((x, y) => (inHead(x, y) ? (shaded(x, y) ? SHADE : SKIN) : undefined));
 }
 
-/** Eyes, brows, nose and mouth for an expression. `y` shifts brows (glasses push them up). */
-function face(p: Canvas, f: Face, opts: { browY?: number; lashes?: boolean; lips?: string } = {}) {
-  const { brow, mouth, skinShade } = p.c;
-  const by = opts.browY ?? 10;
+interface FaceOpts {
+  /** Brow row (glasses push them up). */
+  browY?: number;
+  lashes?: boolean;
+  /** Painted lips in this colour. */
+  lips?: string;
+}
+
+/** Brows, eyes, nose and mouth for an expression. */
+function face(p: Portrait, f: Face, o: FaceOpts = {}) {
+  const by = o.browY ?? 10;
+  // Nose: a shadow down its right side, then the nostrils.
+  p.rect(17, 14, 1, 3, SHADE);
+  p.rect(15, 17, 3, 1, SHADE);
   if (f === 'neutral') {
-    p.rect(10, by, 4, 1, brow);
-    p.rect(18, by, 4, 1, brow);
-    p.stamp(10, 12, ['kkkk', 'wkkw']);
-    p.stamp(18, 12, ['kkkk', 'wkkw']);
+    p.stamp(9, by, [BROW.repeat(5), BROW]);
+    p.stamp(18, by, [BROW.repeat(5), '....' + BROW]);
+    p.stamp(9, 12, ['kkkkk', '.w' + IRIS + 'kw']);
+    p.stamp(18, 12, ['kkkkk', 'w' + IRIS + 'kw']);
+    if (o.lips) p.stamp(13, 20, [o.lips.repeat(6), '.' + o.lips.repeat(4)]);
+    else p.stamp(13, 20, [SHADE + '....' + SHADE, '.' + MOUTH.repeat(4), '..' + SHADE + SHADE]);
   } else {
-    // One brow up, one down; eyes wide and sliding sideways at the console.
-    p.stamp(10, by - 2, ['..' + brow + brow, '.' + brow + '..', brow + '...']);
-    p.stamp(18, by, [brow + brow + brow + '.', '...' + brow]);
-    p.stamp(10, 11, ['kkkk', 'wwkk', 'wwkk']);
-    p.stamp(18, 12, ['kkkk', 'wwkk']);
+    // One brow shot up, the other down and in; eyes wide, glancing at the console.
+    p.stamp(9, by - 2, ['..' + BROW.repeat(3), BROW.repeat(2)]);
+    p.stamp(18, by, [BROW.repeat(4), '....' + BROW]);
+    p.stamp(9, 11, ['.kkkk', '.ww' + IRIS + 'k', '.ww' + IRIS + 'k', '.' + SHADE.repeat(4)]);
+    p.stamp(18, 12, ['kkkkk', 'ww' + IRIS + 'k']);
+    const m = o.lips ?? MOUTH;
+    p.stamp(13, 20, [m.repeat(6), m + 'wwww' + m, '.' + m.repeat(4)]);
   }
-  if (opts.lashes) {
-    p.set(9, 11, 'k');
-    p.set(22, 11, 'k');
-  }
-  // Nose shadow.
-  p.stamp(16, 15, [skinShade, skinShade, '.' + skinShade]);
-  p.set(15, 17, skinShade);
-  const lips = opts.lips;
-  if (f === 'neutral') {
-    // A small closed smile; painted lips get a fuller lower lip.
-    if (lips) p.stamp(13, 19, ['.' + lips.repeat(4), '..' + lips.repeat(2)]);
-    else p.stamp(13, 19, [mouth + '....' + mouth, '.' + skinShade + mouth + mouth + skinShade]);
-  } else {
-    // A grimace: gritted teeth.
-    const m = lips ?? mouth;
-    p.stamp(13, 19, ['.' + m.repeat(4), m + 'wwww' + m, '.' + m.repeat(4)]);
+  if (o.lashes) {
+    p.set(8, 11, 'k');
+    p.set(23, 11, 'k');
   }
 }
 
-function glasses(p: Canvas, round = false) {
-  const frame = round
-    ? ['.kkkk.', 'k....k', 'k....k', '.kkkk.']
-    : ['kkkkkk', 'k....k', 'k....k', 'kkkkkk'];
-  p.stamp(9, 11, frame);
-  p.stamp(17, 11, frame);
+/** Specs in front of the eyes: lenses tint the skin pale, eyes show through. */
+function glasses(p: Portrait, round = false) {
+  const lens = (x0: number) => {
+    for (let y = 12; y <= 14; y++) for (let x = x0 + 1; x <= x0 + 5; x++) if (p.get(x, y) === SKIN || p.get(x, y) === SHADE) p.set(x, y, 'l');
+    p.rect(x0, 11, 7, 1, 'k');
+    p.rect(x0, 15, 7, 1, 'k');
+    p.rect(x0, 11, 1, 5, 'k');
+    p.rect(x0 + 6, 11, 1, 5, 'k');
+    if (round) for (const [x, y] of [[x0, 11], [x0 + 6, 11], [x0, 15], [x0 + 6, 15]]) p.set(x, y, p.get(x, y + (y === 11 ? -1 : 1)) === '.' ? '.' : SKIN);
+  };
+  lens(8);
+  lens(17);
   p.rect(15, 12, 2, 1, 'k');
-  p.set(8, 12, 'k');
-  p.set(23, 12, 'k');
+  p.rect(6, 12, 2, 1, 'k');
+  p.rect(24, 12, 2, 1, 'k');
 }
 
-// ---- Hair and headwear ----
+// ---- Hair ----
 
-/** A dome of hair over the top of the head, down to `fringe` at the front. */
-function dome(p: Canvas, fringe = 8, ch = p.c.hair, shade = p.c.hairShade) {
-  p.ellipse(HEAD.cx, HEAD.cy - 1, HEAD.rx + 1, HEAD.ry + 1, (x, y) => (y <= fringe || (y <= 13 && (x <= 7 || x >= 24)) ? (x >= 21 && y > 3 ? shade : ch) : undefined));
+/** Hair texture: clean strand lines of shade (no dither), and the right side in shade. */
+const strands = (x: number, y: number) => (x >= 23 || (x % 4 === 0 && y >= 3) ? HAIR_SHADE : HAIR);
+/** Curl clusters: 2x2 blobs of base and shade, offset row to row. */
+const blobs = (x: number, y: number) => ((Math.floor((x + (Math.floor(y / 2) % 2)) / 2) + Math.floor(y / 2)) % 2 ? HAIR_SHADE : HAIR);
+
+/**
+ * Hair over the top of the head, a pixel proud of the skull, down to
+ * `fringe` at the front (a little ragged) and to `sides` at the temples.
+ */
+function dome(p: Portrait, fringe = 7, sides = 11) {
+  for (let y = 0; y <= sides; y++)
+    for (let x = 0; x < N; x++) {
+      const h = HALF[y] ?? (y < 2 ? HALF[2] - (2 - y) : undefined);
+      if (h === undefined || x < 15 - h || x > 16 + h) continue;
+      const edge = fringe + ((x * 7) % 3 === 0 ? 1 : 0);
+      if (y <= edge || x <= 7 || x >= 24) p.set(x, y, strands(x, y));
+    }
 }
 
-/** Long hair falling behind the head to the shoulders. */
-function longBack(p: Canvas, bottom = 29, ch = p.c.hair, shade = p.c.hairShade) {
-  for (let y = 4; y <= bottom; y++) {
-    const half = y < 10 ? 9 + (y - 4) / 3 : 11;
-    for (let x = Math.round(16 - half); x < Math.round(16 + half); x++) p.set(x, y, x >= 23 ? shade : ch);
+/** Long hair falling behind the head and over the shoulders, to `bottom`. */
+function longBack(p: Portrait, bottom = 31) {
+  for (let y = 2; y <= bottom; y++) {
+    const h = y < 12 ? Math.min(12, (HALF[y] ?? 3) + 2) : 12;
+    for (let x = 16 - h; x <= 15 + h; x++) p.set(x, y, strands(x, y));
   }
 }
 
-/** Curls: a two-tone checker for short natural or curly hair. */
-function curls(p: Canvas, fringe = 8) {
-  dome(p, fringe);
-  for (let y = 0; y < 14; y++) for (let x = 0; x < N; x++) if (p.get(x, y) === p.c.hair && (x + y) % 2) p.set(x, y, p.c.hairShade);
+/** Tight curls: a checker of base and shade. */
+function curls(p: Portrait, fringe = 6, sides = 11) {
+  dome(p, fringe, sides);
+  p.each((x, y, ch) => (y <= sides && (ch === HAIR || ch === HAIR_SHADE) ? blobs(x, y) : undefined));
 }
 
-// ---- Clothes ----
+/** A strand hanging down the side of the face, from y0 to y1. */
+function lock(p: Portrait, x: number, y0: number, y1: number, w = 2) {
+  for (let y = y0; y <= y1; y++) for (let i = 0; i < w; i++) p.set(x + i, y, x + i >= 23 ? HAIR_SHADE : HAIR);
+}
 
-function neckline(p: Canvas, ch: string) {
-  p.rect(11, 25, 10, 1, ch);
-  p.set(10, 26, ch);
-  p.set(21, 26, ch);
+/** A neckline in `ch` round the base of the neck. */
+function neckline(p: Portrait, ch: string) {
+  p.rect(10, 27, 12, 1, ch);
+  p.set(9, 28, ch);
+  p.set(22, 28, ch);
 }
 
 // ---- Heroes ----
 
-type Builder = (p: Canvas, f: Face) => void;
+interface Def {
+  roles?: Partial<Roles>;
+  draw: (p: Portrait, f: Face) => void;
+}
 
-const BUILD: Record<HeroId, { roles?: Partial<Roles>; draw: Builder }> = {
+const BUILD: Record<HeroId, Def> = {
   classic: {
-    roles: { skin: 's', skinShade: 'S', hair: 'N', hairShade: 'N', brow: 'N', mouth: 'R' },
+    roles: { skin: 's', skinShade: 'S', hair: 'N', hairShade: 'N', brow: 'N', iris: 'b' },
     draw: (p, f) => {
       body(p, 'b');
-      // Shirt sleeves at the edges, overall straps and buttons.
-      p.rect(1, 28, 6, 4, 'o');
-      p.rect(25, 28, 6, 4, 'o');
-      p.rect(9, 25, 2, 7, 'B');
-      p.rect(21, 25, 2, 7, 'B');
-      p.set(10, 28, 'u');
-      p.set(21, 28, 'u');
-      p.rect(12, 26, 8, 1, 'o');
-      // Sideburns, then the cap with its brim.
-      p.rect(7, 9, 2, 5, 'N');
-      p.rect(23, 9, 2, 5, 'N');
-      p.ellipse(16, 8, 10, 7, (x, y) => (y <= 8 ? (x >= 21 ? 'C' : 'c') : undefined));
-      p.rect(6, 8, 21, 2, 'C');
-      p.rect(13, 3, 6, 4, 'w');
-      p.rect(15, 4, 2, 2, 'c');
+      // Shirt at the shoulders, overall straps with buttons.
+      p.rect(1, 29, 6, 3, 'o');
+      p.rect(25, 29, 6, 3, 'o');
+      p.rect(10, 28, 12, 1, 'o');
+      p.rect(8, 27, 2, 5, 'B');
+      p.rect(22, 27, 2, 5, 'B');
+      p.set(8, 29, 'u');
+      p.set(23, 29, 'u');
+      // Sideburns, then the cap: crown, badge and a peak over the brow.
+      lock(p, 6, 8, 13);
+      lock(p, 24, 8, 13);
+      for (let y = 0; y <= 8; y++) {
+        const h = Math.min(11, (HALF[Math.max(2, y)] ?? 3) + 1 + (y < 2 ? -1 : 0));
+        for (let x = 16 - h; x <= 15 + h; x++) p.set(x, y, x >= 21 ? 'C' : 'c');
+      }
+      p.rect(13, 2, 6, 4, 'w');
+      p.rect(15, 3, 2, 2, 'c');
+      p.rect(4, 8, 24, 2, 'C');
+      p.rect(4, 8, 24, 1, 'c');
       face(p, f, { browY: 11 });
-      // The moustache, over the mouth's top line.
-      p.stamp(11, 17, ['NNNNNNNNNN', '.NNN..NNN.']);
+      // A big moustache over the mouth.
+      p.stamp(10, 18, ['NNNNNNNNNNNN', '.NNNN..NNNN.']);
     },
   },
   bearded: {
-    roles: { brow: '2' },
     draw: (p, f) => {
       body(p);
       neckline(p, '6');
-      // Bald: a shine on top.
-      p.rect(11, 5, 3, 1, 'w');
-      p.set(10, 6, 'w');
+      // Bald, with a shine.
+      p.stamp(10, 3, ['.ww', 'ww.', 'w..']);
       face(p, f, { browY: 9 });
-      // Beard: cheeks, jaw and chin, with the mouth showing through.
-      p.ellipse(HEAD.cx, HEAD.cy + 1, HEAD.rx, HEAD.ry, (x, y) => (y >= 15 && (y >= 18 || x <= 10 || x >= 21) ? (x >= 21 ? '2' : '1') : undefined));
-      p.rect(7, 13, 2, 4, '1');
-      p.rect(23, 13, 2, 4, '2');
-      p.stamp(13, 18, ['111111', '1' + (f === 'neutral' ? 'RRRR' : 'wwww') + '1', '.' + (f === 'neutral' ? '1111' : 'RRRR') + '.']);
+      // The beard: up the cheeks, full below the nose, the mouth showing through.
+      p.each((x, y) => {
+        if (!inHead(x, y) || y < 15) return;
+        if (y < 19 && x > 9 && x < 22) return;
+        return x >= 22 || (x % 3 === 0 && y >= 20) ? HAIR_SHADE : HAIR;
+      });
+      p.stamp(4, 15, ['.#', '##']);
+      p.stamp(26, 15, ['=.', '==']);
+      p.rect(14, 18, 4, 1, HAIR);
+      p.stamp(12, 19, ['########', '#' + (f === 'neutral' ? '.' + MOUTH.repeat(4) + '.' : MOUTH + 'wwww' + MOUTH) + '#', '##' + (f === 'neutral' ? '####' : MOUTH.repeat(4)) + '##']);
       glasses(p);
     },
   },
   redhead: {
     draw: (p, f) => {
-      longBack(p, 30);
-      body(p, '3');
+      longBack(p);
+      body(p, SKIN);
       // Tank top: straps over bare shoulders.
-      p.rect(9, 25, 2, 7, '5');
-      p.rect(21, 25, 2, 7, '5');
-      p.rect(9, 29, 14, 3, '5');
-      p.rect(9, 29, 14, 1, '6');
-      dome(p, 7);
-      // Parting and strands framing the face.
-      p.rect(13, 3, 1, 5, '2');
-      p.rect(7, 8, 2, 12, '1');
-      p.rect(23, 8, 2, 12, '2');
+      p.rect(8, 27, 2, 5, '5');
+      p.rect(22, 27, 2, 5, '5');
+      p.rect(8, 30, 16, 2, '5');
+      p.rect(8, 30, 16, 1, '6');
+      dome(p, 6, 12);
+      // A side parting and long strands framing the face.
+      p.rect(12, 1, 1, 5, HAIR_SHADE);
+      lock(p, 5, 9, 26, 2);
+      lock(p, 25, 9, 26, 2);
       face(p, f);
     },
   },
   'mustard-jumper': {
     draw: (p, f) => {
       body(p);
+      // Ribbed neckline and hem stripe.
       neckline(p, '6');
-      p.rect(4, 29, 24, 1, '6');
-      dome(p, 7);
-      // Hair up in a bun.
-      p.ellipse(16, 2.5, 4, 3, (x) => (x >= 18 ? '2' : '1'));
-      p.rect(13, 5, 6, 1, '2');
+      p.rect(1, 30, 30, 1, '6');
+      dome(p, 6);
+      // Hair up in a bun, tied with a band.
+      p.stamp(12, 0, ['.####=.', '#####==', '.#####=']);
+      p.rect(13, 3, 6, 1, HAIR_SHADE);
       face(p, f, { browY: 9 });
       glasses(p);
     },
@@ -261,14 +302,14 @@ const BUILD: Record<HeroId, { roles?: Partial<Roles>; draw: Builder }> = {
     draw: (p, f) => {
       body(p);
       // White tee in the jacket's open front, collar points.
-      p.rect(12, 25, 8, 7, 'w');
-      p.stamp(8, 25, ['6666', '.666', '..66']);
-      p.stamp(20, 25, ['6666', '666.', '66..']);
-      p.rect(11, 25, 1, 7, '6');
-      p.rect(20, 25, 1, 7, '6');
-      dome(p, 7);
+      p.rect(12, 27, 8, 5, 'w');
+      p.stamp(6, 27, ['666666', '.66666', '..6666']);
+      p.stamp(20, 27, ['666666', '66666.', '6666..']);
+      p.rect(11, 28, 1, 4, '6');
+      p.rect(20, 28, 1, 4, '6');
+      dome(p, 5);
       // Short purple hair swept over to one side.
-      p.stamp(7, 7, ['1111111', '111111.', '1111...', '11.....']);
+      p.stamp(6, 6, ['##########', '#########.', '#######...', '#####.....', '###.......']);
       face(p, f);
     },
   },
@@ -276,55 +317,56 @@ const BUILD: Record<HeroId, { roles?: Partial<Roles>; draw: Builder }> = {
     draw: (p, f) => {
       body(p);
       // The hood bunched round the neck, and drawstrings.
-      p.rect(8, 24, 16, 2, '6');
-      p.rect(7, 25, 2, 3, '6');
-      p.rect(23, 25, 2, 3, '6');
-      p.rect(13, 26, 1, 5, 'w');
-      p.rect(18, 26, 1, 5, 'w');
-      curls(p, 7);
+      p.rect(7, 26, 18, 2, '6');
+      p.rect(5, 27, 3, 3, '6');
+      p.rect(24, 27, 3, 3, '6');
+      p.rect(13, 28, 1, 4, 'w');
+      p.rect(18, 28, 1, 4, 'w');
+      // Dark wavy hair.
+      dome(p, 6);
+      p.each((x, y, ch) => (y <= 11 && (ch === HAIR || ch === HAIR_SHADE) ? (x >= 23 || (y + Math.round(Math.sin(x / 2) * 1.5)) % 4 === 0 ? HAIR_SHADE : HAIR) : undefined));
       face(p, f);
-      // Stubble along the jaw.
-      for (const [x, y] of [[10, 18], [12, 21], [14, 22], [17, 22], [19, 21], [21, 18], [11, 20], [20, 20]]) p.set(x, y, '4');
+      // Stubble along the jaw and chin.
+      p.each((x, y) => (inHead(x, y) && y >= 19 && (x + y) % 2 === 0 && (y >= 23 || x <= 10 || x >= 21) ? SHADE : undefined));
     },
   },
   emo: {
     draw: (p, f) => {
       body(p);
       // Band tee with a blotchy logo.
-      p.ellipse(16, 29.5, 4, 2, '6');
-      p.set(14, 29, '5');
-      p.set(17, 30, '5');
-      dome(p, 7);
-      p.rect(7, 8, 2, 8, '1');
-      p.rect(23, 8, 2, 6, '1');
+      p.stamp(12, 29, ['.6666.', '66.666', '.66.6.']);
+      dome(p, 6, 13);
+      lock(p, 6, 10, 18);
+      lock(p, 24, 10, 15);
       face(p, f);
       // The fringe sweeps right across one eye, with its purple streak.
-      p.stamp(6, 7, [
-        '111111111111',
-        '11111111111.',
-        '1111111111..',
-        '111111111...',
-        '11111111....',
-        '.111111.....',
-        '..1111......',
+      p.stamp(5, 6, [
+        '##############',
+        '#############.',
+        '############..',
+        '###########...',
+        '##########....',
+        '.#########....',
+        '..#######.....',
+        '...####.......',
       ]);
-      p.rect(12, 7, 1, 4, '2');
-      p.rect(11, 9, 1, 3, '2');
+      p.rect(12, 5, 1, 6, HAIR_SHADE);
+      p.rect(11, 9, 1, 3, HAIR_SHADE);
     },
   },
   goth: {
     draw: (p, f) => {
-      longBack(p, 30);
+      longBack(p);
       body(p);
-      // Lace trim along the neckline, and a choker.
-      for (let x = 9; x < 23; x += 2) p.set(x, 25, '6');
-      p.rect(12, 23, 8, 1, 'k');
-      p.set(16, 24, '6');
-      // Straight hair with a blunt fringe.
-      dome(p, 9);
-      p.rect(7, 9, 2, 16, '1');
-      p.rect(23, 9, 2, 16, '2');
-      p.rect(9, 9, 14, 1, '2');
+      // Lace trim along the neckline, a choker with a charm.
+      for (let x = 7; x < 25; x += 2) p.set(x, 27, '6');
+      p.rect(11, 24, 10, 1, 'k');
+      p.set(16, 25, '6');
+      // Straight hair, a blunt fringe, curtains down each side.
+      dome(p, 8);
+      p.rect(8, 9, 16, 1, HAIR_SHADE);
+      lock(p, 5, 9, 28, 3);
+      lock(p, 24, 9, 28, 3);
       face(p, f, { browY: 11, lips: 'P' });
     },
   },
@@ -332,48 +374,45 @@ const BUILD: Record<HeroId, { roles?: Partial<Roles>; draw: Builder }> = {
     draw: (p, f) => {
       body(p);
       // Leather jacket lapels over a white tee, studs on the shoulders.
-      p.rect(12, 25, 8, 7, '6');
-      p.stamp(9, 25, ['5k', '55k', '555k']);
-      p.stamp(20, 25, ['k5', 'k55', 'k555']);
-      for (const x of [4, 7, 24, 27]) p.set(x, 28, 'l');
-      // Shaved sides with a little stubble, then the mohawk running off the top.
-      for (let x = 9; x <= 22; x += 2) p.set(x, 5 + (x % 4 === 1 ? 1 : 0), '4');
-      p.ellipse(16, 4, 3.4, 6, (x) => (x >= 17 ? '2' : '1'));
-      p.rect(14, 0, 4, 4, '1');
-      p.rect(17, 0, 1, 4, '2');
-      face(p, f);
+      p.rect(12, 27, 8, 5, '6');
+      p.stamp(8, 27, ['55k', '555k', '5555k']);
+      p.stamp(21, 27, ['k55', 'k555', 'k5555']);
+      for (const x of [3, 6, 25, 28]) p.set(x, 29, 'l');
+      // Shaved sides, then the mohawk running off the top, combed into strands.
+      for (let y = 0; y <= 8; y++) for (let x = 13; x <= 18; x++) p.set(x, y, x >= 17 || x === 15 ? HAIR_SHADE : HAIR);
+      face(p, f, { browY: 10 });
       // Ear piercings.
-      p.set(6, 16, 'l');
-      p.set(25, 16, 'l');
-      p.set(25, 14, 'l');
+      p.set(4, 16, 'l');
+      p.set(27, 16, 'l');
+      p.set(27, 13, 'l');
     },
   },
   'rainbow-tee': {
     draw: (p, f) => {
       body(p, 'r');
-      // The rainbow stripes across the tee.
-      ['r', 'o', 'u', 'g', 'b', 'p'].forEach((c, i) => p.recolor(0, 26 + i, N, 1, 'r', c));
+      // Rainbow stripes across the tee.
+      ['r', 'r', 'o', 'u', 'g', 'b', 'p'].forEach((c, i) => p.each((x, y, ch) => (y === 25 + i && ch === 'r' ? c : undefined)));
       neckline(p, 'r');
-      curls(p, 7);
+      curls(p, 5);
       face(p, f);
     },
   },
   'trans-flag-hair': {
     draw: (p, f) => {
-      longBack(p, 30);
+      longBack(p);
       body(p, '6');
-      // Dungaree straps and bib over a white tee.
-      p.rect(9, 25, 2, 7, '5');
-      p.rect(21, 25, 2, 7, '5');
-      p.rect(11, 29, 10, 3, '5');
-      p.set(10, 27, 'u');
-      p.set(21, 27, 'u');
-      dome(p, 7);
-      p.rect(7, 8, 2, 14, '1');
-      p.rect(23, 8, 2, 14, '1');
-      // Dyed in bands: light blue on top, pink, white, pink, light blue.
+      // Dungaree straps and bib over a white tee, with buttons.
+      p.rect(8, 27, 2, 5, '5');
+      p.rect(22, 27, 2, 5, '5');
+      p.rect(10, 30, 12, 2, '5');
+      p.set(9, 29, 'u');
+      p.set(22, 29, 'u');
+      dome(p, 6, 12);
+      lock(p, 5, 9, 26, 2);
+      lock(p, 25, 9, 26, 2);
+      // Dyed in bands: light blue, pink, white, pink, light blue.
       const band = (y: number) => (y < 7 ? 'c' : y < 13 ? 'q' : y < 19 ? 'w' : y < 25 ? 'q' : 'c');
-      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (p.get(x, y) === '1' || p.get(x, y) === '2') p.set(x, y, band(y));
+      p.each((x, y, ch) => (ch === HAIR || ch === HAIR_SHADE ? band(y) : undefined));
       face(p, f);
     },
   },
@@ -381,92 +420,112 @@ const BUILD: Record<HeroId, { roles?: Partial<Roles>; draw: Builder }> = {
     draw: (p, f) => {
       body(p);
       // Cardigan open over a white tee, with the striped pin.
-      p.rect(12, 25, 8, 7, '6');
-      p.rect(11, 25, 1, 7, 'k');
-      p.rect(20, 25, 1, 7, 'k');
-      p.stamp(7, 27, ['c', 'q', 'w', 'q', 'c']);
+      p.rect(12, 27, 8, 5, '6');
+      p.rect(11, 27, 1, 5, 'k');
+      p.rect(20, 27, 1, 5, 'k');
+      p.stamp(6, 28, ['c', 'q', 'w', 'q']);
       // Undercut: hair on top, clipped sides in skin shade.
-      dome(p, 7);
-      p.rect(7, 8, 2, 5, '4');
-      p.rect(23, 8, 2, 5, '4');
-      p.rect(8, 5, 16, 1, '2');
+      dome(p, 6, 7);
+      p.rect(6, 7, 2, 5, SHADE);
+      p.rect(24, 7, 2, 5, SHADE);
+      p.rect(7, 4, 18, 1, HAIR_SHADE);
       face(p, f);
-      // Moustache.
-      p.stamp(12, 17, ['22222222', '.222222.']);
+      // A neat moustache.
+      p.stamp(12, 18, ['########', '.######.']);
+      p.rect(19, 18, 1, 1, HAIR_SHADE);
     },
   },
   'bi-bomber': {
     draw: (p, f) => {
       body(p);
-      // Jacket in magenta, purple and blue bands, ribbed collar.
-      p.recolor(0, 28, N, 2, '5', '6');
-      p.recolor(0, 30, N, 2, '5', 'B');
-      p.rect(10, 24, 12, 2, '6');
-      p.rect(15, 26, 2, 6, 'k');
-      curls(p, 6);
+      // Jacket in magenta, purple and blue bands, ribbed collar, zip.
+      p.each((x, y, ch) => (ch === '5' && y >= 30 ? 'B' : ch === '5' && y >= 29 ? '6' : undefined));
+      p.rect(9, 26, 14, 2, '6');
+      p.rect(15, 28, 2, 4, 'k');
+      curls(p, 5);
       face(p, f);
     },
   },
   'drag-glam': {
-    roles: { brow: 'k' },
+    roles: { brow: 'k', iris: 'b' },
     draw: (p, f) => {
       // The wig: bigger than the frame, curls catching the light.
-      p.ellipse(16, 13, 15, 16, (x, y) => ((x * 3 + y * 5) % 7 === 0 ? '2' : '1'));
-      body(p, '3');
+      for (let y = 0; y < 30; y++) for (let x = 0; x < N; x++) {
+        const dx = (x + 0.5 - 16) / 15.5;
+        const dy = (y + 0.5 - 13) / 16;
+        if (dx * dx + dy * dy <= 1) p.set(x, y, x >= 26 ? HAIR_SHADE : blobs(x, y));
+      }
+      body(p, SKIN);
       // Sparkly gown below bare shoulders.
-      p.rect(4, 29, 24, 3, '5');
-      for (const [x, y] of [[7, 30], [12, 29], [18, 31], [23, 30]]) p.set(x, y, 'u');
-      p.ellipse(16, 4, 9, 4, (x, y) => ((x + y) % 5 === 0 ? '2' : '1'));
-      p.rect(8, 7, 16, 2, '1');
+      p.rect(5, 30, 22, 2, '5');
+      for (const [x, y] of [[7, 30], [12, 31], [18, 30], [24, 31]]) p.set(x, y, 'u');
+      // The wig's front: volume over the forehead.
+      dome(p, 5, 9);
+      p.each((x, y, ch) => (y <= 9 && (ch === HAIR || ch === HAIR_SHADE) ? blobs(x, y) : undefined));
       face(p, f, { lashes: true, lips: 'r' });
-      // Eyeshadow and earrings.
-      p.rect(10, 11, 4, 1, 'p');
-      p.rect(18, 11, 4, 1, 'p');
-      p.rect(6, 17, 1, 3, 'u');
-      p.rect(25, 17, 1, 3, 'u');
+      // Eyeshadow and drop earrings.
+      p.rect(9, 11, 5, 1, 'p');
+      p.rect(18, 11, 5, 1, 'p');
+      p.rect(4, 18, 1, 3, 'u');
+      p.rect(27, 18, 1, 3, 'u');
     },
   },
   'nb-beanie': {
     draw: (p, f) => {
       body(p);
-      // Striped scarf.
-      ['u', 'w', 'p', 'k'].forEach((c, i) => p.rect(9, 23 + i, 14, 1, c));
-      p.rect(17, 27, 3, 4, 'p');
-      p.rect(17, 29, 3, 1, 'u');
-      // Hair peeking out under the beanie.
-      p.rect(7, 9, 2, 5, '2');
-      p.rect(23, 9, 2, 5, '2');
+      // Striped scarf, an end hanging down.
+      ['u', 'w', 'p', 'k'].forEach((c, i) => p.rect(8, 24 + i, 16, 1, c));
+      p.rect(17, 28, 4, 4, 'p');
+      p.rect(17, 30, 4, 1, 'u');
+      // Hair under the beanie.
+      lock(p, 6, 9, 13);
+      lock(p, 24, 9, 13);
       face(p, f);
-      // Beanie: stripes, a folded brim and a bobble that runs off the top.
-      p.ellipse(16, 8.5, 10, 8, (x, y) => (y <= 9 ? ['u', 'u', 'w', 'w', 'p', 'p', 'k', 'u', 'w', 'p'][Math.max(0, y)] : undefined));
-      p.rect(6, 8, 20, 2, 'p');
-      p.ellipse(16, 0.5, 2.5, 2, 'u');
+      // Beanie: stripes, folded brim, and a bobble running off the top.
+      const stripe = ['u', 'u', 'w', 'w', 'p', 'p', 'k', 'k'];
+      for (let y = 0; y <= 7; y++) {
+        const h = Math.min(11, (HALF[Math.max(2, y)] ?? 3) + 1 + (y < 2 ? -1 : 0));
+        for (let x = 16 - h; x <= 15 + h; x++) p.set(x, y, stripe[y]);
+      }
+      p.rect(5, 8, 22, 2, 'p');
+      p.rect(5, 8, 22, 1, 'u');
+      p.stamp(14, 0, ['uuuu']);
     },
   },
   'hijab-skater': {
     draw: (p, f) => {
       body(p);
-      // Skate hoodie with a pocket line.
-      p.rect(4, 30, 24, 1, '6');
-      // Hijab: wraps the head and drapes over the shoulders, framing the face.
-      p.ellipse(16, 14, 11, 13, (x) => (x >= 22 ? '2' : '1'));
-      p.rect(5, 22, 22, 6, '1');
-      p.rect(22, 22, 5, 6, '2');
-      p.ellipse(HEAD.cx, HEAD.cy + 0.5, 6.8, 8.6, (x, y) => (x >= 20 || y >= 21 ? '4' : '3'));
-      p.rect(9, 7, 14, 1, '2');
+      // Skate hoodie with a pocket seam.
+      p.rect(1, 31, 30, 1, '6');
+      // The hijab wraps the head and drapes over the shoulders...
+      for (let y = 0; y < 30; y++)
+        for (let x = 0; x < N; x++) {
+          const dx = (x + 0.5 - 16) / 12.5;
+          const dy = (y + 0.5 - 14) / 15;
+          if (dx * dx + dy * dy <= 1) p.set(x, y, x >= 23 ? HAIR_SHADE : HAIR);
+        }
+      p.rect(4, 22, 24, 6, HAIR);
+      p.rect(22, 22, 6, 6, HAIR_SHADE);
+      // ...framing the face.
+      p.each((x, y) => {
+        const dx = (x + 0.5 - 16) / 8.6;
+        const dy = (y + 0.5 - 15.5) / 10.6;
+        if (dx * dx + dy * dy <= 1) return shaded(x, y) ? SHADE : SKIN;
+      });
+      p.rect(8, 6, 16, 1, HAIR_SHADE);
       face(p, f);
     },
   },
   'silver-locs': {
     draw: (p, f) => {
-      longBack(p, 31);
+      longBack(p);
       body(p);
       neckline(p, '6');
-      dome(p, 7);
-      p.rect(6, 8, 3, 19, '1');
-      p.rect(23, 8, 3, 19, '2');
+      dome(p, 6, 12);
+      lock(p, 4, 9, 28, 3);
+      lock(p, 25, 9, 28, 3);
       // Locs: alternate strands of silver and grey.
-      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (p.get(x, y) === '1' && x % 2) p.set(x, y, '2');
+      p.each((x, y, ch) => (ch === HAIR && x % 2 ? HAIR_SHADE : ch === HAIR_SHADE && x % 2 === 0 && x < 23 ? HAIR : undefined));
       face(p, f, { browY: 9 });
       glasses(p, true);
     },
@@ -475,12 +534,12 @@ const BUILD: Record<HeroId, { roles?: Partial<Roles>; draw: Builder }> = {
     draw: (p, f) => {
       body(p);
       // Red plaid over a white tee.
-      for (let y = 25; y < N; y++) for (let x = 0; x < N; x++) if (p.get(x, y) === '5' && (x % 4 === 1 || y % 4 === 3)) p.set(x, y, '6');
-      p.stamp(13, 25, ['wwwwww', '.wwww.', '..ww..']);
+      p.each((x, y, ch) => (ch === '5' && y >= 27 && (x % 4 === 1 || y % 4 === 3) ? '6' : undefined));
+      p.stamp(12, 27, ['wwwwwwww', '.wwwwww.', '..wwww..']);
       // Side-swept crop with a shaved side.
-      dome(p, 7);
-      p.rect(7, 6, 2, 7, '4');
-      p.stamp(9, 7, ['1111111111', '..11111111', '.....1111.']);
+      dome(p, 5, 9);
+      p.rect(6, 5, 2, 7, SHADE);
+      p.stamp(8, 6, ['############', '...#########', '......#####.']);
       face(p, f);
     },
   },
@@ -488,10 +547,10 @@ const BUILD: Record<HeroId, { roles?: Partial<Roles>; draw: Builder }> = {
 
 function build(id: HeroId, f: Face): string[] {
   const def = BUILD[id];
-  const p = new Canvas({ ...SLOTS, ...def.roles });
+  const p = new Portrait();
   def.draw(p, f);
   p.outline();
-  return p.rows();
+  return p.rows({ ...SLOTS, ...def.roles });
 }
 
 /** Every hero's portraits, by expression. */
