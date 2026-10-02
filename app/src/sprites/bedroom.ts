@@ -113,7 +113,20 @@ export function wallpaperCanvas(): HTMLCanvasElement {
 
 // ---- Clutter (random each load) ----
 
-export type PropKind = 'snack' | 'crumbs' | 'sock' | 'juice' | 'soda' | 'pizza' | 'comic';
+export type PropKind =
+  | 'snack'
+  | 'crumbs'
+  | 'sock'
+  | 'juice'
+  | 'soda'
+  | 'pizza'
+  | 'comic'
+  | 'cassette'
+  | 'banana'
+  | 'duck'
+  | 'donut'
+  | 'teddy'
+  | 'yoyo';
 
 export interface Prop {
   kind: PropKind;
@@ -235,19 +248,166 @@ function comic(r: Rand): Prop {
   return { kind: 'comic', canvas: c, label: word, colors: [cover, banner, hero] };
 }
 
-/** A fresh, random assortment of floor clutter. */
-export function clutter(r: Rand = Math.random): Prop[] {
-  const out: Prop[] = [];
+function cassette(r: Rand): Prop {
+  const [c, ctx] = canvas(36, 24);
+  const shell = pick(r, ['#262b44', '#e43b44', '#0099db', '#f4f4f4', '#b55088']);
+  const sticker = pick(r, ['#f4f4f4', '#fee761', '#2ce8f5']);
+  rect(ctx, 0, 0, 36, 24, K);
+  rect(ctx, 1, 1, 34, 22, shell);
+  // Sticker with a scrawled title, then the window with both reels.
+  rect(ctx, 3, 2, 30, 13, sticker);
+  const name = pick(r, ['MIX 3', 'RAD', 'TUNES', 'JAMS', 'SIDE A']);
+  drawText(ctx, name, 5, 3, K);
+  rect(ctx, 8, 9, 20, 5, K);
+  rect(ctx, 9, 10, 18, 3, '#5a6988');
+  for (const x of [11, 24]) {
+    disc(ctx, x, 11, 2, 2, '#f4f4f4');
+    rect(ctx, x, 11, 1, 1, K);
+  }
+  // The bottom edge with its little holes.
+  rect(ctx, 7, 18, 22, 5, K);
+  rect(ctx, 8, 19, 20, 4, '#8b9bb4');
+  for (const x of [11, 17, 23]) rect(ctx, x, 20, 2, 2, K);
+  return { kind: 'cassette', canvas: c, label: name, colors: [shell, sticker] };
+}
+
+function banana(r: Rand): Prop {
+  const [c, ctx] = canvas(32, 18);
+  const ripe = r() < 0.7;
+  const skin = ripe ? '#fee761' : '#63c74d';
+  // A crescent, column by column: thick in the middle, curling up at the ends.
+  for (let x = 2; x < 30; x++) {
+    const t = (x - 16) / 14;
+    const mid = 6 + Math.round(t * t * 8);
+    const half = Math.max(1, Math.round(4 * (1 - t * t)));
+    rect(ctx, x, mid - half - 1, 1, half * 2 + 2, K);
+    rect(ctx, x, mid - half, 1, half * 2, skin);
+    rect(ctx, x, mid + half - 1, 1, 1, '#feae34');
+  }
+  // Brown tips.
+  rect(ctx, 1, 13, 3, 3, '#743f39');
+  rect(ctx, 28, 12, 3, 3, '#743f39');
+  if (r() < 0.5) for (const x of [10, 15, 21]) rect(ctx, x, 9, 1, 1, '#743f39');
+  return { kind: 'banana', canvas: c, colors: [skin, '#feae34'] };
+}
+
+function duck(r: Rand): Prop {
+  const [c, ctx] = canvas(28, 24);
+  const body = pick(r, ['#fee761', '#fee761', '#f6757a', '#2ce8f5']);
+  disc(ctx, 14, 16, 12, 7, K);
+  disc(ctx, 14, 16, 11, 6, body);
+  disc(ctx, 9, 8, 6, 6, K);
+  disc(ctx, 9, 8, 5, 5, body);
+  // Beak, eye and a wing.
+  rect(ctx, 1, 8, 4, 3, K);
+  rect(ctx, 1, 9, 3, 1, '#f77622');
+  rect(ctx, 8, 6, 2, 2, K);
+  rect(ctx, 8, 6, 1, 1, '#f4f4f4');
+  disc(ctx, 17, 15, 5, 3, '#feae34');
+  return { kind: 'duck', canvas: c, colors: [body, '#f77622'] };
+}
+
+function donut(r: Rand): Prop {
+  const [c, ctx] = canvas(28, 28);
+  const icing = pick(r, ['#f6757a', '#743f39', '#f4f4f4', '#b55088', '#2ce8f5']);
+  disc(ctx, 14, 14, 13, 13, K);
+  disc(ctx, 14, 14, 12, 12, '#e4a672');
+  disc(ctx, 14, 13, 11, 10, icing);
+  // Sprinkles, then the hole.
+  const sprinkles = ['#e43b44', '#fee761', '#63c74d', '#0099db', '#f4f4f4'];
+  for (let i = 0; i < 12; i++) {
+    const a = r() * Math.PI * 2;
+    const d = 6 + r() * 4;
+    rect(ctx, 14 + Math.cos(a) * d, 13 + Math.sin(a) * d * 0.9, r() < 0.5 ? 2 : 1, r() < 0.5 ? 1 : 2, pick(r, sprinkles));
+  }
+  disc(ctx, 14, 14, 4, 4, K);
+  ctx.clearRect(12, 12, 5, 5);
+  return { kind: 'donut', canvas: c, colors: [icing, pick(r, sprinkles)] };
+}
+
+function teddy(r: Rand): Prop {
+  const [c, ctx] = canvas(30, 34);
+  const fur = pick(r, ['#b86f50', '#e4a672', '#8b9bb4', '#f6757a']);
+  const muzzle = '#ead4aa';
+  // Ears, head, body, arms and legs, then the face.
+  for (const x of [6, 23]) {
+    disc(ctx, x, 5, 4, 4, K);
+    disc(ctx, x, 5, 3, 3, fur);
+    disc(ctx, x, 5, 1, 1, muzzle);
+  }
+  disc(ctx, 15, 11, 10, 9, K);
+  disc(ctx, 15, 11, 9, 8, fur);
+  disc(ctx, 15, 25, 9, 8, K);
+  disc(ctx, 15, 25, 8, 7, fur);
+  disc(ctx, 15, 26, 5, 5, muzzle);
+  for (const x of [4, 26]) {
+    disc(ctx, x, 22, 3, 5, K);
+    disc(ctx, x, 22, 2, 4, fur);
+  }
+  disc(ctx, 15, 14, 4, 3, muzzle);
+  rect(ctx, 14, 12, 3, 2, K);
+  rect(ctx, 11, 9, 2, 2, K);
+  rect(ctx, 18, 9, 2, 2, K);
+  rect(ctx, 14, 16, 3, 1, '#743f39');
+  return { kind: 'teddy', canvas: c, colors: [fur, muzzle] };
+}
+
+function yoyo(r: Rand): Prop {
+  const [c, ctx] = canvas(26, 30);
+  const col = pick(r, ['#e43b44', '#0099db', '#63c74d', '#fee761', '#b55088']);
+  // A loop of string, then the yo-yo itself.
+  ctx.fillStyle = '#f4f4f4';
+  for (let a = 0; a < 360; a += 6) {
+    const t = (a * Math.PI) / 180;
+    ctx.fillRect(Math.round(17 + Math.cos(t) * 6), Math.round(8 + Math.sin(t) * 5), 1, 1);
+  }
+  rect(ctx, 12, 12, 1, 6, '#f4f4f4');
+  disc(ctx, 12, 21, 9, 8, K);
+  disc(ctx, 12, 21, 8, 7, col);
+  disc(ctx, 12, 21, 4, 4, '#f4f4f4');
+  disc(ctx, 12, 21, 2, 2, K);
+  rect(ctx, 6, 16, 3, 2, '#f4f4f4');
+  return { kind: 'yoyo', canvas: c, colors: [col] };
+}
+
+const MAKERS: Record<Exclude<PropKind, 'crumbs'>, (r: Rand) => Prop> = {
+  snack: snackBag,
+  sock,
+  juice,
+  soda,
+  pizza,
+  comic,
+  cassette,
+  banana,
+  duck,
+  donut,
+  teddy,
+  yoyo,
+};
+
+/** Things that can turn up on the floor besides the snack bags. */
+export const EXTRA_KINDS: Exclude<PropKind, 'crumbs' | 'snack'>[] = ['sock', 'juice', 'soda', 'pizza', 'comic', 'cassette', 'banana', 'duck', 'donut', 'teddy', 'yoyo'];
+
+/**
+ * Which things lie on the floor this time. Same amount as ever (one to
+ * three snack bags, some with crumbs, plus a handful of other things), but
+ * the handful is drawn from the whole list, at most one of each.
+ */
+export function clutterKinds(r: Rand = Math.random): PropKind[] {
+  const out: PropKind[] = [];
   const bags = 1 + Math.floor(r() * 3);
   for (let i = 0; i < bags; i++) {
-    out.push(snackBag(r));
-    if (r() < 0.6) out.push(crumbs(r));
+    out.push('snack');
+    if (r() < 0.6) out.push('crumbs');
   }
-  if (r() < 0.8) out.push(sock(r));
-  if (r() < 0.35) out.push(sock(r));
-  if (r() < 0.7) out.push(juice(r));
-  if (r() < 0.6) out.push(soda(r));
-  if (r() < 0.5) out.push(pizza(r));
-  if (r() < 0.5) out.push(comic(r));
+  // As many others as the old fixed odds gave (0-6, about 3.5 on average).
+  const others = [0.8, 0.35, 0.7, 0.6, 0.5, 0.5].filter((p) => r() < p).length;
+  const pool = [...EXTRA_KINDS];
+  for (let i = 0; i < others && pool.length; i++) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
   return out;
+}
+
+/** A fresh, random assortment of floor clutter. */
+export function clutter(r: Rand = Math.random): Prop[] {
+  return clutterKinds(r).map((k) => (k === 'crumbs' ? crumbs(r) : MAKERS[k](r)));
 }

@@ -6,7 +6,7 @@ import { quip, type Thing } from './quips';
 import { JUNK_KINDS, junkLine, type JunkKind } from './junk-lines';
 import { activePad } from './play/input';
 import { clutter, CONSOLE_PORTS, consoleTop, SCREEN, SLOT, TV_H, TV_W, tvCanvas, wallpaperCanvas } from '../sprites/bedroom';
-import { JUNK_SCALE, junkScreen, staticFrame } from '../sprites/junk-tv';
+import { JUNK_SCALE, junkScreen, junkTitle, pickVariant, staticFrame } from '../sprites/junk-tv';
 import { showDialogue, type Dialogue } from '../ui/dialogue';
 import { carpetCanvas, cartridge, CART_H, CART_W, controllerCanvas, type CartSpec } from '../sprites/cartridge';
 import { projectForm } from '../ui/forms';
@@ -49,6 +49,8 @@ interface Room {
 /** The easter egg in progress: something that isn't a game, jammed in the console. */
 interface Egg {
   kind: JunkKind;
+  /** Which of the kind's TV screens is showing. */
+  variant: number;
   img: Phaser.GameObjects.Image;
   shadow?: Phaser.GameObjects.Image;
   shadowAt?: { x: number; y: number };
@@ -90,6 +92,8 @@ export class ProjectsScene extends QuestScene {
   private visit = 0;
   private lastQuip?: string;
   private lastJunkLine?: string;
+  /** The screen each kind showed last, so the next go shows another. */
+  private lastVariant = new Map<string, number>();
   private egg?: Egg;
   private consoleImg?: Phaser.GameObjects.Image;
   /** Camera zoom on the floor (the TV visit zooms in, then back to this). */
@@ -560,8 +564,11 @@ export class ProjectsScene extends QuestScene {
     if (this.busy || !this.room) return;
     this.busy = true;
     this.info?.destroy();
-    track('junk_play', { kind: j.kind });
-    const egg: Egg = { kind: j.kind, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
+    // A different screen from last time this kind went in.
+    const variant = pickVariant(j.kind, this.lastVariant.get(j.kind));
+    this.lastVariant.set(j.kind, variant);
+    track('junk_play', { kind: j.kind, variant });
+    const egg: Egg = { kind: j.kind, variant, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
     this.egg = egg;
     window.addEventListener('keydown', this.onEggKey, true);
     // A click on the scene (not the dialogue box) bails out; skip the click that started it.
@@ -596,7 +603,7 @@ export class ProjectsScene extends QuestScene {
     if (stop()) return;
 
     // The hero has something to say about it.
-    const line = junkLine(this.app.heroId, j.kind, j.label, this.lastJunkLine);
+    const line = junkLine(this.app.heroId, j.kind, { label: j.label, game: junkTitle(j.kind, variant, j.label) }, this.lastJunkLine);
     this.lastJunkLine = line.text;
     const host = this.game.canvas.parentElement ?? document.body;
     egg.dialogue = showDialogue({ hero: this.app.heroId, line, host, px: Math.max(2, Math.min(4, Math.round(this.floorZoom * 1.6))), instant: calm });
@@ -621,6 +628,42 @@ export class ProjectsScene extends QuestScene {
       await this.tween({ targets: img, scaleX: 0.55, angle: c.angle + 12, duration: 160, ease: 'Back.in' });
       await this.tween({ targets: img, angle: c.angle, duration: 80 });
     }
+    if (kind === 'cassette') {
+      // Stood on its edge and clunked in like a tape deck.
+      await this.tween({ targets: img, angle: c.angle + 90, scaleX: 1, duration: 160, ease: 'Back.out' });
+      await this.tween({ targets: img, angle: c.angle, duration: 90 });
+    }
+    if (kind === 'banana') {
+      // Slips straight past the slot, then sheepishly slides back.
+      const past = rotate({ x: 34, y: 0 }, c.angle);
+      await this.tween({ targets: img, x: at.x + lift.x + past.x, y: at.y + lift.y + past.y, angle: c.angle + 40, duration: 180, ease: 'Quad.out' });
+      this.cameras.main.shake(70, 0.003);
+      await this.tween({ targets: img, x: at.x + lift.x, y: at.y + lift.y, angle: c.angle, duration: 260, ease: 'Sine.inOut' });
+    }
+    if (kind === 'duck') {
+      // Squeak, squeak: a squash and stretch before it'll go.
+      for (let i = 0; i < 2; i++) {
+        await this.tween({ targets: img, scaleX: 1.35, scaleY: 0.7, duration: 90, ease: 'Quad.out' });
+        await this.tween({ targets: img, scaleX: 0.85, scaleY: 1.25, duration: 90, ease: 'Quad.in' });
+      }
+    }
+    if (kind === 'donut') {
+      // Rolls in on its edge.
+      await this.tween({ targets: img, angle: c.angle + 360, scaleX: 0.4, duration: 300, ease: 'Quad.in' });
+    }
+    if (kind === 'teddy') {
+      // A long, reluctant hug of a squeeze.
+      await this.tween({ targets: img, scaleX: 0.55, scaleY: 1.15, duration: 420, ease: 'Sine.inOut' });
+      await this.wait(120);
+    }
+    if (kind === 'yoyo') {
+      // Down on its string and back up, twice, then in.
+      for (let i = 0; i < 2; i++) {
+        await this.tween({ targets: img, x: at.x, y: at.y, angle: c.angle + 180 * (i + 1), duration: 150, ease: 'Quad.in' });
+        await this.tween({ targets: img, x: at.x + lift.x, y: at.y + lift.y, angle: c.angle + 360 * (i + 1), duration: 170, ease: 'Quad.out' });
+      }
+    }
+    if (egg.cancelled) return;
     if (kind === 'sock') {
       // Stuffed in, a shove at a time.
       for (const s of [0.75, 0.5, 0.3]) {
@@ -630,7 +673,8 @@ export class ProjectsScene extends QuestScene {
         if (egg.cancelled) return;
       }
     }
-    await this.tween({ targets: img, x: at.x, y: at.y, scaleX: kind === 'pizza' ? fit * 0.6 : fit, scaleY: 0.18, duration: 200, ease: 'Quad.in' });
+    const squash = kind === 'pizza' || kind === 'teddy' || kind === 'donut' ? fit * 0.6 : fit;
+    await this.tween({ targets: img, x: at.x, y: at.y, angle: c.angle, scaleX: squash, scaleY: 0.18, duration: 200, ease: 'Quad.in' });
     drip?.remove();
     this.cameras.main.shake(90, 0.004);
   }
@@ -649,8 +693,8 @@ export class ProjectsScene extends QuestScene {
     const screen = this.add.container(cx, cy).setDepth(500);
     egg.screen = screen;
     screen.add(this.add.rectangle(0, 0, SCREEN.w, SCREEN.h, 0x000000));
-    const key = `junk:${this.visit}:${egg.kind}`;
-    if (!this.textures.exists(key)) this.textures.addCanvas(key, junkScreen(egg.kind, colors, label));
+    const key = `junk:${this.visit}:${egg.kind}:${egg.variant}`;
+    if (!this.textures.exists(key)) this.textures.addCanvas(key, junkScreen({ kind: egg.kind, colors, label }, egg.variant));
     const pic = this.add.image(0, 0, key).setScale(JUNK_SCALE);
     const lines = this.add.graphics().setAlpha(0.18);
     lines.fillStyle(0x000000);
