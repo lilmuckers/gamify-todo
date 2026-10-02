@@ -103,8 +103,7 @@ export function settingsDialog(app: App) {
       { class: 'actions' },
       h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.showWelcome(app))) }, 'Show the welcome screen'),
       h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.beginTour(app))) }, 'Take the tour'),
-      TARGET === 'pages' &&
-        s.source.id !== 'demo' &&
+      s.source.id !== 'demo' &&
         h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.beginSetup(app))) }, 'Set-up guide'),
     ),
   );

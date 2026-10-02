@@ -126,7 +126,7 @@ export interface UiPrefs {
   /** Which line variant each tour step used last time, so a repeat reads differently. */
   tourVariants?: number[];
   /** Get-started wizard in progress: the step to resume at, and the repo chosen so far. */
-  setup?: { step: number; repo?: string };
+  setup?: { step: string; repo?: string };
 }
 
 export function uiPrefs(): UiPrefs {

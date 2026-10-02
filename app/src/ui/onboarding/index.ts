@@ -40,12 +40,8 @@ function choose(app: App, c: Choice | 'skip') {
   if (c === 'skip') return;
   if (c === 'demo') return reloadWithMode('demo', '#/');
   if (c === 'tour') return beginTour(app);
-  // The Docker editor is already connected: the tour shows how it works.
-  if (TARGET === 'local') {
-    toast("You're already set up: this editor saves to your repo. Here's the tour.", 'info', 5000);
-    return beginTour(app);
-  }
-  void import('./setup').then((m) => m.openSetup(app, 0));
+  // The Docker editor's guide skips GitHub: it starts with the repo it's already on.
+  void import('./setup').then((m) => m.openSetup(app));
 }
 
 /** The tour runs on the example data: connected (or in the demo), it restarts the app onto it first. */
@@ -61,5 +57,5 @@ export function beginTour(app: App) {
 /** The get-started wizard, from the start (Settings). */
 export function beginSetup(app: App) {
   onboardedStore.set();
-  void import('./setup').then((m) => m.openSetup(app, 0));
+  void import('./setup').then((m) => m.openSetup(app, TARGET === 'local' ? 'local' : 'repo'));
 }

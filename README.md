@@ -100,7 +100,7 @@ ways in:
   - The guide is your hero. If you've never picked one, it's a random hero, never the same as last
     time, and every line is in that guide's own voice.
   - The tour picks up where it left off after a reload, and can be restarted from Settings.
-- **★ Get started**: a set-up guide styled like an instruction manual:
+- **★ Get started**: a set-up guide styled like an instruction manual (in the Docker editor it skips the GitHub steps and starts from the repo it is running on):
   1. make a repo;
   2. create a fine-grained token scoped to that one repo, with a **TEST IT** check of each
      permission;

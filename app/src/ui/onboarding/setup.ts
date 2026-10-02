@@ -16,10 +16,15 @@ import { testToken, type TokenReport } from './token-check';
 
 // ---- The wizard ----
 
+export type ChapterId = 'repo' | 'token' | 'connect' | 'local' | 'hero' | 'game' | 'ai';
+
 interface Chapter {
+  id: ChapterId;
   title: string;
-  /** Only on GitHub Pages (the Docker editor is already connected). */
-  pagesOnly?: boolean;
+  /** Only in one build: GitHub Pages connects with a token; the Docker editor is already on a repo. */
+  only?: 'pages' | 'local';
+  /** The hero's handwritten tip on this page. */
+  tip: string;
   render(w: Wizard): Node[];
 }
 
@@ -38,8 +43,10 @@ const ext = (url: string, label: string) => h('a', { class: 'manual-go', href: u
 
 const CHAPTERS: Chapter[] = [
   {
+    id: 'repo',
     title: 'Make a repo for your quests',
-    pagesOnly: true,
+    only: 'pages',
+    tip: 'Private repos are fine. Nobody sees your quests unless you share them.',
     render: (w) => {
       const repo = text(w.repo, { placeholder: 'you/my-quests' });
       repo.oninput = () => (w.repo = repo.value.trim());
@@ -51,8 +58,10 @@ const CHAPTERS: Chapter[] = [
     },
   },
   {
+    id: 'token',
     title: 'Forge a token',
-    pagesOnly: true,
+    only: 'pages',
+    tip: 'Keep it secret. Keep it safe. Never paste it anywhere else!',
     render: (w) => {
       const input = h('input', { type: 'password', class: 'manual-token', placeholder: 'github_pat_… paste it here', autocomplete: 'off', value: w.token });
       input.oninput = () => (w.token = input.value.trim());
@@ -104,8 +113,10 @@ const CHAPTERS: Chapter[] = [
     },
   },
   {
+    id: 'connect',
     title: 'Connect',
-    pagesOnly: true,
+    only: 'pages',
+    tip: 'This bit restarts the app. Back in a jiffy!',
     render: (w) => {
       const branch = text('', { required: false, placeholder: 'default branch' });
       const status = h('p', { class: 'muted' });
@@ -129,7 +140,7 @@ const CHAPTERS: Chapter[] = [
             tokenStore.set(w.token);
             track('github_connect', { can_push: true });
             // Pick up at the hero step once the app has restarted on the new repo.
-            patchUiPrefs({ setup: { step: 3, repo: w.repo } });
+            patchUiPrefs({ setup: { step: 'hero', repo: w.repo } });
             reloadWithMode(undefined, '#/');
           },
         },
@@ -144,11 +155,39 @@ const CHAPTERS: Chapter[] = [
     },
   },
   {
+    id: 'local',
+    title: 'Your local repo',
+    only: 'local',
+    tip: 'No tokens, no accounts. Just git, like the old days.',
+    render: (w) => {
+      const facts = h('ul', { class: 'token-checks' }, h('li', { class: 'unknown' }, 'Checking the repo…'));
+      const status = w.app.store.source.status?.();
+      void status
+        ?.then((st) =>
+          facts.replaceChildren(
+            h('li', { class: 'yes' }, `✓ On branch ${st.branch}`),
+            h('li', { class: 'yes' }, st.lastCommit ? `✓ Last commit: ${st.lastCommit.message.split('\n')[0].slice(0, 60)}` : '✓ No commits yet'),
+            h('li', { class: st.remote ? 'yes' : 'unknown' }, st.remote ? `✓ Pushes to ${st.remote}${st.ahead ? ` (${st.ahead} commit${st.ahead === 1 ? '' : 's'} to publish)` : ''}` : '? No remote: everything stays on this machine'),
+          ),
+        )
+        .catch((err: Error) => facts.replaceChildren(h('li', { class: 'no' }, `✗ Couldn't read the repo: ${err.message}`)));
+      return [
+        h('p', { class: 'manual-lead' }, 'This editor is already working on the git repo it was started in: every edit is written to its ', h('code', null, 'data/'), ' folder and committed there. No GitHub token needed.'),
+        facts,
+        h('p', { class: 'muted' }, 'Pushing is up to you: use ⇪ Publish in the top bar (when the repo has a remote), or plain git.'),
+      ];
+    },
+  },
+  {
+    id: 'hero',
     title: 'Pick your hero',
+    tip: 'Pick whoever makes you smile.',
     render: (w) => [h('p', { class: 'manual-lead' }, 'Who walks your levels? You can change this any time in Settings.'), heroPicker(w.app)],
   },
   {
+    id: 'game',
     title: 'Start your first game',
+    tip: 'Small is good. One level you finish beats ten you plan.',
     render: (w) => {
       const ws = w.app.workspace;
       const count = ws ? Object.keys(ws.projects).length : 0;
@@ -206,7 +245,9 @@ const CHAPTERS: Chapter[] = [
     },
   },
   {
+    id: 'ai',
     title: '(Optional) Teach your AI the rules',
+    tip: 'Optional, but handy if you live in a chat window.',
     render: (w) => [
       h('p', { class: 'manual-lead' }, 'Use ChatGPT or Claude? The AI skill teaches them how your games are stored, so they can add tasks, tick things off and plan levels for you.'),
       h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => skillHelpDialog() }, 'OPEN THE AI SKILL'), h('button', { class: 'btn primary', type: 'button', onclick: () => (track('setup_done', { first_game: false }), finish(w)) }, "WORLD 1-1, LET'S GO!")),
@@ -274,11 +315,11 @@ function finish(w: Wizard, where?: { projectId: string; worldId: string; levelId
  * sidebar of chapters, a cream page for the current one, the player's hero
  * with handwritten tips. Resumes where it left off after a reload.
  */
-export function openSetup(app: App, start?: number) {
+export function openSetup(app: App, start?: ChapterId) {
   document.querySelector('.manual-overlay')?.remove();
-  const chapters = CHAPTERS.map((c, i) => ({ ...c, i })).filter((c) => TARGET === 'pages' || !c.pagesOnly);
+  const chapters = CHAPTERS.filter((c) => !c.only || c.only === TARGET);
   const saved = uiPrefs().setup;
-  let at = Math.max(0, chapters.findIndex((c) => c.i === (start ?? saved?.step ?? 0)));
+  let at = Math.max(0, chapters.findIndex((c) => c.id === (start ?? saved?.step)));
   const side = h('ol', { class: 'manual-chapters' });
   const page = h('div', { class: 'manual-page' });
   const overlay = h(
@@ -307,8 +348,8 @@ export function openSetup(app: App, start?: number) {
   };
   const move = (d: number) => {
     at = Math.max(0, Math.min(chapters.length - 1, at + d));
-    patchUiPrefs({ setup: { step: chapters[at].i, repo: w.repo || undefined } });
-    track('setup_step', { step: chapters[at].i + 1 });
+    patchUiPrefs({ setup: { step: chapters[at].id, repo: w.repo || undefined } });
+    track('setup_step', { step: chapters[at].id });
     render();
   };
   const render = () => {
@@ -326,12 +367,12 @@ export function openSetup(app: App, start?: number) {
         { class: 'manual-nav' },
         at > 0 && h('button', { class: 'btn', type: 'button', onclick: () => w.back() }, '◀ BACK'),
         // Connecting moves on by itself (it restarts the app); the last page has its own finish.
-        !last && !(TARGET === 'pages' && c.i === 2) && h('button', { class: 'btn', type: 'button', onclick: () => w.next() }, c.i === 4 ? 'SKIP ▶' : 'NEXT ▶'),
+        !last && c.id !== 'connect' && h('button', { class: 'btn', type: 'button', onclick: () => w.next() }, c.id === 'game' ? 'SKIP ▶' : 'NEXT ▶'),
       ),
       h(
         'div',
         { class: 'manual-tip' },
-        h('div', { class: 'manual-bubble' }, TIPS[c.i]),
+        h('div', { class: 'manual-bubble' }, c.tip),
         h('img', { class: 'pixel', src: spriteUrl(heroKey(app.heroId)), alt: '' }),
       ),
     );
@@ -344,18 +385,9 @@ export function openSetup(app: App, start?: number) {
     }
   };
   // Hero changes (picked on page 4) show up in the tip at once.
-  const unsub = app.subscribe(() => chapters[at].i === 3 && (page.querySelector('.manual-tip img') as HTMLImageElement | null)?.setAttribute('src', spriteUrl(heroKey(app.heroId))));
+  const unsub = app.subscribe(() => chapters[at].id === 'hero' && (page.querySelector('.manual-tip img') as HTMLImageElement | null)?.setAttribute('src', spriteUrl(heroKey(app.heroId))));
   document.body.append(overlay);
   document.addEventListener('keydown', onKey, true);
-  track('setup_step', { step: chapters[at].i + 1 });
+  track('setup_step', { step: chapters[at].id });
   render();
 }
-
-const TIPS = [
-  'Private repos are fine. Nobody sees your quests unless you share them.',
-  'Keep it secret. Keep it safe. Never paste it anywhere else!',
-  'This bit restarts the app. Back in a jiffy!',
-  'Pick whoever makes you smile.',
-  'Small is good. One level you finish beats ten you plan.',
-  'Optional, but handy if you live in a chat window.',
-];
