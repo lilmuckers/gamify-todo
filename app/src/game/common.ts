@@ -9,6 +9,8 @@ export const WORLD_H = 15 * TILE;
 export const GROUND_Y = 12 * TILE;
 export const FONT = '"Press Start 2P", monospace';
 export const THEMED = new Set(['ground-top', 'ground-fill', 'hill']);
+/** Quiet time after the last resize event before a scene re-lays itself out. */
+const RESIZE_SETTLE_MS = 120;
 const THEME_KEYS: ThemeKey[] = ['grass', 'desert', 'water', 'ice', 'sky', 'castle', 'warp', 'under'];
 
 /** Texture key for a sprite; themed sprites get a per-theme key. */
@@ -118,8 +120,24 @@ export abstract class QuestScene extends Phaser.Scene {
     const typing = () => this.app.playing || !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
     keys?.on('keydown-LEFT', () => typing() || (onUserScroll?.(), (this.cameras.main.scrollX -= 48)));
     keys?.on('keydown-RIGHT', () => typing() || (onUserScroll?.(), (this.cameras.main.scrollX += 48)));
-    this.scale.on('resize', this.onResize, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.onResize, this));
+    this.listenResize();
+  }
+
+  /**
+   * Calls onResize once resizing settles. Dragging a window fires resize
+   * events every frame, and rebuilding the scene on each one judders.
+   */
+  protected listenResize() {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onResize = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => this.onResize(), RESIZE_SETTLE_MS);
+    };
+    this.scale.on('resize', onResize);
+    this.events.once('shutdown', () => {
+      clearTimeout(timer);
+      this.scale.off('resize', onResize);
+    });
   }
 
   protected onResize() {

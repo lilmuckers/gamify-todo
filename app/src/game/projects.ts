@@ -100,6 +100,8 @@ export class ProjectsScene extends QuestScene {
   private floorZoom = 1;
   /** The window was resized during the easter egg: re-lay the room after. */
   private resized = false;
+  /** Prop textures the current room uses (kept across visits so old ones can be freed). */
+  private propKeys = new Set<string>();
 
   constructor() {
     super('projects');
@@ -117,12 +119,9 @@ export class ProjectsScene extends QuestScene {
   }
 
   create() {
-    this.scale.on('resize', this.onResize, this);
-    this.events.once('shutdown', () => {
-      this.scale.off('resize', this.onResize, this);
-      // Leaving mid-egg (the HUD still works): take the box and key handler with us.
-      if (this.egg) this.endEgg();
-    });
+    this.listenResize();
+    // Leaving mid-egg (the HUD still works): take the box and key handler with us.
+    this.events.once('shutdown', () => this.egg && this.endEgg());
     this.cameras.main.fadeIn(250);
     this.render();
     this.watch(() => this.render());
@@ -270,6 +269,9 @@ export class ProjectsScene extends QuestScene {
 
     this.layer?.destroy();
     this.info?.destroy();
+    // Each visit throws new clutter: free the last room's textures once nothing shows them.
+    for (const key of this.propKeys) if (!room.props.some((p) => p.key === key)) this.textures.remove(key);
+    this.propKeys = new Set(room.props.map((p) => p.key));
     const layer = (this.layer = this.add.container(0, 0));
     const tex = (key: string, c: () => HTMLCanvasElement) => {
       if (!this.textures.exists(key)) this.textures.addCanvas(key, c());
