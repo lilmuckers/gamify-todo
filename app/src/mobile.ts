@@ -6,7 +6,7 @@ import { drawStrip } from './sprites/strip';
 import { heroKey } from './sprites/heroes';
 import { carpetCanvas, cartridge } from './sprites/cartridge';
 import { h, icon, mount } from './ui/dom';
-import { renderHud } from './ui/hud';
+import { renderHud, repaintSyncStatus } from './ui/hud';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { settingsDialog } from './ui/settings';
@@ -29,7 +29,7 @@ export function mountMobile(app: App, root: HTMLElement) {
     if (prevStrip) stripScroll = prevStrip.scrollLeft;
     const visual = renderVisual(app, stripScroll);
     return h('div', null, visual, renderPanel(app));
-  });
+  }, () => repaintSyncStatus(app, hud, body));
   window.addEventListener('hashchange', () => (stripScroll = undefined));
   mountPadOverlay(app, today);
 }

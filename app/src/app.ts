@@ -29,6 +29,13 @@ import type { DispatchResult, Store } from './data/store';
 import { currentRoute, href, routeProject, type Route } from './router';
 import { playSummary } from './ui/play-summary';
 
+/**
+ * What an emit may have changed: anything, or only the sync status (the HUD
+ * pill and the panel's sync footer). Views that show no sync status can
+ * ignore 'sync'.
+ */
+export type Change = 'all' | 'sync';
+
 /** Why a play session ended: shapes the summary's wording. */
 export type PlayEnd = 'stopped' | 'idle' | 'cleared' | 'left' | 'resumed';
 
@@ -122,10 +129,12 @@ export class App {
   demos = new Map<string, () => Promise<void>>();
   pulls: { list?: PullSummary[]; loading: boolean; error?: string } = { loading: false };
   private pullViews = new Map<number, PullView>();
-  private listeners = new Set<() => void>();
+  private listeners = new Set<(change: Change) => void>();
+  /** What the last store emit showed, to tell data changes from sync-status ones. */
+  private seen: { state?: Workspace; caps: string } = { caps: '' };
 
   constructor(public store: Store) {
-    store.subscribe(() => this.emit());
+    store.subscribe(() => this.emit(this.storeChange()));
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
@@ -176,13 +185,26 @@ export class App {
     else playSummary(this, ops, why);
   }
 
-  subscribe(fn: () => void) {
+  subscribe(fn: (change: Change) => void) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
 
-  emit() {
-    for (const fn of this.listeners) fn();
+  emit(change: Change = 'all') {
+    for (const fn of this.listeners) fn(change);
+  }
+
+  /**
+   * A store emit that kept the same state object (the store reuses it when a
+   * sync changes nothing) and the same capabilities only moved sync status.
+   * While loading (no state yet) the panel shows the store's error: 'all'.
+   */
+  private storeChange(): Change {
+    const { state, caps } = this.store;
+    const sig = `${caps.canEdit}${caps.canReviewPRs}${caps.canPublish}`;
+    const change: Change = state && state === this.seen.state && sig === this.seen.caps ? 'sync' : 'all';
+    this.seen = { state, caps: sig };
+    return change;
   }
 
   get workspace(): Workspace | undefined {

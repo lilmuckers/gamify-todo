@@ -1,4 +1,4 @@
-import type { App } from '../app';
+import type { App, Change } from '../app';
 
 type Keepable = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
@@ -8,10 +8,17 @@ type Keepable = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
  * selected item into view. Fields marked `data-keep` carry their value, focus
  * and cursor over to the new render; while you type in any other field, the
  * panel waits (re-rendering would wipe what you typed).
+ *
+ * Updates that only moved sync status (saving, syncing, saved) call
+ * `renderSync` instead, which repaints just what shows it: rebuilding
+ * everything there restarted hovers and animations several times per edit.
+ * It touches no fields, so it runs even while you type.
  */
-export function scheduler(app: App, panel: HTMLElement, render: () => HTMLElement) {
+export function scheduler(app: App, panel: HTMLElement, render: () => HTMLElement, renderSync: () => void) {
   let queued = false;
   let deferred = false;
+  /** Something other than sync status changed since the last full render. */
+  let full = false;
   let lastSel = '';
   const typing = () => {
     const a = document.activeElement as HTMLElement | null;
@@ -19,12 +26,14 @@ export function scheduler(app: App, panel: HTMLElement, render: () => HTMLElemen
   };
   const run = () => {
     queued = false;
+    if (!full) return renderSync();
     const active = document.activeElement as Keepable | null;
     const activeKey = active && panel.contains(active) ? active.dataset.keep : undefined;
     if (typing() && !activeKey) {
       deferred = true;
-      return;
+      return renderSync();
     }
+    full = false;
     const kept = new Map<string, { value: string; start: number | null; end: number | null }>();
     for (const el of panel.querySelectorAll<Keepable>('[data-keep]'))
       kept.set(el.dataset.keep!, {
@@ -53,7 +62,8 @@ export function scheduler(app: App, panel: HTMLElement, render: () => HTMLElemen
       });
     lastSel = sel;
   };
-  const schedule = () => {
+  const schedule = (change: Change = 'all') => {
+    if (change === 'all') full = true;
     if (queued) return;
     queued = true;
     setTimeout(run, 0);
@@ -67,6 +77,6 @@ export function scheduler(app: App, panel: HTMLElement, render: () => HTMLElemen
   app.subscribe(schedule);
   window.addEventListener('hashchange', () => (panel.scrollTop = 0));
   // Keep countdown timers fresh.
-  setInterval(schedule, 30_000);
+  setInterval(() => schedule(), 30_000);
   schedule();
 }

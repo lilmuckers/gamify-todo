@@ -162,7 +162,6 @@ export abstract class QuestScene extends Phaser.Scene {
     return t;
   }
 
-  /** Re-render on any app change until the scene shuts down. */
   /**
    * Tells the app where something is on screen (for the tour's spotlight).
    * `find` returns a world-space rectangle; it may scroll the camera to it.
@@ -199,8 +198,9 @@ export abstract class QuestScene extends Phaser.Scene {
     cam.centerOnX(x + w / 2);
   }
 
+  /** Re-render on app changes until the scene shuts down (sync status alone shows nowhere in the game). */
   protected watch(fn: () => void) {
-    this.unsub = this.app.subscribe(fn);
+    this.unsub = this.app.subscribe((change) => change !== 'sync' && fn());
     this.events.once('shutdown', () => this.unsub?.());
   }
 

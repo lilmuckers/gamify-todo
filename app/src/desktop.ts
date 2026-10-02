@@ -2,7 +2,7 @@ import type { App } from './app';
 import { startGame } from './game';
 import { bindNavKeys, navFor } from './nav';
 import { h, mount } from './ui/dom';
-import { renderHud } from './ui/hud';
+import { renderHud, repaintSyncStatus } from './ui/hud';
 import { controllerCanvas } from './sprites/cartridge';
 import { canvasUrl } from './sprites/render';
 import { renderPanel } from './ui/panels';
@@ -21,7 +21,7 @@ export function mountDesktop(app: App, root: HTMLElement) {
     renderHud(app, hud);
     renderGameNav(app, nav);
     return renderPanel(app);
-  });
+  }, () => repaintSyncStatus(app, hud, panel));
   mountPadOverlay(app, today);
   // Before the game starts, so Esc reaches us before Phaser's own key handling.
   bindNavKeys(app);
