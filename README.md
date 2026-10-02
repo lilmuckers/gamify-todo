@@ -72,6 +72,7 @@ The game is built to beat perfectionism:
 | Mode | Where | Edits | PR review |
 |---|---|---|---|
 | Read-only | GitHub Pages | – | – |
+| Demo (`?demo`) | GitHub Pages | Everything editable, kept in memory only: nothing is saved anywhere | – |
 | GitHub-connected | GitHub Pages + token in your browser | Commits straight to `main` via the GitHub API | ✓ |
 | Local editor | Docker | Writes `data/` and commits in your checkout; **Publish** pushes | ✓ with `GITHUB_TOKEN` |
 | Mobile | Pages, installed as a PWA | Compact touch UI, works offline, syncs when back online | ✓ |
@@ -86,6 +87,30 @@ data/<project>/<world>/<level>.json
 ```
 
 Ticking off a task rewrites one small level file, so commits and pull requests stay minimal.
+
+### First visit: the welcome screen
+
+A browser that has never used Quest Log gets a welcome screen styled like a console box, with three
+ways in:
+
+- **▶ Play the demo**: the example games, fully editable. Edits behave as if they save (sync status,
+  undo, celebrations) but live in memory only and vanish on reload. The URL carries `?demo`, so a
+  demo link stays a demo.
+- **? Take the tour**: nine stops through the example data with a spotlight and a dialogue box.
+  - The guide is your hero. If you've never picked one, it's a random hero, never the same as last
+    time, and every line is in that guide's own voice.
+  - The tour picks up where it left off after a reload, and can be restarted from Settings.
+- **★ Get started**: a set-up guide styled like an instruction manual (in the Docker editor it skips the GitHub steps and starts from the repo it is running on):
+  1. make a repo;
+  2. create a fine-grained token scoped to that one repo, with a **TEST IT** check of each
+     permission;
+  3. connect;
+  4. pick a hero;
+  5. start a first game;
+  6. (optionally) teach your AI the rules.
+
+Opening a shared link on a first visit shows that screen with a small "New here?" banner instead.
+Add `?welcome` to any URL (or use **⚙ Settings → New here?**) to see the welcome screen again.
 
 ### Use your own repo (no fork or clone needed)
 

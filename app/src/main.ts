@@ -2,10 +2,11 @@ import '@fontsource/press-start-2p/latin-400.css';
 import '@fontsource/caveat/latin-400.css';
 import '@fontsource/caveat/latin-700.css';
 import './styles.css';
-import { GitHubError } from '@quest/shared';
+import { GitHubError, HERO_IDS, type HeroId } from '@quest/shared';
 import { bucket, initAnalytics, setUserProps, track } from './analytics';
 import { App } from './app';
-import { chosenBranch, rememberBranch, repoRef, TARGET, tokenStore, uiPrefs } from './config';
+import { chosenBranch, isFirstVisit, rememberBranch, repoRef, TARGET, tokenStore, uiPrefs, urlMode } from './config';
+import { DemoSource, memoryKV } from './data/demo';
 import { GitHubSource } from './data/github';
 import { browserKV } from './data/kv';
 import { LocalApiSource } from './data/local';
@@ -15,6 +16,10 @@ import { Store } from './data/store';
 import { prefillCapture } from './ui/inbox';
 
 async function createSource(): Promise<DataSource> {
+  const mode = urlMode();
+  // ?demo: example data, editable, saved nowhere. ?tour: example data, read-only.
+  if (mode.demo) return new DemoSource();
+  if (mode.tour && TARGET === 'pages') return new StaticSource();
   if (TARGET === 'local') return new LocalApiSource().init();
   const token = tokenStore.get();
   const repo = repoRef();
@@ -32,6 +37,8 @@ function useMobile(): boolean {
 }
 
 async function main() {
+  // Before anything writes its own keys.
+  const firstVisit = isFirstVisit();
   const root = document.getElementById('app')!;
   const mobile = useMobile();
   // Something shared to the installed app lands in the inbox, ready to save.
@@ -44,14 +51,19 @@ async function main() {
     const query = shared.toString();
     history.replaceState(history.state, '', `${location.pathname}${query ? `?${query}` : ''}#/~inbox`);
   }
-  // Phones open on today's plan.
-  else if (mobile && /^#?\/?$/.test(location.hash)) history.replaceState(history.state, '', '#/~today');
-  const store = new Store(await createSource(), browserKV());
+  // Phones open on today's plan (once they've been here before).
+  else if (mobile && /^#?\/?$/.test(location.hash) && !isFirstVisit()) history.replaceState(history.state, '', '#/~today');
+  const source = await createSource();
+  // The demo keeps nothing: not even an offline cache.
+  const store = new Store(source, source.id === 'demo' ? memoryKV() : browserKV());
   store.attachBrowserEvents();
   const app = new App(store);
+  // A tour in progress: its guide walks the levels from the very first frame.
+  const tour = uiPrefs();
+  if (typeof tour.tourStep === 'number' && tour.tourStep >= 0 && HERO_IDS.includes(tour.tourGuide as HeroId)) app.heroOverride = tour.tourGuide as HeroId;
   if (sharedTitle || sharedUrl) app.focusCapture = true;
   const userProps = () => ({
-    app_mode: TARGET === 'local' ? 'local' : store.caps.canEdit ? 'github' : 'readonly',
+    app_mode: source.id === 'demo' ? 'demo' : urlMode().tour ? 'tour' : TARGET === 'local' ? 'local' : store.caps.canEdit ? 'github' : 'readonly',
     layout: mobile ? 'mobile' : 'desktop',
     display: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
     hero: app.heroId,
@@ -77,6 +89,8 @@ async function main() {
     await document.fonts.load('8px "Press Start 2P"').catch(() => undefined);
     (await import('./desktop')).mountDesktop(app, root);
   }
+  // The welcome screen doesn't need the data: show it while that loads.
+  void import('./ui/onboarding').then((m) => m.startOnboarding(app, { firstVisit }));
   await store.start();
   // The tab closed mid-game last time: ask about that session's edits now.
   if (store.held.size) app.reviewHeld('resumed');

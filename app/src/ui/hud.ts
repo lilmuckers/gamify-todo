@@ -5,12 +5,12 @@ import { fmtDuration, h, icon, mount, stars } from './dom';
 import { track } from '../analytics';
 import { navFor } from '../nav';
 import { heroKey } from '../sprites/heroes';
-import { settingsDialog } from './settings';
+import { demoNotice, settingsDialog } from './settings';
 import { skillHelpDialog } from './skill-help';
 import { inboxCount } from './inbox';
 import { todayCount } from './today';
 import { toast } from './toast';
-import { confirmDialog } from './modal';
+import { confirmDialog, openModal } from './modal';
 
 const STATUS_TEXT: Record<string, string> = {
   loading: '… loading',
@@ -64,7 +64,8 @@ export function renderHud(app: App, el: HTMLElement) {
     ]),
   );
 
-  const syncLabel = `${STATUS_TEXT[s.status] ?? s.status}${s.outbox.length ? ` (${s.outbox.length})` : ''}`;
+  const demo = s.source.id === 'demo';
+  const syncLabel = demo ? 'DEMO · NOT SAVED' : `${STATUS_TEXT[s.status] ?? s.status}${s.outbox.length ? ` (${s.outbox.length})` : ''}`;
   const publish =
     s.source.publish &&
     h(
@@ -109,7 +110,9 @@ export function renderHud(app: App, el: HTMLElement) {
     publish,
     h(
       'button',
-      { class: `sync-pill ${s.status}`, type: 'button', title: s.error ?? 'Sync details', onclick: () => settingsDialog(app) },
+      demo
+        ? { class: 'sync-pill demo', type: 'button', title: 'The demo saves nothing. Click for how to keep your work.', onclick: () => openModal('Demo: nothing is saved', h('div', null, demoNotice(app))) }
+        : { class: `sync-pill ${s.status}`, type: 'button', title: s.error ?? 'Sync details', onclick: () => settingsDialog(app) },
       syncLabel,
     ),
     h(
@@ -138,7 +141,7 @@ export function renderHud(app: App, el: HTMLElement) {
         'REVIEW',
         app.reviewDue ? h('b', { class: 'hud-badge' }, '!') : null,
       ),
-    h('button', { class: 'btn sm', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
+    h('button', { class: 'btn sm hud-ai', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
     h('button', { class: 'btn ghost gear-btn', type: 'button', title: 'Settings', 'aria-label': 'Settings', onclick: () => settingsDialog(app) }, '⚙'),
   );
 }

@@ -1,7 +1,7 @@
 import { describeOp, GitHubClient, HERO_IDS, parseRepo, REVIEW_SLOTS, type HeroId, type ReviewDay } from '@quest/shared';
 import { analyticsAllowed, analyticsAvailable, setAnalyticsAllowed, track } from '../analytics';
 import type { App } from '../app';
-import { chosenBranch, heroStore, repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
+import { chosenBranch, heroStore, reloadWithMode, repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
 import { HEROES, heroKey } from '../sprites/heroes';
 import { spriteUrl } from '../sprites/render';
 import { h, relTime } from './dom';
@@ -13,7 +13,9 @@ export function settingsDialog(app: App) {
   const body = h('div', { class: 'settings' });
   body.append(h('h3', null, 'Your hero'), heroPicker(app));
 
-  if (TARGET === 'pages') {
+  if (s.source.id === 'demo') {
+    body.append(h('h3', null, 'Demo'), ...demoNotice(app));
+  } else if (TARGET === 'pages') {
     const cur = repoRef();
     const repo = h('input', { type: 'text', value: cur ? `${cur.owner}/${cur.repo}` : '', placeholder: 'owner/repo' });
     const branch = h('input', { type: 'text', value: chosenBranch() ?? '', placeholder: 'default branch' });
@@ -93,6 +95,18 @@ export function settingsDialog(app: App) {
       h('div', { class: 'actions' }, save, disconnect),
     );
   }
+
+  body.append(
+    h('h3', null, 'New here?'),
+    h(
+      'div',
+      { class: 'actions' },
+      h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.showWelcome(app))) }, 'Show the welcome screen'),
+      h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.beginTour(app))) }, 'Take the tour'),
+      s.source.id !== 'demo' &&
+        h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.beginSetup(app))) }, 'Set-up guide'),
+    ),
+  );
 
   const mode = h(
     'select',
@@ -188,14 +202,27 @@ export function settingsDialog(app: App) {
       h('h3', null, 'Publish'),
       h('p', { class: 'muted' }, 'Edits are committed locally. Publishing pushes them so GitHub Pages redeploys.'),
     );
-  openModal('Settings', body);
+  const closeAll = openModal('Settings', body);
+}
+
+/** What the demo is (and isn't), with the ways out. */
+export function demoNotice(app: App): Node[] {
+  return [
+    h('p', null, 'You’re playing the demo: the example games, fully editable. Changes live in this tab only and vanish when you leave or reload. Nothing is sent to GitHub.'),
+    h(
+      'div',
+      { class: 'actions' },
+      h('button', { class: 'btn sm primary', type: 'button', onclick: () => void import('./onboarding').then((m) => m.beginSetup(app)) }, '★ Get started for real'),
+      h('button', { class: 'btn sm', type: 'button', onclick: () => reloadWithMode(undefined, '#/') }, 'Leave the demo'),
+    ),
+  ];
 }
 
 /**
  * Carousel of player characters. The choice is kept in this browser; when the
  * data is editable it is also saved to data/settings.json as the repo default.
  */
-function heroPicker(app: App) {
+export function heroPicker(app: App) {
   let index = Math.max(0, HERO_IDS.indexOf(app.heroId));
   const img = h('img', { class: 'pixel hero-big', alt: '' });
   const name = h('b', null);

@@ -103,8 +103,8 @@ function renderNav(app: App, nav: HTMLElement) {
   const next = state && suggestNext(state);
   mount(
     nav,
-    h('a', { href: href(togglePad(app.route, 'today')), class: app.route.pad === 'today' ? 'on' : '' }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
-    h('a', { href: href(togglePad(app.route, 'inbox')), class: app.route.pad === 'inbox' ? 'on' : '' }, h('span', { class: 'gear' }, '✉'), h('span', null, 'Inbox')),
+    h('a', { href: href(togglePad(app.route, 'today')), class: `tab-pad${app.route.pad === 'today' ? ' on' : ''}` }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
+    h('a', { href: href(togglePad(app.route, 'inbox')), class: `tab-pad${app.route.pad === 'inbox' ? ' on' : ''}` }, h('span', { class: 'gear' }, '✉'), h('span', null, 'Inbox')),
     h('a', { href: href({ view: 'projects' }), class: app.route.view === 'projects' ? 'on' : '' }, icon('node-clear', 'grass', 'icon sm'), h('span', null, 'Projects')),
     pid &&
       h('a', { href: href({ view: 'overworld', projectId: pid }), class: app.route.view === 'overworld' ? 'on' : '' }, icon('node', 'grass', 'icon sm'), h('span', null, 'Map')),
