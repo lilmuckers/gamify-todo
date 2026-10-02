@@ -1,7 +1,36 @@
 import type { HeroId } from '@quest/shared';
-import type { JunkLine } from '../game/junk-lines';
-import { emoteCanvas, portraitCanvas } from '../sprites/portraits';
+import { emoteCanvas, portraitCanvas, type Face, type Mood } from '../sprites/portraits';
 import { h } from './dom';
+
+/** A line someone says in the box: shared by the console easter egg and the tour. */
+export interface DialogueLine {
+  /** The line, with *keyword* markers removed. */
+  text: string;
+  /** Where the highlighted keyword sits in `text`. */
+  keyword?: { start: number; end: number };
+  mood: Mood;
+  face: Face;
+}
+
+const MOOD: Record<string, Mood> = { '+': 'happy', '=': 'meh', '!': 'shocked', '-': 'sad' };
+
+/**
+ * Parses a written line: a leading mood mark (`+` happy, `=` meh, `!` shocked,
+ * `-` sad), one *keyword*, and `{label}` filled in. Meh and shocked lines get
+ * the "reacting" portrait.
+ */
+export function parseLine(raw: string, label = ''): DialogueLine {
+  const mood = MOOD[raw[0]] ?? 'happy';
+  let text = (MOOD[raw[0]] ? raw.slice(1) : raw).replaceAll('{label}', label).trim();
+  let keyword: DialogueLine['keyword'];
+  const m = /\*([^*]+)\*/.exec(text);
+  if (m) {
+    keyword = { start: m.index, end: m.index + m[1].length };
+    text = text.slice(0, m.index) + m[1] + text.slice(m.index + m[0].length);
+  }
+  text = text.replaceAll('*', '');
+  return { text, keyword, mood, face: mood === 'meh' || mood === 'shocked' ? 'reacting' : 'neutral' };
+}
 
 export interface Dialogue {
   /** First press finishes the typing, the next closes the box. */
@@ -14,7 +43,7 @@ export interface Dialogue {
 
 export interface DialogueOptions {
   hero: HeroId;
-  line: JunkLine;
+  line: DialogueLine;
   /** Element the box sits at the bottom of (positioned). */
   host: HTMLElement;
   /** Screen pixels per art pixel, so the portrait matches the scene. */
@@ -23,6 +52,11 @@ export interface DialogueOptions {
   instant?: boolean;
   /** Milliseconds per letter. */
   speed?: number;
+  /** Extra controls under the text (the tour's step label, progress and buttons). */
+  header?: Node;
+  footer?: Node;
+  /** Advancing once the line is fully shown calls this instead of closing (the tour's NEXT). */
+  onDone?: () => void;
 }
 
 const copy = (src: HTMLCanvasElement, cls: string) => {
@@ -52,7 +86,7 @@ export function showDialogue(o: DialogueOptions): Dialogue {
       tabindex: '-1',
     },
     h('div', { class: 'dlg-portrait' }, copy(portraitCanvas(o.hero, line.face), 'dlg-face'), copy(emoteCanvas(line.mood), 'dlg-emote')),
-    h('div', { class: 'dlg-text' }, words, next),
+    h('div', { class: 'dlg-text' }, o.header ?? null, words, o.footer ?? null, next),
   );
 
   // The keyword wraps in a yellow span as soon as its first letter shows.
@@ -83,7 +117,7 @@ export function showDialogue(o: DialogueOptions): Dialogue {
     box.remove();
     done();
   };
-  const advance = () => (shown < line.text.length ? finish() : close());
+  const advance = () => (shown < line.text.length ? finish() : o.onDone ? o.onDone() : close());
 
   box.addEventListener('click', (e) => {
     e.stopPropagation();

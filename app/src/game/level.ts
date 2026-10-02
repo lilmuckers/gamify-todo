@@ -231,6 +231,7 @@ export class LevelScene extends QuestScene {
     this.idle();
     this.controls = new PlayControls(this);
     this.watch(() => this.refresh());
+    this.registerLocators();
     const onPad = () => !this.app.playing && toast('Controller connected: press START to play this level.', 'info', 4000);
     window.addEventListener('gamepadconnected', onPad);
     this.events.once('shutdown', () => window.removeEventListener('gamepadconnected', onPad));
@@ -258,6 +259,33 @@ export class LevelScene extends QuestScene {
       }
       if (this.app.playing) void this.enterPlay();
       else if (!this.syncBubbleToSelection()) this.autoBubble();
+    });
+  }
+
+  /** Spotlight targets for the tour: the first ? block, the first pipe or cloud, the stairs and pole. */
+  private registerLocators() {
+    const entity = (kinds: string[]) => () => {
+      // An open one shows best (a done ? block is just a used brick).
+      const views = [...this.views.values()].filter((v) => kinds.includes(v.entity.kind));
+      const v = views.find((v) => v.item.status !== 'done' && v.item.status !== 'dropped') ?? views[0];
+      if (!v) return;
+      const e = v.entity;
+      const raised = e.kind === 'pipe' || e.kind === 'warp' || e.kind === 'cloud' ? TILE : 0;
+      const r = { x: e.x * TILE - 4, y: GROUND_Y - (e.y + e.h) * TILE - raised - 4, w: e.w * TILE + 8, h: e.h * TILE + raised + 8 };
+      this.following = false;
+      this.bringIntoView(r.x, r.w);
+      return r;
+    };
+    this.locator('qblock', entity(['qblock']));
+    this.locator('dependency', entity(['warp', 'cloud', 'pipe']));
+    this.locator('goal', () => {
+      if (this.current()?.sub) return;
+      const L = this.layout;
+      const x = ((L.stairs[0]?.x ?? L.flagX) - 0.5) * TILE;
+      const r = { x, y: GROUND_Y - 11 * TILE, w: (L.flagX + 1.5) * TILE - x, h: 11 * TILE + 4 };
+      this.following = false;
+      this.bringIntoView(r.x, r.w);
+      return r;
     });
   }
 

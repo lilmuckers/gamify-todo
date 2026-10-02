@@ -111,6 +111,13 @@ export class App {
   playing = false;
   /** Next time the inbox page renders, put the cursor in its scribble line. */
   focusCapture = false;
+  /** The tour's guide, standing in for the player's hero while it runs (never saved). */
+  heroOverride?: HeroId;
+  /**
+   * Where things are on screen, by name ('cartridge', 'qblock', 'goal'...),
+   * registered by whichever scene shows them, for the tour's spotlight.
+   */
+  locators = new Map<string, () => DOMRect | undefined>();
   pulls: { list?: PullSummary[]; loading: boolean; error?: string } = { loading: false };
   private pullViews = new Map<number, PullView>();
   private listeners = new Set<() => void>();
@@ -213,6 +220,7 @@ export class App {
    * browser's choice override the repo's.
    */
   get heroId(): HeroId {
+    if (this.heroOverride) return this.heroOverride;
     const local = heroStore.get() as HeroId | undefined;
     const repo = this.workspace?.settings?.hero;
     const pick = this.caps.canEdit ? (repo ?? local) : (local ?? repo);

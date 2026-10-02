@@ -22,10 +22,16 @@ export class StaticSource implements DataSource {
   label = 'Read-only';
   caps = { canEdit: false, canReviewPRs: false, canPublish: false };
 
-  async load(): Promise<Loaded> {
+  /** Every deployed data file, by path. */
+  async loadFiles(): Promise<Record<string, string>> {
     const index = JSON.parse(await text('data/index.json')) as { files: string[] };
     const files: Record<string, string> = {};
     await Promise.all(index.files.map(async (p) => (files[p] = await text(p))));
+    return files;
+  }
+
+  async load(): Promise<Loaded> {
+    const files = await this.loadFiles();
     const version = await hash(Object.keys(files).sort().map((k) => files[k]).join('\0'));
     return { state: fromFiles(files), version };
   }

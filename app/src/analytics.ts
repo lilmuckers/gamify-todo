@@ -56,6 +56,15 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   weekly_review_done: ['shipped_bucket', 'focus', 'overdue', 'stale'],
   review_action: ['action'],
   junk_play: ['kind'],
+  onboarding_view: ['via'],
+  onboarding_choice: ['choice', 'via'],
+  tour_start: ['guide', 'random'],
+  tour_step: ['step'],
+  tour_finish: ['step'],
+  tour_skip: ['step'],
+  setup_step: ['step'],
+  setup_token_test: ['ok', 'problem'],
+  setup_done: ['first_game'],
 };
 
 export const USER_PROPS = ['app_mode', 'layout', 'display', 'hero'] as const;

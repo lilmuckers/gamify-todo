@@ -122,6 +122,11 @@ export class ProjectsScene extends QuestScene {
     this.cameras.main.fadeIn(250);
     this.render();
     this.watch(() => this.render());
+    // The tour points at the first cartridge on the floor.
+    this.locator('cartridge', () => {
+      const spot = this.room?.carts[0];
+      return spot && { x: spot.x - CART_W * 0.75, y: spot.y - CART_H * 0.75, w: CART_W * 1.5, h: CART_H * 1.5 };
+    });
   }
 
   protected onResize() {

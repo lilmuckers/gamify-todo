@@ -14,6 +14,10 @@ const RESOLVED_BRANCH_KEY = 'quest.github.branch.resolved';
 const UI_KEY = 'quest.ui';
 const HERO_KEY = 'quest.hero';
 const REVIEW_KEY = 'quest.review';
+const ONBOARDED_KEY = 'quest.onboarded';
+
+/** Keys that mean this browser has used Quest Log before (the welcome screen skips them). */
+export const VISIT_KEYS = [TOKEN_KEY, REPO_KEY, BRANCH_KEY, UI_KEY, HERO_KEY, ONBOARDED_KEY];
 
 function read(key: string): string | undefined {
   try {
@@ -115,6 +119,14 @@ export interface UiPrefs {
   mobile?: 'auto' | 'on' | 'off';
   /** Google Analytics; undefined = default (on, unless Global Privacy Control). */
   analytics?: boolean;
+  /** Tour in progress: the step to resume at. */
+  tourStep?: number;
+  /** Hero guiding the current (or last) tour. */
+  tourGuide?: string;
+  /** Which line variant each tour step used last time, so a repeat reads differently. */
+  tourVariants?: number[];
+  /** Get-started wizard in progress: the step to resume at, and the repo chosen so far. */
+  setup?: { step: number; repo?: string };
 }
 
 export function uiPrefs(): UiPrefs {
@@ -127,4 +139,50 @@ export function uiPrefs(): UiPrefs {
 
 export function setUiPrefs(prefs: UiPrefs) {
   write(UI_KEY, JSON.stringify(prefs));
+}
+
+/** Merges into the saved UI prefs (undefined values remove keys). */
+export function patchUiPrefs(patch: Partial<UiPrefs>) {
+  const next: Record<string, unknown> = { ...uiPrefs(), ...patch };
+  for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+  setUiPrefs(next as UiPrefs);
+}
+
+/**
+ * First visit: none of Quest Log's keys are in this browser. Blocked storage
+ * counts as not-first, since a dismissal couldn't be remembered anyway.
+ */
+export function isFirstVisit(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): boolean {
+  try {
+    if (!storage) return false;
+    return VISIT_KEYS.every((k) => storage.getItem(k) === null);
+  } catch {
+    return false;
+  }
+}
+
+/** The welcome screen has been seen (or skipped): don't show it again. */
+export const onboardedStore = {
+  get: () => !!read(ONBOARDED_KEY),
+  set: () => write(ONBOARDED_KEY, new Date().toISOString()),
+};
+
+/** Special modes picked by the URL: ?demo (in-memory editing), ?tour (example data), ?welcome (show the splash). */
+export function urlMode(search = location.search): { demo: boolean; tour: boolean; welcome: boolean } {
+  const q = new URLSearchParams(search);
+  return { demo: q.has('demo'), tour: q.has('tour'), welcome: q.has('welcome') };
+}
+
+/** Reloads the app with a mode flag on (or all mode flags off), keeping the screen. */
+export function reloadWithMode(mode: 'demo' | 'tour' | undefined, hash = location.hash || '#/') {
+  const q = new URLSearchParams(location.search);
+  for (const k of ['demo', 'tour', 'welcome']) q.delete(k);
+  if (mode) q.set(mode, '');
+  const query = q.toString().replace(/=(&|$)/g, '$1');
+  const page = `${location.pathname}${query ? `?${query}` : ''}`;
+  if (page === `${location.pathname}${location.search}`) {
+    // Same page: changing only the hash wouldn't reload.
+    history.replaceState(history.state, '', `${page}${hash}`);
+    location.reload();
+  } else location.href = `${page}${hash}`;
 }

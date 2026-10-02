@@ -1,5 +1,5 @@
 import type { HeroId } from '@quest/shared';
-import type { Face, Mood } from '../sprites/portraits';
+import { parseLine, type DialogueLine } from '../ui/dialogue';
 
 /** Non-game things that can be jammed in the console (the easter egg). */
 export type JunkKind = 'sock' | 'snack' | 'soda' | 'juice' | 'pizza' | 'comic' | 'controller';
@@ -198,16 +198,8 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
   },
 };
 
-export interface JunkLine {
-  /** The line, with *keyword* markers removed. */
-  text: string;
-  /** Where the highlighted keyword sits in `text`. */
-  keyword?: { start: number; end: number };
-  mood: Mood;
-  face: Face;
-}
-
-const MOOD: Record<string, Mood> = { '+': 'happy', '=': 'meh', '!': 'shocked', '-': 'sad' };
+/** A junk line, ready for the dialogue box. */
+export type JunkLine = DialogueLine;
 
 /** The raw lines for a hero and kind (falling back to the hero's generic ones). */
 export function junkLines(hero: HeroId, kind: string): string[] {
@@ -215,19 +207,7 @@ export function junkLines(hero: HeroId, kind: string): string[] {
   return (lines as Record<string, string[]>)[kind] ?? lines.any;
 }
 
-/** Fills `{label}`, splits off the mood and the *keyword*. */
-export function parseLine(raw: string, label = ''): JunkLine {
-  const mood = MOOD[raw[0]] ?? 'happy';
-  let text = (MOOD[raw[0]] ? raw.slice(1) : raw).replaceAll('{label}', label).trim();
-  let keyword: JunkLine['keyword'];
-  const m = /\*([^*]+)\*/.exec(text);
-  if (m) {
-    keyword = { start: m.index, end: m.index + m[1].length };
-    text = text.slice(0, m.index) + m[1] + text.slice(m.index + m[0].length);
-  }
-  text = text.replaceAll('*', '');
-  return { text, keyword, mood, face: mood === 'meh' || mood === 'shocked' ? 'reacting' : 'neutral' };
-}
+export { parseLine };
 
 /** A line from `hero` about putting `kind` in the console, never the same as `last` (its text) twice running. */
 export function junkLine(hero: HeroId, kind: string, label = '', last?: string, r: () => number = Math.random): JunkLine {

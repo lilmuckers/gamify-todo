@@ -145,6 +145,36 @@ export abstract class QuestScene extends Phaser.Scene {
   }
 
   /** Re-render on any app change until the scene shuts down. */
+  /**
+   * Tells the app where something is on screen (for the tour's spotlight).
+   * `find` returns a world-space rectangle; it may scroll the camera to it.
+   */
+  protected locator(name: string, find: () => { x: number; y: number; w: number; h: number } | undefined) {
+    const fn = () => {
+      const r = find();
+      return r && this.toScreen(r);
+    };
+    this.app.locators.set(name, fn);
+    this.events.once('shutdown', () => this.app.locators.get(name) === fn && this.app.locators.delete(name));
+  }
+
+  /** A world-space rectangle in page (client) pixels. */
+  protected toScreen(r: { x: number; y: number; w: number; h: number }): DOMRect {
+    const cam = this.cameras.main;
+    const box = this.game.canvas.getBoundingClientRect();
+    const k = (box.width / this.scale.width) * cam.zoom;
+    return new DOMRect(box.left + (r.x - cam.worldView.x) * k, box.top + (r.y - cam.worldView.y) * k, r.w * k, r.h * k);
+  }
+
+  /** Scrolls the camera so a world-space x range is in view. */
+  protected bringIntoView(x: number, w: number) {
+    const cam = this.cameras.main;
+    const v = cam.worldView;
+    if (x >= v.x + 8 && x + w <= v.x + v.width - 8) return;
+    cam.stopFollow();
+    cam.centerOnX(x + w / 2);
+  }
+
   protected watch(fn: () => void) {
     this.unsub = this.app.subscribe(fn);
     this.events.once('shutdown', () => this.unsub?.());
