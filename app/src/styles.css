@@ -2757,3 +2757,75 @@ a:focus-visible {
   background: #fff;
   color: var(--ink);
 }
+
+/* ---------- Phones and the installed app: safe areas, no zoom on typing ---------- */
+
+/*
+ * Pin the app to the screen. In an installed iOS app (viewport-fit=cover,
+ * translucent status bar) height: 100% can come up short, floating the tab
+ * bar above the bottom edge.
+ */
+#app {
+  position: fixed;
+  inset: 0;
+  height: auto;
+}
+
+/* Clear the notch or Dynamic Island in landscape, too. */
+.hud {
+  padding-left: max(10px, env(safe-area-inset-left));
+  padding-right: max(10px, env(safe-area-inset-right));
+}
+
+/*
+ * The tab bar sits on the bottom edge and keeps its buttons clear of the home
+ * indicator without leaving the full inset as an empty band under them.
+ */
+.tabbar {
+  padding-bottom: max(0px, calc(env(safe-area-inset-bottom) - 12px));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Full-screen layers stay below the status bar and Dynamic Island. */
+.overlay {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.today-overlay.mobile {
+  padding-top: max(12px, calc(env(safe-area-inset-top) + 6px));
+}
+.splash-stage {
+  padding-top: max(24px, calc(env(safe-area-inset-top) + 12px));
+  padding-bottom: max(40px, calc(env(safe-area-inset-bottom) + 24px));
+}
+.manual-overlay {
+  padding-top: max(16px, env(safe-area-inset-top));
+}
+.tour-layer.top .dlg,
+.is-mobile .tour-layer.top .dlg {
+  top: calc(56px + env(safe-area-inset-top));
+}
+.is-mobile .toasts,
+.is-mobile .welcome-banner,
+.is-mobile .tour-layer:not(.top) .dlg {
+  bottom: calc(72px + env(safe-area-inset-bottom));
+}
+@media (max-width: 760px) {
+  .manual-overlay {
+    padding-top: env(safe-area-inset-top);
+    background: #e43b44;
+  }
+}
+
+/*
+ * iOS zooms the page into any text field smaller than 16px. On touch
+ * screens, fields are at least 16px; pinch-zoom still works.
+ */
+@media (pointer: coarse), (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
+}
