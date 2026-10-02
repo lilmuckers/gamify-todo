@@ -2,7 +2,7 @@ import { parseRepo, THEMES, uniqueId, type OpBody, type Theme } from '@quest/sha
 import { track } from '../../analytics';
 import type { App } from '../../app';
 import { patchUiPrefs, reloadWithMode, setRepo, TARGET, tokenStore, uiPrefs } from '../../config';
-import { StaticSource } from '../../data/static';
+import { exampleData } from '../../data/demo';
 import { go } from '../../router';
 import { heroKey } from '../../sprites/heroes';
 import { spriteUrl } from '../../sprites/render';
@@ -249,7 +249,7 @@ async function copyExamples(app: App) {
   const store = app.store;
   if (!store.source.commit || !store.version) throw new Error('not connected');
   await store.sync();
-  const examples = await new StaticSource().loadFiles();
+  const examples = await exampleData().loadFiles();
   const have = new Set(Object.keys(store.state?.projects ?? {}));
   const changes: Record<string, string> = {};
   for (const [path, body] of Object.entries(examples)) {

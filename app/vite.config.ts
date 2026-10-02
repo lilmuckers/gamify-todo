@@ -59,7 +59,8 @@ function repoData(): Plugin {
     name: 'quest-repo-data',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const url = decodeURIComponent((req.url ?? '').split('?')[0]);
+        // The demo's copy of the example games (the Docker build ships them under examples/).
+        const url = decodeURIComponent((req.url ?? '').split('?')[0]).replace(/^\/examples\/data\//, '/data/');
         if (url === '/data/index.json') {
           res.setHeader('Content-Type', 'application/json');
           res.setHeader('Cache-Control', 'no-cache');
@@ -79,9 +80,12 @@ function repoData(): Plugin {
       for (const d of target === 'pages' ? dirs : dirs.filter((d) => d !== 'data'))
         if (existsSync(join(repoRoot, d)))
           cpSync(join(repoRoot, d), join(__dirname, 'dist', d), { recursive: true, filter: (src) => !/__pycache__|\.pyc$/.test(src) });
-      if (target !== 'pages') return;
-      mkdirSync(join(__dirname, 'dist', 'data'), { recursive: true });
-      writeFileSync(join(__dirname, 'dist', 'data', 'index.json'), dataIndex());
+      // The Docker editor reads live data through its API; it still ships the
+      // example games, under examples/, for Play the demo.
+      const dataDir = target === 'pages' ? join(__dirname, 'dist', 'data') : join(__dirname, 'dist', 'examples', 'data');
+      if (target !== 'pages' && existsSync(join(repoRoot, 'data'))) cpSync(join(repoRoot, 'data'), dataDir, { recursive: true });
+      mkdirSync(dataDir, { recursive: true });
+      writeFileSync(join(dataDir, 'index.json'), dataIndex());
     },
   };
 }

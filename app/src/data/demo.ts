@@ -1,7 +1,16 @@
 import { fromFiles } from '@quest/shared';
+import { TARGET } from '../config';
 import type { DataSource, Loaded } from './source';
 import { StaticSource } from './static';
 import type { KV } from './store';
+
+/**
+ * The example games shipped with the app: data/ on Pages; examples/data/ in
+ * the Docker build, whose data/ is the live repo behind its API.
+ */
+export function exampleData(): StaticSource {
+  return new StaticSource(TARGET === 'local' ? 'examples/' : '');
+}
 
 /**
  * Play the demo: the example data, fully editable, saved nowhere. Commits
@@ -16,7 +25,7 @@ export class DemoSource implements DataSource {
   private files?: Record<string, string>;
   private version = 0;
 
-  constructor(private seed: { loadFiles(): Promise<Record<string, string>> } = new StaticSource()) {}
+  constructor(private seed: { loadFiles(): Promise<Record<string, string>> } = exampleData()) {}
 
   async load(): Promise<Loaded> {
     this.files ??= await this.seed.loadFiles();
