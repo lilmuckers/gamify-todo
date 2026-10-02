@@ -55,7 +55,7 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   inbox_place: ['count', 'target'],
   weekly_review_done: ['shipped_bucket', 'focus', 'overdue', 'stale'],
   review_action: ['action'],
-  junk_play: ['kind'],
+  junk_play: ['kind', 'variant'],
   onboarding_view: ['via'],
   onboarding_choice: ['choice', 'via'],
   tour_start: ['guide', 'random'],
