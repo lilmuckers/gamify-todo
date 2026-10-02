@@ -93,9 +93,11 @@ export async function testToken(token: string, repo: { owner: string; repo: stri
   const client = new GitHubClient(token, { ...repo, branch: 'main' });
   const user = await probe(() => client.request<{ login: string }>('GET', 'https://api.github.com/user'));
   if (!user.ok) return tokenReport({ user, repo: { ok: false, status: 0 } });
-  const info = await probe(() => client.request<{ permissions?: { push?: boolean }; default_branch: string; size: number }>('GET', ''));
+  const info = await probe(() => client.request<{ permissions?: { push?: boolean }; default_branch: string }>('GET', ''));
   if (!info.ok) return tokenReport({ user, repo: info });
-  const value = { canPush: !!info.value.permissions?.push, empty: info.value.size === 0 };
+  const hasCommits = await probe(() => client.hasCommits());
+  if (!hasCommits.ok) return tokenReport({ user, repo: hasCommits });
+  const value = { canPush: !!info.value.permissions?.push, empty: !hasCommits.value };
   client.repo.branch = info.value.default_branch;
   const pulls = await probe(async () => (await client.request('GET', '/pulls?per_page=1'), true as const));
   const checks = value.empty ? undefined : await probe(async () => (await client.request('GET', `/commits/${await client.headSha()}/check-runs?per_page=1`), true as const));

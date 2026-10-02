@@ -461,6 +461,17 @@ class GitHub:
     def info(self):
         return self.call('GET', '')
 
+    def has_commits(self):
+        # Ask the commit log, not the repo's `size`: GitHub computes that lazily and
+        # rounds to whole KB, so a fresh repo with just a README can still report 0.
+        try:
+            self.call('GET', '/commits?per_page=1')
+            return True
+        except GitHubError as e:
+            if e.status == 409:  # "Git Repository is empty"
+                return False
+            raise
+
     def head(self, branch):
         return self.call('GET', f'/git/ref/heads/{urllib.parse.quote(branch)}')['object']['sha']
 
@@ -508,13 +519,14 @@ def cmd_validate(args):
 
 
 def cmd_info(args):
-    r = GitHub(args.repo).info()
+    gh = GitHub(args.repo)
+    r = gh.info()
     print(json.dumps({
         'repo': r.get('full_name', args.repo),
         'default_branch': r.get('default_branch'),
         'can_push': bool((r.get('permissions') or {}).get('push')),
         'private': r.get('private'),
-        'empty': r.get('size') == 0,
+        'empty': not gh.has_commits(),
     }, indent=2))
     return 0
 
@@ -522,7 +534,7 @@ def cmd_info(args):
 def cmd_pull(args):
     gh = GitHub(args.repo)
     info = gh.info()
-    if info.get('size') == 0:
+    if not gh.has_commits():
         raise QuestError('That repo has no commits yet. Add a README on GitHub first.')
     branch = args.branch or info['default_branch']
     sha = gh.head(branch)

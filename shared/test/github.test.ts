@@ -66,6 +66,23 @@ describe('GitHubClient', () => {
     await expect(gh.commitFiles({ 'data/p/project.json': '{}' }, 'msg', 'parent')).rejects.toBeInstanceOf(ConflictError);
   });
 
+  it('tells an empty repo by its commit log, not its size', async () => {
+    let commits: { status: number; json: unknown } = { status: 200, json: [{ sha: 'c1' }] };
+    const { fn } = fakeFetch((url) => {
+      if (url === 'https://api.github.com/user') return { json: { login: 'u' } };
+      if (url.endsWith('/repos/o/r')) return { json: { permissions: { push: true }, default_branch: 'main', size: 0 } };
+      if (url.endsWith('/commits?per_page=1')) return commits;
+    });
+    const gh = new GitHubClient('tok', repo, fn);
+    expect(await gh.whoami()).toMatchObject({ empty: false, canPush: true });
+
+    commits = { status: 409, json: { message: 'Git Repository is empty.' } };
+    expect(await gh.whoami()).toMatchObject({ empty: true });
+
+    commits = { status: 500, json: { message: 'boom' } };
+    await expect(gh.hasCommits()).rejects.toThrow(/500/);
+  });
+
   it('lists only PRs touching data files', async () => {
     const pr = (n: number) => ({ number: n, title: `PR ${n}`, user: { login: 'u' }, html_url: '', draft: false, updated_at: '', head: { sha: 's', ref: 'b', repo: { full_name: 'o/r' } }, base: { ref: 'main' } });
     const { fn } = fakeFetch((url) => {

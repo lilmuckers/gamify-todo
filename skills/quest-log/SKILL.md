@@ -466,8 +466,9 @@ data repo. Every step below works the same for any repo the token can access.
 ### 6.1 Read the data
 
 1. `GET R` → `default_branch` (use it unless the user named a branch) and `permissions.push`
-   (false = read-only). `size: 0` means the repo has no commits: ask the user to add a README on
-   GitHub first. A 404 means a wrong `owner/repo` or a token without access to it.
+   (false = read-only). If `GET R/commits?per_page=1` answers 409, the repo has no commits: ask
+   the user to add a README on GitHub first. Don't go by `size`: it can read 0 on a fresh repo
+   that does have a commit. A 404 means a wrong `owner/repo` or a token without access to it.
 2. `GET R/git/ref/heads/<branch>` → `object.sha` = **HEAD**.
 3. `GET R/git/trees/<HEAD>?recursive=1` → keep `type: "blob"` entries whose `path` starts with
    `data/` and ends with `.json`.

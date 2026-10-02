@@ -99,16 +99,33 @@ export class GitHubClient {
 
   /** Checks the token works and can see the repo. */
   async whoami(): Promise<{ login: string; canPush: boolean; defaultBranch: string; empty: boolean }> {
-    const [user, repo] = await Promise.all([
+    const [user, repo, hasCommits] = await Promise.all([
       this.request<{ login: string }>('GET', 'https://api.github.com/user'),
-      this.request<{ permissions?: { push?: boolean }; default_branch: string; size: number }>('GET', ''),
+      this.request<{ permissions?: { push?: boolean }; default_branch: string }>('GET', ''),
+      this.hasCommits(),
     ]);
     return {
       login: user.login,
       canPush: !!repo.permissions?.push,
       defaultBranch: repo.default_branch,
-      empty: repo.size === 0,
+      empty: !hasCommits,
     };
+  }
+
+  /**
+   * Whether the repo has a first commit. Asks the commit log rather than the
+   * repo's `size`, which GitHub computes lazily and rounds to whole KB, so a
+   * fresh repo with just a README can still report 0.
+   */
+  async hasCommits(): Promise<boolean> {
+    try {
+      await this.request('GET', '/commits?per_page=1');
+      return true;
+    } catch (err) {
+      // GitHub answers 409 "Git Repository is empty" when there's nothing to list.
+      if (err instanceof GitHubError && err.status === 409) return false;
+      throw err;
+    }
   }
 
   async headSha(branch = this.repo.branch): Promise<string> {
