@@ -58,6 +58,8 @@ interface Egg {
   /** Juice drips left on the way to the console. */
   drips: Phaser.GameObjects.GameObject[];
   screen?: Phaser.GameObjects.Container;
+  /** Texture of the title screen on the TV, freed when the egg ends. */
+  screenKey?: string;
   dialogue?: Dialogue;
   /** Esc, a click away or leaving the screen: stop at the next step and reset. */
   cancelled: boolean;
@@ -697,6 +699,7 @@ export class ProjectsScene extends QuestScene {
     screen.add(this.add.rectangle(0, 0, SCREEN.w, SCREEN.h, 0x000000));
     const key = `junk:${this.visit}:${egg.kind}:${egg.variant}`;
     if (!this.textures.exists(key)) this.textures.addCanvas(key, junkScreen({ kind: egg.kind, colors, label }, egg.variant));
+    egg.screenKey = key;
     const pic = this.add.image(0, 0, key).setScale(JUNK_SCALE);
     const lines = this.add.graphics().setAlpha(0.18);
     lines.fillStyle(0x000000);
@@ -777,6 +780,8 @@ export class ProjectsScene extends QuestScene {
     this.unhookEgg();
     egg.dialogue?.close();
     egg.screen?.destroy();
+    // Keyed per visit, so it would never be shown again: don't let them pile up.
+    if (egg.screenKey) this.textures.remove(egg.screenKey);
     for (const d of egg.drips) d.destroy();
     if (egg.shadow && egg.shadowAt) egg.shadow.setVisible(true).setPosition(egg.shadowAt.x, egg.shadowAt.y).setAngle(egg.home.angle).setScale(1);
     if (egg.img.active) egg.img.setVisible(true).setPosition(egg.home.x, egg.home.y).setAngle(egg.home.angle).setScale(1);
