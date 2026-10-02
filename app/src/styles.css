@@ -1981,3 +1981,92 @@ a:focus-visible {
 .review-done .pad-do {
   white-space: nowrap;
 }
+
+/* ---------- Dialogue box (SNES-style layout, Quest Log colours) ---------- */
+.dlg {
+  --px: 3px;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 6;
+  display: flex;
+  gap: calc(var(--px) * 2);
+  padding: calc(var(--px) * 2);
+  background: #1a1c2c;
+  border: var(--px) solid #fee761;
+  box-shadow: 0 0 0 var(--px) #1a1c2c;
+  cursor: pointer;
+  animation: dlg-in 140ms ease-out;
+}
+.dlg:focus {
+  outline: none;
+}
+.dlg-portrait {
+  position: relative;
+  flex: none;
+  width: calc(var(--px) * 36);
+  height: calc(var(--px) * 36);
+  display: grid;
+  place-items: end center;
+  background: #1a1c2c;
+}
+.dlg-face {
+  width: calc(var(--px) * 32);
+  height: calc(var(--px) * 32);
+  image-rendering: pixelated;
+}
+.dlg-emote {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--px) * 7);
+  height: calc(var(--px) * 7);
+  image-rendering: pixelated;
+}
+.dlg-text {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: calc(var(--px) * 3) calc(var(--px) * 4);
+  background: #262b44;
+  border: var(--px) solid #5a6988;
+}
+.dlg-words {
+  margin: 0;
+  color: #ffffff;
+  font: clamp(10px, calc(var(--px) * 4), 16px) / 1.9 var(--pixel);
+  overflow-wrap: break-word;
+}
+.dlg-hi {
+  color: #fee761;
+}
+.dlg-next {
+  position: absolute;
+  right: calc(var(--px) * 3);
+  bottom: calc(var(--px) * 2);
+  color: #fee761;
+  font: 10px var(--pixel);
+  visibility: hidden;
+}
+.dlg.done .dlg-next {
+  visibility: visible;
+  animation: dlg-bob 600ms ease-in-out infinite alternate;
+}
+@keyframes dlg-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+@keyframes dlg-bob {
+  to {
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dlg,
+  .dlg.done .dlg-next {
+    animation: none;
+  }
+}

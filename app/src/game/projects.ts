@@ -1,8 +1,13 @@
 import Phaser from 'phaser';
 import { orderedProjects, orderedWorlds, suggestNext, totals, type GameState } from '@quest/shared';
 import { go } from '../router';
+import { track } from '../analytics';
 import { quip, type Thing } from './quips';
+import { JUNK_KINDS, junkLine, type JunkKind } from './junk-lines';
+import { activePad } from './play/input';
 import { clutter, CONSOLE_PORTS, consoleTop, SCREEN, SLOT, TV_H, TV_W, tvCanvas, wallpaperCanvas } from '../sprites/bedroom';
+import { JUNK_SCALE, junkScreen, staticFrame } from '../sprites/junk-tv';
+import { showDialogue, type Dialogue } from '../ui/dialogue';
 import { carpetCanvas, cartridge, CART_H, CART_W, controllerCanvas, type CartSpec } from '../sprites/cartridge';
 import { projectForm } from '../ui/forms';
 import { QuestScene } from './common';
@@ -35,9 +40,34 @@ interface Room {
   console: Placed;
   pad: Placed;
   powerSide: 1 | -1;
-  props: (Placed & { key: string; under: boolean; kind: Thing; label?: string })[];
+  props: (Placed & { key: string; under: boolean; kind: Thing; label?: string; colors?: string[] })[];
   carts: Placed[];
+  /** The one thing this visit that can go in the console: a prop's index, or -1 for the controller. */
+  junk: number;
 }
+
+/** The easter egg in progress: something that isn't a game, jammed in the console. */
+interface Egg {
+  kind: JunkKind;
+  img: Phaser.GameObjects.Image;
+  shadow?: Phaser.GameObjects.Image;
+  shadowAt?: { x: number; y: number };
+  home: Placed;
+  /** Juice drips left on the way to the console. */
+  drips: Phaser.GameObjects.GameObject[];
+  screen?: Phaser.GameObjects.Container;
+  dialogue?: Dialogue;
+  /** Esc, a click away or leaving the screen: stop at the next step and reset. */
+  cancelled: boolean;
+  resetting: boolean;
+  /** Gamepad A/B last frame, for presses. */
+  padA: boolean;
+  padB: boolean;
+}
+
+/** Things that can go in the console, when this visit picks them. */
+const JUNKABLE = new Set<string>(JUNK_KINDS);
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function rotate(p: { x: number; y: number }, deg: number) {
   const a = Phaser.Math.DegToRad(deg);
@@ -59,6 +89,13 @@ export class ProjectsScene extends QuestScene {
   private room?: Room;
   private visit = 0;
   private lastQuip?: string;
+  private lastJunkLine?: string;
+  private egg?: Egg;
+  private consoleImg?: Phaser.GameObjects.Image;
+  /** Camera zoom on the floor (the TV visit zooms in, then back to this). */
+  private floorZoom = 1;
+  /** The window was resized during the easter egg: re-lay the room after. */
+  private resized = false;
 
   constructor() {
     super('projects');
@@ -68,6 +105,7 @@ export class ProjectsScene extends QuestScene {
     super.init();
     this.layer = undefined;
     this.busy = false;
+    this.egg = undefined;
     this.sig = '';
     // New clutter every time the screen is shown.
     this.room = undefined;
@@ -76,14 +114,21 @@ export class ProjectsScene extends QuestScene {
 
   create() {
     this.scale.on('resize', this.onResize, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.onResize, this));
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', this.onResize, this);
+      // Leaving mid-egg (the HUD still works): take the box and key handler with us.
+      if (this.egg) this.endEgg();
+    });
     this.cameras.main.fadeIn(250);
     this.render();
     this.watch(() => this.render());
   }
 
   protected onResize() {
-    if (this.busy) return;
+    if (this.busy) {
+      this.resized = true;
+      return;
+    }
     this.sig = '';
     this.room = undefined;
     this.render();
@@ -190,9 +235,12 @@ export class ProjectsScene extends QuestScene {
       this.textures.addCanvas(key, prop.canvas);
       const rad = Math.max(prop.canvas.width, prop.canvas.height) / 2;
       const [spot] = this.scatter(1, r, taken, rad * 0.8, 180);
-      props.push({ ...spot, key, under: !!prop.under, kind: prop.kind, label: prop.label });
+      props.push({ ...spot, key, under: !!prop.under, kind: prop.kind, label: prop.label, colors: prop.colors });
     }
-    return { console, pad, powerSide: r() < 0.5 ? 1 : -1, props, carts };
+    // One thing per visit can be jammed in the console: never crumbs or puddles.
+    const junkable = [-1, ...props.flatMap((p, i) => (!p.under && JUNKABLE.has(p.kind) ? [i] : []))];
+    const junk = junkable[Math.floor(r() * junkable.length)];
+    return { console, pad, powerSide: r() < 0.5 ? 1 : -1, props, carts, junk };
   }
 
   private render() {
@@ -203,7 +251,8 @@ export class ProjectsScene extends QuestScene {
     this.sig = sig;
 
     const cam = this.cameras.main;
-    cam.setZoom(Math.max(0.5, Math.min(this.scale.width / FLOOR_W, this.scale.height / FLOOR_H)));
+    this.floorZoom = Math.max(0.5, Math.min(this.scale.width / FLOOR_W, this.scale.height / FLOOR_H));
+    cam.setZoom(this.floorZoom);
     cam.centerOn(CENTER.x, CENTER.y);
     cam.setBackgroundColor('#1a1c2c');
 
@@ -264,19 +313,21 @@ export class ProjectsScene extends QuestScene {
     layer.add(cables);
 
     const consoleShadow = this.add.image(c.x + 3, c.y + 5, tex('console-off', () => consoleTop(false))).setAngle(c.angle).setTint(0).setAlpha(0.35);
-    const consoleImg = this.add.image(c.x, c.y, 'console-off').setAngle(c.angle);
+    const consoleImg = (this.consoleImg = this.add.image(c.x, c.y, 'console-off').setAngle(c.angle));
     layer.add([consoleShadow, consoleImg]);
     this.mutter(layer, consoleImg, consoleShadow, c, 'console', undefined, 1.06);
     const padImg = this.add.image(room.pad.x, room.pad.y, tex('controller', controllerCanvas)).setAngle(room.pad.angle);
     layer.add(padImg);
-    this.mutter(layer, padImg, undefined, room.pad, 'controller');
+    this.mutter(layer, padImg, undefined, room.pad, 'controller', undefined, 1.15, room.junk === -1 ? { kind: 'controller' } : undefined);
 
-    for (const p of room.props.filter((p) => !p.under)) {
+    room.props.forEach((p, i) => {
+      if (p.under) return;
       const shadow = this.add.image(p.x + 2, p.y + 3, p.key).setAngle(p.angle).setTint(0).setAlpha(0.3);
       const img = propImage(p);
       layer.add([shadow, img]);
-      this.mutter(layer, img, shadow, p, p.kind, p.label);
-    }
+      const junk = room.junk === i ? { kind: p.kind as JunkKind, label: p.label, colors: p.colors } : undefined;
+      this.mutter(layer, img, shadow, p, p.kind, p.label, 1.15, junk);
+    });
 
     const title = this.text(CENTER.x, v.y + 14, 'SELECT A GAME', 7, '#fee761').setOrigin(0.5);
     layer.add(title);
@@ -323,8 +374,10 @@ export class ProjectsScene extends QuestScene {
     thing: Thing,
     label?: string,
     scale = 1.15,
+    junk?: { kind: JunkKind; label?: string; colors?: string[] },
   ) {
-    img.setInteractive(this.input.makePixelPerfect(1));
+    // This visit's junk gets the hand cursor: it can go in the console.
+    img.setInteractive({ pixelPerfect: true, alphaTolerance: 1, useHandCursor: !!junk });
     const sx = shadow?.x ?? 0;
     const sy = shadow?.y ?? 0;
     let up = false;
@@ -337,7 +390,7 @@ export class ProjectsScene extends QuestScene {
       this.tweens.add({ targets: img, angle, scale, y: home.y - 3, duration: 160, ease: 'Sine.out' });
       if (shadow) this.tweens.add({ targets: shadow, angle, scale, x: sx + 2, y: sy + 3, alpha: 0.25, duration: 160 });
       this.lastQuip = quip(thing, label, this.lastQuip);
-      this.showQuip(this.lastQuip, home.x, home.y - (img.displayHeight * scale) / 2);
+      this.showQuip(junk ? `${this.lastQuip}\n...wonder if it fits?` : this.lastQuip, home.x, home.y - (img.displayHeight * scale) / 2);
     };
     const drop = () => {
       if (!up) return;
@@ -348,8 +401,19 @@ export class ProjectsScene extends QuestScene {
     };
     img.on('pointerover', lift);
     img.on('pointerout', drop);
-    // Touch has no hover: a tap mutters, another tap stops.
-    img.on('pointerup', (p: Phaser.Input.Pointer) => p.wasTouch && (up ? drop() : lift()));
+    const play = () => {
+      up = false;
+      void this.playJunk({ ...junk!, img, shadow, home, label: junk!.label });
+    };
+    img.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (this.busy || this.dragged) return;
+      // Touch has no hover: a tap mutters (and, for the junk, a second tap plays it).
+      if (p.wasTouch) {
+        if (junk && up) return play();
+        return up ? drop() : lift();
+      }
+      if (junk) play();
+    });
   }
 
   /** A quieter cousin of the cartridge info box: one muttered line in grey. */
@@ -478,5 +542,235 @@ export class ProjectsScene extends QuestScene {
     await this.wait(520);
     this.cameras.main.flash(160, 255, 255, 255);
     await this.wait(120);
+  }
+
+  // ---- Easter egg: something that isn't a game, in the console ----
+
+  /**
+   * Squashes this visit's junk into the console, boots it, shows a silly
+   * title screen on the TV and lets the hero comment on it. Closing the
+   * dialogue (or Esc, or clicking away) puts everything back as it was.
+   */
+  private async playJunk(j: { kind: JunkKind; label?: string; colors?: string[]; img: Phaser.GameObjects.Image; shadow?: Phaser.GameObjects.Image; home: Placed }) {
+    if (this.busy || !this.room) return;
+    this.busy = true;
+    this.info?.destroy();
+    track('junk_play', { kind: j.kind });
+    const egg: Egg = { kind: j.kind, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
+    this.egg = egg;
+    window.addEventListener('keydown', this.onEggKey, true);
+    // A click on the scene (not the dialogue box) bails out; skip the click that started it.
+    this.time.delayedCall(0, () => this.egg === egg && this.input.on('pointerup', this.onEggClick));
+    const calm = reducedMotion();
+    const stop = () => egg.cancelled || this.egg !== egg;
+
+    this.tweens.killTweensOf([j.img, ...(j.shadow ? [j.shadow] : [])]);
+    j.shadow?.setVisible(false);
+    this.layer!.bringToTop(j.img);
+    if (calm) j.img.setVisible(false);
+    else await this.insertJunk(egg);
+    if (stop()) return;
+    if (!this.textures.exists('console-on')) this.textures.addCanvas('console-on', consoleTop(true));
+    this.consoleImg?.setTexture('console-on');
+
+    // Up to the TV.
+    const cam = this.cameras.main;
+    const zoom = Math.min(cam.width / (TV_W + 30), cam.height / (TV_H + 30));
+    if (calm) {
+      cam.setZoom(zoom);
+      cam.centerOn(TV.x, TV.y);
+    } else {
+      await this.wait(250);
+      if (stop()) return;
+      cam.pan(TV.x, TV.y, 750, 'Sine.easeInOut');
+      cam.zoomTo(zoom, 750, 'Sine.easeInOut');
+      await this.wait(800);
+    }
+    if (stop()) return;
+    await this.junkTv(egg, j.colors, j.label);
+    if (stop()) return;
+
+    // The hero has something to say about it.
+    const line = junkLine(this.app.heroId, j.kind, j.label, this.lastJunkLine);
+    this.lastJunkLine = line.text;
+    const host = this.game.canvas.parentElement ?? document.body;
+    egg.dialogue = showDialogue({ hero: this.app.heroId, line, host, px: Math.max(2, Math.min(4, Math.round(this.floorZoom * 1.6))), instant: calm });
+    await egg.dialogue.closed;
+    if (this.egg === egg) await this.resetJunk(egg, false);
+  }
+
+  /** Lifts the thing over the slot and squashes it in, with a bit of comedy per kind. */
+  private async insertJunk(egg: Egg) {
+    const { img, kind } = egg;
+    const c = this.room!.console;
+    const slot = rotate(SLOT, c.angle);
+    const lift = rotate({ x: 0, y: -20 }, c.angle);
+    const at = { x: c.x + slot.x, y: c.y + slot.y };
+    const fit = Math.min(1, SLOT.w / Math.max(img.width, img.height));
+    // Juice drips all the way there.
+    const drip = kind === 'juice' ? this.time.addEvent({ delay: 45, loop: true, callback: () => this.drip(egg) }) : undefined;
+    await this.tween({ targets: img, x: at.x + lift.x, y: at.y + lift.y, angle: c.angle, scale: 1.1, duration: 340, ease: 'Quad.out' });
+    if (egg.cancelled) return drip?.remove();
+    if (kind === 'pizza') {
+      // Folded in half to fit.
+      await this.tween({ targets: img, scaleX: 0.55, angle: c.angle + 12, duration: 160, ease: 'Back.in' });
+      await this.tween({ targets: img, angle: c.angle, duration: 80 });
+    }
+    if (kind === 'sock') {
+      // Stuffed in, a shove at a time.
+      for (const s of [0.75, 0.5, 0.3]) {
+        await this.tween({ targets: img, x: at.x + lift.x * s, y: at.y + lift.y * s, scaleX: fit * 0.9, scaleY: s, duration: 140, ease: 'Quad.in' });
+        this.cameras.main.shake(60, 0.003);
+        await this.wait(90);
+        if (egg.cancelled) return;
+      }
+    }
+    await this.tween({ targets: img, x: at.x, y: at.y, scaleX: kind === 'pizza' ? fit * 0.6 : fit, scaleY: 0.18, duration: 200, ease: 'Quad.in' });
+    drip?.remove();
+    this.cameras.main.shake(90, 0.004);
+  }
+
+  private drip(egg: Egg) {
+    const color = Phaser.Display.Color.HexStringToColor(this.room?.props[this.room.junk]?.colors?.[0] ?? '#f77622').color;
+    const d = this.add.rectangle(egg.img.x + Phaser.Math.Between(-4, 4), egg.img.y + 6, 2, 2, color);
+    this.layer?.add(d);
+    egg.drips.push(d);
+  }
+
+  /** Static, then the thing's title screen, with scanlines. */
+  private async junkTv(egg: Egg, colors?: string[], label?: string) {
+    const cx = TV.x - TV_W / 2 + SCREEN.x + SCREEN.w / 2;
+    const cy = TV.y - TV_H / 2 + SCREEN.y + SCREEN.h / 2;
+    const screen = this.add.container(cx, cy).setDepth(500);
+    egg.screen = screen;
+    screen.add(this.add.rectangle(0, 0, SCREEN.w, SCREEN.h, 0x000000));
+    const key = `junk:${this.visit}:${egg.kind}`;
+    if (!this.textures.exists(key)) this.textures.addCanvas(key, junkScreen(egg.kind, colors, label));
+    const pic = this.add.image(0, 0, key).setScale(JUNK_SCALE);
+    const lines = this.add.graphics().setAlpha(0.18);
+    lines.fillStyle(0x000000);
+    for (let y = -SCREEN.h / 2; y < SCREEN.h / 2; y += 2) lines.fillRect(-SCREEN.w / 2, y, SCREEN.w, 1);
+    if (reducedMotion()) {
+      screen.add([pic, lines]);
+      return;
+    }
+    // Warm-up line, then a few frames of static.
+    const beam = this.add.rectangle(0, 0, SCREEN.w, SCREEN.h, 0xf4f4f4).setScale(1, 0.02);
+    screen.add(beam);
+    await this.tween({ targets: beam, scaleY: 1, alpha: 0.2, duration: 120 });
+    beam.destroy();
+    const fuzz = this.add.image(0, 0, this.staticKey(0)).setScale(JUNK_SCALE);
+    screen.add(fuzz);
+    for (let i = 1; i < 5; i++) {
+      await this.wait(60);
+      if (egg.cancelled) return;
+      fuzz.setTexture(this.staticKey(i % 3));
+    }
+    fuzz.destroy();
+    screen.add([pic, lines]);
+    // One last flicker as the picture settles.
+    await this.tween({ targets: pic, alpha: 0.4, yoyo: true, duration: 70 });
+  }
+
+  private staticKey(i: number) {
+    const key = `tv-static:${i}`;
+    if (!this.textures.exists(key)) this.textures.addCanvas(key, staticFrame(i + 1));
+    return key;
+  }
+
+  /**
+   * The TV switches off (to a line, then a dot), the view drops back to the
+   * floor and the console spits the thing back out to where it was. `fast`
+   * skips the show (Esc, clicking away, leaving).
+   */
+  private async resetJunk(egg: Egg, fast: boolean) {
+    if (egg.resetting) return;
+    egg.resetting = true;
+    egg.cancelled = true;
+    this.unhookEgg();
+    egg.dialogue?.close();
+    const calm = fast || reducedMotion();
+    const cam = this.cameras.main;
+    const screen = egg.screen;
+    if (screen && !calm) {
+      await this.tween({ targets: screen, scaleY: 0.02, duration: 140, ease: 'Quad.in' });
+      await this.tween({ targets: screen, scaleX: 0.02, duration: 120, ease: 'Quad.in' });
+      await this.tween({ targets: screen, alpha: 0, duration: 120 });
+    }
+    screen?.destroy();
+    this.consoleImg?.setTexture('console-off');
+    cam.panEffect.reset();
+    cam.zoomEffect.reset();
+    const { img, home } = egg;
+    this.tweens.killTweensOf(img);
+    img.setVisible(true);
+    if (calm) {
+      cam.setZoom(this.floorZoom);
+      cam.centerOn(CENTER.x, CENTER.y);
+      img.setPosition(home.x, home.y).setAngle(home.angle).setScale(1);
+    } else {
+      cam.pan(CENTER.x, CENTER.y, 650, 'Sine.easeInOut');
+      cam.zoomTo(this.floorZoom, 650, 'Sine.easeInOut');
+      await this.wait(500);
+      // Ejected: pops out of the slot and lands back on its spot.
+      await this.tween({ targets: img, scaleX: 1, scaleY: 1, y: img.y - 26, duration: 180, ease: 'Quad.out' });
+      await this.tween({ targets: img, x: home.x, y: home.y, angle: home.angle, duration: 320, ease: 'Bounce.out' });
+    }
+    this.endEgg();
+  }
+
+  /** Puts the room back as it was (shadow, drips, input) and lets the cartridges play again. */
+  private endEgg() {
+    const egg = this.egg;
+    if (!egg) return;
+    this.unhookEgg();
+    egg.dialogue?.close();
+    egg.screen?.destroy();
+    for (const d of egg.drips) d.destroy();
+    if (egg.shadow && egg.shadowAt) egg.shadow.setVisible(true).setPosition(egg.shadowAt.x, egg.shadowAt.y).setAngle(egg.home.angle).setScale(1);
+    if (egg.img.active) egg.img.setVisible(true).setPosition(egg.home.x, egg.home.y).setAngle(egg.home.angle).setScale(1);
+    this.egg = undefined;
+    this.busy = false;
+    if (this.resized) {
+      this.resized = false;
+      this.onResize();
+    }
+  }
+
+  private unhookEgg() {
+    window.removeEventListener('keydown', this.onEggKey, true);
+    this.input.off('pointerup', this.onEggClick);
+  }
+
+  /** Enter or Space moves the dialogue on; Esc stops the whole thing. */
+  private onEggKey = (e: KeyboardEvent) => {
+    const egg = this.egg;
+    if (!egg || egg.resetting) return;
+    if (e.key === 'Escape') void this.resetJunk(egg, true);
+    else if ((e.key === 'Enter' || e.key === ' ') && egg.dialogue) egg.dialogue.advance();
+    else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+
+  /** Clicking the scene (anywhere but the dialogue box) resets early. */
+  private onEggClick = (p: Phaser.Input.Pointer) => {
+    // Phaser also hears releases elsewhere on the page (the dialogue box, the HUD).
+    if (p.event?.target !== this.game.canvas) return;
+    const egg = this.egg;
+    if (egg && !egg.resetting) void this.resetJunk(egg, true);
+  };
+
+  /** Gamepad: A moves the dialogue on, B stops. */
+  update() {
+    const egg = this.egg;
+    if (!egg || egg.resetting) return;
+    const pad = activePad();
+    const a = !!pad?.buttons[0]?.pressed;
+    const b = !!pad?.buttons[1]?.pressed;
+    if (a && !egg.padA) egg.dialogue?.advance();
+    if (b && !egg.padB) void this.resetJunk(egg, true);
+    egg.padA = a;
+    egg.padB = b;
   }
 }

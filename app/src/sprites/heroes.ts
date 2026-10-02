@@ -4,7 +4,8 @@ import type { HeroId } from '@quest/shared';
  * Player characters. Original pixel art as character maps (see pixels.ts); the
  * digits are per-hero colour slots: 1 hair, 2 hair shade, 3 skin, 4 skin shade,
  * 5 top, 6 top accent, 7 bottoms, 8 bottoms shade, 9 shoes, 0 shoe accent.
- * 'classic' uses the original hero sprites in pixels.ts.
+ * 'classic' uses the original hero sprites in pixels.ts. Every hero also needs
+ * dialogue portraits (portraits.ts) and lines (game/junk-lines.ts); tests check.
  */
 export type HeroFrame = 'stand' | 'walk' | 'jump';
 
