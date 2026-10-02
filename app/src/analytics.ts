@@ -53,6 +53,8 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   undo: ['kind', 'mode'],
   inbox_add: ['item_type', 'via'],
   inbox_place: ['count', 'target'],
+  weekly_review_done: ['shipped_bucket', 'focus', 'overdue', 'stale'],
+  review_action: ['action'],
 };
 
 export const USER_PROPS = ['app_mode', 'layout', 'display', 'hero'] as const;

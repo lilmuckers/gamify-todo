@@ -2,7 +2,7 @@ import { orderedWorlds } from '@quest/shared';
 import { track } from './analytics';
 import type { App } from './app';
 import { runPendingUndo } from './ui/toast';
-import { href, togglePad, withPad, type Route } from './router';
+import { href, togglePad, withPad, type PadPage, type Route } from './router';
 
 export interface NavLink {
   label: string;
@@ -18,6 +18,7 @@ export interface NavModel {
 }
 
 const link = (label: string, route: Route): NavLink => ({ label, href: href(route) });
+const PAD_CRUMB: Record<PadPage, string> = { today: 'Today', inbox: 'Inbox', review: 'Weekly review' };
 
 export function navFor(app: App): NavModel {
   const r = app.route;
@@ -25,7 +26,7 @@ export function navFor(app: App): NavModel {
   if (!r.pad) return screen;
   // A pad page is held up over the screen: closing it puts it away again.
   return {
-    crumbs: [...screen.crumbs, link(r.pad === 'inbox' ? 'Inbox' : 'Today', r)],
+    crumbs: [...screen.crumbs, link(PAD_CRUMB[r.pad], r)],
     up: link('Close', withPad(r, undefined)),
   };
 }
@@ -117,7 +118,7 @@ function screenNav(app: App, r: Route): NavModel {
 /**
  * Keyboard: Esc goes up a screen (unless a popup or item bubble is open) or
  * puts today's plan away, [ and ] step to the previous / next level or world,
- * t / i hold up the Today / Inbox page of the pad (or put it away), n opens
+ * t / i / w hold up the Today / Inbox / Weekly review page of the pad (or put it away), n opens
  * the inbox ready to write on, p starts or stops play mode.
  */
 export function bindNavKeys(app: App) {
@@ -145,6 +146,7 @@ export function bindNavKeys(app: App) {
     const r = app.route;
     const today = { label: 'Today', href: href(togglePad(r, 'today')) };
     const inbox = { label: 'Inbox', href: href(togglePad(r, 'inbox')) };
+    const review = { label: 'Weekly review', href: href(togglePad(r, 'review')) };
     // n: jot something down (the inbox page, ready to write on).
     const capture = { label: 'Inbox', href: href(withPad(r, 'inbox')) };
     const target =
@@ -161,9 +163,11 @@ export function bindNavKeys(app: App) {
               ? today
               : e.key === 'i'
                 ? inbox
-                : e.key === 'n'
-                  ? capture
-                  : undefined;
+                : e.key === 'w'
+                  ? review
+                  : e.key === 'n'
+                    ? capture
+                    : undefined;
     if (!target) return;
     e.preventDefault();
     if (e.key === 'n') app.focusCapture = true;

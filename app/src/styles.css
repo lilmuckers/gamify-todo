@@ -1902,3 +1902,82 @@ a:focus-visible {
     animation: none;
   }
 }
+
+/* ---------- Weekly review: green paper on the same pad ---------- */
+.pad-tab.tab-review {
+  --flag: #e2f2d6;
+  --tip: rgba(76, 160, 70, 0.8);
+  --lean: 2.5deg;
+}
+.legal-pad.page-review .pad-sheet,
+.legal-pad.page-review .pad-actions {
+  background-color: #e2f2d6;
+}
+.hud-review {
+  border-color: #4ca046;
+}
+.pad-section.shipped h3 {
+  color: #2f7d32;
+}
+.pad-line.shipped .stars {
+  align-self: center;
+}
+.review-tick {
+  margin-left: -26px;
+  width: 18px;
+  font-weight: 700;
+  color: #2f7d32;
+}
+.review-empty {
+  margin: 0;
+  white-space: normal;
+}
+.review-acts {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  margin: -4px 0 4px;
+  font-size: 18px;
+}
+.review-acts .review-act {
+  padding: 0;
+}
+.review-act.cut {
+  color: #2f7d32;
+}
+.review-act.danger {
+  color: var(--pen-red);
+}
+.review-extend em {
+  font-size: 15px;
+  opacity: 0.75;
+}
+.pad-line.review-focus.full {
+  opacity: 0.55;
+}
+.pad-line.focus .pad-link::before {
+  content: '★ ';
+  color: #c98a00;
+}
+.review-stamp {
+  position: absolute;
+  top: 46px;
+  right: 22px;
+  padding: 2px 10px;
+  border: 3px double #2f7d32;
+  border-radius: 6px;
+  color: #2f7d32;
+  font: 700 24px/1.2 'Caveat', cursive;
+  letter-spacing: 2px;
+  transform: rotate(-12deg);
+  opacity: 0.85;
+  pointer-events: none;
+}
+.review-extend .review-act {
+  margin: 0 3px;
+}
+.review-done .pad-do {
+  white-space: nowrap;
+}

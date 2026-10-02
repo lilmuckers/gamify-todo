@@ -1,4 +1,4 @@
-import { describeOp, GitHubClient, HERO_IDS, parseRepo, type HeroId } from '@quest/shared';
+import { describeOp, GitHubClient, HERO_IDS, parseRepo, REVIEW_SLOTS, type HeroId, type ReviewDay } from '@quest/shared';
 import { analyticsAllowed, analyticsAvailable, setAnalyticsAllowed, track } from '../analytics';
 import type { App } from '../app';
 import { chosenBranch, heroStore, repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
@@ -109,6 +109,20 @@ export function settingsDialog(app: App) {
     ].map(([v, l]) => h('option', { value: v, selected: (uiPrefs().mobile ?? 'auto') === v }, l)),
   );
   body.append(h('h3', null, 'Display'), h('label', { class: 'field' }, h('span', null, 'Layout'), mode));
+
+  const reviewDay = h(
+    'select',
+    { onchange: (e: Event) => app.setReview({ day: (e.target as HTMLSelectElement).value as ReviewDay }) },
+    [
+      ...(Object.entries(REVIEW_SLOTS) as [ReviewDay, { label: string }][]).map(([v, slot]) => [v, `Every ${slot.label}`]),
+      ['off', 'No reminder (W still opens it)'],
+    ].map(([v, l]) => h('option', { value: v, selected: app.review.day === v }, l)),
+  );
+  body.append(
+    h('h3', null, 'Weekly review'),
+    h('label', { class: 'field' }, h('span', null, 'Remind me'), reviewDay),
+    h('small', { class: 'muted' }, 'A REVIEW button appears in the top bar when it’s due. Kept in this browser.'),
+  );
 
   if (analyticsAvailable()) {
     const toggle = h('input', {

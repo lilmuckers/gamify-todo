@@ -81,6 +81,8 @@ describe('quest.py validate', () => {
     ['duplicate inbox ids', () => ({ ...good(), 'data/inbox.json': JSON.stringify({ items: [{ id: 'a', type: 'task', title: 'A' }, { id: 'a', type: 'task', title: 'B' }] }) }), /duplicate inbox item id/],
     ['inbox item with a status', () => ({ ...good(), 'data/inbox.json': JSON.stringify({ items: [{ id: 'a', type: 'task', title: 'A', status: 'todo' }] }) }), /status/],
     ['extra key in settings', () => ({ ...good(), 'data/settings.json': JSON.stringify({ hero: 'classic', theme: 'dark' }) }), /theme/],
+    ['bad doneAt', () => edit(good(), lvl, (d) => (d.items[0].doneAt = 'last week')), /date-time/],
+    ['negative time-box extension', () => edit(good(), lvl, (d) => (d.stats = { timeboxExtendedDays: -1 })), /minimum|>= 0|less than/],
     ['level depends on itself', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].levelRef = 'w/lvl'))), /cannot depend on itself/],
   ];
 
@@ -94,6 +96,22 @@ describe('quest.py validate', () => {
       d.items[0].type = 'dependency';
       d.items[0].subtasks = [{ id: 's', type: 'task', title: 'S', status: 'todo' }];
       d.stats = { itemEdits: { 'a/s': 1, b: 2 } };
+    });
+    expect(validateFiles(files)).toEqual([]);
+    for (const env of ENGINES) {
+      const r = await run(['validate', writeTree(files)], env);
+      expect(r.code, r.out).toBe(0);
+    }
+  });
+
+  it('accepts review fields (doneAt, someday, time-box extensions) with both validators', async () => {
+    const files = edit(good(), lvl, (d) => {
+      d.someday = true;
+      d.items[0].status = 'done';
+      d.items[0].doneAt = '2026-10-01T09:00:00Z';
+      d.items[1].type = 'dependency';
+      d.items[1].subtasks = [{ id: 's', type: 'task', title: 'S', status: 'done', doneAt: '2026-10-01T10:00:00Z' }];
+      d.stats = { timeboxExtendedDays: 3 };
     });
     expect(validateFiles(files)).toEqual([]);
     for (const env of ENGINES) {

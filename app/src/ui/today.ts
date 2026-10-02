@@ -1,9 +1,10 @@
-import { seeded, todayList, type TodayItem, type TodayLevel } from '@quest/shared';
+import { seeded, todayList, type TodayFocus, type TodayItem, type TodayLevel } from '@quest/shared';
 import { HEROES } from '../sprites/heroes';
 import { PALETTE } from '../sprites/pixels';
 import type { App } from '../app';
 import { href, withPad, type PadPage } from '../router';
 import { inboxCount, inboxSheet } from './inbox';
+import { reviewSheet } from './weekly';
 import { fmtDuration, h } from './dom';
 
 const DAY_MS = 86_400_000;
@@ -40,7 +41,7 @@ function itemHref(r: TodayItem) {
  */
 function todaySheet(app: App) {
   const ws = app.workspace;
-  const list = ws ? todayList(ws) : { overdue: [], doing: [], next: [] };
+  const list = ws ? todayList(ws, Date.now(), app.review.focus) : { focus: [], overdue: [], doing: [], next: [] };
   const edit = app.caps.canEdit;
   const today = new Date();
 
@@ -84,7 +85,7 @@ function todaySheet(app: App) {
       : [r.depTitle ? h('span', { class: 'pad-dep' }, `⬇ ${r.depTitle}: `) : null, r.item.title];
     line = h(
       'li',
-      { class: `pad-line${r.phase === 'overdue' ? ' late' : ''}` },
+      { class: `pad-line${r.phase === 'overdue' ? ' late' : ''}${r.focus ? ' focus' : ''}` },
       box,
       h('a', { class: 'pad-link', href: itemHref(r) }, ...label),
       r.suggested ? h('span', { class: 'pad-where' }, r.projectTitle) : where(r),
@@ -114,6 +115,15 @@ function todaySheet(app: App) {
     );
   };
 
+  const focusLine = (r: TodayFocus) =>
+    h(
+      'li',
+      { class: `pad-line level${r.phase === 'overdue' ? ' late' : ''}` },
+      code(r.code, r.phase === 'overdue'),
+      h('a', { class: 'pad-link', href: href({ view: 'level', projectId: r.projectId, worldId: r.worldId, levelId: r.levelId }) }, r.levelName),
+      h('span', { class: 'pad-where' }, `${r.mvpLeft} must-do${r.mvpLeft === 1 ? '' : 's'} · ${r.projectTitle}`),
+    );
+
   // A pad page only holds so much: the rest is summed up in one line.
   const MAX_LINES = 8;
   const section = (title: string, cls: string, lines: HTMLElement[]) =>
@@ -135,6 +145,7 @@ function todaySheet(app: App) {
   return [
     h('div', { class: 'pad-date' }, today.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })),
     h('h2', { class: 'pad-title' }, "TODAY'S QUESTS"),
+    section("THIS WEEK'S FOCUS ★", 'focus', list.focus.map(focusLine)),
     section('RUNNING OUT!!', 'late', list.overdue.map(levelLine)),
     section('DOING', 'doing', list.doing.map(itemLine)),
     section('NEXT UP', 'next', list.next.map(itemLine)),
@@ -143,7 +154,9 @@ function todaySheet(app: App) {
   ];
 }
 
-const PAGE_LABEL: Record<PadPage, string> = { today: 'TODAY', inbox: 'INBOX' };
+const PAGE_LABEL: Record<PadPage, string> = { today: 'TODAY', inbox: 'INBOX', review: 'REVIEW' };
+const PAGE_ARIA: Record<PadPage, string> = { today: "Today's plan", inbox: 'Inbox', review: 'Weekly review' };
+const SHEETS: Record<PadPage, (app: App) => (Node | null | false | undefined)[]> = { today: todaySheet, inbox: inboxSheet, review: reviewSheet };
 
 /**
  * The legal pad: page tabs along the top (Today, Inbox), a cross to put it
@@ -151,14 +164,14 @@ const PAGE_LABEL: Record<PadPage, string> = { today: 'TODAY', inbox: 'INBOX' };
  */
 function legalPad(app: App, page: PadPage, opts: { enter?: boolean; flip?: boolean; onClose?: () => void }): HTMLElement {
   const tilt = -1.2 - seeded(new Date().toDateString())() * 2.6;
-  const counts: Record<PadPage, number> = { today: todayCount(app), inbox: inboxCount(app) };
+  const counts: Record<PadPage, number | string> = { today: todayCount(app), inbox: inboxCount(app), review: app.reviewDue ? '!' : 0 };
   return h(
     'div',
     {
       class: `legal-pad page-${page}${opts.enter ? ' enter' : ''}`,
       style: `--tilt:${tilt.toFixed(2)}deg`,
       role: 'region',
-      'aria-label': page === 'inbox' ? 'Inbox' : "Today's plan",
+      'aria-label': PAGE_ARIA[page],
     },
     h(
       'nav',
@@ -191,7 +204,7 @@ function legalPad(app: App, page: PadPage, opts: { enter?: boolean; flip?: boole
     // Your hero's thumbs, holding the pad up.
     h('span', { class: 'pad-thumb left', 'aria-hidden': 'true' }),
     h('span', { class: 'pad-thumb right', 'aria-hidden': 'true' }),
-    h('div', { class: `pad-sheet${opts.flip ? ' flip' : ''}` }, page === 'inbox' ? inboxSheet(app) : todaySheet(app)),
+    h('div', { class: `pad-sheet${opts.flip ? ' flip' : ''}` }, SHEETS[page](app)),
   );
 }
 

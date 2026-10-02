@@ -256,6 +256,10 @@
           "$ref": "#/$defs/Timestamp",
           "description": "When all MVP criteria were first done. Set automatically. Omit for uncleared levels."
         },
+        "someday": {
+          "type": "boolean",
+          "description": "true = parked on the someday shelf (from the weekly review): the level isn't being worked on, so it drops out of Today, the review's overdue/stale lists and 'next level' suggestions. Parking clears startedAt, so the time-box starts afresh when work resumes; marking an item doing/done or ticking a criterion unparks it. Omit when false."
+        },
         "successCriteria": {
           "type": "array",
           "minItems": 1,
@@ -388,6 +392,10 @@
         "status": {
           "$ref": "#/$defs/Status"
         },
+        "doneAt": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "When this item was last marked done. Set automatically when status becomes 'done' and removed when it changes away from done. Feeds the weekly review's \"shipped this week\". Optional: older data won't have it."
+        },
         "mvp": {
           "type": "boolean",
           "default": true,
@@ -480,6 +488,10 @@
         "status": {
           "$ref": "#/$defs/Status"
         },
+        "doneAt": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "When this step was last marked done. Set automatically when status becomes 'done' and removed when it changes away from done. Feeds the weekly review's \"shipped this week\". Optional: older data won't have it."
+        },
         "mvp": {
           "type": "boolean",
           "default": true,
@@ -528,6 +540,11 @@
             "type": "integer",
             "minimum": 0
           }
+        },
+        "timeboxExtendedDays": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Days added to timeboxDays after the level started (the weekly review's 'extend the time-box'). The in-time star and the time bonus are still scored against the original time-box (timeboxDays minus this)."
         }
       }
     },

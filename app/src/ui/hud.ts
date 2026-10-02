@@ -130,6 +130,14 @@ export function renderHud(app: App, el: HTMLElement) {
         return n ? h('b', { class: 'hud-badge' }, n) : null;
       })(),
     ),
+    // Once a week the review asks for a few minutes; otherwise it waits on the pad (W).
+    (app.reviewDue || r.pad === 'review') &&
+      h(
+        'a',
+        { class: `btn sm hud-today hud-review${r.pad === 'review' ? ' on' : ''}`, href: href(togglePad(r, 'review')), title: 'Weekly review: celebrate what shipped, cut scope (W)' },
+        'REVIEW',
+        app.reviewDue ? h('b', { class: 'hud-badge' }, '!') : null,
+      ),
     h('button', { class: 'btn sm', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
     h('button', { class: 'btn ghost gear-btn', type: 'button', title: 'Settings', 'aria-label': 'Settings', onclick: () => settingsDialog(app) }, '⚙'),
   );

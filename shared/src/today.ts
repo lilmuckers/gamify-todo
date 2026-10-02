@@ -22,6 +22,14 @@ export interface TodayItem extends TodayRef {
   phase: TimerPhase;
   /** A level that hasn't been started yet: the suggested place to begin. */
   suggested?: boolean;
+  /** In one of this week's focus levels (picked in the weekly review). */
+  focus?: boolean;
+}
+
+/** A level picked as one of this week's focus levels. */
+export interface TodayFocus extends LevelRef {
+  phase: TimerPhase;
+  mvpLeft: number;
 }
 
 export interface TodayLevel extends TodayRef {
@@ -31,6 +39,8 @@ export interface TodayLevel extends TodayRef {
 }
 
 export interface TodayList {
+  /** This week's focus levels that still need clearing, in the order picked. */
+  focus: TodayFocus[];
   /** Started levels whose time-box is nearly or completely used up. */
   overdue: TodayLevel[];
   /** Items (and dependency steps) in progress. */
@@ -41,13 +51,17 @@ export interface TodayList {
 
 const PHASE_RANK: Record<TimerPhase, number> = { overdue: 0, hurry: 1, 'on-track': 2, 'not-started': 3, cleared: 4 };
 
-interface Located {
+/** Where a level lives, with its cheat code. */
+export type LevelRef = Omit<TodayRef, 'subId' | 'depTitle'>;
+
+export interface Located {
   state: GameState;
-  ref: Omit<TodayRef, 'subId' | 'depTitle'>;
+  ref: LevelRef;
   level: Level;
 }
 
-function levelsOf(ws: Workspace): Located[] {
+/** Every level in every project, in map order, with where it lives. */
+export function levelsOf(ws: Workspace): Located[] {
   const out: Located[] = [];
   for (const state of orderedProjects(ws))
     orderedWorlds(state).forEach((world, wi) =>
@@ -84,16 +98,28 @@ function nextStop(level: Level): { item: Item; subId?: string; depTitle?: string
   return { item };
 }
 
-/** Everything worth doing today, across every project. */
-export function todayList(ws: Workspace, now = Date.now()): TodayList {
+/** "project/world/level": how focus levels are stored. */
+export const levelKey = (r: { projectId: string; worldId: string; levelId: string }) => `${r.projectId}/${r.worldId}/${r.levelId}`;
+
+/**
+ * Everything worth doing today, across every project. `focus` holds this
+ * week's focus levels ("project/world/level"); their items go first.
+ */
+export function todayList(ws: Workspace, now = Date.now(), focus: string[] = []): TodayList {
   const overdue: TodayLevel[] = [];
   const doing: (TodayItem & { urgency: number })[] = [];
   const next: (TodayItem & { urgency: number })[] = [];
+  const focusLevels: TodayFocus[] = [];
+  const focused = new Set(focus);
 
   for (const { level, ref } of levelsOf(ws)) {
-    if (isCleared(level)) continue;
+    // Parked on the someday shelf: not today's problem.
+    if (isCleared(level) || level.someday) continue;
     const timer = levelTimer(level, now);
     const urgency = timer.remainingFraction ?? Infinity;
+    const inFocus = focused.has(levelKey(ref));
+    const mark = inFocus ? { focus: true } : {};
+    if (inFocus) focusLevels.push({ ...ref, phase: timer.phase, mvpLeft: level.successCriteria.filter((c) => c.mvp && !c.done).length });
 
     if (timer.phase === 'overdue' || timer.phase === 'hurry') {
       const mvpLeft = level.successCriteria.filter((c) => c.mvp && !c.done).length;
@@ -101,15 +127,16 @@ export function todayList(ws: Workspace, now = Date.now()): TodayList {
     }
 
     for (const item of level.items) {
-      if (item.status === 'doing') doing.push({ ...ref, item, phase: timer.phase, urgency });
+      if (item.status === 'doing') doing.push({ ...ref, item, phase: timer.phase, urgency, ...mark });
       for (const step of item.subtasks ?? [])
         if (step.status === 'doing')
-          doing.push({ ...ref, item: step as Item, subId: item.id, depTitle: item.title, phase: timer.phase, urgency });
+          doing.push({ ...ref, item: step as Item, subId: item.id, depTitle: item.title, phase: timer.phase, urgency, ...mark });
     }
 
-    if (level.startedAt) {
+    // A focus level is worth starting even if it hasn't been yet.
+    if (level.startedAt || inFocus) {
       const stop = nextStop(level);
-      if (stop && !isResolved(stop.item)) next.push({ ...ref, ...stop, phase: timer.phase, urgency });
+      if (stop && !isResolved(stop.item)) next.push({ ...ref, ...stop, phase: timer.phase, urgency, ...mark });
     }
   }
 
@@ -128,11 +155,16 @@ export function todayList(ws: Workspace, now = Date.now()): TodayList {
   }
 
   const doingIds = new Set(doing.map((d) => `${d.projectId}/${d.worldId}/${d.levelId}/${d.subId ?? ''}/${d.item.id}`));
-  const byUrgency = (a: { urgency: number; phase: TimerPhase; projectTitle: string }, b: typeof a) =>
-    PHASE_RANK[a.phase] - PHASE_RANK[b.phase] || a.urgency - b.urgency || a.projectTitle.localeCompare(b.projectTitle);
+  const byUrgency = (a: { urgency: number; phase: TimerPhase; projectTitle: string; focus?: boolean }, b: typeof a) =>
+    Number(!a.focus) - Number(!b.focus) ||
+    PHASE_RANK[a.phase] - PHASE_RANK[b.phase] ||
+    a.urgency - b.urgency ||
+    a.projectTitle.localeCompare(b.projectTitle);
   const strip = <T extends { urgency: number }>({ urgency: _, ...rest }: T) => rest;
 
+  const order = (r: LevelRef) => focus.indexOf(levelKey(r));
   return {
+    focus: focusLevels.sort((a, b) => order(a) - order(b)),
     overdue: overdue.sort((a, b) => a.remainingMs - b.remainingMs),
     doing: doing.sort(byUrgency).map(strip),
     next: next

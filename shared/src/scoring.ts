@@ -38,6 +38,16 @@ export function levelTimer(level: Level, now = Date.now()): TimerState {
   return { phase, deadline, remainingMs, remainingFraction };
 }
 
+/**
+ * The time-box as first set: extensions after the level started (from the
+ * weekly review) quiet the clock but don't buy back the star or the bonus.
+ */
+export function originalTimer(level: Level, now = Date.now()): TimerState {
+  const extended = level.stats?.timeboxExtendedDays ?? 0;
+  if (!extended) return levelTimer(level, now);
+  return levelTimer({ ...level, timeboxDays: Math.max(1, level.timeboxDays - extended) }, now);
+}
+
 export function isCleared(level: Level): boolean {
   const mvp = level.successCriteria.filter((c) => c.mvp);
   return mvp.length > 0 && mvp.every((c) => c.done);
@@ -63,6 +73,8 @@ export interface LevelScore {
   coins: number;
   polish: number;
   timer: TimerState;
+  /** Days the time-box was extended after starting (scored against the original). */
+  extendedDays: number;
 }
 
 export function coinsFor(level: Level): number {
@@ -81,12 +93,13 @@ export function scoreLevel(level: Level, now = Date.now()): LevelScore {
   const cleared = isCleared(level);
   const timer = levelTimer(level, now);
   const polish = polishPoints(level);
-  const inTime = cleared && (timer.remainingFraction === undefined || timer.remainingFraction >= 0);
+  const scored = originalTimer(level, now);
+  const inTime = cleared && (scored.remainingFraction === undefined || scored.remainingFraction >= 0);
   const noPolish = cleared && polish === 0;
   const stars = cleared ? 1 + (inTime ? 1 : 0) + (noPolish ? 1 : 0) : 0;
   let xp = 0;
   if (cleared) {
-    const frac = Math.max(0, Math.min(1, timer.remainingFraction ?? 0));
+    const frac = Math.max(0, Math.min(1, scored.remainingFraction ?? 0));
     xp = Math.max(
       MIN_CLEAR_XP,
       Math.round(BASE_XP + TIME_BONUS_XP * frac - POLISH_XP_COST * polish),
@@ -102,6 +115,7 @@ export function scoreLevel(level: Level, now = Date.now()): LevelScore {
     coins: coinsFor(level),
     polish,
     timer,
+    extendedDays: level.stats?.timeboxExtendedDays ?? 0,
   };
 }
 
@@ -163,15 +177,15 @@ export function worldTotals(world: World, now = Date.now()) {
   return { stars, maxStars: world.levels.length * 3, cleared, levels: world.levels.length };
 }
 
-/** Next level to play: finish what's started before starting something new. */
+/** Next level to play: finish what's started before starting something new. Skips the someday shelf. */
 export function suggestNext(state: GameState): { worldId: string; levelId: string } | undefined {
   const worlds = orderedWorlds(state);
   for (const w of worlds)
     for (const l of w.levels)
-      if (l.startedAt && !isCleared(l)) return { worldId: w.id, levelId: l.id };
+      if (l.startedAt && !isCleared(l) && !l.someday) return { worldId: w.id, levelId: l.id };
   for (const w of worlds) {
     if (isWorldLocked(state, w)) continue;
-    for (const l of w.levels) if (!isCleared(l)) return { worldId: w.id, levelId: l.id };
+    for (const l of w.levels) if (!isCleared(l) && !l.someday) return { worldId: w.id, levelId: l.id };
   }
 }
 

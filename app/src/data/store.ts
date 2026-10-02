@@ -236,6 +236,35 @@ export class Store {
     return { ok: true, polish, op };
   }
 
+  /**
+   * Applies several edits together, or none of them: they queue side by side,
+   * so they go out in one commit (e.g. a weekly-review scope cut).
+   */
+  dispatchBatch(bodies: OpBody[]): DispatchResult & { ops?: Op[] } {
+    if (!this.caps.canEdit) return { ok: false, error: 'Read-only mode' };
+    if (!this.state) return { ok: false, error: 'Still loading' };
+    if (!bodies.length) return { ok: true, ops: [] };
+    const ops = bodies.map((b) => makeOp(b));
+    let next = this.state;
+    try {
+      for (const op of ops) next = applyOp(next, op);
+    } catch (err) {
+      if (err instanceof OpConflict) return { ok: false, error: err.message };
+      throw err;
+    }
+    const issues = validateWorkspace(next);
+    if (issues.length > this.issues.length) return { ok: false, error: `${issues[0].path}: ${issues[0].message}` };
+    this.state = next;
+    this.issues = issues;
+    this.outbox.push(...ops);
+    if (this.holding) for (const op of ops) this.held.add(op.opId);
+    this.status = this.idleStatus();
+    void this.saveQueue();
+    this.emit();
+    this.schedule(this.debounceMs);
+    return { ok: true, ops };
+  }
+
   private polishDelta(a: Workspace, b: Workspace, projectId: string, worldId: string, levelId: string) {
     const find = (ws: Workspace) => ws.projects[projectId]?.worlds[worldId]?.levels.find((l) => l.id === levelId);
     const la = find(a);

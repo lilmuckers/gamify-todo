@@ -98,7 +98,7 @@ describe('todayList', () => {
       items: [{ id: 'd', type: 'task', title: 'D', status: 'doing' }],
     });
     const t = todayList(ws(project('p', 'P', { w: [cleared] })), NOW);
-    expect(t).toEqual({ overdue: [], doing: [], next: [] });
+    expect(t).toEqual({ focus: [], overdue: [], doing: [], next: [] });
   });
 
   it('works on the example data', async () => {

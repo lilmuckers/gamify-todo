@@ -63,6 +63,27 @@ describe('Store', () => {
     expect(store.status).toBe('synced');
   });
 
+  it('applies a batch all together (one commit) or not at all', async () => {
+    const remote = fakeRemote(fixture());
+    const store = new Store(remote.source, memoryKV(), opts({ v: true }));
+    await store.start();
+    const bad = store.dispatchBatch([
+      { kind: 'setItemStatus', ...at, itemId: 'a', status: 'dropped' },
+      { kind: 'setItemStatus', ...at, itemId: 'gone', status: 'dropped' },
+    ]);
+    expect(bad.ok).toBe(false);
+    expect(store.outbox).toHaveLength(0);
+    expect(lvlOf(store.state!).items[0].status).toBe('todo');
+    const r = store.dispatchBatch([
+      { kind: 'setItemStatus', ...at, itemId: 'c', status: 'dropped' },
+      { kind: 'extendTimebox', ...at, days: 3 },
+    ]);
+    expect(r.ok).toBe(true);
+    expect(r.ops).toHaveLength(2);
+    await store.sync();
+    expect(remote.commits).toEqual([expect.stringMatching(/2 updates[\s\S]*dropped: C[\s\S]*extend time-box by 3 days/)]);
+  });
+
   it('retracts an unsynced edit so nothing is committed', async () => {
     const remote = fakeRemote(fixture());
     const store = new Store(remote.source, memoryKV(), opts({ v: true }));

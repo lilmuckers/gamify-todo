@@ -19,6 +19,22 @@ world map, or **Add to this level** on a level. On Android, sharing a link or te
 installed app drops it straight in the inbox (iOS doesn't let web apps receive shares). Ideas live
 in `data/inbox.json` until they're placed.
 
+Once a week (Friday afternoon by default; Monday morning, Sunday evening or off in **⚙ Settings**)
+a **REVIEW** button appears in the top bar. The **Weekly review** (`w`, or `#/review`) is the
+pad's third page:
+
+- **Shipped this week**: levels cleared and items done in the last 7 days, with stars and XP.
+- **Overdue**: levels past their time-box, with one-tap scope cuts. *Drop the optional items*
+  drops them all in one commit, free. *Extend +1/3/7 days* quiets the clock, but the in-time star
+  and time bonus are still scored against the original time-box.
+- **Gone quiet**: started levels with no activity for 14+ days: keep, put on the **someday**
+  shelf (off Today and the review; the clock restarts when you pick it up again) or drop the level.
+- **Next week**: pick up to 3 focus levels; they go to the top of Today.
+
+**Review done** stamps it until the next one is due. The schedule, the last review and the focus
+levels are kept in your browser. Items record when they were finished (`doneAt`), so the review
+works offline and in read-only views too.
+
 Most edits show an **UNDO** toast for a few seconds (Ctrl/Cmd+Z works too); edits that haven't
 synced yet are simply taken back, with no commit.
 
@@ -141,6 +157,7 @@ Every screen has a shareable URL, and a level link can open an item's bubble dir
 #/p/<project>/<world>                    world map
 #/p/<project>/<world>/<level>/<item>     level, with that item's bubble open
 #/prs, #/pr/<n>/<project>/<world>/<level>/<item>   pull request review
+#/review (or …/~review after any link)   weekly review; …/~today and …/~inbox likewise
 ```
 
 ## Reviewing pull requests: the Warp Zone

@@ -3,6 +3,7 @@ import {
   findLevel,
   HERO_IDS,
   inverseOp,
+  isReviewDue,
   UNDOABLE,
   reviewLevel,
   subLevel,
@@ -22,7 +23,7 @@ import {
 } from '@quest/shared';
 import { pageView, track, type Params } from './analytics';
 import { eventsForOp } from './analytics-events';
-import { heroStore } from './config';
+import { heroStore, reviewStore, type ReviewPrefs } from './config';
 import type { PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { currentRoute, href, routeProject, type Route } from './router';
@@ -238,6 +239,38 @@ export class App {
     else if (r.polish && r.polish > 0)
       toast('Perfectionism detected 🐢 — this level is already clear. Move on!', 'warn', 5000);
     return r;
+  }
+
+  /**
+   * Applies several edits together (all or none), so they sync as one
+   * commit. No undo toast: these are deliberate scope cuts.
+   */
+  dispatchBatch(bodies: OpBody[], meta?: Params): boolean {
+    const before = this.store.state;
+    const r = this.store.dispatchBatch(bodies);
+    if (!r.ok) {
+      track('edit_rejected', { reason: /no longer exists|already taken|cannot be|can't/.test(r.error ?? '') ? 'conflict' : 'validation' });
+      toast(r.error ?? 'Edit rejected', 'alert', 5000);
+      return false;
+    }
+    for (const body of bodies) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, { ...e.params, ...meta });
+    return true;
+  }
+
+  /** This browser's weekly-review settings: when it's due, when it was done, this week's focus. */
+  get review(): ReviewPrefs {
+    return reviewStore.get();
+  }
+
+  /** A weekly review is waiting: the HUD offers it. */
+  get reviewDue(): boolean {
+    const r = this.review;
+    return isReviewDue(r.day, r.lastAt);
+  }
+
+  setReview(patch: Partial<ReviewPrefs>) {
+    reviewStore.set(patch);
+    this.emit();
   }
 
   /** "Done: Order tiles · UNDO": takes the edit back, or reverses it once synced. */
