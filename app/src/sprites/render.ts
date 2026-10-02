@@ -59,9 +59,22 @@ function heroCanvas(id: keyof typeof HEROES, frame: 'stand' | 'walk' | 'jump'): 
   return paint(def.frames[frame], { ...PALETTE, ...def.colors });
 }
 
+const urls = new WeakMap<HTMLCanvasElement, string>();
+
+/**
+ * PNG data URL of a canvas that never changes after it's drawn (cached
+ * sprites, islands, cartridges). Encoded once: re-encoding on every render
+ * costs CPU and makes each <img> decode again, which flickers.
+ */
+export function canvasUrl(c: HTMLCanvasElement): string {
+  let url = urls.get(c);
+  if (!url) urls.set(c, (url = c.toDataURL()));
+  return url;
+}
+
 /** PNG data URL for DOM <img> use (HUD icons, mobile UI). */
 export function spriteUrl(name: string, theme: ThemeKey = 'grass'): string {
-  return sprite(name, theme).toDataURL();
+  return canvasUrl(sprite(name, theme));
 }
 
 // Sprites easier to draw with code than by hand.

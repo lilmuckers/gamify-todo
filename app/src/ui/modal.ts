@@ -20,6 +20,8 @@ function setOpen(delta: number) {
 export interface ModalOptions {
   /** False: only an action closes it (no Esc, no backdrop click). */
   dismissable?: boolean;
+  /** Runs once when the modal closes, however it closes. */
+  onClose?: () => void;
 }
 
 export function openModal(title: string, body: Node, actions: ModalAction[] = [{ label: 'Close' }], opts: ModalOptions = {}) {
@@ -31,6 +33,7 @@ export function openModal(title: string, body: Node, actions: ModalAction[] = [{
     overlay.remove();
     document.removeEventListener('keydown', onKey);
     setOpen(-1);
+    opts.onClose?.();
   };
   const onKey = (e: KeyboardEvent) => dismissable && e.key === 'Escape' && close();
   const buttons = actions.map((a) =>
@@ -65,19 +68,15 @@ export function openModal(title: string, body: Node, actions: ModalAction[] = [{
 
 export function confirmDialog(title: string, text: string, confirmLabel = 'OK', danger = false): Promise<boolean> {
   return new Promise((resolve) => {
-    let answered = false;
-    const close = openModal(title, h('p', null, text), [
-      { label: 'Cancel', run: () => void (answered = true, resolve(false)) },
-      { label: confirmLabel, kind: danger ? 'danger' : 'primary', run: () => void (answered = true, resolve(true)) },
-    ]);
-    // Resolve false when dismissed via Escape/backdrop.
-    const obs = new MutationObserver(() => {
-      if (!document.body.contains(document.querySelector('.overlay')) && !answered) {
-        resolve(false);
-        obs.disconnect();
-      }
-    });
-    obs.observe(document.body, { childList: true });
-    void close;
+    // Esc or a backdrop click closes it without an answer: that's a no.
+    openModal(
+      title,
+      h('p', null, text),
+      [
+        { label: 'Cancel', run: () => resolve(false) },
+        { label: confirmLabel, kind: danger ? 'danger' : 'primary', run: () => resolve(true) },
+      ],
+      { onClose: () => resolve(false) },
+    );
   });
 }

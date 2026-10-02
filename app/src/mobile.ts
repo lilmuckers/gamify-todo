@@ -1,7 +1,7 @@
 import { isWorldLocked, orderedProjects, orderedWorlds, seeded, suggestNext, totals, worldTotals } from '@quest/shared';
 import type { App } from './app';
 import { go, href, togglePad } from './router';
-import { island } from './sprites/render';
+import { canvasUrl, island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
 import { heroKey } from './sprites/heroes';
 import { carpetCanvas, cartridge } from './sprites/cartridge';
@@ -41,7 +41,7 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
     // Cartridges on the carpet, each tilted by its own seed.
     return h(
       'div',
-      { class: 'cart-floor', style: `background-image:url(${carpetCanvas().toDataURL()})` },
+      { class: 'cart-floor', style: `background-image:url(${canvasUrl(carpetCanvas())})` },
       orderedProjects(app.workspace).map((p) => {
         const t = totals(p);
         const id = p.overworld.id;
@@ -50,7 +50,7 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
         return h(
           'a',
           { class: 'cart', href: href({ view: 'overworld', projectId: id }), style: `--tilt:${tilt.toFixed(1)}deg` },
-          h('img', { src: art.toDataURL(), class: 'pixel', alt: '' }),
+          h('img', { src: canvasUrl(art), class: 'pixel', alt: '' }),
           h('b', null, p.overworld.title),
           h('small', null, `★${t.stars}/${t.maxStars}`),
         );
@@ -67,7 +67,7 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
         return h(
           'a',
           { class: 'island', href: href({ view: 'world', projectId: r.projectId, worldId: w.id }) },
-          h('img', { src: island(w.theme, isWorldLocked(state, w)).toDataURL(), class: 'pixel', alt: '' }),
+          h('img', { src: canvasUrl(island(w.theme, isWorldLocked(state, w))), class: 'pixel', alt: '' }),
           h('b', null, `${i + 1}. ${w.name}`),
           h('small', null, `★${t.stars}/${t.maxStars}${next?.worldId === w.id ? ' · ▶' : ''}`),
         );

@@ -58,6 +58,8 @@ interface Egg {
   /** Juice drips left on the way to the console. */
   drips: Phaser.GameObjects.GameObject[];
   screen?: Phaser.GameObjects.Container;
+  /** Texture of the title screen on the TV, freed when the egg ends. */
+  screenKey?: string;
   dialogue?: Dialogue;
   /** Esc, a click away or leaving the screen: stop at the next step and reset. */
   cancelled: boolean;
@@ -100,6 +102,8 @@ export class ProjectsScene extends QuestScene {
   private floorZoom = 1;
   /** The window was resized during the easter egg: re-lay the room after. */
   private resized = false;
+  /** Prop textures the current room uses (kept across visits so old ones can be freed). */
+  private propKeys = new Set<string>();
 
   constructor() {
     super('projects');
@@ -117,12 +121,9 @@ export class ProjectsScene extends QuestScene {
   }
 
   create() {
-    this.scale.on('resize', this.onResize, this);
-    this.events.once('shutdown', () => {
-      this.scale.off('resize', this.onResize, this);
-      // Leaving mid-egg (the HUD still works): take the box and key handler with us.
-      if (this.egg) this.endEgg();
-    });
+    this.listenResize();
+    // Leaving mid-egg (the HUD still works): take the box and key handler with us.
+    this.events.once('shutdown', () => this.egg && this.endEgg());
     this.cameras.main.fadeIn(250);
     this.render();
     this.watch(() => this.render());
@@ -270,6 +271,9 @@ export class ProjectsScene extends QuestScene {
 
     this.layer?.destroy();
     this.info?.destroy();
+    // Each visit throws new clutter: free the last room's textures once nothing shows them.
+    for (const key of this.propKeys) if (!room.props.some((p) => p.key === key)) this.textures.remove(key);
+    this.propKeys = new Set(room.props.map((p) => p.key));
     const layer = (this.layer = this.add.container(0, 0));
     const tex = (key: string, c: () => HTMLCanvasElement) => {
       if (!this.textures.exists(key)) this.textures.addCanvas(key, c());
@@ -695,6 +699,7 @@ export class ProjectsScene extends QuestScene {
     screen.add(this.add.rectangle(0, 0, SCREEN.w, SCREEN.h, 0x000000));
     const key = `junk:${this.visit}:${egg.kind}:${egg.variant}`;
     if (!this.textures.exists(key)) this.textures.addCanvas(key, junkScreen({ kind: egg.kind, colors, label }, egg.variant));
+    egg.screenKey = key;
     const pic = this.add.image(0, 0, key).setScale(JUNK_SCALE);
     const lines = this.add.graphics().setAlpha(0.18);
     lines.fillStyle(0x000000);
@@ -775,6 +780,8 @@ export class ProjectsScene extends QuestScene {
     this.unhookEgg();
     egg.dialogue?.close();
     egg.screen?.destroy();
+    // Keyed per visit, so it would never be shown again: don't let them pile up.
+    if (egg.screenKey) this.textures.remove(egg.screenKey);
     for (const d of egg.drips) d.destroy();
     if (egg.shadow && egg.shadowAt) egg.shadow.setVisible(true).setPosition(egg.shadowAt.x, egg.shadowAt.y).setAngle(egg.home.angle).setScale(1);
     if (egg.img.active) egg.img.setVisible(true).setPosition(egg.home.x, egg.home.y).setAngle(egg.home.angle).setScale(1);

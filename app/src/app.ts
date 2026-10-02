@@ -243,7 +243,7 @@ export class App {
     const r = this.store.dispatch(body);
     if (r.ok) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, { ...e.params, ...meta });
     if (r.ok && r.op && before && !meta?.undo && UNDOABLE.has(r.op.kind)) this.offerUndo(r.op, before);
-    else track('edit_rejected', { reason: /no longer exists|already taken|cannot be/.test(r.error ?? '') ? 'conflict' : 'validation' });
+    if (!r.ok) track('edit_rejected', { reason: /no longer exists|already taken|cannot be/.test(r.error ?? '') ? 'conflict' : 'validation' });
     if (r.polish && r.polish > 0) track('polish_penalty', { points: r.polish });
     if (!r.ok) toast(r.error ?? 'Edit rejected', 'alert', 5000);
     else if (r.polish && r.polish > 0)

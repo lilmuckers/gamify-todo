@@ -4,6 +4,7 @@ import { bindNavKeys, navFor } from './nav';
 import { h, mount } from './ui/dom';
 import { renderHud } from './ui/hud';
 import { controllerCanvas } from './sprites/cartridge';
+import { canvasUrl } from './sprites/render';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { mountPadOverlay } from './ui/today';
@@ -51,8 +52,7 @@ function renderGameNav(app: App, el: HTMLElement) {
   );
 }
 
-let padIconUrl: string | undefined;
 /** The bedroom's controller sprite, as a button icon. */
 function padIcon() {
-  return (padIconUrl ??= controllerCanvas().toDataURL());
+  return canvasUrl(controllerCanvas());
 }

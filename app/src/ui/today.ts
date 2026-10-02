@@ -246,7 +246,17 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
     const pad = legalPad(app, page, { enter: !open, flip: !!open && open !== page, onClose: close });
     const skin = HEROES[app.heroId]?.colors?.['3'] ?? PALETTE.s;
     pad.style.setProperty('--skin', skin);
-    host.replaceChildren(pad);
+    const held = open ? host.querySelector<HTMLElement>('.legal-pad') : null;
+    if (held) {
+      // Already up: refill the pad it's holding rather than swapping in a new
+      // one, which would restart its hold sway (and the entrance, if still
+      // running) on every update. Keeping `enter` keeps the animation list as is.
+      pad.classList.toggle('enter', held.classList.contains('enter'));
+      held.className = pad.className;
+      held.setAttribute('aria-label', pad.getAttribute('aria-label')!);
+      held.style.cssText = pad.style.cssText;
+      held.replaceChildren(...pad.childNodes);
+    } else host.replaceChildren(pad);
     kept.restore(host);
     const sheet = host.querySelector('.pad-sheet');
     if (sheet) sheet.scrollTop = scroll;
