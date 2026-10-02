@@ -5,7 +5,7 @@ import type { App } from '../app';
 import { href, withPad, type PadPage } from '../router';
 import { inboxCount, inboxSheet } from './inbox';
 import { reviewSheet } from './weekly';
-import { fmtDuration, h } from './dom';
+import { fmtDuration, h, keepFields } from './dom';
 
 const DAY_MS = 86_400_000;
 
@@ -257,7 +257,7 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
       held.style.cssText = pad.style.cssText;
       held.replaceChildren(...pad.childNodes);
     } else host.replaceChildren(pad);
-    kept.restore(host);
+    kept.restore();
     const sheet = host.querySelector('.pad-sheet');
     if (sheet) sheet.scrollTop = scroll;
     if (page === 'inbox' && app.focusCapture) {
@@ -273,30 +273,6 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
     setTimeout(render, 0);
   });
   render();
-}
-
-type Keepable = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-
-/** Carries [data-keep] field values, focus and cursor over a re-render. */
-function keepFields(root: HTMLElement) {
-  const active = document.activeElement as Keepable | null;
-  const activeKey = active && root.contains(active) ? active.dataset.keep : undefined;
-  const values = new Map<string, { value: string; start: number | null; end: number | null }>();
-  for (const el of root.querySelectorAll<Keepable>('[data-keep]'))
-    values.set(el.dataset.keep!, { value: el.value, start: 'selectionStart' in el ? el.selectionStart : null, end: 'selectionEnd' in el ? el.selectionEnd : null });
-  return {
-    restore(next: HTMLElement) {
-      for (const el of next.querySelectorAll<Keepable>('[data-keep]')) {
-        const k = values.get(el.dataset.keep!);
-        if (!k) continue;
-        el.value = k.value;
-        if (el.dataset.keep === activeKey) {
-          el.focus({ preventScroll: true });
-          if ('setSelectionRange' in el && k.start !== null) el.setSelectionRange(k.start, k.end);
-        }
-      }
-    },
-  };
 }
 
 /** Overdue levels plus items in progress: the HUD badge count. */

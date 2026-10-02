@@ -98,9 +98,29 @@ export function findLevel(state: GameState, worldId: string, levelId: string): L
   return state.worlds[worldId]?.levels.find((l) => l.id === levelId);
 }
 
+/** Where a level lives in a workspace. */
+export interface LevelAt {
+  projectId: string;
+  worldId: string;
+  levelId: string;
+}
+
+/** A level anywhere in the workspace, by project, world and level id. */
+export function findLevelAt(ws: Workspace, at: LevelAt): Level | undefined {
+  const state = ws.projects[at.projectId];
+  return state && findLevel(state, at.worldId, at.levelId);
+}
+
 export function parseLevelRef(ref: string): { worldId: string; levelId: string } | undefined {
   const [worldId, levelId] = ref.split('/');
   return worldId && levelId ? { worldId, levelId } : undefined;
+}
+
+/** The level a dependency's levelRef points at in this project, if it still exists. */
+export function levelRefTarget(state: GameState, item: Pick<Item, 'levelRef'>): { worldId: string; levelId: string; world: World; level: Level } | undefined {
+  const ref = item.levelRef ? parseLevelRef(item.levelRef) : undefined;
+  const level = ref && findLevel(state, ref.worldId, ref.levelId);
+  return ref && level ? { ...ref, world: state.worlds[ref.worldId], level } : undefined;
 }
 
 /**

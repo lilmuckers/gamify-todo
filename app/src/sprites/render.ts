@@ -1,5 +1,6 @@
 import type { Theme } from '@quest/shared';
 import { HEROES, parseHeroKey } from './heroes';
+import { canvas } from './canvas';
 import { PALETTE, SPRITES, THEMES, type ThemeColors } from './pixels';
 
 export type ThemeKey = Theme | 'warp' | 'under';
@@ -7,18 +8,9 @@ export const TILE = 16;
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-function makeCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d')!;
-  ctx.imageSmoothingEnabled = false;
-  return [c, ctx];
-}
-
 function paint(map: string[], colors: Record<string, string>): HTMLCanvasElement {
   const w = Math.max(...map.map((r) => r.length));
-  const [c, ctx] = makeCanvas(w, map.length);
+  const [c, ctx] = canvas(w, map.length);
   map.forEach((row, y) => {
     for (let x = 0; x < row.length; x++) {
       const color = colors[row[x]];
@@ -80,7 +72,7 @@ export function spriteUrl(name: string, theme: ThemeKey = 'grass'): string {
 // Sprites easier to draw with code than by hand.
 const SPECIAL: Record<string, (theme: ThemeKey) => HTMLCanvasElement> = {
   castle: () => {
-    const [c, ctx] = makeCanvas(80, 80);
+    const [c, ctx] = canvas(80, 80);
     const stone = PALETTE.m;
     const dark = PALETTE.M;
     const line = PALETTE.k;
@@ -111,7 +103,7 @@ const SPECIAL: Record<string, (theme: ThemeKey) => HTMLCanvasElement> = {
   },
   hill: (theme) => {
     const t = THEMES[theme] ?? THEMES.grass;
-    const [c, ctx] = makeCanvas(80, 40);
+    const [c, ctx] = canvas(80, 40);
     ctx.fillStyle = PALETTE.k;
     ctx.beginPath();
     ctx.ellipse(40, 40, 40, 38, 0, Math.PI, 0);
@@ -139,7 +131,7 @@ export function island(theme: ThemeKey, locked: boolean): HTMLCanvasElement {
   const hit = cache.get(key);
   if (hit) return hit;
   const t = THEMES[theme] ?? THEMES.grass;
-  const [c, ctx] = makeCanvas(96, 64);
+  const [c, ctx] = canvas(96, 64);
   // Shadow in the water.
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.beginPath();

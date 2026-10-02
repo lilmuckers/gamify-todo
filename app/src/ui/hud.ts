@@ -23,6 +23,9 @@ const STATUS_TEXT: Record<string, string> = {
   error: '⚠ sync error',
 };
 
+/** A count on a HUD button, when there's anything to count. */
+const badge = (n: number | string) => (n ? h('b', { class: 'hud-badge' }, n) : null);
+
 /** The sync state button: saved, syncing, offline... (or the demo's warning). */
 function syncPill(app: App) {
   const s = app.store;
@@ -137,19 +140,13 @@ export function renderHud(app: App, el: HTMLElement) {
       'a',
       { class: `btn sm hud-today${r.pad === 'today' ? ' on' : ''}`, href: href(togglePad(r, 'today')), title: "Today's plan (T)" },
       'TODAY',
-      (() => {
-        const n = todayCount(app);
-        return n ? h('b', { class: 'hud-badge' }, n) : null;
-      })(),
+      badge(todayCount(app)),
     ),
     h(
       'a',
       { class: `btn sm hud-today${r.pad === 'inbox' ? ' on' : ''}`, href: href(togglePad(r, 'inbox')), title: 'Inbox: jot ideas down, sort them later (I, or N to write)' },
       'INBOX',
-      (() => {
-        const n = inboxCount(app);
-        return n ? h('b', { class: 'hud-badge' }, n) : null;
-      })(),
+      badge(inboxCount(app)),
     ),
     // Once a week the review asks for a few minutes; otherwise it waits on the pad (W).
     (app.reviewDue || r.pad === 'review') &&
@@ -157,7 +154,7 @@ export function renderHud(app: App, el: HTMLElement) {
         'a',
         { class: `btn sm hud-today hud-review${r.pad === 'review' ? ' on' : ''}`, href: href(togglePad(r, 'review')), title: 'Weekly review: celebrate what shipped, cut scope (W)' },
         'REVIEW',
-        app.reviewDue ? h('b', { class: 'hud-badge' }, '!') : null,
+        badge(app.reviewDue ? '!' : 0),
       ),
     h('button', { class: 'btn sm hud-ai', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
     h('button', { class: 'btn ghost gear-btn', type: 'button', title: 'Settings', 'aria-label': 'Settings', onclick: () => settingsDialog(app) }, '⚙'),

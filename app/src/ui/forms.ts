@@ -15,7 +15,7 @@ import {
 import { itemAddr, type App, type LevelView } from '../app';
 import { go } from '../router';
 import { h } from './dom';
-import { confirmDialog, openModal } from './modal';
+import { confirmDialog, openModal, type ModalAction } from './modal';
 
 export const TYPE_INFO: Record<ItemType, { label: string; sprite: string; hint: string }> = {
   task: { label: 'Task', sprite: 'qblock', hint: 'Work you do. A ? block; done pops a coin.' },
@@ -244,25 +244,40 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
   };
 
   const actions = [
-    ...(item
-      ? [
-          {
-            label: 'Delete',
-            kind: 'danger' as const,
-            run: async () => {
-              const extra = stepCount ? ` Its ${stepCount} step${stepCount === 1 ? '' : 's'} go too.` : '';
-              if (!(await confirmDialog('Delete item', `Delete "${item.title}"?${extra} Dropping it keeps history.`, 'Delete', true)))
-                return false;
-              app.dispatch({ kind: 'deleteItem', ...itemAddr(cur), itemId: item.id });
-              app.select(undefined);
-            },
-          },
-        ]
-      : []),
+    ...deleteAction(
+      item,
+      () => {
+        app.dispatch({ kind: 'deleteItem', ...itemAddr(cur), itemId: item!.id });
+        app.select(undefined);
+      },
+      item && {
+        title: 'Delete item',
+        text: `Delete "${item.title}"?${stepCount ? ` Its ${stepCount} step${stepCount === 1 ? '' : 's'} go too.` : ''} Dropping it keeps history.`,
+      },
+    ),
     { label: 'Cancel' },
     { label: item ? 'Save' : 'Add', kind: 'primary' as const, run: save },
   ];
   openModal(item ? (inSub ? 'Edit step' : 'Edit item') : inSub ? `New step for "${cur.sub!.dep.title}"` : 'New item', body, actions);
+}
+
+/**
+ * A form's Delete button, for spreading into its actions (none when there's
+ * nothing to delete yet). With `confirm` it asks first; `run` returning false
+ * keeps the form open.
+ */
+function deleteAction(show: unknown, run: () => boolean | void, confirm?: { title: string; text: string }): ModalAction[] {
+  if (!show) return [];
+  return [
+    {
+      label: 'Delete',
+      kind: 'danger',
+      run: async () => {
+        if (confirm && !(await confirmDialog(confirm.title, confirm.text, 'Delete', true))) return false;
+        return run();
+      },
+    },
+  ];
 }
 
 export function stripUndefined<T extends object>(o: T): T {
@@ -278,17 +293,9 @@ export function criterionForm(app: App, worldId: string, level: Level, c?: Crite
     field('Success criterion', txt, 'Observable and testable: "A new user can sign up".'),
     field('MVP', mvp, 'MVP criteria are the must-do steps up to the flagpole. Keep them to the 1–3 that truly matter.'),
   );
-  const at = { worldId, levelId: level.id };
+  const at = { projectId: app.projectId!, worldId, levelId: level.id };
   openModal(c ? 'Edit criterion' : 'New criterion', body, [
-    ...(c
-      ? [
-          {
-            label: 'Delete',
-            kind: 'danger' as const,
-            run: () => app.dispatch({ projectId: app.projectId!, kind: 'deleteCriterion', ...at, criterionId: c.id }).ok,
-          },
-        ]
-      : []),
+    ...deleteAction(c, () => app.dispatch({ kind: 'deleteCriterion', ...at, criterionId: c!.id }).ok),
     { label: 'Cancel' },
     {
       label: c ? 'Save' : 'Add',
@@ -297,9 +304,8 @@ export function criterionForm(app: App, worldId: string, level: Level, c?: Crite
         if (!requireFilled(txt)) return false;
         const values = { text: txt.value.trim(), mvp: mvp.checked };
         return c
-          ? app.dispatch({ projectId: app.projectId!, kind: 'updateCriterion', ...at, criterionId: c.id, patch: values }).ok
+          ? app.dispatch({ kind: 'updateCriterion', ...at, criterionId: c.id, patch: values }).ok
           : app.dispatch({
-          projectId: app.projectId!,
               kind: 'addCriterion',
               ...at,
               criterion: {
@@ -314,6 +320,7 @@ export function criterionForm(app: App, worldId: string, level: Level, c?: Crite
 }
 
 export function levelForm(app: App, world: World, level?: Level) {
+  const projectId = app.projectId!;
   const name = text(level?.name);
   const deliverable = text(level?.deliverable, { max: 280 });
   const days = h('input', { type: 'number', min: 1, max: 90, value: String(level?.timeboxDays ?? 5), required: true });
@@ -329,20 +336,13 @@ export function levelForm(app: App, world: World, level?: Level) {
     field('Description', desc),
   );
   openModal(level ? 'Edit level' : 'New level', body, [
-    ...(level
-      ? [
-          {
-            label: 'Delete',
-            kind: 'danger' as const,
-            run: async () => {
-              if (!(await confirmDialog('Delete level', `Delete "${level.name}" and all its items?`, 'Delete', true)))
-                return false;
-              if (app.dispatch({ projectId: app.projectId!, kind: 'deleteLevel', worldId: world.id, levelId: level.id }).ok)
-                go({ view: 'world', projectId: app.projectId!, worldId: world.id });
-            },
-          },
-        ]
-      : []),
+    ...deleteAction(
+      level,
+      () => {
+        if (app.dispatch({ projectId, kind: 'deleteLevel', worldId: world.id, levelId: level!.id }).ok) go({ view: 'world', projectId, worldId: world.id });
+      },
+      level && { title: 'Delete level', text: `Delete "${level.name}" and all its items?` },
+    ),
     { label: 'Cancel' },
     {
       label: level ? 'Save' : 'Create',
@@ -357,10 +357,10 @@ export function levelForm(app: App, world: World, level?: Level) {
           description: trimOrUndef(desc.value),
         };
         if (level)
-          return app.dispatch({ projectId: app.projectId!, kind: 'updateLevel', worldId: world.id, levelId: level.id, patch }).ok;
+          return app.dispatch({ projectId, kind: 'updateLevel', worldId: world.id, levelId: level.id, patch }).ok;
         const id = uniqueId(patch.name, ['world', ...world.levels.map((l) => l.id)]);
         const ok = app.dispatch({
-          projectId: app.projectId!,
+          projectId,
           kind: 'addLevel',
           worldId: world.id,
           level: stripUndefined({
@@ -372,7 +372,7 @@ export function levelForm(app: App, world: World, level?: Level) {
             items: [],
           }),
         }).ok;
-        if (ok) go({ view: 'level', projectId: app.projectId!, worldId: world.id, levelId: id });
+        if (ok) go({ view: 'level', projectId, worldId: world.id, levelId: id });
         return ok;
       },
     },
@@ -380,6 +380,7 @@ export function levelForm(app: App, world: World, level?: Level) {
 }
 
 export function worldForm(app: App, world?: World) {
+  const projectId = app.projectId!;
   const state = app.state!;
   const name = text(world?.name);
   const theme = select(
@@ -407,19 +408,13 @@ export function worldForm(app: App, world?: World) {
     field('Description', desc),
   );
   openModal(world ? 'Edit world' : 'New world', body, [
-    ...(world
-      ? [
-          {
-            label: 'Delete',
-            kind: 'danger' as const,
-            run: async () => {
-              if (!(await confirmDialog('Delete world', `Delete "${world.name}" and all its levels?`, 'Delete', true)))
-                return false;
-              if (app.dispatch({ projectId: app.projectId!, kind: 'deleteWorld', worldId: world.id }).ok) go({ view: 'overworld', projectId: app.projectId! });
-            },
-          },
-        ]
-      : []),
+    ...deleteAction(
+      world,
+      () => {
+        if (app.dispatch({ projectId, kind: 'deleteWorld', worldId: world!.id }).ok) go({ view: 'overworld', projectId });
+      },
+      world && { title: 'Delete world', text: `Delete "${world.name}" and all its levels?` },
+    ),
     { label: 'Cancel' },
     {
       label: world ? 'Save' : 'Create',
@@ -433,10 +428,10 @@ export function worldForm(app: App, world?: World) {
           goalIds: checked(goals),
           unlocksAfter: orUndef(checked(unlocks)),
         };
-        if (world) return app.dispatch({ projectId: app.projectId!, kind: 'updateWorld', worldId: world.id, patch }).ok;
+        if (world) return app.dispatch({ projectId, kind: 'updateWorld', worldId: world.id, patch }).ok;
         const id = uniqueId(patch.name, Object.keys(state.worlds));
-        const ok = app.dispatch({ projectId: app.projectId!, kind: 'addWorld', world: stripUndefined({ id, ...patch, levels: [] }) }).ok;
-        if (ok) go({ view: 'world', projectId: app.projectId!, worldId: id });
+        const ok = app.dispatch({ projectId, kind: 'addWorld', world: stripUndefined({ id, ...patch, levels: [] }) }).ok;
+        if (ok) go({ view: 'world', projectId, worldId: id });
         return ok;
       },
     },
@@ -444,12 +439,11 @@ export function worldForm(app: App, world?: World) {
 }
 
 export function goalForm(app: App, goal?: Goal) {
+  const projectId = app.projectId!;
   const title = text(goal?.title);
   const desc = area(goal?.description);
   openModal(goal ? 'Edit goal' : 'New goal', h('div', null, field('Goal', title), field('Description', desc)), [
-    ...(goal
-      ? [{ label: 'Delete', kind: 'danger' as const, run: () => app.dispatch({ projectId: app.projectId!, kind: 'deleteGoal', goalId: goal.id }).ok }]
-      : []),
+    ...deleteAction(goal, () => app.dispatch({ projectId, kind: 'deleteGoal', goalId: goal!.id }).ok),
     { label: 'Cancel' },
     {
       label: goal ? 'Save' : 'Add',
@@ -458,9 +452,9 @@ export function goalForm(app: App, goal?: Goal) {
         if (!requireFilled(title)) return false;
         const values = { title: title.value.trim(), description: trimOrUndef(desc.value) };
         return goal
-          ? app.dispatch({ projectId: app.projectId!, kind: 'updateGoal', goalId: goal.id, patch: values }).ok
+          ? app.dispatch({ projectId, kind: 'updateGoal', goalId: goal.id, patch: values }).ok
           : app.dispatch({
-          projectId: app.projectId!,
+              projectId,
               kind: 'addGoal',
               goal: stripUndefined({ id: uniqueId(values.title, app.state!.overworld.goals.map((g) => g.id)), ...values }),
             }).ok;
@@ -502,19 +496,13 @@ export function projectForm(app: App, create = false) {
     return ok;
   };
   const actions = [
-    ...(!create
-      ? [
-          {
-            label: 'Delete',
-            kind: 'danger' as const,
-            run: async () => {
-              if (!(await confirmDialog('Delete project', `Delete "${o!.title}" with all its worlds and levels?`, 'Delete', true)))
-                return false;
-              if (app.dispatch({ kind: 'deleteProject', projectId: app.projectId! }).ok) go({ view: 'projects' });
-            },
-          },
-        ]
-      : []),
+    ...deleteAction(
+      o,
+      () => {
+        if (app.dispatch({ kind: 'deleteProject', projectId: app.projectId! }).ok) go({ view: 'projects' });
+      },
+      o && { title: 'Delete project', text: `Delete "${o.title}" with all its worlds and levels?` },
+    ),
     { label: 'Cancel' },
     { label: create ? 'Create' : 'Save', kind: 'primary' as const, run: save },
   ];

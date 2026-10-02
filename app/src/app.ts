@@ -1,6 +1,7 @@
 import {
   diffWorkspaces,
   findLevel,
+  findLevelAt,
   HERO_IDS,
   inverseOp,
   isReviewDue,
@@ -24,7 +25,7 @@ import {
 import { pageView, track, type Params } from './analytics';
 import { eventsForOp } from './analytics-events';
 import { heroStore, reviewStore, type ReviewPrefs } from './config';
-import type { PullData } from './data/source';
+import { pullLookup, type PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { currentRoute, href, routeProject, type Route } from './router';
 import { playSummary } from './ui/play-summary';
@@ -42,6 +43,7 @@ export type PlayEnd = 'stopped' | 'idle' | 'cleared' | 'left' | 'resumed';
 function selectionFrom(route: Route): Selection {
   return 'itemId' in route && route.itemId ? { kind: 'item', id: route.itemId } : undefined;
 }
+import { truncate } from './ui/dom';
 import { toast, undoToast } from './ui/toast';
 
 export interface PullView {
@@ -76,7 +78,7 @@ export function itemAddr(cur: LevelView) {
 
 /** Short toast text for an undoable edit, named by the item it touched. */
 function undoLabel(op: Op, before: Workspace): string {
-  const short = (t: string) => (t.length > 32 ? `${t.slice(0, 31)}…` : t);
+  const short = (t: string) => truncate(t, 32);
   const idea = (id: string) => short(before.inbox?.find((i) => i.id === id)?.title ?? id);
   if (op.kind === 'inboxAdd') return `Jotted down: ${short(op.item.title)}`;
   if (op.kind === 'inboxUpdate') return `Edited: ${idea(op.id)}`;
@@ -101,6 +103,11 @@ function undoLabel(op: Op, before: Workspace): string {
     default:
       return 'Edited';
   }
+}
+
+/** Why an edit was refused, for analytics: it clashed with other data, or failed validation. */
+function rejectReason(error?: string): 'conflict' | 'validation' {
+  return /no longer exists|already taken|cannot be|can't/.test(error ?? '') ? 'conflict' : 'validation';
 }
 
 const STATUS_WORD: Record<string, string> = { todo: 'Reopened', doing: 'Started', done: 'Done', dropped: 'Dropped' };
@@ -265,7 +272,7 @@ export class App {
     const r = this.store.dispatch(body);
     if (r.ok) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, { ...e.params, ...meta });
     if (r.ok && r.op && before && !meta?.undo && UNDOABLE.has(r.op.kind)) this.offerUndo(r.op, before);
-    if (!r.ok) track('edit_rejected', { reason: /no longer exists|already taken|cannot be/.test(r.error ?? '') ? 'conflict' : 'validation' });
+    if (!r.ok) track('edit_rejected', { reason: rejectReason(r.error) });
     if (r.polish && r.polish > 0) track('polish_penalty', { points: r.polish });
     if (!r.ok) toast(r.error ?? 'Edit rejected', 'alert', 5000);
     else if (r.polish && r.polish > 0)
@@ -281,7 +288,7 @@ export class App {
     const before = this.store.state;
     const r = this.store.dispatchBatch(bodies);
     if (!r.ok) {
-      track('edit_rejected', { reason: /no longer exists|already taken|cannot be|can't/.test(r.error ?? '') ? 'conflict' : 'validation' });
+      track('edit_rejected', { reason: rejectReason(r.error) });
       toast(r.error ?? 'Edit rejected', 'alert', 5000);
       return false;
     }
@@ -399,11 +406,9 @@ export class App {
     if (r.view === 'pr-level') {
       const v = this.pullViews.get(r.pr);
       if (!v?.data || !v.diff) return;
-      const base = v.data.base.projects[r.projectId];
-      const head = v.data.head.projects[r.projectId];
-      const world = head?.worlds[r.worldId] ?? base?.worlds[r.worldId];
-      const before = base && findLevel(base, r.worldId, r.levelId);
-      const after = head && findLevel(head, r.worldId, r.levelId);
+      const world = pullLookup(v.data).world(r.projectId, r.worldId);
+      const before = findLevelAt(v.data.base, r);
+      const after = findLevelAt(v.data.head, r);
       if (!world || (!before && !after)) return;
       const diff = v.diff.levels.find(
         (l) => l.projectId === r.projectId && l.worldId === r.worldId && l.levelId === r.levelId,

@@ -1,6 +1,7 @@
 // Procedural game cartridges, console and carpet for the project select screen.
 // Everything is seeded by the project id, so each project keeps its own look.
 import { seeded } from '@quest/shared';
+import { canvas, pick, type Rand } from './canvas';
 import { PALETTE, THEMES } from './pixels';
 import { sprite, type ThemeKey } from './render';
 
@@ -19,14 +20,6 @@ export interface CartSpec {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-export function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d')!;
-  ctx.imageSmoothingEnabled = false;
-  return [c, ctx];
-}
 
 // 3x5 pixel font for label titles: five rows of three columns per glyph.
 const GLYPHS: Record<string, string> = {
@@ -117,8 +110,6 @@ const SHELLS: [string, string, string][] = [
   ['#e43b44', '#a22633', '#3e2731'], // red
 ];
 
-type Rand = () => number;
-const pick = <T>(r: Rand, xs: T[]) => xs[Math.floor(r() * xs.length)];
 
 /** Label artwork styles. Each paints a 32x32 area at (0,0). */
 const ART: ((ctx: CanvasRenderingContext2D, r: Rand, c: { a: string; b: string; c: string }) => void)[] = [

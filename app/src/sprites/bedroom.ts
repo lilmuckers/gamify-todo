@@ -1,11 +1,10 @@
 // Bedroom floor props for the project select screen: a top-down console, a CRT
 // on the wall, and random clutter. Original designs, drawn in code.
 import { PALETTE } from './pixels';
-import { canvas, drawText } from './cartridge';
+import { canvas, pick, type Rand } from './canvas';
+import { drawText } from './cartridge';
 
 const K = PALETTE.k;
-type Rand = () => number;
-const pick = <T>(r: Rand, xs: readonly T[]) => xs[Math.floor(r() * xs.length)];
 
 function rect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, c: string) {
   ctx.fillStyle = c;

@@ -1,9 +1,11 @@
-import type {
-  Workspace,
-  MergeMethod,
-  PullDetail,
-  PullSummary,
-  ReviewEvent,
+import {
+  findLevelAt,
+  type LevelAt,
+  type Workspace,
+  type MergeMethod,
+  type PullDetail,
+  type PullSummary,
+  type ReviewEvent,
 } from '@quest/shared';
 
 export interface Capabilities {
@@ -22,6 +24,18 @@ export interface PullData {
   detail: PullDetail;
   base: Workspace;
   head: Workspace;
+}
+
+/**
+ * Finds things in a PR's data: as the PR leaves them (head), or as they
+ * were (base) for things it removes.
+ */
+export function pullLookup({ head, base }: Pick<PullData, 'head' | 'base'>) {
+  return {
+    project: (pid: string) => head.projects[pid] ?? base.projects[pid],
+    world: (pid: string, wid: string) => head.projects[pid]?.worlds[wid] ?? base.projects[pid]?.worlds[wid],
+    level: (at: LevelAt) => findLevelAt(head, at) ?? findLevelAt(base, at),
+  };
 }
 
 export interface PullProvider {

@@ -1,5 +1,5 @@
 import { track } from '../analytics';
-import { BASE_URL, repoRef } from '../config';
+import { BASE_URL, fetchText, repoRef } from '../config';
 import { h } from './dom';
 import { openModal } from './modal';
 import { toast } from './toast';
@@ -14,11 +14,7 @@ export function skillUrl(): string {
   return new URL(`${BASE_URL}${SKILL_PATH}`, location.href.split('#')[0]).href;
 }
 
-async function text(path: string): Promise<string> {
-  const res = await fetch(`${BASE_URL}${path}`, { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`Couldn't load ${path} (${res.status})`);
-  return res.text();
-}
+const text = (path: string) => fetchText(`${BASE_URL}${path}`);
 
 const skillText = () => text(SKILL_PATH);
 

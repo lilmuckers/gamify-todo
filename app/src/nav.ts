@@ -1,7 +1,9 @@
 import { orderedWorlds } from '@quest/shared';
 import { track } from './analytics';
 import type { App } from './app';
+import { pullLookup } from './data/source';
 import { runPendingUndo } from './ui/toast';
+import { isTyping } from './ui/dom';
 import { href, togglePad, withPad, type PadPage, type Route } from './router';
 
 export interface NavLink {
@@ -101,8 +103,8 @@ function screenNav(app: App, r: Route): NavModel {
       }
       const levels = v?.diff?.levels ?? [];
       const i = levels.findIndex((d) => d.projectId === r.projectId && d.worldId === r.worldId && d.levelId === r.levelId);
-      const name = (d: (typeof levels)[number]) =>
-        (v?.data?.head.projects[d.projectId] ?? v?.data?.base.projects[d.projectId])?.worlds[d.worldId]?.levels.find((l) => l.id === d.levelId)?.name ?? d.levelId;
+      const find = v?.data && pullLookup(v.data);
+      const name = (d: (typeof levels)[number]) => find?.level(d)?.name ?? d.levelId;
       const at = (d: (typeof levels)[number] | undefined) =>
         d && link(name(d), { view: 'pr-level', pr: r.pr, projectId: d.projectId, worldId: d.worldId, levelId: d.levelId });
       return {
@@ -124,7 +126,7 @@ function screenNav(app: App, r: Route): NavModel {
 export function bindNavKeys(app: App) {
   window.addEventListener('keydown', (e) => {
     if (e.defaultPrevented || e.altKey) return;
-    if (document.activeElement?.matches('input, textarea, select, [contenteditable]')) return;
+    if (isTyping()) return;
     // Ctrl/Cmd+Z: take back the last edit while its UNDO toast is showing.
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
       if (runPendingUndo()) e.preventDefault();

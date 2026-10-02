@@ -1,11 +1,10 @@
 import Phaser from 'phaser';
 import {
   dependencyMode,
-  findLevel,
   isMvpItem,
   isResolved,
   layoutLevel,
-  parseLevelRef,
+  levelRefTarget,
   scoreLevel,
   type Item,
   type Level,
@@ -15,8 +14,9 @@ import {
   type StairStep,
   type World,
 } from '@quest/shared';
-import { THEMES } from '../sprites/pixels';
+import { DIFF_COLOR, THEMES } from '../sprites/pixels';
 import { TILE, type ThemeKey } from '../sprites/render';
+import { isTyping, truncate } from '../ui/dom';
 import { toast } from '../ui/toast';
 import { itemForm, STATUS_LABEL, TYPE_INFO } from '../ui/forms';
 import { bucket, track } from '../analytics';
@@ -240,11 +240,10 @@ export class LevelScene extends QuestScene {
     this.input.on('pointerup', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       if (!this.dragged && over.length === 0) this.closeBubble();
     });
-    const typing = () => !!document.activeElement?.matches('input, textarea, select, [contenteditable]');
     // While playing, the play controls handle Esc (back out of picking first).
-    this.input.keyboard?.on('keydown-ESC', () => !typing() && !this.playing && this.closeBubble());
+    this.input.keyboard?.on('keydown-ESC', () => !isTyping() && !this.playing && this.closeBubble());
     this.input.keyboard?.on('keydown-ENTER', () => {
-      if (typing() || !this.bubble || !this.canEdit()) return;
+      if (isTyping() || !this.bubble || !this.canEdit()) return;
       const cid = criterionOf(this.bubble.itemId);
       if (cid) this.setCriterion(cid, true);
       else this.setStatus(this.bubble.itemId, 'done');
@@ -296,7 +295,7 @@ export class LevelScene extends QuestScene {
         await this.jump(Math.max(22, e.y * TILE - this.hero.height + 4));
         if (v.top) this.tweens.add({ targets: v.top, y: v.top.y - 4, yoyo: true, duration: 90 });
         this.popCoin(e.x * TILE + (e.w * TILE) / 2, GROUND_Y - (e.y + e.h) * TILE);
-        await this.pause(500);
+        await this.wait(500);
       }),
     );
     this.demo(
@@ -311,14 +310,14 @@ export class LevelScene extends QuestScene {
         if (e.kind === 'cloud') {
           // Hop on, bob along with it, hop off.
           await this.hopTo(x, top + 2);
-          await this.pause(700);
+          await this.wait(700);
         } else {
           // Hop onto the mouth, slide down out of sight, then pop back up.
           await this.hopTo(x, top);
           this.hero.setDepth(-1);
-          await new Promise<void>((resolve) => this.tweens.add({ targets: this.hero, y: top + 2 * TILE, duration: 450, onComplete: () => resolve() }));
-          await this.pause(500);
-          await new Promise<void>((resolve) => this.tweens.add({ targets: this.hero, y: top, duration: 450, onComplete: () => resolve() }));
+          await this.tween({ targets: this.hero, y: top + 2 * TILE, duration: 450 });
+          await this.wait(500);
+          await this.tween({ targets: this.hero, y: top, duration: 450 });
           this.hero.setDepth(40);
         }
         await this.hopTo((e.x + e.w) * TILE + 4, GROUND_Y);
@@ -334,9 +333,9 @@ export class LevelScene extends QuestScene {
           const spot = this.stepSpot(i);
           await this.hopTo(spot.x, spot.y, 260);
           this.perch = i;
-          await this.pause(180);
+          await this.wait(180);
         }
-        await this.pause(400);
+        await this.wait(400);
         await this.toGround();
       }),
     );
@@ -621,12 +620,18 @@ export class LevelScene extends QuestScene {
     stage.add(hit);
   }
 
-  private showCriterionTip(text: string, mvp: boolean, x: number, y: number) {
+  /** Hover tooltip: `text` in a dark box whose bottom centre sits at (x, y). Returns the text's width. */
+  private showTip(text: string, x: number, y: number, wrap: number, alpha: number) {
     this.tooltip?.destroy();
-    const t = this.text(0, 0, `${text}${mvp ? '\nMVP: needed to clear' : '\nBonus'}`, 4, '#ffffff', 120).setOrigin(0.5, 1);
+    const t = this.text(0, 0, text, 4, '#ffffff', wrap).setOrigin(0.5, 1);
     const b = t.getBounds();
-    const bg = this.add.rectangle(0, 2, b.width + 8, b.height + 6, 0x1a1c2c, 0.92).setOrigin(0.5, 1).setStrokeStyle(1, 0xfee761);
-    this.tooltip = this.add.container(x, y - 4, [bg, t]).setDepth(100);
+    const bg = this.add.rectangle(0, 2, b.width + 8, b.height + 6, 0x1a1c2c, alpha).setOrigin(0.5, 1).setStrokeStyle(1, 0xfee761);
+    this.tooltip = this.add.container(x, y, [bg, t]).setDepth(100);
+    return b.width;
+  }
+
+  private showCriterionTip(text: string, mvp: boolean, x: number, y: number) {
+    this.showTip(`${text}${mvp ? '\nMVP: needed to clear' : '\nBonus'}`, x, y - 4, 120, 0.92);
   }
 
   /** Pulsing outline round the selected item, or the flagpole for the criteria. */
@@ -738,7 +743,7 @@ export class LevelScene extends QuestScene {
     // Review badge.
     const change = diff?.items[item.id]?.change;
     if (change) {
-      const color = { added: 0x63c74d, modified: 0xfeae34, removed: 0xe43b44 }[change];
+      const color = Phaser.Display.Color.HexStringToColor(DIFF_COLOR[change]).color;
       const g = this.add.graphics();
       g.lineStyle(1, color, 1).strokeRect(-2, -2, e.w * TILE + 4, e.h * TILE + 4);
       g.fillStyle(color, 1).fillCircle(e.w * TILE + 1, -3, 5);
@@ -748,7 +753,7 @@ export class LevelScene extends QuestScene {
     }
 
     // Label in the dirt (or above floating coins).
-    const label = item.title.length > 22 ? `${item.title.slice(0, 21)}…` : item.title;
+    const label = truncate(item.title, 22);
     const lx = x + (e.w * TILE) / 2;
     const t =
       e.kind === 'coins'
@@ -773,14 +778,13 @@ export class LevelScene extends QuestScene {
   }
 
   private showTooltip(v: View) {
-    this.tooltip?.destroy();
     const { entity: e, item } = v;
     const text = `${item.title}\n${item.type.toUpperCase()} · ${item.status.toUpperCase()}${item.type !== 'stretch' && item.mvp === false ? ' · OPTIONAL' : ''}`;
-    const t = this.text(0, 0, text, 4, '#ffffff', 110).setOrigin(0.5, 1);
-    const b = t.getBounds();
-    const bg = this.add.rectangle(0, 2, b.width + 8, b.height + 6, 0x1a1c2c, 0.9).setOrigin(0.5, 1).setStrokeStyle(1, 0xfee761);
-    const x = Phaser.Math.Clamp(e.x * TILE + (e.w * TILE) / 2, this.cameras.main.scrollX + b.width / 2 + 6, this.cameras.main.scrollX + this.viewWidth - b.width / 2 - 6);
-    this.tooltip = this.add.container(x, GROUND_Y - (e.y + e.h) * TILE - 18, [bg, t]).setDepth(100);
+    const cx = e.x * TILE + (e.w * TILE) / 2;
+    const w = this.showTip(text, cx, GROUND_Y - (e.y + e.h) * TILE - 18, 110, 0.9);
+    // Keep it inside the view.
+    const left = this.cameras.main.scrollX;
+    this.tooltip!.setX(Phaser.Math.Clamp(cx, left + w / 2 + 6, left + this.viewWidth - w / 2 - 6));
   }
 
   // ---- Speech bubble ----
@@ -805,13 +809,18 @@ export class LevelScene extends QuestScene {
     this.app.dispatch({ kind: 'setCriterion', projectId: cur.projectId, worldId: cur.world.id, levelId: cur.level.id, criterionId, done });
   }
 
+  /** Takes the bubble off screen (no selection or dismissal bookkeeping). */
+  private dropBubble() {
+    this.bubble?.box.destroy();
+    this.bubble = undefined;
+    this.app.bubbleOpen = false;
+  }
+
   /** Closing an auto bubble remembers it; closing a chosen one clears the selection (and URL). */
   private closeBubble() {
     const b = this.bubble;
     if (!b) return;
-    b.box.destroy();
-    this.bubble = undefined;
-    this.app.bubbleOpen = false;
+    this.dropBubble();
     this.picking = false;
     if (b.auto) this.dismissedAuto = b.itemId;
     else if (this.app.selection?.kind === 'item' && this.app.selection.id === b.itemId) this.app.select(undefined);
@@ -830,9 +839,7 @@ export class LevelScene extends QuestScene {
     }
     if (sel?.kind !== 'item') {
       if (this.bubble && !this.bubble.auto) {
-        this.bubble.box.destroy();
-        this.bubble = undefined;
-        this.app.bubbleOpen = false;
+        this.dropBubble();
         this.picking = false;
       }
       return false;
@@ -908,7 +915,7 @@ export class LevelScene extends QuestScene {
     spec.title = item.title;
     spec.lines.push({ text: `${info.label.toUpperCase()} · ${STATUS_LABEL[item.status].toUpperCase()}${optional ? ' · OPTIONAL' : ''}`, size: 3.5, muted: true });
     // Playing: just the name and status, so the bubble hides less of the level.
-    if (item.notes && !this.playing) spec.lines.push({ text: item.notes.length > 160 ? `${item.notes.slice(0, 157)}...` : item.notes, size: 4 });
+    if (item.notes && !this.playing) spec.lines.push({ text: truncate(item.notes, 160, '...'), size: 4 });
     if (item.dependsOn?.length && !this.playing) {
       const names = item.dependsOn.map((d) => cur.level.items.find((i) => i.id === d)?.title ?? d);
       spec.lines.push({ text: `After: ${names.join(', ')}`, size: 3.5, muted: true });
@@ -962,19 +969,14 @@ export class LevelScene extends QuestScene {
 
   /** The level a cloud goes to, if it still exists. */
   private refTarget(item: Item) {
-    const state = this.app.state;
-    const ref = item.levelRef ? parseLevelRef(item.levelRef) : undefined;
-    const level = state && ref ? findLevel(state, ref.worldId, ref.levelId) : undefined;
-    if (!ref || !level) return;
-    const world = state!.worlds[ref.worldId];
-    return { ...ref, label: `${world.name}: ${level.name}`, cleared: scoreLevel(level).cleared };
+    const t = this.app.state && levelRefTarget(this.app.state, item);
+    return t && { worldId: t.worldId, levelId: t.levelId, label: `${t.world.name}: ${t.level.name}`, cleared: scoreLevel(t.level).cleared };
   }
+
 
   private openBubble(itemId: string, opts: { pop?: boolean; auto?: boolean } = {}) {
     const { pop = true, auto = false } = opts;
-    this.bubble?.box.destroy();
-    this.bubble = undefined;
-    this.app.bubbleOpen = false;
+    this.dropBubble();
     const spec = this.bubbleSpec(itemId);
     if (!spec) return;
     this.tooltip?.destroy();
@@ -1178,7 +1180,7 @@ export class LevelScene extends QuestScene {
     if (!controls) return;
     const c = controls.read();
     // A form is open: keys belong to it.
-    if (!this.input.manager.enabled || document.activeElement?.matches('input, textarea, select, [contenteditable]')) {
+    if (!this.input.manager.enabled || isTyping()) {
       // Time spent in a form isn't idling.
       this.lastInput = Date.now();
       return;
@@ -1445,43 +1447,23 @@ export class LevelScene extends QuestScene {
   private async walkTo(x: number): Promise<void> {
     // Up the stairs: hop down before walking anywhere.
     if (!this.playing && this.hero.y < GROUND_Y - 1) await this.toGround();
-    return new Promise((resolve) => {
-      const dist = Math.abs(x - this.hero.x);
-      if (dist < 1) return resolve();
-      if (!this.following) {
-        this.following = true;
-        this.cameras.main.startFollow(this.hero, true, 0.08, 0.08, -this.viewWidth / 6, 0);
-      }
-      this.hero.setFlipX(x < this.hero.x);
-      this.hero.play(heroWalk(this.app.heroId));
-      this.tweens.add({
-        targets: this.hero,
-        x,
-        duration: (dist / TILE / WALK_TILES_PER_SEC) * 1000,
-        onComplete: () => {
-          this.hero.setFlipX(false);
-          this.idle();
-          resolve();
-        },
-      });
-    });
+    const dist = Math.abs(x - this.hero.x);
+    if (dist < 1) return;
+    if (!this.following) {
+      this.following = true;
+      this.cameras.main.startFollow(this.hero, true, 0.08, 0.08, -this.viewWidth / 6, 0);
+    }
+    this.hero.setFlipX(x < this.hero.x);
+    this.hero.play(heroWalk(this.app.heroId));
+    await this.tween({ targets: this.hero, x, duration: (dist / TILE / WALK_TILES_PER_SEC) * 1000 });
+    this.hero.setFlipX(false);
+    this.idle();
   }
 
-  private jump(height = 22): Promise<void> {
-    return new Promise((resolve) => {
-      this.hero.setTexture(this.heroTex('jump'));
-      this.tweens.add({
-        targets: this.hero,
-        y: GROUND_Y - height,
-        duration: 180,
-        yoyo: true,
-        ease: 'Quad.out',
-        onComplete: () => {
-          this.idle();
-          resolve();
-        },
-      });
-    });
+  private async jump(height = 22): Promise<void> {
+    this.hero.setTexture(this.heroTex('jump'));
+    await this.tween({ targets: this.hero, y: GROUND_Y - height, duration: 180, yoyo: true, ease: 'Quad.out' });
+    this.idle();
   }
 
   private async animate(level: Level, changed: Item[], crit: Level['successCriteria'] = []) {
@@ -1549,7 +1531,7 @@ export class LevelScene extends QuestScene {
         else this.lightStep(c.id);
       }
       // Still things to do first: back to them after a moment on the step.
-      if (crit.some((c) => c.done) && this.layout.hero.kind !== 'flag') await this.pause(350);
+      if (crit.some((c) => c.done) && this.layout.hero.kind !== 'flag') await this.wait(350);
     }
     this.lightAll();
     this.wasCleared = cleared;
@@ -1561,10 +1543,6 @@ export class LevelScene extends QuestScene {
   }
 
   // ---- Stairs ----
-
-  private pause(ms: number) {
-    return new Promise<void>((resolve) => this.time.delayedCall(ms, resolve));
-  }
 
   private stepIndex(criterionId: string): number | undefined {
     return this.steps.get(criterionId)?.step.index;
@@ -1737,16 +1715,13 @@ export class LevelScene extends QuestScene {
     await this.getOnto(e.x * TILE - TILE, e.x * TILE + TILE, cloudTop);
     this.cameras.main.stopFollow();
     this.following = false;
-    await new Promise<void>((resolve) =>
-      this.tweens.add({
-        targets: [v.root, this.hero],
-        x: `+=${this.viewWidth}`,
-        y: `-=${GROUND_Y}`,
-        duration: 1100,
-        ease: 'Quad.in',
-        onComplete: () => resolve(),
-      }),
-    );
+    await this.tween({
+      targets: [v.root, this.hero],
+      x: `+=${this.viewWidth}`,
+      y: `-=${GROUND_Y}`,
+      duration: 1100,
+      ease: 'Quad.in',
+    });
     this.app.arrival = { kind: 'cloud' };
     go({ view: 'level', projectId: cur.projectId, worldId: target.worldId, levelId: target.levelId });
   }
@@ -1758,7 +1733,7 @@ export class LevelScene extends QuestScene {
   private async getOnto(from: number, x: number, top: number) {
     if (this.playing && Math.abs(this.hero.y - top) < 4) {
       this.hero.y = top;
-      await new Promise<void>((resolve) => this.tweens.add({ targets: this.hero, x, duration: 120, onComplete: () => resolve() }));
+      await this.tween({ targets: this.hero, x, duration: 120 });
       this.idle();
       return;
     }
@@ -1784,9 +1759,7 @@ export class LevelScene extends QuestScene {
     if (a.kind === 'pipe-down') {
       // Drop out of the ceiling pipe.
       this.hero.setPosition(TILE + 8, 3 * TILE + 4).setTexture(this.heroTex('jump'));
-      await new Promise<void>((resolve) =>
-        this.tweens.add({ targets: this.hero, y: GROUND_Y, duration: 520, ease: 'Bounce.out', onComplete: () => resolve() }),
-      );
+      await this.tween({ targets: this.hero, y: GROUND_Y, duration: 520, ease: 'Bounce.out' });
       this.idle();
       if (this.wasCleared && !this.current()?.sub) return this.fadeHero();
       await this.walkTo(stopX);
@@ -1801,9 +1774,7 @@ export class LevelScene extends QuestScene {
       this.hero.setDepth(-1).setPosition(e.x * TILE + (e.w * TILE - this.hero.width) / 2, mouth + 2 * TILE);
       cam.stopFollow();
       cam.centerOn(this.hero.x + TILE, WORLD_H / 2);
-      await new Promise<void>((resolve) =>
-        this.tweens.add({ targets: this.hero, y: mouth, duration: 600, delay: 200, ease: 'Linear', onComplete: () => resolve() }),
-      );
+      await this.tween({ targets: this.hero, y: mouth, duration: 600, delay: 200, ease: 'Linear' });
       this.hero.setDepth(40);
       await this.hopTo((e.x + e.w) * TILE + 4, GROUND_Y);
       this.following = false;
@@ -1820,16 +1791,13 @@ export class LevelScene extends QuestScene {
     this.hero.setPosition(cloud.x + TILE, cloud.y + 2);
     cam.stopFollow();
     cam.centerOn(landX, WORLD_H / 2);
-    await new Promise<void>((resolve) =>
-      this.tweens.add({
-        targets: [cloud, this.hero],
-        x: `+=${landX - cloud.x}`,
-        y: `+=${by - cloud.y}`,
-        duration: 1000,
-        ease: 'Quad.out',
-        onComplete: () => resolve(),
-      }),
-    );
+    await this.tween({
+      targets: [cloud, this.hero],
+      x: `+=${landX - cloud.x}`,
+      y: `+=${by - cloud.y}`,
+      duration: 1000,
+      ease: 'Quad.out',
+    });
     await this.hopTo(landX + TILE * 2, GROUND_Y);
     this.tweens.add({ targets: cloud, x: cloud.x - this.viewWidth, y: -TILE * 4, duration: 900, ease: 'Quad.in', onComplete: () => cloud.destroy() });
     this.following = false;
@@ -1837,19 +1805,9 @@ export class LevelScene extends QuestScene {
     await this.walkTo(stopX);
   }
 
-  private fadeHero(): Promise<void> {
-    return new Promise((resolve) =>
-      this.tweens.add({
-        targets: this.hero,
-        alpha: 0,
-        delay: 300,
-        duration: 300,
-        onComplete: () => {
-          this.hero.setVisible(false).setAlpha(1);
-          resolve();
-        },
-      }),
-    );
+  private async fadeHero(): Promise<void> {
+    await this.tween({ targets: this.hero, alpha: 0, delay: 300, duration: 300 });
+    this.hero.setVisible(false).setAlpha(1);
   }
 
   private popCoin(x: number, y: number, delay = 0) {
@@ -1914,9 +1872,9 @@ export class LevelScene extends QuestScene {
     this.hero.setFlipX(false).setTexture(this.heroTex('jump'));
     const slide = Math.max(250, (GROUND_Y - this.hero.y) * 6);
     if (pending?.img.active) this.tweens.add({ targets: pending.img, y: pending.y, duration: slide, ease: 'Quad.out' });
-    await new Promise<void>((resolve) => this.tweens.add({ targets: this.hero, y: GROUND_Y, duration: slide, ease: 'Quad.in', onComplete: () => resolve() }));
+    await this.tween({ targets: this.hero, y: GROUND_Y, duration: slide, ease: 'Quad.in' });
     this.idle();
-    await this.pause(120);
+    await this.wait(120);
     // Hop off over the base block and run for the castle.
     await this.hopTo(fx + TILE + 4, GROUND_Y, 300);
     await this.walkTo(L.castleX * TILE + 32);

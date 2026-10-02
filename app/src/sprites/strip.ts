@@ -1,5 +1,6 @@
 import { layoutLevel, scoreLevel, type Level, type LevelDiff } from '@quest/shared';
-import { THEMES } from './pixels';
+import { canvas } from './canvas';
+import { DIFF_COLOR, THEMES } from './pixels';
 import { sprite, TILE, type ThemeKey } from './render';
 
 const GROUND = 12 * TILE;
@@ -16,11 +17,7 @@ export interface Strip {
 export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selected?: string, sub = false, hero = 'hero'): Strip {
   const L = layoutLevel(level, { sub });
   const width = L.width * TILE;
-  const c = document.createElement('canvas');
-  c.width = width;
-  c.height = H;
-  const ctx = c.getContext('2d')!;
-  ctx.imageSmoothingEnabled = false;
+  const [c, ctx] = canvas(width, H);
   const t = THEMES[theme];
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, t.sky);
@@ -120,7 +117,7 @@ export function drawStrip(level: Level, theme: ThemeKey, diff?: LevelDiff, selec
     }
     if (item.status === 'doing') draw('sparkle', x + e.w * TILE - 4, top - 6);
     const change = diff?.items[item.id]?.change;
-    const outline = change ? { added: '#63c74d', modified: '#feae34', removed: '#e43b44' }[change] : selected === item.id ? '#fee761' : undefined;
+    const outline = change ? DIFF_COLOR[change] : selected === item.id ? '#fee761' : undefined;
     if (outline) {
       ctx.strokeStyle = outline;
       ctx.lineWidth = 1;

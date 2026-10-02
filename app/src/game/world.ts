@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { levelNodeState, scoreLevel, suggestNext, type Level, type LevelDiff, type World } from '@quest/shared';
+import { pullLookup } from '../data/source';
 import { go } from '../router';
-import { THEMES } from '../sprites/pixels';
+import { DIFF_COLOR, NODE_SPRITE, THEMES } from '../sprites/pixels';
 import { TILE, type ThemeKey } from '../sprites/render';
 import { GROUND_Y, QuestScene, tex } from './common';
 
@@ -24,7 +25,6 @@ interface Node {
 }
 
 const NODE_SPACING = 5 * TILE;
-const NODE_TEX = { cleared: 'node-clear', 'in-progress': 'node-active', open: 'node', locked: 'node-lock' } as const;
 
 /** SMB3-style path of level nodes. Also renders a PR as a "Warp World". */
 export class WorldScene extends QuestScene {
@@ -78,14 +78,12 @@ export class WorldScene extends QuestScene {
       const v = this.app.pullView(p.pr);
       if (v?.error) return { theme: 'warp', nodes: [], empty: "Couldn't load this PR" };
       if (!v?.diff || !v.data) return { theme: 'warp', nodes: [], empty: 'Loading warp world...' };
-      const { head, base } = v.data;
-      const find = (ws: typeof head, d: LevelDiff) =>
-        ws.projects[d.projectId]?.worlds[d.worldId]?.levels.find((x) => x.id === d.levelId);
+      const find = pullLookup(v.data);
       return {
         theme: 'warp',
         empty: 'This PR changes no levels',
         nodes: v.diff.levels.map((d) => {
-          const l = (find(head, d) ?? find(base, d)) as Level;
+          const l = find.level(d) as Level;
           return {
             key: `${d.projectId}/${d.worldId}/${d.levelId}`,
             name: l.name,
@@ -108,7 +106,7 @@ export class WorldScene extends QuestScene {
         return {
           key: l.id,
           name: l.name,
-          sprite: NODE_TEX[levelNodeState(w, i)],
+          sprite: NODE_SPRITE[levelNodeState(w, i)],
           stars: sc.cleared ? sc.stars : undefined,
           here: l.id === active,
           onClick: () => go({ view: 'level', projectId: p.projectId!, worldId: w.id, levelId: l.id }),
@@ -170,8 +168,7 @@ export class WorldScene extends QuestScene {
         for (let s = 0; s < 3; s++)
           layer.add(this.add.image(x - 10 + s * 10, y + 34, s < n.stars ? 'star' : 'star-empty').setScale(0.5));
       if (n.change) {
-        const color = { added: '#63c74d', modified: '#feae34', removed: '#e43b44' }[n.change];
-        layer.add(this.text(x, y + 30, n.change.toUpperCase(), 4, color).setOrigin(0.5, 0));
+        layer.add(this.text(x, y + 30, n.change.toUpperCase(), 4, DIFF_COLOR[n.change]).setOrigin(0.5, 0));
       }
       if (n.here) {
         const hero = this.add.image(x, y - 12, this.heroTex()).setOrigin(0.5, 1);

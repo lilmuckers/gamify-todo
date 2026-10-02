@@ -43,12 +43,15 @@ export function toast(text: string, tone: Tone = 'info', ms = 3500, action?: { l
   };
 }
 
+/** How long an UNDO offer stays up. */
+const UNDO_MS = 6000;
+
 let pendingUndo: { close: () => void; run: () => void } | undefined;
 
 /** One undo offer at a time: a newer one replaces the last. Ctrl/Cmd+Z runs it. */
 export function undoToast(text: string, run: () => void) {
   pendingUndo?.close();
-  const t = toast(text, 'info', 6000, {
+  const t = toast(text, 'info', UNDO_MS, {
     label: 'UNDO',
     run: () => {
       // Only the latest offer can run.
@@ -68,7 +71,7 @@ export function undoToast(text: string, run: () => void) {
   pendingUndo = offer;
   setTimeout(() => {
     if (pendingUndo === offer) pendingUndo = undefined;
-  }, 6000);
+  }, UNDO_MS);
 }
 
 /** Runs the visible undo, if any. */

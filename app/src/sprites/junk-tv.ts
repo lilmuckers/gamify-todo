@@ -7,7 +7,8 @@
 // falling blocks, RPG battle, platformer, quiz show) starring that thing,
 // drawn as a little icon in its own colours.
 import { PALETTE } from './pixels';
-import { canvas, drawText } from './cartridge';
+import { canvas } from './canvas';
+import { drawText } from './cartridge';
 import { SCREEN } from './bedroom';
 
 /** Picture size in art pixels; shown at 2x to fill the TV screen. */
