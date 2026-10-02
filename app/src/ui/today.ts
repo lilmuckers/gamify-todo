@@ -266,8 +266,9 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
     }
     open = page;
   };
-  app.subscribe(() => {
-    if (queued) return;
+  app.subscribe((change) => {
+    // The pad shows no sync status.
+    if (queued || change === 'sync') return;
     queued = true;
     setTimeout(render, 0);
   });

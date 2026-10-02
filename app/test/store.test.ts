@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ConflictError, applyOp, makeOp, type Workspace } from '@quest/shared';
-import { Store, type KV } from '../src/data/store';
+import { keepUnchanged, Store, type KV } from '../src/data/store';
 import type { DataSource } from '../src/data/source';
 import { at, lvlOf, workspace as fixture } from '../../shared/test/fixtures';
 
@@ -245,5 +245,61 @@ describe('Store', () => {
     expect(remote.commits).toHaveLength(0);
     expect(store.outbox).toHaveLength(0);
     expect(lvlOf(store.state!).items.find((i) => i.id === 'a')?.status).not.toBe('done');
+  });
+
+  it('keeps the same state object when a sync or refresh changes nothing', async () => {
+    const remote = fakeRemote(fixture());
+    const store = new Store(remote.source, memoryKV(), opts({ v: true }));
+    await store.start();
+    const loaded = store.state;
+    await store.refresh();
+    expect(store.state).toBe(loaded);
+    store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' });
+    const edited = store.state;
+    expect(edited).not.toBe(loaded);
+    await store.sync();
+    // The synced state matches what the edit already showed: same object.
+    expect(store.state).toBe(edited);
+  });
+
+  it('hands out a new state when the remote changed', async () => {
+    const remote = fakeRemote(fixture());
+    const store = new Store(remote.source, memoryKV(), opts({ v: true }));
+    await store.start();
+    const loaded = store.state;
+    remote.set(applyOp(remote.get().state, makeOp({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' })));
+    await store.refresh();
+    expect(store.state).not.toBe(loaded);
+    expect(lvlOf(store.state!).items.find((i) => i.id === 'a')?.status).toBe('done');
+  });
+});
+
+describe('keepUnchanged', () => {
+  const two = (): Workspace => {
+    const ws = fixture();
+    return { ...ws, projects: { ...ws.projects, q: structuredClone(ws.projects.p) } };
+  };
+
+  it('reuses untouched projects and replaces changed ones', () => {
+    const prev = two();
+    const next = structuredClone(prev);
+    next.projects.q.overworld.title = 'Renamed';
+    const out = keepUnchanged(prev, next);
+    expect(out).not.toBe(prev);
+    expect(out.projects.p).toBe(prev.projects.p);
+    expect(out.projects.q).toBe(next.projects.q);
+  });
+
+  it('returns the previous workspace when nothing differs', () => {
+    const prev = { ...two(), settings: { hero: 'classic' as const }, inbox: [{ id: 'i', type: 'task' as const, title: 'Idea' }] };
+    expect(keepUnchanged(prev, structuredClone(prev))).toBe(prev);
+  });
+
+  it('notices added or removed projects, settings and inbox', () => {
+    const prev = two();
+    const { q: _, ...rest } = prev.projects;
+    expect(keepUnchanged(prev, { ...prev, projects: rest })).not.toBe(prev);
+    expect(keepUnchanged(prev, { ...structuredClone(prev), settings: { hero: 'classic' } })).not.toBe(prev);
+    expect(keepUnchanged({ ...prev, inbox: [{ id: 'i', type: 'task' as const, title: 'Idea' }] }, structuredClone(prev)).inbox).toBeUndefined();
   });
 });

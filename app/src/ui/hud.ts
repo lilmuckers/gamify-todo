@@ -11,6 +11,7 @@ import { inboxCount } from './inbox';
 import { todayCount } from './today';
 import { toast } from './toast';
 import { confirmDialog, openModal } from './modal';
+import { syncFooter } from './panels';
 
 const STATUS_TEXT: Record<string, string> = {
   loading: '… loading',
@@ -21,6 +22,31 @@ const STATUS_TEXT: Record<string, string> = {
   offline: '✈ offline',
   error: '⚠ sync error',
 };
+
+/** The sync state button: saved, syncing, offline... (or the demo's warning). */
+function syncPill(app: App) {
+  const s = app.store;
+  if (s.source.id === 'demo')
+    return h(
+      'button',
+      { class: 'sync-pill demo', type: 'button', title: 'The demo saves nothing. Click for how to keep your work.', onclick: () => openModal('Demo: nothing is saved', h('div', null, demoNotice(app))) },
+      'DEMO · NOT SAVED',
+    );
+  return h(
+    'button',
+    { class: `sync-pill ${s.status}`, type: 'button', title: s.error ?? 'Sync details', onclick: () => settingsDialog(app) },
+    `${STATUS_TEXT[s.status] ?? s.status}${s.outbox.length ? ` (${s.outbox.length})` : ''}`,
+  );
+}
+
+/**
+ * Repaints only what shows sync status (the HUD pill and the panel's sync
+ * footer), for store updates that changed nothing else.
+ */
+export function repaintSyncStatus(app: App, hud: HTMLElement, panel: HTMLElement) {
+  hud.querySelector('.sync-pill')?.replaceWith(syncPill(app));
+  panel.querySelector('.sync-foot')?.replaceWith(syncFooter(app));
+}
 
 /** Top bar: where you are, how you're doing, sync state, settings. */
 export function renderHud(app: App, el: HTMLElement) {
@@ -64,8 +90,6 @@ export function renderHud(app: App, el: HTMLElement) {
     ]),
   );
 
-  const demo = s.source.id === 'demo';
-  const syncLabel = demo ? 'DEMO · NOT SAVED' : `${STATUS_TEXT[s.status] ?? s.status}${s.outbox.length ? ` (${s.outbox.length})` : ''}`;
   const publish =
     s.source.publish &&
     h(
@@ -108,13 +132,7 @@ export function renderHud(app: App, el: HTMLElement) {
         app.pulls.list?.length ? h('b', null, app.pulls.list.length) : null,
       ),
     publish,
-    h(
-      'button',
-      demo
-        ? { class: 'sync-pill demo', type: 'button', title: 'The demo saves nothing. Click for how to keep your work.', onclick: () => openModal('Demo: nothing is saved', h('div', null, demoNotice(app))) }
-        : { class: `sync-pill ${s.status}`, type: 'button', title: s.error ?? 'Sync details', onclick: () => settingsDialog(app) },
-      syncLabel,
-    ),
+    syncPill(app),
     h(
       'a',
       { class: `btn sm hud-today${r.pad === 'today' ? ' on' : ''}`, href: href(togglePad(r, 'today')), title: "Today's plan (T)" },

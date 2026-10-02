@@ -52,6 +52,30 @@ export interface StoreOptions {
 const MAX_ATTEMPTS = 3;
 
 /**
+ * `next`, reusing `prev`'s objects wherever the content is the same. A sync
+ * or refresh that changes nothing then hands back the very same state, and
+ * untouched projects keep their identity, so views can skip work by
+ * comparing references. Content that serializes differently counts as
+ * changed (the safe way round).
+ */
+export function keepUnchanged(prev: Workspace | undefined, next: Workspace): Workspace {
+  if (!prev || prev === next) return next;
+  const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b);
+  let changed = Object.keys(prev.projects).length !== Object.keys(next.projects).length;
+  const projects: Workspace['projects'] = {};
+  for (const [id, project] of Object.entries(next.projects)) {
+    const old = prev.projects[id];
+    projects[id] = old && same(old, project) ? old : project;
+    changed ||= projects[id] !== old;
+  }
+  const out: Workspace = { ...next, projects };
+  if (next.settings && same(prev.settings, next.settings)) out.settings = prev.settings;
+  if (next.inbox && same(prev.inbox, next.inbox)) out.inbox = prev.inbox;
+  changed ||= out.settings !== prev.settings || out.inbox !== prev.inbox;
+  return changed ? out : prev;
+}
+
+/**
  * Holds the game state. Edits are ops: applied locally at once, queued in a
  * persistent outbox, and replayed onto the latest remote state when syncing —
  * so offline edits survive reloads and merge cleanly with remote changes.
@@ -123,8 +147,10 @@ export class Store {
   private setBase(base: Workspace, version: string) {
     this.base = base;
     this.version = version;
-    this.state = replay(base, this.outbox).state;
-    this.issues = validateWorkspace(this.state);
+    const prev = this.state;
+    this.state = keepUnchanged(prev, replay(base, this.outbox).state);
+    // Same state, same issues: skip revalidating everything.
+    if (this.state !== prev) this.issues = validateWorkspace(this.state);
   }
 
   async start(): Promise<void> {
