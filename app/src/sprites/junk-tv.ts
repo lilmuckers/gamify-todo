@@ -132,6 +132,10 @@ const ICONS: Record<string, { map: string[]; colors: string[] }> = {
     colors: [P.r],
     map: ['....k....', '....k....', '....k....', '..kkkkk..', '.kaaaaak.', 'kaawwwaak', 'kawkkkwak', 'kaawwwaak', '.kaaaaak.', '..kkkkk..'],
   },
+  gamebook: {
+    colors: [P.R, P.u],
+    map: ['kkkkkkkkkk..', 'kbbbbbbbbkk.', 'kbaaaaaabkwk', 'kbaabbaabkwk', 'kbabYYbabkwk', 'kbbYYYYbbkwk', 'kbaaaaaabkwk', 'kbabbbbabkwk', 'kbbbbbbbbkwk', 'kkkkkkkkkkwk', '.kwwwwwwwwwk', '.kkkkkkkkkkk'],
+  },
 };
 
 /** Size of a thing's icon at scale 1. */
@@ -508,6 +512,100 @@ function yoyoSkyline(ctx: Ctx, t: JunkThing, name: string) {
   title(ctx, name, 3);
 }
 
+/** Paints a character map at (x, y); letters are PALETTE colours. */
+function paint(ctx: Ctx, map: string[], x: number, y: number, flip = false) {
+  const w = map[0].length;
+  map.forEach((row, j) => [...row].forEach((ch, i) => ch !== '.' && rect(ctx, x + (flip ? w - 1 - i : i), y + j, 1, 1, P[ch] ?? P.M)));
+}
+
+const DRAGON = [
+  '.......kk..',
+  '..k...krrk.',
+  '.krk.kruRk.',
+  'krrrkrrrrkk',
+  'krRrrrrrwwk',
+  '.krrRrrrkk.',
+  '.krkkrrk...',
+  '.kk..kk....',
+];
+
+/** A six-sided die showing `n`, top left at (x, y). */
+function d6(ctx: Ctx, x: number, y: number, n: number) {
+  rect(ctx, x, y, 7, 7, P.k);
+  rect(ctx, x + 1, y + 1, 5, 5, P.w);
+  const pips: Record<number, [number, number][]> = {
+    1: [[2, 2]],
+    2: [[0, 0], [4, 4]],
+    3: [[0, 0], [2, 2], [4, 4]],
+    4: [[0, 0], [4, 0], [0, 4], [4, 4]],
+    5: [[0, 0], [4, 0], [2, 2], [0, 4], [4, 4]],
+    6: [[0, 0], [4, 0], [0, 2], [4, 2], [0, 4], [4, 4]],
+  };
+  for (const [px, py] of pips[n] ?? pips[6]) rect(ctx, x + 1 + px, y + 1 + py, 1, 1, P.k);
+}
+
+/** {label}: the gamebook's dungeon from above, the book itself in the first room, a dragon in the last. */
+function dungeonMap(ctx: Ctx, t: JunkThing, name: string) {
+  rect(ctx, 0, 0, JUNK_W, JUNK_H, NIGHT);
+  const room = (x: number, y: number, w: number, h: number) => {
+    rect(ctx, x - 1, y - 1, w + 2, h + 2, P.M);
+    rect(ctx, x, y, w, h, '#3a4466');
+    for (let j = y + 1; j < y + h; j += 3) for (let i = x + 1 + (j % 2); i < x + w; i += 3) rect(ctx, i, j, 1, 1, '#262b44');
+  };
+  // Three rooms joined by corridors, drawn so the corridors cut through the walls.
+  room(3, 13, 20, 28);
+  room(27, 12, 15, 14);
+  room(46, 18, 19, 25);
+  rect(ctx, 22, 18, 6, 3, '#3a4466');
+  rect(ctx, 33, 25, 3, 8, '#3a4466');
+  rect(ctx, 33, 31, 14, 3, '#3a4466');
+  // Torches on the walls.
+  for (const [x, y] of [[8, 12], [18, 12], [52, 17], [60, 17]]) {
+    rect(ctx, x, y, 1, 1, P.o);
+    rect(ctx, x, y - 1, 1, 1, P.u);
+  }
+  // A chest in the middle room, the dragon in its lair, the book setting out.
+  rect(ctx, 32, 16, 7, 5, P.k);
+  rect(ctx, 33, 17, 5, 3, P.n);
+  rect(ctx, 33, 18, 5, 1, P.Y);
+  rect(ctx, 35, 18, 1, 1, P.u);
+  paint(ctx, DRAGON, 51, 26);
+  for (const [x, y] of [[48, 30], [47, 32]]) rect(ctx, x, y, 2, 1, P.o);
+  iconAt(ctx, t, 12, 30, 1);
+  // Footprints from the book towards the corridor.
+  for (let i = 0; i < 3; i++) rect(ctx, 14 + i * 3, 22 - i, 1, 1, P.l);
+  // HUD: the stats every gamebook makes you keep in pencil.
+  rect(ctx, 0, 45, JUNK_W, 7, P.k);
+  drawText(ctx, 'SKILL 9', 2, 46, P.w);
+  drawText(ctx, 'LUCK 6', 38, 46, P.u);
+  title(ctx, name, 3, P.u);
+}
+
+/** TURN TO 400: the gamebook open on a paragraph, the choices and a pair of dice. */
+function turnTo(ctx: Ctx, t: JunkThing, name: string) {
+  rect(ctx, 0, 0, JUNK_W, JUNK_H, '#262b44');
+  // Cover behind, then two parchment pages and the gutter.
+  rect(ctx, 1, 10, 66, 41, P.k);
+  rect(ctx, 2, 11, 64, 39, t.colors?.[0] ?? P.R);
+  rect(ctx, 4, 12, 29, 36, P.s);
+  rect(ctx, 35, 12, 29, 36, P.s);
+  rect(ctx, 31, 12, 2, 36, P.S);
+  rect(ctx, 35, 12, 2, 36, P.S);
+  rect(ctx, 33, 11, 2, 38, P.N);
+  // Left page: the paragraph number and its text.
+  title(ctx, '400', 14, P.R, 2, 18);
+  for (const [y, w] of [[29, 24], [32, 22], [35, 25], [38, 18], [41, 23], [44, 12]]) rect(ctx, 6, y, w, 1, P.m);
+  // Right page: what to do next, and two dice that came up double six.
+  drawText(ctx, 'FIGHT 7', 37, 15, P.k);
+  drawText(ctx, 'FLEE 21', 37, 22, P.k);
+  rect(ctx, 37, 20, 26, 1, P.S);
+  drawText(ctx, 'HIDE 99', 37, 29, P.k);
+  rect(ctx, 37, 27, 26, 1, P.S);
+  d6(ctx, 44, 38, 6);
+  d6(ctx, 53, 39, 6);
+  title(ctx, name, 2, P.u);
+}
+
 /** Every kind's screens: its own first, then genre screens with its name on. */
 export const JUNK_SCREENS: Record<string, JunkVariant[]> = {
   sock: [
@@ -600,6 +698,13 @@ export const JUNK_SCREENS: Record<string, JunkVariant[]> = {
     { title: 'YO-YO DUEL', draw: fighter },
     { title: 'YO-YO DROP', draw: drop },
     { title: 'SPIN RACER', draw: kart },
+  ],
+  gamebook: [
+    { title: '{label}', draw: dungeonMap },
+    { title: 'TURN TO 400', draw: turnTo },
+    { title: 'ROLL FOR QUEST', draw: rpg },
+    { title: 'DICE DUEL', draw: fighter },
+    { title: 'PICK A PATH', draw: quiz },
   ],
 };
 

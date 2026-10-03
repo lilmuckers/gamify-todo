@@ -126,7 +126,7 @@ data/     five example projects (customer-portal, home-maintenance, bike-restora
 - Art is original pixel art drawn in code from the palette in `sprites/pixels.ts`. No Nintendo
   assets, and no external images.
 - **Adding a hero** touches the schema, `HERO_IDS`, 16×16 sprites, 32×32 portraits, 18 tour lines
-  and 68+ easter-egg lines in that hero's own voice. Follow the full guide and checklist in
+  and 73+ easter-egg lines in that hero's own voice. Follow the full guide and checklist in
   `SPEC.md` §18. Voices come from style and personality, never from background, identity or
   accent. Tests fail until every piece is there.
 - Ids are lowercase kebab-case and never renamed. Folder and file names equal ids. `world` is a
