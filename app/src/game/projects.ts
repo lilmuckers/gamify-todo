@@ -584,7 +584,7 @@ export class ProjectsScene extends QuestScene {
     const variant = pickVariant(j.kind, this.lastVariant.get(j.kind));
     this.lastVariant.set(j.kind, variant);
     track('junk_play', { kind: j.kind, variant });
-    const egg: Egg = { kind: j.kind, colors: j.colors, variant, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, back: j.home, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
+    const egg: Egg = { kind: j.kind, colors: j.colors, variant, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, back: { x: j.home.x, y: j.home.y }, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
     this.egg = egg;
     window.addEventListener('keydown', this.onEggKey, true);
     // A click on the scene (not the dialogue box) bails out; skip the click that started it.
@@ -985,7 +985,7 @@ export class ProjectsScene extends QuestScene {
       await this.wait(500);
       // Ejected: pops out of the slot and lands back on its spot.
       await this.tween({ targets: img, scaleX: 1, scaleY: 1, y: img.y - 26, duration: 180, ease: 'Quad.out' });
-      await this.tween({ targets: img, ...egg.back, angle: home.angle, duration: 320, ease: 'Bounce.out' });
+      await this.tween({ targets: img, x: egg.back.x, y: egg.back.y, angle: home.angle, duration: 320, ease: 'Bounce.out' });
     }
     this.endEgg();
   }
