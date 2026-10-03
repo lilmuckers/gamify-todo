@@ -52,7 +52,7 @@ underground sub-level holding them. Clear the steps and the hero comes back up t
 the dependency done. Every dependency's bubble offers *Warp in* / *Hop on* (visit), *Got it!*
 (close) and *Jump over* (skip). Plain ones stay a pipe with a plant.
 
-Pick your **hero** from six characters in **⚙ Settings**. The choice is kept in your browser
+Pick your **hero** from eighteen characters in **⚙ Settings**. The choice is kept in your browser
 (next to the token). When the data is editable it is also saved to `data/settings.json` as the
 default for everyone; in read-only views your own choice wins over that default.
 
