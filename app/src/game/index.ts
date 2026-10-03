@@ -57,8 +57,8 @@ export function startGame(app: App, parent: HTMLElement) {
   document.addEventListener('quest:modal', (e) => {
     game.input.enabled = !(e as CustomEvent<boolean>).detail;
   });
-  // Dev only: lets tooling inspect or step the game.
-  if (import.meta.env.DEV) (window as unknown as { __questGame?: Phaser.Game }).__questGame = game;
+  // Dev and end-to-end test builds: lets tooling inspect or step the game.
+  if (import.meta.env.DEV || import.meta.env.VITE_E2E) (window as unknown as { __questGame?: Phaser.Game }).__questGame = game;
 
   let current = '';
   const sync = () => {

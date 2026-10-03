@@ -25,7 +25,8 @@ npm run dev                     # Pages-mode app, http://localhost:5173
 npm run dev:server              # Docker-editor API on :8787 against THIS checkout (it commits here!)
 VITE_TARGET=local npm run dev   # local-editor front end, proxies /api to :8787
 npm test                        # vitest: shared/test, app/test, server/test
-npm run typecheck               # tsc for shared, app, server
+npm run typecheck               # tsc for shared, app, server, e2e
+npm run e2e                     # Playwright: builds both targets, drives them in Chromium (e2e/README.md)
 npm run validate                # schema + semantic validation of data/
 npm run format:data             # canonical formatting of data/ (CI only warns)
 npm run schema:gen              # regenerate types.gen.ts + validators.gen.js after editing schema/
@@ -36,7 +37,8 @@ docker compose up --build       # local editor at http://localhost:8080
 `.claude/launch.json` defines `app-pages` (5173), `server` (8787), `app-local` (5174) and
 `app-preview` (4173).
 
-**Before pushing**, run `npm run typecheck`, `npm test` and `npm run validate`. If you touched
+**Before pushing**, run `npm run typecheck`, `npm test` and `npm run validate`, plus
+`npm run e2e` if you changed a flow it covers (scenes, panels, pads, sync). If you touched
 `schema/`, also run `npm run schema:check`. CI (`.github/workflows/validate.yml`) runs all of
 these on every PR. `pages.yml` deploys `main` to GitHub Pages.
 
@@ -64,6 +66,7 @@ app/      Vite + Phaser 3 + plain DOM (no framework)
   src/ui/           DOM: hud, panels, forms, today/inbox/weekly (legal pad), settings, toast, modal, dialogue, onboarding/
   src/analytics*.ts GA4 with an allow-list; nothing identifying leaves the browser
 server/   Fastify API for the Docker editor: reads/writes data/, commits, publishes, proxies PRs
+e2e/      Playwright end-to-end tests: pages/, mobile/, local/ specs; helpers wait on game state, not sleeps
 data/     five example projects (customer-portal, home-maintenance, bike-restoration, allotment, kitchen-renovation)
 ```
 

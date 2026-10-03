@@ -49,6 +49,7 @@ function dataIndex(): string {
  * Pages build, plus data/index.json (static hosting can't list folders).
  */
 function repoData(): Plugin {
+  let outDir = join(__dirname, 'dist');
   const dirs = ['data', 'schema', 'skills'];
   const types: Record<string, string> = {
     '.json': 'application/json',
@@ -57,6 +58,9 @@ function repoData(): Plugin {
   };
   return {
     name: 'quest-repo-data',
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir);
+    },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         // The demo's copy of the example games (the Docker build ships them under examples/).
@@ -79,10 +83,10 @@ function repoData(): Plugin {
       // Schema and skill ship with every build; data only with the static Pages site.
       for (const d of target === 'pages' ? dirs : dirs.filter((d) => d !== 'data'))
         if (existsSync(join(repoRoot, d)))
-          cpSync(join(repoRoot, d), join(__dirname, 'dist', d), { recursive: true, filter: (src) => !/__pycache__|\.pyc$/.test(src) });
+          cpSync(join(repoRoot, d), join(outDir, d), { recursive: true, filter: (src) => !/__pycache__|\.pyc$/.test(src) });
       // The Docker editor reads live data through its API; it still ships the
       // example games, under examples/, for Play the demo.
-      const dataDir = target === 'pages' ? join(__dirname, 'dist', 'data') : join(__dirname, 'dist', 'examples', 'data');
+      const dataDir = target === 'pages' ? join(outDir, 'data') : join(outDir, 'examples', 'data');
       if (target !== 'pages' && existsSync(join(repoRoot, 'data'))) cpSync(join(repoRoot, 'data'), dataDir, { recursive: true });
       mkdirSync(dataDir, { recursive: true });
       writeFileSync(join(dataDir, 'index.json'), dataIndex());

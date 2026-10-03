@@ -7,3 +7,7 @@ coverage
 __pycache__/
 *.pyc
 .vite/
+test-results
+playwright-report
+e2e/.tmp
+app/dist-e2e-*
