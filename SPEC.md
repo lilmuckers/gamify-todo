@@ -21,7 +21,8 @@ version of each deliverable, then move on.
   the skill are also published there.
 - **Users:** the owner first, then household members and friends (non-developers too) who keep
   their own data repo. LLM assistants (Claude, ChatGPT) are first-class editors of the data.
-- **Boot splash brand:** "FiftyPIFS" (a pixel penguin in fuzzy socks) shows while the app loads.
+- **Company:** FiftyPIFS ("fifty penguins in fuzzy socks"), the owner's company. Its logo (a
+  pixel penguin in fuzzy socks) and wordmark make up the boot splash shown while the app loads.
 
 ### Design principles
 

@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Guidance for Claude (and other agents) working in this repo. The full product spec is in
-[`spec.md`](spec.md): read it before changing behaviour. User-facing docs are in
+[`SPEC.md`](SPEC.md): read it before changing behaviour. User-facing docs are in
 [`README.md`](README.md), the data format is in [`schema/README.md`](schema/README.md), and the
 LLM data skill is in [`skills/quest-log/SKILL.md`](skills/quest-log/SKILL.md).
 
@@ -13,8 +13,9 @@ project → world → level → items. A level is one deliverable with a time-bo
 criteria, and it clears when its MVP criteria are ticked. All state is JSON under `data/` in a
 GitHub repo: this one, or any repo the user picks in Settings.
 
-The boot splash says **FiftyPIFS** (penguin in fuzzy socks). That is deliberate branding for the
-loading screen. The app itself is still called Quest Log.
+**FiftyPIFS** ("fifty penguins in fuzzy socks") is the owner's company. Its logo (a pixel penguin
+in fuzzy socks) and wordmark make up the boot splash in `app/index.html`. The app itself is
+Quest Log.
 
 ## Commands
 
@@ -149,4 +150,4 @@ data/     five example projects (customer-portal, home-maintenance, bike-restora
 
 Open issues are the backlog. The big one is **#76**: modularise the game into a `GameStyle` so
 other retro styles (#77–#83) can be added. Others: #62 (demo data repo), #57 (secret sandbox
-cartridge), #30 (Sign in with GitHub), #36 (Plan with AI). See `spec.md` §16.
+cartridge), #30 (Sign in with GitHub), #36 (Plan with AI). See `SPEC.md` §16.
