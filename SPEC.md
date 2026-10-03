@@ -393,7 +393,8 @@ Each hero has:
   plus per-hero hair, clothes and accessories;
 - their own voice in the tour lines and easter-egg lines.
 
-Precedence: in read-only views the viewer's own choice wins over the repo default.
+Precedence: in read-only views the viewer's own choice wins over the repo default. §18 covers how
+to add a hero: the art, the voice and every line they need.
 
 ---
 
@@ -674,3 +675,211 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   detection, copy-on-write ops, in-place level stage.
 - **#73–#75, #84** FiftyPIFS boot splash; play mode keeps pipe arrivals; last game beside the
   console; animation catch-up after hidden tabs.
+
+---
+
+## 18. Adding a hero
+
+A hero is one identity that shows up in many places, as art and as a voice. Every hero needs
+**all** of the pieces below. The typecheck and the tests fail until each one is there, so a
+half-added hero can't ship.
+
+### 18.1 Where a hero appears
+
+| Place | What's shown | Source |
+|---|---|---|
+| Level scene | Walks, jumps, rides clouds, warps, climbs the stairs; steered in play mode | Sprite frames |
+| Overworld and world maps | Stands and walks between nodes | Sprite frames |
+| Tour demos | Bumps a `?` block, dives into a pipe, climbs the stairs | Sprite frames |
+| HUD and mobile tab bar | Small icon by the title, and on the Next tab | Standing frame |
+| Mobile level strip | Stands at the next stop | Standing frame |
+| Settings → Your hero | Carousel, walking in place, with label and description | Frames + `label` + `description` |
+| Welcome screen | A random cast of three on the box cover (standing or jumping) | Frames |
+| Set-up guide | The hero gives tips in the margin | Standing frame |
+| Legal pad (Today, Inbox, Review) | The hero's hands hold the pad | Skin colour, slot `3` |
+| Tour dialogue box | Portrait + emote + the hero's tour lines | Portraits + tour lines |
+| Console easter egg | Portrait + emote + the hero's reaction | Portraits + junk lines |
+| `data/settings.json`, analytics | The hero id (`hero_select`, the `hero` user property) | `HeroId` |
+
+The bedroom clutter quips and the flagpole "whack" lines are shared by every hero, so a new
+hero needs nothing there.
+
+### 18.2 The art
+
+All art is original pixel art written as **character maps**: arrays of strings, one character
+per pixel, with `.` for transparent. The characters are either a hero's own colour slots (the
+digits) or shared `PALETTE` letters (`app/src/sprites/pixels.ts`), such as `k` (outline
+`#1a1c2c`), `w` (white), `q` (mouth pink), `l` (pale lens) and `u` (highlight yellow).
+Don't add new palette letters for one hero. Use the colour slots instead.
+
+**Colour slots** (`HeroDef.colors` in `app/src/sprites/heroes.ts`), ten hex colours per hero:
+
+| Slot | Role | Slot | Role |
+|---|---|---|---|
+| `1` | Hair | `6` | Top accent |
+| `2` | Hair shade | `7` | Bottoms |
+| `3` | Skin (also tints the hands holding the legal pad) | `8` | Bottoms shade |
+| `4` | Skin shade | `9` | Shoes |
+| `5` | Top | `0` | Shoe accent |
+
+**Sprite frames: 16×16, three of them.** `stand`, `walk` and `jump` each have exactly 16 rows of
+16 characters. Keep to 16×16. The small size is the retro look, and `heroes.test.ts` enforces
+it.
+
+- Draw on the **common body** so heroes line up: the head in rows 1–8, the top in rows 9–11
+  with the arms in rows 10–11, the bottoms in row 12, the legs in row 13, the shoes in row 14,
+  and the soles in row 15. Outline everything in `k`. Eyes are `k` pupils with `w` where needed,
+  and the mouth is `qq`.
+- Usually you draw only `stand` and wrap it in `poses([...])`. That derives `walk` (arms swing,
+  legs stride) and `jump` (arms up, legs tucked), copying leg and shoe colours so stripes and
+  checks carry over.
+- Draw the three frames by hand only when the body breaks the template. `drag-glam`'s gown is
+  the example.
+- `classic` is the exception: its frames live in `pixels.ts` as the original hero.
+- Give the hero one or two **signature details** that read at 16px: a hat, glasses, a beanie
+  stripe, a pin, a mohawk. Mixed skin tones, genders, ages and styles are the point of the
+  roster.
+
+**Portraits: 32×32, two expressions** (`neutral` and `reacting`), in
+`app/src/sprites/portraits.ts`. This is the one deliberate exception to "everything is 16px".
+You don't draw a portrait pixel by pixel. You add a `BUILD[id]` entry whose `draw(p, f)` builds
+it from shared parts:
+
+- `body(p, top)` gives the shared hand-shaped head, ears, neck and shoulders, lit from the top
+  left with a diagonal jaw shadow. Pass the clothing slot for the shoulders.
+- `face(p, f, { browY, lashes, lips })` draws the brows, eyes (lid, white, iris, pupil), nose and
+  mouth for the expression. In `reacting`, one brow shoots up, the other goes down and in, the
+  eyes widen and the mouth opens. Raise `browY` when glasses sit high.
+- Hair helpers: `dome` (cropped, with a ragged fringe), `longBack` (falls behind the shoulders),
+  `curls` (2×2 clusters), `lock` (a strand down the side of the face). Hair is a pixel proud of
+  the skull, with clean strand lines and no dither.
+- Extras: `glasses(p, round)`, `neckline(p, slot)`, plus `rect`/`stamp`/`each` for clothes,
+  patterns and accessories that **match the sprite**: the same hat, the same colours, the same
+  signature detail.
+- Role symbols (`@` skin, `%` shade, `#` hair, `=` hair shade, `~` brow, `&` iris, `^` mouth)
+  map to the hero's slots by default. Override them with `roles` when a hero needs it; for
+  example, `classic` uses palette letters.
+- `build()` adds the 1px `k` outline round the silhouette. The test checks that the outline is
+  there, that the two faces differ, that the shoulders fill the bottom row, and that only the
+  hero's slots and palette letters are used.
+
+**Metadata.** Give the hero a `label` (2–3 words: "Hijab skater", "Beard & glasses") and a
+`description` (one line: hair, top, bottoms, shoes, plus the signature detail). Use the same
+description wording in the schema.
+
+### 18.3 The voice
+
+Every hero speaks in **first person**, in a voice that comes from their **style and
+personality**. That means their clothes, hobbies and attitude. A voice **never** comes from
+background, ethnicity, religion, gender, sexuality or an accent. Pride-themed heroes are cheerful
+or calm or theatrical, not "about" their identity. In the tour, **the joke never hides the
+instruction**.
+
+The current voices, as a guide to staying distinct (a new hero should sound like none of them):
+
+| Hero | Voice | Typical words |
+|---|---|---|
+| classic | Upbeat platform hero, all exclamation | "Wahoo!", power-up, 1-UP, let's go |
+| bearded | Dry, deadpan, weary sarcasm | "Well.", "Thrilling.", "I checked." |
+| redhead | Breezy and easy-going, likes a bit of chaos | "Honestly", "Lovely", "no stress" |
+| mustard-jumper | Precise rule-follower, reads the manual | "To be clear", spec, FAQ, warranty |
+| denim-jacket | Art-school; everything is a piece | installation, medium, canvas, sketchbook |
+| hoodie | Speedrunner and gamer | any%, frame perfect, GG, splits, binds |
+| emo | Gloomy and self-deprecating, secretly enjoying it | "Same.", "(I care.)", "Tell no one." |
+| goth | Grand, morbid, poetic | abyss, tomb, epitaph, behold, ascend |
+| punk | Loud, anti-rules, caps | "Oi!", "No rules!", "Watch me." |
+| rainbow-tee | Warm cheerleader | "You've got this!", "main character era" |
+| trans-flag-hair | Gentle and tender, kind to objects | "little sock", "be brave", "live your dream" |
+| trans-pin | Calm, understated, reassuring | "Take your time", "quietly impressive" |
+| bi-bomber | Cool and confident | "First try. Obviously.", "Clean. Smooth." |
+| drag-glam | Theatrical diva | "Darling", iconic, serving, scandalous |
+| nb-beanie | Philosophical, questioning | "Is anything?", "Let's sit with that." |
+| hijab-skater | Skater tricks and stoke | kickflip, ollie, drop in, stick the landing |
+| silver-locs | Warm elder gardener | "love", "dear", "In my day", "Mind my knees" |
+| flannel | Practical DIY maker, terse | gasket, truck, "If it works, it works" |
+
+**Line format** (shared by the tour and the easter egg; parsed by `parseLine` in
+`app/src/ui/dialogue.ts`):
+
+- A **mood mark** first: `+` happy, `=` meh, `!` shocked, `-` sad. Meh and shocked lines show
+  the `reacting` portrait; happy and sad lines show `neutral`. The mood also picks the emote in
+  the portrait's corner. Choose marks that suit the voice: mostly `=` for bearded, mostly `+`
+  for rainbow-tee.
+- Exactly **one `*keyword*`**, which is highlighted in the box.
+- No other `*`, `{` or `}` except the placeholders below.
+- Plain British English, short sentences, typed out in a dialogue box, so keep them punchy.
+
+### 18.4 Lines needed, place by place
+
+**1. Tour lines** in `app/src/ui/onboarding/tour-lines.ts`, `TOUR_LINES[id]`: **2 variants ×
+9 stops = 18 lines.** A repeat tour swaps to the other variant, so both must stand alone. Each
+line must teach that stop's `CORE` point, and its keyword must be the concept for that stop:
+
+| Stop | Must get across (`CORE`) | Keyword must match |
+|---|---|---|
+| `bedroom` | Each cartridge is a project: hover to read it, click to play. | `cartridge` |
+| `project` | The map is one project: islands are worlds (phases), the path is their order. | `map` |
+| `world` | Each stop is a level: one milestone with a time-box. | `level` |
+| `level` | Tasks are ? blocks: click to read, DONE completes it, the hero walks on. | `? block` |
+| `deps` | Dependencies: a warp pipe has steps below, a cloud waits on another level. | `warp pipe` |
+| `flag` | The stairs to the flagpole are success criteria: tick the must-dos to clear; good enough. | `flagpole` |
+| `pad` | Today shows what is late and next; the Inbox holds ideas (T, I, N). | `Today` |
+| `play` | PLAY (or P) lets you steer the hero; bumping blocks finishes tasks. | `play` |
+| `ai` | The AI skill lets ChatGPT or Claude update your quests; then demo or get started. | `AI skill` |
+
+Further rules for tour lines:
+- **≤ 140 characters** after the marks come off (`MAX_TOUR_LINE`), so the box never scrolls.
+- **Write for desktop.** `forTouch()` rewrites lines for phones: "Hover to read it" → "Read
+  it", "click" → "tap", "Point at" → "Pick", and the "T, I and N" key phrases → "Tabs at the
+  bottom". Use those phrasings so the rewrite reads naturally, and check that no "hover",
+  "click" or key names are left afterwards (the test checks this).
+- `play` is skipped on phones, so don't refer back to it from another stop.
+
+**2. Easter-egg lines** in `app/src/game/junk-lines.ts`, `LINES[id]`: **5 lines × 13 kinds +
+3+ fallbacks = 68+ lines.** Each line is the hero's reaction to seeing a thing jammed in the
+console:
+
+| Kind | The thing | Kind | The thing |
+|---|---|---|---|
+| `sock` | A sock | `cassette` | A tape (`{label}` = its scrawled title) |
+| `snack` | A snack bag (`{label}` = its brand) | `banana` | A banana |
+| `soda` | A fizzy can | `duck` | A rubber duck |
+| `juice` | A juice carton (drips in) | `donut` | A donut |
+| `pizza` | A pizza slice | `teddy` | A teddy bear |
+| `comic` | A comic (`{label}` = its sound word) | `yoyo` | A yo-yo |
+| `controller` | The controller itself | `any` | Fallback for kinds added later (3+ lines, generic) |
+
+Further rules for easter-egg lines:
+- Five **different** lines per kind, because the picker never repeats a line twice running.
+- `{label}` only in `snack`, `comic` and `cassette` lines.
+- `{game}` is the title on the TV, which is one of five screens per kind (its own, plus genres
+  like kart racer, shooter, fighter, falling blocks, RPG battle, platformer, quiz show). Use it
+  in about one line per kind, and make the line work whichever genre came up.
+- Mix the moods. A hero reacting to juice flooding the console can be shocked or sad, even if
+  they're usually upbeat.
+
+**3. Nothing else.** The clutter hover quips (`app/src/game/quips.ts`) and flagpole whack lines
+are hero-neutral.
+
+### 18.5 Checklist
+
+1. **Schema:** add the id and a one-line look description to `$defs.HeroId` in
+   `schema/quest.schema.json` (`Settings.hero` refers to it). Then run `npm run schema:gen`.
+   `quest.py` reads the bundled schema, so it picks up the new value with no code change.
+2. **Model:** add the id to `HERO_IDS` in `shared/src/model.ts`. Order sets the Settings
+   carousel; put new heroes at the end.
+3. **Sprites:** add a `HEROES[id]` entry (label, description, colours, frames) in
+   `app/src/sprites/heroes.ts`.
+4. **Portraits:** add a `BUILD[id]` entry in `app/src/sprites/portraits.ts`.
+5. **Tour lines:** add `TOUR_LINES[id]` (18 lines).
+6. **Easter-egg lines:** add `LINES[id]` (68+ lines).
+7. **Docs:** add the id to the settings table in `skills/quest-log/SKILL.md`, update the hero
+   count in `README.md` and in §5.11 here, and add a row to the voice table in §18.3.
+8. **Check:** `npm run typecheck` (the `Record<HeroId, …>` maps fail on a missing entry),
+   `npm test` (`heroes`, `portraits`, `junk-lines` and `tour` tests), `npm run schema:check`.
+   Then look at the hero in the app: Settings carousel, a level (walk, jump, play mode), the
+   tour (`?welcome` → Take the tour, after picking the hero), the console egg on the bedroom
+   floor, and a phone-width window. Check that the sprite reads against every world theme and
+   that the portrait matches it.
+9. **Don't commit** the `data/settings.json` change the app makes when you pick the hero to test
+   it (see "quest: settings: hero = goth", which was reverted).

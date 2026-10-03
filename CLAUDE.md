@@ -125,9 +125,10 @@ data/     five example projects (customer-portal, home-maintenance, bike-restora
   They have been reverted before ("Revert stray app data edits", "quest: settings: hero = goth").
 - Art is original pixel art drawn in code from the palette in `sprites/pixels.ts`. No Nintendo
   assets, and no external images.
-- Every hero must have sprites (`sprites/heroes.ts`), portraits (`sprites/portraits.ts`), tour
-  lines (`ui/onboarding/tour-lines.ts`) and junk lines (`game/junk-lines.ts`). Tests enforce
-  coverage for all 18.
+- **Adding a hero** touches the schema, `HERO_IDS`, 16×16 sprites, 32×32 portraits, 18 tour lines
+  and 68+ easter-egg lines in that hero's own voice. Follow the full guide and checklist in
+  `SPEC.md` §18. Voices come from style and personality, never from background, identity or
+  accent. Tests fail until every piece is there.
 - Ids are lowercase kebab-case and never renamed. Folder and file names equal ids. `world` is a
   reserved level id.
 - Mobile: the compact DOM UI is used under 768px wide or on short touch screens. Text fields are
