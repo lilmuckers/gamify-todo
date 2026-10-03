@@ -182,11 +182,12 @@ export const onboardedStore = {
 
 /**
  * Special modes picked by the URL: ?demo (in-memory editing), ?tour (example data),
- * ?welcome (show the splash), ?jam (one of each jammable thing on the bedroom floor, all jammable).
+ * ?welcome (show the splash), ?jam (one of each jammable thing on the bedroom floor, all jammable),
+ * ?jamzoom (the camera closes in on the console while a thing goes in; off by default while it's tried out).
  */
-export function urlMode(search = location.search): { demo: boolean; tour: boolean; welcome: boolean; jam: boolean } {
+export function urlMode(search = location.search): { demo: boolean; tour: boolean; welcome: boolean; jam: boolean; jamZoom: boolean } {
   const q = new URLSearchParams(search);
-  return { demo: q.has('demo'), tour: q.has('tour'), welcome: q.has('welcome'), jam: q.has('jam') };
+  return { demo: q.has('demo'), tour: q.has('tour'), welcome: q.has('welcome'), jam: q.has('jam'), jamZoom: q.has('jamzoom') };
 }
 
 /** Reloads the app with a mode flag on (or all mode flags off), keeping the screen. */

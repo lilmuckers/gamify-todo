@@ -628,10 +628,9 @@ export class ProjectsScene extends QuestScene {
   }
 
   /**
-   * Closes in on the console, lifts the thing over the slot and squashes it in,
-   * with a bit of comedy per kind. Each bit takes a second or so, close up,
-   * because at floor zoom the thing is a few pixels across and it all reads as
-   * a spin and a squish.
+   * Lifts the thing over the slot and squashes it in, with a bit of comedy per
+   * kind. Each bit takes a second or so, with big moves and a sound word, so it
+   * reads at floor zoom. `?jamzoom` also closes the camera in on the console.
    */
   private async insertJunk(egg: Egg) {
     const { img, kind } = egg;
@@ -647,10 +646,12 @@ export class ProjectsScene extends QuestScene {
     if (kind === 'juice') this.pickUpCup(egg);
     const fit = Math.min(1, SLOT.w / (kind === 'juice' ? 29 : Math.max(img.width, img.height)));
     const gone = () => egg.cancelled;
-    const cam = this.cameras.main;
-    const close = Math.max(this.floorZoom, Math.min(cam.width / 230, cam.height / 170));
-    cam.pan(at.x, at.y - 10, 450, 'Sine.easeInOut');
-    cam.zoomTo(close, 450, 'Sine.easeInOut');
+    if (urlMode().jamZoom) {
+      const cam = this.cameras.main;
+      const close = Math.max(this.floorZoom, Math.min(cam.width / 230, cam.height / 170));
+      cam.pan(at.x, at.y - 10, 450, 'Sine.easeInOut');
+      cam.zoomTo(close, 450, 'Sine.easeInOut');
+    }
 
     // Juice drips all the way there.
     if (kind === 'juice') egg.dripping = this.time.addEvent({ delay: 45, loop: true, callback: () => this.drip(egg) });
