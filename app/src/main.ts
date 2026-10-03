@@ -36,6 +36,14 @@ function useMobile(): boolean {
   return window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-height: 500px)').matches;
 }
 
+/** Fades out the boot splash from index.html. */
+function dismissBoot() {
+  const boot = document.getElementById('boot');
+  if (!boot || boot.classList.contains('boot-done')) return;
+  boot.classList.add('boot-done');
+  setTimeout(() => boot.remove(), 250);
+}
+
 async function main() {
   // Before anything writes its own keys.
   const firstVisit = isFirstVisit();
@@ -91,9 +99,20 @@ async function main() {
   }
   // The welcome screen doesn't need the data: show it while that loads.
   void import('./ui/onboarding').then((m) => m.startOnboarding(app, { firstVisit }));
-  await store.start();
+  // The splash covers the empty shell until there's something to show: the
+  // offline copy if there is one, else the first load (or its failure).
+  const unsubBoot = store.subscribe(() => {
+    if (store.state) dismissBoot();
+  });
+  await store.start().finally(() => {
+    unsubBoot();
+    dismissBoot();
+  });
   // The tab closed mid-game last time: ask about that session's edits now.
   if (store.held.size) app.reviewHeld('resumed');
 }
 
-void main();
+main().catch((err) => {
+  dismissBoot();
+  throw err;
+});
