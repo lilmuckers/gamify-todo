@@ -57,6 +57,9 @@ export abstract class QuestScene extends Phaser.Scene {
 
   init(_params?: object) {
     this.app = this.registry.get('app') as App;
+    // Tweens keep their own clock, which by default turns a long frame into a
+    // 33 ms one; let them see real time, like the rest of the game (#21).
+    this.tweens.setLagSmooth();
   }
 
   /** Texture of the player's chosen hero. */

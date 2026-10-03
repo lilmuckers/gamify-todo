@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { App } from '../app';
 import type { Route } from '../router';
 import { BootScene } from './boot';
+import { catchUpOnResume } from './catch-up';
 import { LevelScene } from './level';
 import { OverworldScene } from './overworld';
 import { ProjectsScene } from './projects';
@@ -44,11 +45,15 @@ export function startGame(app: App, parent: HTMLElement) {
     scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth, height: parent.clientHeight },
     scene: [BootScene, ProjectsScene, OverworldScene, WorldScene, LevelScene],
     banner: false,
+    // Use real frame times: smoothing swaps long frames for a ~16 ms one, so a
+    // throttled tab (about 1 fps) stretched a 2 s warp into a minute (#21).
+    fps: { smoothStep: false },
     // Only listen on the canvas: window-level listeners let clicks on DOM
     // modals fall through to whatever game object sits underneath.
     input: { windowEvents: false, mouse: { preventDefaultWheel: true } },
   });
   game.registry.set('app', app);
+  catchUpOnResume(game);
   document.addEventListener('quest:modal', (e) => {
     game.input.enabled = !(e as CustomEvent<boolean>).detail;
   });
