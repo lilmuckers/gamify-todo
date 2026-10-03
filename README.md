@@ -235,6 +235,7 @@ npm run dev:server           # API on :8787 against this checkout (commits here!
 VITE_TARGET=local npm run dev   # local-editor app, proxies /api to :8787
 npm test                     # vitest: shared model, store sync, server, GitHub client
 npm run typecheck
+npm run e2e                  # Playwright: builds the app, then drives it in Chromium (see e2e/)
 npm run validate             # schema + semantic validation of data/
 npm run format:data          # rewrite data/ in the canonical format the app writes
 npm run schema:gen           # regenerate types + validators after editing the schema
