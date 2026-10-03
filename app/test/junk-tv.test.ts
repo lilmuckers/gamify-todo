@@ -63,5 +63,7 @@ describe('clutter', () => {
     expect([...EVERY_KIND, 'controller'].sort()).toEqual([...JUNK_KINDS].sort());
     expect(urlMode('?demo&jam').jam).toBe(true);
     expect(urlMode('?demo').jam).toBe(false);
+    expect(urlMode('?jam&jamzoom').jamZoom).toBe(true);
+    expect(urlMode('?jam').jamZoom).toBe(false);
   });
 });

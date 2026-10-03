@@ -209,9 +209,10 @@ touch screens, and can be overridden in Settings or with `?mobile=on|off`.
 #/today, #/review                         short forms
 ```
 
-Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`, and `?jam` (for testing: one of every
-jammable thing on the bedroom floor, and all of them go in the console). Android share-target
-params are `share-title`, `share-text` and `share-url`.
+Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`, `?jam` (for testing: one of every
+jammable thing on the bedroom floor, and all of them go in the console) and `?jamzoom` (the
+camera closes in on the console while a thing goes in; off by default while it's tried out).
+Android share-target params are `share-title`, `share-text` and `share-url`.
 
 ### 5.2 Project select: the bedroom floor
 
@@ -225,7 +226,7 @@ and the camera pans up to the TV.
   donut, teddy, yo-yo and a pick-your-path fantasy gamebook, laid out randomly each visit.
   Hovering (or tapping) lifts an item and it mutters a quip.
 - **Easter egg (#56):** each visit, one non-game thing is "jammable" ("…wonder if it fits?").
-  Clicking it closes in on the console for a bit of comedy per kind, with pop-up sound words
+  Clicking it plays a bit of comedy per kind at the console, with pop-up sound words
   (the sock is dangled then stuffed in, the snack bag upended for crumbs, the can shaken until
   it fizzes out of the slot, the tape ejected once, the controller yanked back by its own cable,
   and so on). Then it squashes in and the console boots to a silly TV title screen. Each kind
