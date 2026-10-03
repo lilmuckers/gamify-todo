@@ -3,7 +3,7 @@ import type { PropKind } from '../sprites/bedroom';
 /** Things on the bedroom floor that aren't games, but have opinions anyway. */
 export type Thing = PropKind | 'console' | 'controller' | 'tv';
 
-/** `{label}` is replaced with the words printed on the thing (snack brand, comic sound). */
+/** `{label}` is replaced with the words printed on the thing (snack brand, comic sound, book title). */
 const QUIPS: Record<Thing, string[]> = {
   sock: [
     'SOCK... it\'s... it\'s a sock...',
@@ -90,6 +90,13 @@ const QUIPS: Record<Thing, string[]> = {
     'Up, down, up, down. Like your motivation.',
     'Around the world! ...Around the bed, at least.',
     'The string has a knot older than the console.',
+  ],
+  gamebook: [
+    '{label}. Book 4 of 12. You only own book 4.',
+    'Finger still in page 112, just in case.',
+    'You are in a messy bedroom. There is a sock. Turn to 7.',
+    'The pencil map in the back is mostly rubbed out.',
+    'Roll two dice. The dice are under the bed. Good luck.',
   ],
   console: [
     'Blow on the cartridge first. It doesn\'t help. Do it anyway.',

@@ -56,7 +56,7 @@ interface Egg {
   shadow?: Phaser.GameObjects.Image;
   shadowAt?: { x: number; y: number };
   home: Placed;
-  /** Juice drips left on the way to the console. */
+  /** Juice drips (and the gamebook's die) left on the way to the console. */
   drips: Phaser.GameObjects.GameObject[];
   screen?: Phaser.GameObjects.Container;
   /** Texture of the title screen on the TV, freed when the egg ends. */
@@ -670,6 +670,18 @@ export class ProjectsScene extends QuestScene {
         await this.tween({ targets: img, x: at.x, y: at.y, angle: c.angle + 180 * (i + 1), duration: 150, ease: 'Quad.in' });
         await this.tween({ targets: img, x: at.x + lift.x, y: at.y + lift.y, angle: c.angle + 360 * (i + 1), duration: 170, ease: 'Quad.out' });
       }
+    }
+    if (kind === 'gamebook') {
+      // Riffled open and shut, flicking ahead to see how it ends, then a die rolls off it.
+      for (let i = 0; i < 3; i++) {
+        await this.tween({ targets: img, scaleX: -1.1, duration: 70, ease: 'Sine.inOut' });
+        await this.tween({ targets: img, scaleX: 1.1, duration: 70, ease: 'Sine.inOut' });
+      }
+      const die = this.add.rectangle(img.x, img.y, 5, 5, 0xf4f4f4).setStrokeStyle(1, 0x1a1c2c);
+      this.layer?.add(die);
+      egg.drips.push(die);
+      const off = rotate({ x: 26, y: 18 }, c.angle);
+      await this.tween({ targets: die, x: img.x + off.x, y: img.y + off.y, angle: 270, duration: 260, ease: 'Bounce.out' });
     }
     if (egg.cancelled) return;
     if (kind === 'sock') {
