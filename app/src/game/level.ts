@@ -49,6 +49,10 @@ interface View {
   entity: LayoutEntity;
   item: Item;
   root: Phaser.GameObjects.Container;
+  /** The title in the dirt (or above floating coins); not inside `root`. */
+  label: Phaser.GameObjects.Text;
+  /** What it was drawn from, bar its x (see build). */
+  sig: string;
   flag?: Phaser.GameObjects.Image;
   top?: Phaser.GameObjects.Image;
 }
@@ -89,7 +93,16 @@ const STATUS_COLOR: Record<Item['status'], string> = {
 
 export class LevelScene extends QuestScene {
   private params!: LevelParams;
+  /** Holds the three layers below, plus the selection outline. */
   private stage?: Phaser.GameObjects.Container;
+  /** Bushes and ground; with the sky and parallax, redrawn only when the theme, size or view changes. */
+  private scenery?: Phaser.GameObjects.Container;
+  /** Stairs, pole, flag and castle (or the sub-level's exit), redrawn only when they change. */
+  private goal?: Phaser.GameObjects.Container;
+  /** One view per item, each redrawn only when its own item changes. */
+  private itemLayer?: Phaser.GameObjects.Container;
+  /** What the scenery and goal were last drawn from. */
+  private drawn = { scenery: '', goal: '' };
   private fx!: Phaser.GameObjects.Container;
   private views = new Map<string, View>();
   private hero!: Phaser.GameObjects.Sprite;
@@ -176,6 +189,7 @@ export class LevelScene extends QuestScene {
     this.flagPending = undefined;
     this.poleSpeech = undefined;
     this.stage = undefined;
+    this.drawn = { scenery: '', goal: '' };
     this.sig = '';
     this.selSig = '';
     this.selGfx = undefined;
@@ -372,7 +386,7 @@ export class LevelScene extends QuestScene {
   protected onResize() {
     super.onResize();
     const cur = this.current();
-    if (cur) this.build(cur.world, cur.level, cur.diff);
+    if (cur) this.build(cur.world, cur.level, cur.diff, true);
   }
 
   private refresh() {
@@ -426,55 +440,116 @@ export class LevelScene extends QuestScene {
     return changed;
   }
 
-  private build(world: World, level: Level, diff?: LevelDiff) {
+  /**
+   * Draws the level, redrawing only what changed since last time: the
+   * scenery, the goal and each item are keyed by what they're drawn from.
+   * An item that only moved slides over. Untouched things keep running
+   * their tweens; rebuilding everything restarted every bob and pace (a
+   * visible jump on every edit). `full` redraws everything (a resize: text
+   * resolution follows the zoom).
+   */
+  private build(world: World, level: Level, diff?: LevelDiff, full = false) {
     this.sig = JSON.stringify([level, diff?.change]);
     const sub = !!this.current()?.sub;
     const theme: ThemeKey = this.params.pr ? 'warp' : sub ? 'under' : world.theme;
-    const colors = THEMES[theme];
     this.layout = layoutLevel(level, { sub });
     const L = this.layout;
     this.setupCamera(L.width * TILE, 22 * TILE);
-    this.skyGfx?.destroy();
-    this.skyGfx = this.sky(colors.sky, colors.skyLow);
 
-    this.stage?.destroy();
-    this.views.clear();
-    const stage = (this.stage = this.add.container(0, 0).setDepth(0));
+    if (full || !this.stage) {
+      this.stage?.destroy();
+      this.views.clear();
+      this.drawn = { scenery: '', goal: '' };
+      this.stage = this.add.container(0, 0).setDepth(0);
+      this.scenery = this.add.container(0, 0);
+      this.goal = this.add.container(0, 0);
+      this.itemLayer = this.add.container(0, 0);
+      this.stage.add([this.scenery, this.goal, this.itemLayer]);
+    }
+    // Text resolution follows the zoom; the sky, ground and a sub-level's ceiling follow the camera bounds.
+    const b = this.cameras.main.getBounds();
+    const bounds = [b.x, b.y, b.width, b.height, this.floor];
 
-    // Background decoration, back to front.
-    for (const p of this.parallax) p.destroy();
-    this.parallax = [];
-    for (const d of L.decorations.filter((d) => d.kind === 'cloud' && !sub))
-      this.parallax.push(this.add.image(d.x * TILE, (13 - d.y) * TILE, 'cloud').setScale(0.5 + d.size * 0.25).setScrollFactor(0.4, 1).setAlpha(0.95).setDepth(-90));
-    for (const d of L.decorations.filter((d) => d.kind === 'hill'))
-      this.parallax.push(this.add.image(d.x * TILE, GROUND_Y, tex('hill', theme)).setOrigin(0, 1).setScale(0.6 + d.size * 0.3).setScrollFactor(0.7, 1).setDepth(-80));
-    for (const d of L.decorations.filter((d) => d.kind === 'bush'))
-      stage.add(this.add.image(d.x * TILE, GROUND_Y, 'bush').setOrigin(0, 1).setScale(0.4 + d.size * 0.2));
-
-    // Ground.
-    const groundW = Math.max(L.width * TILE, this.viewWidth + TILE);
-    stage.add(this.add.tileSprite(0, GROUND_Y, groundW, TILE, tex('ground-top', theme)).setOrigin(0, 0));
-    stage.add(this.add.tileSprite(0, GROUND_Y + TILE, groundW, this.floor - GROUND_Y - TILE, tex('ground-fill', theme)).setOrigin(0, 0));
+    const scenery = JSON.stringify([theme, level.id, L.width, sub, this.zoom, bounds]);
+    if (scenery !== this.drawn.scenery) {
+      this.drawn.scenery = scenery;
+      this.drawScenery(theme, sub);
+    }
 
     const cleared = scoreLevel(level).cleared;
-    const fx = L.flagX * TILE;
-    this.steps.clear();
-    this.pole = undefined;
-    if (sub) this.drawUnderground(stage, level, fx, cleared);
-    else this.drawGoal(stage, level, fx, cleared);
+    const mvpLeft = level.items.filter((i) => isMvpItem(i) && !isResolved(i)).length;
+    const goal = JSON.stringify([level.id, level.successCriteria, L.flagX, L.castleX, L.stairs, cleared, sub, sub && mvpLeft, this.zoom, b.y]);
+    // A redraw decides afresh whether the flag waits for the finale (see drawGoal);
+    // otherwise a pending rise stays pending, flag and all.
+    if (goal !== this.drawn.goal) {
+      this.drawn.goal = goal;
+      this.goal!.removeAll(true);
+      this.steps.clear();
+      this.pole = undefined;
+      if (sub) this.drawUnderground(this.goal!, level, L.flagX * TILE, cleared);
+      else this.drawGoal(this.goal!, level, L.flagX * TILE, cleared);
+    }
 
-    // Items.
+    // Items: redraw the changed, slide the moved, drop the gone.
     const byId = new Map(level.items.map((i) => [i.id, i]));
+    const shown = new Set<string>();
     for (const e of L.entities) {
       const item = byId.get(e.itemId);
-      if (item) this.drawEntity(stage, e, item, diff);
+      if (!item) continue;
+      shown.add(item.id);
+      const sig = JSON.stringify([item, e.kind, e.y, e.w, e.h, diff?.items[item.id]?.change, this.zoom]);
+      const v = this.views.get(item.id);
+      if (v?.sig === sig) {
+        if (v.entity.x !== e.x) this.slide(v, e);
+        v.entity = e;
+        v.item = item;
+        continue;
+      }
+      if (v) this.dropView(v);
+      this.drawEntity(this.itemLayer!, e, item, sig, diff);
     }
+    for (const v of [...this.views.values()]) if (!shown.has(v.item.id)) this.dropView(v);
 
     this.drawSelection();
 
     this.prev = new Map(level.items.map((i) => [i.id, i.status]));
     this.prevCrit = new Map(level.successCriteria.map((c) => [c.id, c.done]));
     if (this.body) this.rebuildWorld();
+  }
+
+  /** Sky, parallax hills and clouds, bushes and ground. */
+  private drawScenery(theme: ThemeKey, sub: boolean) {
+    const L = this.layout;
+    const colors = THEMES[theme];
+    this.skyGfx?.destroy();
+    this.skyGfx = this.sky(colors.sky, colors.skyLow);
+    // Parallax layers live outside the stage: containers ignore child scrollFactor.
+    for (const p of this.parallax) p.destroy();
+    this.parallax = [];
+    for (const d of L.decorations.filter((d) => d.kind === 'cloud' && !sub))
+      this.parallax.push(this.add.image(d.x * TILE, (13 - d.y) * TILE, 'cloud').setScale(0.5 + d.size * 0.25).setScrollFactor(0.4, 1).setAlpha(0.95).setDepth(-90));
+    for (const d of L.decorations.filter((d) => d.kind === 'hill'))
+      this.parallax.push(this.add.image(d.x * TILE, GROUND_Y, tex('hill', theme)).setOrigin(0, 1).setScale(0.6 + d.size * 0.3).setScrollFactor(0.7, 1).setDepth(-80));
+    const layer = this.scenery!;
+    layer.removeAll(true);
+    for (const d of L.decorations.filter((d) => d.kind === 'bush'))
+      layer.add(this.add.image(d.x * TILE, GROUND_Y, 'bush').setOrigin(0, 1).setScale(0.4 + d.size * 0.2));
+    const groundW = Math.max(L.width * TILE, this.viewWidth + TILE);
+    layer.add(this.add.tileSprite(0, GROUND_Y, groundW, TILE, tex('ground-top', theme)).setOrigin(0, 0));
+    layer.add(this.add.tileSprite(0, GROUND_Y + TILE, groundW, this.floor - GROUND_Y - TILE, tex('ground-fill', theme)).setOrigin(0, 0));
+  }
+
+  /** An item that only moved (the level grew or shrank around it) slides to its new spot. */
+  private slide(v: View, e: LayoutEntity) {
+    const dx = (e.x - v.entity.x) * TILE;
+    this.tweens.add({ targets: [v.root, v.label], x: `+=${dx}`, duration: reducedMotion() ? 0 : 250, ease: 'Quad.out' });
+  }
+
+  private dropView(v: View) {
+    this.tweens.killTweensOf([v.root, ...v.root.list, v.label]);
+    v.root.destroy();
+    v.label.destroy();
+    this.views.delete(v.item.id);
   }
 
   /** Staircase, flagpole and castle at the end of a normal level. */
@@ -656,11 +731,11 @@ export class LevelScene extends QuestScene {
     this.tweens.add({ targets: g, alpha: 0.2, yoyo: true, repeat: -1, duration: 400 });
   }
 
-  private drawEntity(stage: Phaser.GameObjects.Container, e: LayoutEntity, item: Item, diff?: LevelDiff) {
+  private drawEntity(stage: Phaser.GameObjects.Container, e: LayoutEntity, item: Item, sig: string, diff?: LevelDiff) {
     const x = e.x * TILE;
     const top = GROUND_Y - (e.y + e.h) * TILE;
     const root = this.add.container(x, top);
-    const view: View = { entity: e, item, root };
+    const view = { entity: e, item, root, sig } as View;
     const dropped = item.status === 'dropped';
     const done = item.status === 'done';
     const img = (key: string, dx = 0, dy = 0) => {
@@ -760,6 +835,7 @@ export class LevelScene extends QuestScene {
         ? this.text(lx, top - 4, label, 4, STATUS_COLOR[item.status], 60).setOrigin(0.5, 1)
         : this.text(lx, GROUND_Y + 18, label, 4, STATUS_COLOR[item.status], 58).setOrigin(0.5, 0);
     stage.add(t);
+    view.label = t;
 
     root.setSize(e.w * TILE, e.h * TILE);
     // Pipes are clickable above the mouth too, where the plant or arrow is.
