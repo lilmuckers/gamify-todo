@@ -24,7 +24,7 @@ import {
 } from '@quest/shared';
 import { pageView, track, type Params } from './analytics';
 import { eventsForOp } from './analytics-events';
-import { heroStore, reviewStore, type ReviewPrefs } from './config';
+import { heroStore, patchUiPrefs, reviewStore, uiPrefs, type ReviewPrefs } from './config';
 import { pullLookup, type PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { currentRoute, href, routeProject, type Route } from './router';
@@ -327,6 +327,9 @@ export class App {
     const r = this.route;
     if (r.view === 'prs') void this.loadPulls();
     if (r.view === 'pr' || r.view === 'pr-level') void this.loadPull(r.pr);
+    // Not PR review: that's someone else's change, not where you were playing.
+    if ((r.view === 'overworld' || r.view === 'world' || r.view === 'level') && uiPrefs().lastProject !== r.projectId)
+      patchUiPrefs({ lastProject: r.projectId });
   }
 
   async loadPulls(force = false) {

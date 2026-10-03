@@ -56,7 +56,9 @@
         inset: 0 auto 0 -40%;
         width: 30%;
         background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
-        transform: skewX(-20deg);
+        transform: translateX(0) skewX(-20deg);
+        /* Transform only, so it runs on the compositor and doesn't stall while the app's scripts parse. */
+        will-change: transform;
         animation: boot-shine 0.45s 0.4s ease-out both;
       }
       .boot-sub {
@@ -71,7 +73,8 @@
         from { transform: scale(0.4); opacity: 0; }
       }
       @keyframes boot-shine {
-        to { left: 140%; }
+        /* 6 of its own widths (30% each) carries it from -40% to 140% of the word. */
+        to { transform: translateX(600%) skewX(-20deg); }
       }
       @keyframes boot-blink {
         50% { opacity: 0; }

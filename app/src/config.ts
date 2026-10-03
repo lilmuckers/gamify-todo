@@ -138,6 +138,8 @@ export interface UiPrefs {
   tourVariants?: number[];
   /** Get-started wizard in progress: the step to resume at, and the repo chosen so far. */
   setup?: { step: string; repo?: string };
+  /** Project last opened, whose cartridge waits beside the console on the title screen. */
+  lastProject?: string;
 }
 
 export function uiPrefs(): UiPrefs {

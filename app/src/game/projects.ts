@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import { orderedProjects, orderedWorlds, suggestNextLevel, totals, type GameState } from '@quest/shared';
 import { go } from '../router';
+import { uiPrefs } from '../config';
 import { track } from '../analytics';
 import { quip, type Thing } from './quips';
 import { JUNK_KINDS, junkLine, type JunkKind } from './junk-lines';
 import { activePad } from './play/input';
-import { clutter, CONSOLE_PORTS, consoleTop, SCREEN, SLOT, TV_H, TV_W, tvCanvas, wallpaperCanvas } from '../sprites/bedroom';
+import { clutter, CONSOLE_PORTS, CONSOLE_W, consoleTop, SCREEN, SLOT, TV_H, TV_W, tvCanvas, wallpaperCanvas } from '../sprites/bedroom';
 import { JUNK_SCALE, junkScreen, junkTitle, pickVariant, staticFrame } from '../sprites/junk-tv';
 import { showDialogue, type Dialogue } from '../ui/dialogue';
 import { carpetCanvas, cartridge, CART_H, CART_W, controllerCanvas, type CartSpec } from '../sprites/cartridge';
@@ -224,7 +225,8 @@ export class ProjectsScene extends QuestScene {
     return out;
   }
 
-  private makeRoom(cartCount: number): Room {
+  /** @param near the cartridge (index) that waits beside the console: the project last played. */
+  private makeRoom(cartCount: number, near = -1): Room {
     const r = Math.random;
     const angle = (r() < 0.5 ? -1 : 1) * (8 + r() * 14);
     const console = { x: CENTER.x + (r() - 0.5) * 30, y: CENTER.y + (r() - 0.5) * 16, angle };
@@ -235,8 +237,16 @@ export class ProjectsScene extends QuestScene {
       { x: pad.x, y: pad.y, rad: 28 },
       { x: CENTER.x, y: this.floorView().y + 14, rad: 40 }, // title text
     ];
+    // The last game played sits just right of the console, ready to go back in.
+    let last: Placed | undefined;
+    if (near >= 0 && near < cartCount) {
+      const o = rotate({ x: CONSOLE_W / 2 + CART_W / 2 + 12, y: 10 }, angle);
+      last = { x: console.x + o.x, y: console.y + o.y, angle: angle + (r() - 0.5) * 16 };
+      taken.push({ x: last.x, y: last.y, rad: 30 });
+    }
     // Everything is re-thrown on each visit; only each cartridge's artwork is fixed.
-    const carts = this.scatter(cartCount, r, taken, 30, 20);
+    const carts = this.scatter(last ? cartCount - 1 : cartCount, r, taken, 30, 20);
+    if (last) carts.splice(near, 0, last);
     const props: Room['props'] = [];
     for (const prop of clutter()) {
       const key = `prop:${this.visit}:${props.length}`;
@@ -265,7 +275,10 @@ export class ProjectsScene extends QuestScene {
     cam.centerOn(CENTER.x, CENTER.y);
     cam.setBackgroundColor('#1a1c2c');
 
-    if (!this.room || this.room.carts.length !== carts.length) this.room = this.makeRoom(carts.length);
+    if (!this.room || this.room.carts.length !== carts.length) {
+      const last = uiPrefs().lastProject;
+      this.room = this.makeRoom(carts.length, last ? carts.findIndex((c) => c.key === last) : -1);
+    }
     const room = this.room;
 
     this.layer?.destroy();
