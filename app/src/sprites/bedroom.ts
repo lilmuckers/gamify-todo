@@ -447,6 +447,14 @@ export function clutterKinds(r: Rand = Math.random): PropKind[] {
   return out;
 }
 
+/** Every kind of floor thing that can go in the console (the controller is always there too). */
+export const EVERY_KIND: Exclude<PropKind, 'crumbs'>[] = ['snack', ...EXTRA_KINDS];
+
+/** One of every thing that can go in the console (for testing them all with `?jam`). */
+export function everyKind(r: Rand = Math.random): Prop[] {
+  return EVERY_KIND.map((k) => MAKERS[k](r));
+}
+
 /** A fresh, random assortment of floor clutter. */
 export function clutter(r: Rand = Math.random): Prop[] {
   return clutterKinds(r).map((k) => (k === 'crumbs' ? crumbs(r) : MAKERS[k](r)));

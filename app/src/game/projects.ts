@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
 import { orderedProjects, orderedWorlds, suggestNextLevel, totals, type GameState } from '@quest/shared';
 import { go } from '../router';
-import { uiPrefs } from '../config';
+import { uiPrefs, urlMode } from '../config';
 import { track } from '../analytics';
 import { quip, type Thing } from './quips';
 import { JUNK_KINDS, junkLine, type JunkKind } from './junk-lines';
 import { activePad } from './play/input';
-import { clutter, CONSOLE_PORTS, CONSOLE_W, consoleTop, SCREEN, SLOT, TV_H, TV_W, tvCanvas, wallpaperCanvas } from '../sprites/bedroom';
+import { clutter, everyKind, CONSOLE_PORTS, CONSOLE_W, consoleTop, SCREEN, SLOT, TV_H, TV_W, tvCanvas, wallpaperCanvas } from '../sprites/bedroom';
 import { JUNK_SCALE, junkScreen, junkTitle, pickVariant, staticFrame } from '../sprites/junk-tv';
 import { showDialogue, type Dialogue } from '../ui/dialogue';
 import { carpetCanvas, cartridge, CART_H, CART_W, controllerCanvas, type CartSpec } from '../sprites/cartridge';
@@ -43,13 +43,14 @@ interface Room {
   powerSide: 1 | -1;
   props: (Placed & { key: string; under: boolean; kind: Thing; label?: string; colors?: string[] })[];
   carts: Placed[];
-  /** The one thing this visit that can go in the console: a prop's index, or -1 for the controller. */
-  junk: number;
+  /** What can go in the console this visit: props' indexes, and -1 for the controller. One thing, or all of them with `?jam`. */
+  junk: Set<number>;
 }
 
 /** The easter egg in progress: something that isn't a game, jammed in the console. */
 interface Egg {
   kind: JunkKind;
+  colors?: string[];
   /** Which of the kind's TV screens is showing. */
   variant: number;
   img: Phaser.GameObjects.Image;
@@ -254,7 +255,8 @@ export class ProjectsScene extends QuestScene {
     const carts = this.scatter(last ? cartCount - 1 : cartCount, r, taken, 30, 20);
     if (last) carts.splice(near, 0, last);
     const props: Room['props'] = [];
-    for (const prop of clutter()) {
+    const jam = urlMode().jam;
+    for (const prop of jam ? everyKind() : clutter()) {
       const key = `prop:${this.visit}:${props.length}`;
       if (this.textures.exists(key)) this.textures.remove(key);
       this.textures.addCanvas(key, prop.canvas);
@@ -264,7 +266,7 @@ export class ProjectsScene extends QuestScene {
     }
     // One thing per visit can be jammed in the console: never crumbs or puddles.
     const junkable = [-1, ...props.flatMap((p, i) => (!p.under && JUNKABLE.has(p.kind) ? [i] : []))];
-    const junk = junkable[Math.floor(r() * junkable.length)];
+    const junk = new Set(jam ? junkable : [junkable[Math.floor(r() * junkable.length)]]);
     return { console, pad, powerSide: r() < 0.5 ? 1 : -1, props, carts, junk };
   }
 
@@ -349,14 +351,14 @@ export class ProjectsScene extends QuestScene {
     this.mutter(layer, consoleImg, consoleShadow, c, 'console', undefined, 1.06);
     const padImg = this.add.image(room.pad.x, room.pad.y, tex('controller', controllerCanvas)).setAngle(room.pad.angle);
     layer.add(padImg);
-    this.mutter(layer, padImg, undefined, room.pad, 'controller', undefined, 1.15, room.junk === -1 ? { kind: 'controller' } : undefined);
+    this.mutter(layer, padImg, undefined, room.pad, 'controller', undefined, 1.15, room.junk.has(-1) ? { kind: 'controller' } : undefined);
 
     room.props.forEach((p, i) => {
       if (p.under) return;
       const shadow = this.add.image(p.x + 2, p.y + 3, p.key).setAngle(p.angle).setTint(0).setAlpha(0.3);
       const img = propImage(p);
       layer.add([shadow, img]);
-      const junk = room.junk === i ? { kind: p.kind as JunkKind, label: p.label, colors: p.colors } : undefined;
+      const junk = room.junk.has(i) ? { kind: p.kind as JunkKind, label: p.label, colors: p.colors } : undefined;
       this.mutter(layer, img, shadow, p, p.kind, p.label, 1.15, junk);
     });
 
@@ -582,7 +584,7 @@ export class ProjectsScene extends QuestScene {
     const variant = pickVariant(j.kind, this.lastVariant.get(j.kind));
     this.lastVariant.set(j.kind, variant);
     track('junk_play', { kind: j.kind, variant });
-    const egg: Egg = { kind: j.kind, variant, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, back: j.home, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
+    const egg: Egg = { kind: j.kind, colors: j.colors, variant, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, back: j.home, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
     this.egg = egg;
     window.addEventListener('keydown', this.onEggKey, true);
     // A click on the scene (not the dialogue box) bails out; skip the click that started it.
@@ -876,7 +878,7 @@ export class ProjectsScene extends QuestScene {
 
   /** A squeeze of the carton splashes juice about. */
   private splash(egg: Egg, p: { x: number; y: number }) {
-    this.fling(egg, p, this.junkColour(), 5);
+    this.fling(egg, p, this.junkColour(egg), 5);
   }
 
   /** One drop of grease off the folded pizza. */
@@ -894,12 +896,12 @@ export class ProjectsScene extends QuestScene {
     }
   }
 
-  private junkColour() {
-    return Phaser.Display.Color.HexStringToColor(this.room?.props[this.room.junk]?.colors?.[0] ?? '#f77622').color;
+  private junkColour(egg: Egg) {
+    return Phaser.Display.Color.HexStringToColor(egg.colors?.[0] ?? '#f77622').color;
   }
 
   private drip(egg: Egg) {
-    const d = this.add.rectangle(egg.img.x + Phaser.Math.Between(-4, 4), egg.img.y + 6, 2, 2, this.junkColour());
+    const d = this.add.rectangle(egg.img.x + Phaser.Math.Between(-4, 4), egg.img.y + 6, 2, 2, this.junkColour(egg));
     this.layer?.add(d);
     egg.drips.push(d);
   }

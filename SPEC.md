@@ -209,8 +209,9 @@ touch screens, and can be overridden in Settings or with `?mobile=on|off`.
 #/today, #/review                         short forms
 ```
 
-Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`. Android share-target params are
-`share-title`, `share-text` and `share-url`.
+Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`, and `?jam` (for testing: one of every
+jammable thing on the bedroom floor, and all of them go in the console). Android share-target
+params are `share-title`, `share-text` and `share-url`.
 
 ### 5.2 Project select: the bedroom floor
 
