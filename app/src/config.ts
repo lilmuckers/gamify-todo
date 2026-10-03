@@ -180,10 +180,13 @@ export const onboardedStore = {
   set: () => write(ONBOARDED_KEY, new Date().toISOString()),
 };
 
-/** Special modes picked by the URL: ?demo (in-memory editing), ?tour (example data), ?welcome (show the splash). */
-export function urlMode(search = location.search): { demo: boolean; tour: boolean; welcome: boolean } {
+/**
+ * Special modes picked by the URL: ?demo (in-memory editing), ?tour (example data),
+ * ?welcome (show the splash), ?jam (one of each jammable thing on the bedroom floor, all jammable).
+ */
+export function urlMode(search = location.search): { demo: boolean; tour: boolean; welcome: boolean; jam: boolean } {
   const q = new URLSearchParams(search);
-  return { demo: q.has('demo'), tour: q.has('tour'), welcome: q.has('welcome') };
+  return { demo: q.has('demo'), tour: q.has('tour'), welcome: q.has('welcome'), jam: q.has('jam') };
 }
 
 /** Reloads the app with a mode flag on (or all mode flags off), keeping the screen. */

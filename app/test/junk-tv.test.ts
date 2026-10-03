@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { JUNK_KINDS, LABELLED_KINDS } from '../src/game/junk-lines';
 import { JUNK_SCREENS, junkTitle, pickVariant } from '../src/sprites/junk-tv';
-import { clutterKinds, EXTRA_KINDS } from '../src/sprites/bedroom';
+import { clutterKinds, EVERY_KIND, EXTRA_KINDS } from '../src/sprites/bedroom';
+import { urlMode } from '../src/config';
 
 /** A seeded random, so runs repeat. */
 const rand = (seed: number) => () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
@@ -56,5 +57,11 @@ describe('clutter', () => {
     expect(mean).toBeGreaterThan(2.8);
     expect(mean).toBeLessThan(4.2);
     for (const k of EXTRA_KINDS) expect(kinds, k).toContain(k);
+  });
+
+  it('puts one of every jammable kind on the floor for ?jam, with the controller', () => {
+    expect([...EVERY_KIND, 'controller'].sort()).toEqual([...JUNK_KINDS].sort());
+    expect(urlMode('?demo&jam').jam).toBe(true);
+    expect(urlMode('?demo').jam).toBe(false);
   });
 });
