@@ -56,8 +56,10 @@ interface Egg {
   shadow?: Phaser.GameObjects.Image;
   shadowAt?: { x: number; y: number };
   home: Placed;
-  /** Juice drips (and the gamebook's die) left on the way to the console. */
+  /** Juice drips, snack crumbs, soda fizz and the gamebook's die, cleared when the egg ends. */
   drips: Phaser.GameObjects.GameObject[];
+  /** The juice's drip timer. A reset kills the insert's tweens mid-way, so it can't stop itself. */
+  dripping?: Phaser.Time.TimerEvent;
   screen?: Phaser.GameObjects.Container;
   /** Texture of the title screen on the TV, freed when the egg ends. */
   screenKey?: string;
@@ -627,10 +629,37 @@ export class ProjectsScene extends QuestScene {
     const lift = rotate({ x: 0, y: -20 }, c.angle);
     const at = { x: c.x + slot.x, y: c.y + slot.y };
     const fit = Math.min(1, SLOT.w / Math.max(img.width, img.height));
+    const above = { x: at.x + lift.x, y: at.y + lift.y };
     // Juice drips all the way there.
-    const drip = kind === 'juice' ? this.time.addEvent({ delay: 45, loop: true, callback: () => this.drip(egg) }) : undefined;
-    await this.tween({ targets: img, x: at.x + lift.x, y: at.y + lift.y, angle: c.angle, scale: 1.1, duration: 340, ease: 'Quad.out' });
-    if (egg.cancelled) return drip?.remove();
+    if (kind === 'juice') egg.dripping = this.time.addEvent({ delay: 45, loop: true, callback: () => this.drip(egg) });
+    await this.tween({ targets: img, ...above, angle: c.angle, scale: 1.1, duration: 340, ease: 'Quad.out' });
+    if (egg.cancelled) return;
+    if (kind === 'snack') {
+      // Upended and shaken for the last crumbs first.
+      await this.tween({ targets: img, angle: '+=180', duration: 180, ease: 'Back.out' });
+      for (let i = 0; i < 3; i++) {
+        this.crumb(egg, i);
+        await this.tween({ targets: img, y: above.y - 4, duration: 60, yoyo: true, ease: 'Sine.inOut' });
+      }
+      await this.tween({ targets: img, angle: '+=180', duration: 160, ease: 'Quad.in' });
+    }
+    if (kind === 'soda') {
+      // Shaken up good and proper (it fizzes out of the slot later).
+      await this.tween({ targets: img, x: above.x + 3, duration: 35, yoyo: true, repeat: 4, ease: 'Sine.inOut' });
+      await this.tween({ targets: img, x: above.x - 3, duration: 35, yoyo: true, repeat: 4, ease: 'Sine.inOut' });
+    }
+    if (kind === 'comic') {
+      // Rolled up tight into a tube to fit.
+      await this.tween({ targets: img, scaleX: 0.3, duration: 220, ease: 'Sine.in' });
+      await this.tween({ targets: img, scaleX: 0.4, duration: 60, yoyo: true });
+    }
+    if (kind === 'controller') {
+      // Still plugged in: the cable yanks it back, so it gets a firmer tug.
+      const back = { x: (img.x - egg.home.x) * 0.25, y: (img.y - egg.home.y) * 0.25 };
+      await this.tween({ targets: img, x: above.x - back.x, y: above.y - back.y, angle: c.angle - 15, duration: 110, ease: 'Back.out' });
+      this.cameras.main.shake(60, 0.003);
+      await this.tween({ targets: img, ...above, angle: c.angle, duration: 160, ease: 'Quad.in' });
+    }
     if (kind === 'pizza') {
       // Folded in half to fit.
       await this.tween({ targets: img, scaleX: 0.55, angle: c.angle + 12, duration: 160, ease: 'Back.in' });
@@ -644,9 +673,9 @@ export class ProjectsScene extends QuestScene {
     if (kind === 'banana') {
       // Slips straight past the slot, then sheepishly slides back.
       const past = rotate({ x: 34, y: 0 }, c.angle);
-      await this.tween({ targets: img, x: at.x + lift.x + past.x, y: at.y + lift.y + past.y, angle: c.angle + 40, duration: 180, ease: 'Quad.out' });
+      await this.tween({ targets: img, x: above.x + past.x, y: above.y + past.y, angle: c.angle + 40, duration: 180, ease: 'Quad.out' });
       this.cameras.main.shake(70, 0.003);
-      await this.tween({ targets: img, x: at.x + lift.x, y: at.y + lift.y, angle: c.angle, duration: 260, ease: 'Sine.inOut' });
+      await this.tween({ targets: img, ...above, angle: c.angle, duration: 260, ease: 'Sine.inOut' });
     }
     if (kind === 'duck') {
       // Squeak, squeak: a squash and stretch before it'll go.
@@ -665,10 +694,11 @@ export class ProjectsScene extends QuestScene {
       await this.wait(120);
     }
     if (kind === 'yoyo') {
-      // Down on its string and back up, twice, then in.
+      // Down on its string and back up, twice, then in. Relative turns: Phaser
+      // wraps the angle, so absolute ones spun 360° then 720° the second time.
       for (let i = 0; i < 2; i++) {
-        await this.tween({ targets: img, x: at.x, y: at.y, angle: c.angle + 180 * (i + 1), duration: 150, ease: 'Quad.in' });
-        await this.tween({ targets: img, x: at.x + lift.x, y: at.y + lift.y, angle: c.angle + 360 * (i + 1), duration: 170, ease: 'Quad.out' });
+        await this.tween({ targets: img, x: at.x, y: at.y, angle: '+=180', duration: 150, ease: 'Quad.in' });
+        await this.tween({ targets: img, ...above, angle: '+=180', duration: 170, ease: 'Quad.out' });
       }
     }
     if (kind === 'gamebook') {
@@ -693,10 +723,30 @@ export class ProjectsScene extends QuestScene {
         if (egg.cancelled) return;
       }
     }
-    const squash = kind === 'pizza' || kind === 'teddy' || kind === 'donut' ? fit * 0.6 : fit;
+    const squash = kind === 'comic' ? fit * 0.4 : kind === 'pizza' || kind === 'teddy' || kind === 'donut' ? fit * 0.6 : fit;
     await this.tween({ targets: img, x: at.x, y: at.y, angle: c.angle, scaleX: squash, scaleY: 0.18, duration: 200, ease: 'Quad.in' });
-    drip?.remove();
+    egg.dripping?.remove();
     this.cameras.main.shake(90, 0.004);
+    if (kind === 'soda' && !egg.cancelled) this.fizz(egg, at);
+  }
+
+  /** A crumb falls out of the upended snack bag and lands on the carpet. */
+  private crumb(egg: Egg, i: number) {
+    const color = Phaser.Display.Color.HexStringToColor(['#fee761', '#feae34', '#e4a672'][i % 3]).color;
+    const d = this.add.rectangle(egg.img.x + Phaser.Math.Between(-6, 6), egg.img.y + 8, 2, 2, color);
+    this.layer?.add(d);
+    egg.drips.push(d);
+    void this.tween({ targets: d, y: d.y + Phaser.Math.Between(14, 22), duration: 220, ease: 'Bounce.out' });
+  }
+
+  /** Bubbles fizz up out of the slot after the shaken can goes in. */
+  private fizz(egg: Egg, at: { x: number; y: number }) {
+    for (let i = 0; i < 8; i++) {
+      const b = this.add.circle(at.x + Phaser.Math.Between(-8, 8), at.y, Phaser.Math.Between(1, 2), 0xc0cbdc).setStrokeStyle(1, 0xf4f4f4);
+      this.layer?.add(b);
+      egg.drips.push(b);
+      this.tweens.add({ targets: b, y: at.y - Phaser.Math.Between(10, 24), x: b.x + Phaser.Math.Between(-4, 4), alpha: 0, delay: i * 50, duration: 420, ease: 'Sine.out' });
+    }
   }
 
   private drip(egg: Egg) {
@@ -798,6 +848,8 @@ export class ProjectsScene extends QuestScene {
     egg.screen?.destroy();
     // Keyed per visit, so it would never be shown again: don't let them pile up.
     if (egg.screenKey) this.textures.remove(egg.screenKey);
+    egg.dripping?.remove();
+    this.tweens.killTweensOf(egg.drips);
     for (const d of egg.drips) d.destroy();
     if (egg.shadow && egg.shadowAt) egg.shadow.setVisible(true).setPosition(egg.shadowAt.x, egg.shadowAt.y).setAngle(egg.home.angle).setScale(1);
     if (egg.img.active) egg.img.setVisible(true).setPosition(egg.home.x, egg.home.y).setAngle(egg.home.angle).setScale(1);
