@@ -221,13 +221,14 @@ you last opened sits just right of the console. Picking a cartridge inserts it, 
 and the camera pans up to the TV.
 
 - **Clutter**: socks, snack bags, crumbs, spills, pizza, comics, cassette, banana, rubber duck,
-  donut, teddy and yo-yo, laid out randomly each visit. Hovering (or tapping) lifts an item and
-  it mutters a quip.
+  donut, teddy, yo-yo and a pick-your-path fantasy gamebook, laid out randomly each visit.
+  Hovering (or tapping) lifts an item and it mutters a quip.
 - **Easter egg (#56):** each visit, one non-game thing is "jammable" ("…wonder if it fits?").
   Clicking it squashes it into the console, which boots to a silly TV title screen. Each kind
   has five screen variants (its own, plus kart racer, shooter, fighter, falling blocks, RPG
-  battle, platformer or quiz show), for example SOCK QUEST, PIZZA KART or QUACK QUIZ. An
-  SNES-style dialogue box then types the hero's reaction in their own voice: 18 heroes × every
+  battle, platformer or quiz show), for example SOCK QUEST, PIZZA KART or QUACK QUIZ. The
+  gamebook boots to its own dungeon map or an open page ("TURN TO 400"), or rolls for a quest.
+  An SNES-style dialogue box then types the hero's reaction in their own voice: 18 heroes × every
   kind × 5 lines, with a mood emote and keyword highlight, and no line repeats twice running.
   Closing it ejects the thing. Esc, gamepad B or clicking away resets it.
 
@@ -835,8 +836,8 @@ Further rules for tour lines:
   "click" or key names are left afterwards (the test checks this).
 - `play` is skipped on phones, so don't refer back to it from another stop.
 
-**2. Easter-egg lines** in `app/src/game/junk-lines.ts`, `LINES[id]`: **5 lines × 13 kinds +
-3+ fallbacks = 68+ lines.** Each line is the hero's reaction to seeing a thing jammed in the
+**2. Easter-egg lines** in `app/src/game/junk-lines.ts`, `LINES[id]`: **5 lines × 14 kinds +
+3+ fallbacks = 73+ lines.** Each line is the hero's reaction to seeing a thing jammed in the
 console:
 
 | Kind | The thing | Kind | The thing |
@@ -847,11 +848,12 @@ console:
 | `juice` | A juice carton (drips in) | `donut` | A donut |
 | `pizza` | A pizza slice | `teddy` | A teddy bear |
 | `comic` | A comic (`{label}` = its sound word) | `yoyo` | A yo-yo |
-| `controller` | The controller itself | `any` | Fallback for kinds added later (3+ lines, generic) |
+| `controller` | The controller itself | `gamebook` | A pick-your-path fantasy gamebook (`{label}` = its title) |
+| | | `any` | Fallback for kinds added later (3+ lines, generic) |
 
 Further rules for easter-egg lines:
 - Five **different** lines per kind, because the picker never repeats a line twice running.
-- `{label}` only in `snack`, `comic` and `cassette` lines.
+- `{label}` only in `snack`, `comic`, `cassette` and `gamebook` lines.
 - `{game}` is the title on the TV, which is one of five screens per kind (its own, plus genres
   like kart racer, shooter, fighter, falling blocks, RPG battle, platformer, quiz show). Use it
   in about one line per kind, and make the line work whichever genre came up.
@@ -872,7 +874,7 @@ are hero-neutral.
    `app/src/sprites/heroes.ts`.
 4. **Portraits:** add a `BUILD[id]` entry in `app/src/sprites/portraits.ts`.
 5. **Tour lines:** add `TOUR_LINES[id]` (18 lines).
-6. **Easter-egg lines:** add `LINES[id]` (68+ lines).
+6. **Easter-egg lines:** add `LINES[id]` (73+ lines).
 7. **Docs:** add the id to the settings table in `skills/quest-log/SKILL.md`, update the hero
    count in `README.md` and in §5.11 here, and add a row to the voice table in §18.3.
 8. **Check:** `npm run typecheck` (the `Record<HeroId, …>` maps fail on a missing entry),

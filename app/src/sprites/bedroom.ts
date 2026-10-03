@@ -2,7 +2,7 @@
 // on the wall, and random clutter. Original designs, drawn in code.
 import { PALETTE } from './pixels';
 import { canvas, pick, type Rand } from './canvas';
-import { drawText } from './cartridge';
+import { drawText, labelLines } from './cartridge';
 
 const K = PALETTE.k;
 
@@ -125,12 +125,13 @@ export type PropKind =
   | 'duck'
   | 'donut'
   | 'teddy'
-  | 'yoyo';
+  | 'yoyo'
+  | 'gamebook';
 
 export interface Prop {
   kind: PropKind;
   canvas: HTMLCanvasElement;
-  /** Words printed on it (a snack brand, a comic's cover), for hover quips. */
+  /** Words printed on it (a snack brand, a comic's cover, a gamebook's title), for hover quips. */
   label?: string;
   /** Draw under other props (e.g. a puddle). */
   under?: boolean;
@@ -369,6 +370,45 @@ function yoyo(r: Rand): Prop {
   return { kind: 'yoyo', canvas: c, colors: [col] };
 }
 
+/** Titles for the pick-your-path gamebooks. Original, and short enough for the cover and the TV. */
+const GAMEBOOKS = ['CRYPT OF DOOM', 'WYRM KEEP', 'HEX VAULT', 'DRAGON PEAK', 'LICH TOWER', 'GOBLIN PIT', 'MAZE OF WOE'];
+
+function gamebook(r: Rand): Prop {
+  const [c, ctx] = canvas(42, 48);
+  const cover = pick(r, ['#a22633', '#265c42', '#68386c', '#124e89', '#743f39']);
+  const gold = '#fee761';
+  // Page edges peeking out on the right and bottom, then the cover.
+  rect(ctx, 3, 3, 39, 45, K);
+  rect(ctx, 4, 4, 37, 43, '#ead4aa');
+  for (let y = 6; y < 46; y += 2) rect(ctx, 38, y, 3, 1, '#e4a672');
+  for (let x = 6; x < 38; x += 2) rect(ctx, x, 44, 1, 3, '#e4a672');
+  rect(ctx, 0, 0, 39, 45, K);
+  rect(ctx, 1, 1, 37, 43, cover);
+  // Spine shading and a gold border.
+  rect(ctx, 1, 1, 2, 43, 'rgba(0,0,0,0.3)');
+  rect(ctx, 4, 3, 32, 1, gold);
+  rect(ctx, 4, 41, 32, 1, gold);
+  rect(ctx, 4, 3, 1, 39, gold);
+  rect(ctx, 35, 3, 1, 39, gold);
+  // Title on up to two lines, then a twenty-sided die as the emblem.
+  const title = pick(r, GAMEBOOKS);
+  labelLines(title).forEach((line, i) => drawText(ctx, line, Math.round(20 - (line.length * 4 - 1) / 2), 6 + i * 7, gold, K));
+  const cx = 20;
+  const cy = 30;
+  disc(ctx, cx, cy, 7, 7, K);
+  disc(ctx, cx, cy, 6, 6, gold);
+  // The facet edges: a triangle with the 20 on it.
+  for (let i = 0; i <= 5; i++) {
+    rect(ctx, cx - i, cy - 5 + i * 2, 1, 2, '#c67a14');
+    rect(ctx, cx + i, cy - 5 + i * 2, 1, 2, '#c67a14');
+  }
+  rect(ctx, cx - 5, cy + 5, 11, 1, '#c67a14');
+  drawText(ctx, '20', cx - 3, cy - 1, K);
+  // A ribbon bookmark hanging out of the bottom.
+  rect(ctx, 27, 45, 3, 3, pick(r, ['#e43b44', '#0099db', '#63c74d']));
+  return { kind: 'gamebook', canvas: c, label: title, colors: [cover, gold] };
+}
+
 const MAKERS: Record<Exclude<PropKind, 'crumbs'>, (r: Rand) => Prop> = {
   snack: snackBag,
   sock,
@@ -382,10 +422,11 @@ const MAKERS: Record<Exclude<PropKind, 'crumbs'>, (r: Rand) => Prop> = {
   donut,
   teddy,
   yoyo,
+  gamebook,
 };
 
 /** Things that can turn up on the floor besides the snack bags. */
-export const EXTRA_KINDS: Exclude<PropKind, 'crumbs' | 'snack'>[] = ['sock', 'juice', 'soda', 'pizza', 'comic', 'cassette', 'banana', 'duck', 'donut', 'teddy', 'yoyo'];
+export const EXTRA_KINDS: Exclude<PropKind, 'crumbs' | 'snack'>[] = ['sock', 'juice', 'soda', 'pizza', 'comic', 'cassette', 'banana', 'duck', 'donut', 'teddy', 'yoyo', 'gamebook'];
 
 /**
  * Which things lie on the floor this time. Same amount as ever (one to

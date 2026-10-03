@@ -15,10 +15,11 @@ export type JunkKind =
   | 'duck'
   | 'donut'
   | 'teddy'
-  | 'yoyo';
-export const JUNK_KINDS: JunkKind[] = ['sock', 'snack', 'soda', 'juice', 'pizza', 'comic', 'controller', 'cassette', 'banana', 'duck', 'donut', 'teddy', 'yoyo'];
+  | 'yoyo'
+  | 'gamebook';
+export const JUNK_KINDS: JunkKind[] = ['sock', 'snack', 'soda', 'juice', 'pizza', 'comic', 'controller', 'cassette', 'banana', 'duck', 'donut', 'teddy', 'yoyo', 'gamebook'];
 /** Kinds with words printed on them, filled in as `{label}`. */
-export const LABELLED_KINDS: JunkKind[] = ['snack', 'comic', 'cassette'];
+export const LABELLED_KINDS: JunkKind[] = ['snack', 'comic', 'cassette', 'gamebook'];
 
 /**
  * What the player's hero says after putting something that isn't a game in
@@ -27,9 +28,9 @@ export const LABELLED_KINDS: JunkKind[] = ['snack', 'comic', 'cassette'];
  *
  * Each line starts with its mood: `+` happy, `=` meh, `!` shocked, `-` sad.
  * Meh and shocked lines get the "reacting" portrait. One *keyword* per line
- * is highlighted. `{label}` is the snack's brand, the comic's sound word or
- * the tape's title; `{game}` is the title on the TV, so a line can react to
- * whichever of the kind's screens came up. Five lines per hero per kind;
+ * is highlighted. `{label}` is the snack's brand, the comic's sound word, the
+ * tape's title or the gamebook's title; `{game}` is the title on the TV, so a
+ * line can react to whichever of the kind's screens came up. Five lines per hero per kind;
  * `any` is the fallback for kinds added later.
  */
 const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
@@ -124,6 +125,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       "!It's all *tangled*! Oh no!",
       '+Around the *world*! Wahoo!',
       '+Best *rope* swing ever!',
+    ],
+    gamebook: [
+      '+{label}! I choose *adventure*!',
+      '+{game}! Roll the *dice*!',
+      '!Page 3 and I fell in a *pit*!',
+      '+Fight the *dragon*? Wahoo, yes!',
+      '+Finger in the page, just in *case*!',
     ],
     any: [
       '+Wahoo! *Something* went in!',
@@ -223,6 +231,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '=Walk the *dog*, they said.',
       '+Fine. *Nice* spin.',
     ],
+    gamebook: [
+      '={label}. I *cheated* at this one as a kid.',
+      '={game}. Thrilling. Roll a *six*.',
+      '-Dead on page 3. *Again*.',
+      '=Keep a finger in the *page*. Trust me.',
+      '+Fine. The *dragon* art is good.',
+    ],
     any: [
       '=Well. That *happened*.',
       '-I just *cleaned* that.',
@@ -320,6 +335,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       "=It's *tangled*. Classic.",
       '+Up, down, *whatever*.',
       '+Smooth *trick*.',
+    ],
+    gamebook: [
+      '+{label}! Skip to the *ending*, honestly.',
+      '+{game}. No *map*, no stress.',
+      '=Fell in a pit. *Lovely*.',
+      '+I always pick the *scary* door.',
+      '=Lost the pencil. Making up my *stats*.',
     ],
     any: [
       '+Sure, why *not*?',
@@ -419,6 +441,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       "!It's *spinning*. Why is it spinning?",
       '-It took me ages to *untangle*.',
     ],
+    gamebook: [
+      '!{label} is a *book*. Books are not cartridges.',
+      '={game}. I have the *errata*, if needed.',
+      '=To be clear, you roll *two* dice for that.',
+      '!You cannot just *flip* back. That is cheating.',
+      '+To be fair, the *rules* are on page 1.',
+    ],
     any: [
       '!That is *not* in the spec.',
       '=I will add this to the *FAQ*.',
@@ -516,6 +545,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '=The string is a *line* drawing.',
       '+Very *Op* art, spinning.',
       '=Tangled *composition*.',
+    ],
+    gamebook: [
+      '+{label}. The *cover* art is a whole mood.',
+      '+{game}. Interactive *fiction* as a medium.',
+      '=Pencil maps in the margins. *Mixed* media.',
+      '+The reader is the *artist* here.',
+      '=Very *ink* heavy. I respect it.',
     ],
     any: [
       '+Everything is *art* if you squint.',
@@ -615,6 +651,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Spin *cancel*.',
       '!It *zipped* back!',
     ],
+    gamebook: [
+      '+{label}. Page 1 to 400, *any%*.',
+      '+{game}. Skip every *fight*.',
+      '!Died on page 3. *Reset*.',
+      '+Finger in the page is a *save state*.',
+      '=Dice *RNG*. Pain.',
+    ],
     any: [
       '+New *category* just dropped.',
       '+GG. *Frame* perfect.',
@@ -712,6 +755,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Okay that spin is *sick*.',
       '=Hopelessly *tangled*.',
       '-Just a *string* holding on.',
+    ],
+    gamebook: [
+      '-{label}. Every path *ends* in a pit.',
+      '-{game}. The dice *hate* me too.',
+      '+Okay, the *dragon* is cool. Tell no one.',
+      '-I always pick the *wrong* door. Same.',
+      '=Turned to page 400. *Still* sad.',
     ],
     any: [
       '-Of course it *did*.',
@@ -811,6 +861,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '-The string will *snap*. One day.',
       '=Down into the *dark*, and back.',
     ],
+    gamebook: [
+      '={label}. A tome of *doom*. Behold.',
+      '={game}. The dice decide our *fate*.',
+      '+Death on page 3. *Exquisite*.',
+      '=Turn to the page of my *epitaph*.',
+      '+A *dragon*. At last, company.',
+    ],
     any: [
       '=Into the *dark* it goes.',
       '+How *delightfully* grim.',
@@ -908,6 +965,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Tangled and *loud*!',
       '!It *snapped* back! Yes!',
       '+Up the *yo-yos*!',
+    ],
+    gamebook: [
+      '+{label}! *Rip* up the rules!',
+      '+{game}! Roll it *loud*!',
+      '+I fight the *dragon*! Every time!',
+      '!Turn to 400? I turn to *any* page!',
+      '+Dice? *Watch* me cheat!',
     ],
     any: [
       '+No rules! *Just this*!',
@@ -1007,6 +1071,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Best *trick* ever!',
       '+String *superstar*!',
     ],
+    gamebook: [
+      '+{label}! You chose *courage*!',
+      '+{game}! Roll that *twenty*!',
+      '+Every page a *plot twist*!',
+      '+You beat the *dragon*, book!',
+      '=Back to page 1, but *proud*!',
+    ],
     any: [
       '+You go, *thing*!',
       "+That's the *spirit*!",
@@ -1104,6 +1175,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Come *back*, yo-yo!',
       '-Oh no, *tangles*!',
       '+Twirly *friend*!',
+    ],
+    gamebook: [
+      '+{label}! Off you go, little *book*!',
+      '+{game}! Be *brave* in there!',
+      '+The dragon just wants a *friend*!',
+      '-Oh no, not the *pit*, little book!',
+      '+Every path can be a *good* one!',
     ],
     any: [
       '+Good *luck* in there!',
@@ -1203,6 +1281,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '=Tangled. *Typical*.',
       '+Smooth *enough*.',
     ],
+    gamebook: [
+      '={label}. Take your *time* choosing.',
+      '={game}. Quietly *tense*.',
+      '+A *steady* roll.',
+      "=Back to page 1. That's *fine*.",
+      '+Good *choice*, that door.',
+    ],
     any: [
       '=Well. That *happened*.',
       '+Could be *worse*.',
@@ -1300,6 +1385,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Walked the *dog*.',
       '+Around the *world*. Done.',
       '=Tangle? *Intentional*.',
+    ],
+    gamebook: [
+      '+{label}. Beat it on the *first* read.',
+      '+{game}. Natural *twenty*. Obviously.',
+      '+Dragon down. *Smooth*.',
+      '=Fell in a pit. *Stylishly*.',
+      '+Never needed a finger in the *page*.',
     ],
     any: [
       '+*Nailed* it.',
@@ -1399,6 +1491,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Up, down, *serve*!',
       '+A spin for the *ages*.',
     ],
+    gamebook: [
+      '+{label}! Darling, what a *title*!',
+      '+{game}! Roll for *drama*!',
+      '!A pit! How *scandalous*!',
+      '+The dragon is *serving* menace.',
+      '+Choose your own *entrance*, darling.',
+    ],
     any: [
       '+Darling, *iconic*.',
       '!Gasp! *Scandalous*!',
@@ -1496,6 +1595,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+A spin is *balance*.',
       '=Tangles are just *knots* in time.',
       '!Wait. Am *I* the yo-yo?',
+    ],
+    gamebook: [
+      '={label}. Did I choose, or did the *book*?',
+      '={game}. Free will, in *dice*.',
+      '=Every page holds the *others*.',
+      "+Turn to 400. Or *don't*.",
+      '-Some doors stay *closed*.',
     ],
     any: [
       '=Interesting. Or is *it*?',
@@ -1595,6 +1701,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '!String *snag*!',
       '+Walk the *dog*, landed!',
     ],
+    gamebook: [
+      '+{label}! *Drop in* to page 1!',
+      '+{game}! Dice *kickflip*!',
+      '+Jumped the pit, *stuck* the landing!',
+      '!Bailed on page *three*!',
+      '+Dragon *ollie*!',
+    ],
     any: [
       '+Stuck the *landing*!',
       '+Clean *line*!',
@@ -1693,6 +1806,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Walk the dog, *walk* it!',
       "-I'll *untangle* it later.",
     ],
+    gamebook: [
+      '+{label}! I had that one, *love*.',
+      '+{game}! Roll gently, *dear*.',
+      '=In my day we drew the *maps* ourselves.',
+      '-Fell in the pit. Mind my *knees*.',
+      '+Keep a finger in the *page*, dear.',
+    ],
     any: [
       '+Well, I *never*.',
       '=Curious *choice*, love.',
@@ -1790,6 +1910,13 @@ const LINES: Record<HeroId, Record<JunkKind | 'any', string[]>> = {
       '+Winds *back* fine.',
       '=Knot needs *work*.',
       '+Handy *tool*.',
+    ],
+    gamebook: [
+      '={label} as a *shim*.',
+      '={game}. Dice are *square*. Good.',
+      '+Good *spine*.',
+      '=Pages need a *clamp*.',
+      '+Maps the *floor* plan. Handy.',
     ],
     any: [
       '=That should *hold*.',
