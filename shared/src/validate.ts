@@ -1,7 +1,7 @@
 import { validateInbox, validateLevel, validateProject, validateSettings, validateWorld } from './validators.gen.js';
 import type { GameState, Level, Workspace } from './model';
 import { parseLevelRef } from './model';
-import { classifyPath, DATA_ROOT, fromFiles, levelPath, projectPath, toFiles, worldPath } from './serialize';
+import { classifyPath, DATA_ROOT, fromFiles, INBOX_PATH, levelPath, projectFiles, projectPath, SETTINGS_PATH, toFiles, worldPath } from './serialize';
 
 export interface Issue {
   /** Repo file the issue is in. */
@@ -215,21 +215,42 @@ export function validateFiles(files: Record<string, string>): Issue[] {
   return issues;
 }
 
-export function validateWorkspace(ws: Workspace): Issue[] {
+/** Every issue in one project: its files, plus ids that don't match their keys in memory. */
+function projectIssues(pid: string, state: GameState): Issue[] {
   // A level called "world" would overwrite world.json when serialized.
-  for (const [pid, state] of Object.entries(ws.projects))
-    for (const [wid, w] of Object.entries(state.worlds))
-      if (w.levels.some((l) => l.id === 'world'))
-        return [{ file: worldPath(pid, wid), path: '/levelOrder', message: 'level id "world" is reserved' }];
-  const issues = validateFiles(toFiles(ws));
+  for (const [wid, w] of Object.entries(state.worlds))
+    if (w.levels.some((l) => l.id === 'world'))
+      return [{ file: worldPath(pid, wid), path: '/levelOrder', message: 'level id "world" is reserved' }];
+  const issues = validateFiles(projectFiles(pid, state));
   // In memory, a project/world/level could be keyed differently from its id.
-  for (const [pid, state] of Object.entries(ws.projects)) {
-    if (state.overworld.id !== pid)
-      issues.push({ file: projectPath(pid), path: '/id', message: `id "${state.overworld.id}" must match folder "${pid}"` });
-    for (const [wid, w] of Object.entries(state.worlds))
-      if (w.id !== wid) issues.push({ file: worldPath(pid, wid), path: '/id', message: `id "${w.id}" must match folder "${wid}"` });
-  }
+  if (state.overworld.id !== pid)
+    issues.push({ file: projectPath(pid), path: '/id', message: `id "${state.overworld.id}" must match folder "${pid}"` });
+  for (const [wid, w] of Object.entries(state.worlds))
+    if (w.id !== wid) issues.push({ file: worldPath(pid, wid), path: '/id', message: `id "${w.id}" must match folder "${wid}"` });
   return issues;
+}
+
+const inProject = (pid: string) => (i: Issue) => i.file.startsWith(`${DATA_ROOT}/${pid}/`);
+const isShared = (i: Issue) => i.file === SETTINGS_PATH || i.file === INBOX_PATH;
+
+/**
+ * Validates `next`, re-checking only what changed since `prev` (whose issues
+ * were `prevIssues`): projects, settings and the inbox are compared by
+ * reference, and unchanged ones keep their issues. Ops copy only what they
+ * change, so one edit re-checks one project instead of everything.
+ */
+export function revalidate(prev: Workspace | undefined, prevIssues: Issue[], next: Workspace): Issue[] {
+  const issues: Issue[] = [];
+  for (const [pid, state] of Object.entries(next.projects))
+    issues.push(...(prev?.projects[pid] === state ? prevIssues.filter(inProject(pid)) : projectIssues(pid, state)));
+  if (prev && prev.settings === next.settings && prev.inbox === next.inbox) issues.push(...prevIssues.filter(isShared));
+  else issues.push(...validateFiles(toFiles({ projects: {}, settings: next.settings, inbox: next.inbox })));
+  return issues;
+}
+
+/** Every issue in the workspace: each project, then settings and the inbox. */
+export function validateWorkspace(ws: Workspace): Issue[] {
+  return revalidate(undefined, [], ws);
 }
 
 export function formatIssues(issues: Issue[]): string {
