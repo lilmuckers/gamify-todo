@@ -139,6 +139,8 @@ export class LevelScene extends QuestScene {
   private unlit = new Set<string>();
   /** Stair step the hero is standing on (index), when he's up the stairs. */
   private perch?: number;
+  /** The hero has just come up out of a pipe and is standing on its mouth (play mode takes over from there). */
+  private onPipe = false;
   private poleSpeech?: Phaser.GameObjects.Container;
   private lastPoleQuip?: string;
   private skyGfx?: Phaser.GameObjects.Graphics;
@@ -185,6 +187,7 @@ export class LevelScene extends QuestScene {
     this.prevCrit.clear();
     this.unlit.clear();
     this.perch = undefined;
+    this.onPipe = false;
     this.pole = undefined;
     this.flagPending = undefined;
     this.poleSpeech = undefined;
@@ -264,12 +267,13 @@ export class LevelScene extends QuestScene {
     });
 
     // A deep-linked item gets its bubble; otherwise show the one the hero waits at.
-    // Wait one frame so the camera has settled on the hero.
-    this.time.delayedCall(0, async () => {
-      if (arrival) {
-        this.busy = this.arrive(arrival);
-        await this.busy;
-      }
+    // Wait one frame so the camera has settled on the hero. The arrival counts as
+    // busy from now, so play mode (which a store change can start any moment)
+    // waits for the hero to come out of the pipe instead of grabbing him early.
+    const frame = new Promise<void>((resolve) => this.time.delayedCall(0, resolve));
+    if (arrival) this.busy = frame.then(() => this.arrive(arrival));
+    void frame.then(async () => {
+      await this.busy;
       if (this.app.playing) void this.enterPlay();
       else if (!this.syncBubbleToSelection()) this.autoBubble();
     });
@@ -1203,9 +1207,10 @@ export class LevelScene extends QuestScene {
     this.tweens.killTweensOf(this.hero);
     // A cleared level's hero is waiting in the castle: start again from the left.
     const x = this.hero.visible && this.hero.x < L.castleX * TILE ? this.hero.x : 2 * TILE;
-    // Up the stairs he stays up the stairs; anywhere else he starts on the ground.
-    const y = this.perch !== undefined && this.hero.visible ? this.hero.y : GROUND_Y;
+    // Up the stairs or on a pipe he stays up there; anywhere else he starts on the ground.
+    const y = (this.perch !== undefined || this.onPipe) && this.hero.visible ? this.hero.y : GROUND_Y;
     this.perch = undefined;
+    this.onPipe = false;
     this.hero.setVisible(true).setAlpha(1).setDepth(40).setPosition(x, y);
     this.idle();
     this.body = newBody(x + HITBOX.offX, GROUND_Y);
@@ -1837,6 +1842,8 @@ export class LevelScene extends QuestScene {
       this.hero.setPosition(TILE + 8, 3 * TILE + 4).setTexture(this.heroTex('jump'));
       await this.tween({ targets: this.hero, y: GROUND_Y, duration: 520, ease: 'Bounce.out' });
       this.idle();
+      // Playing: the player takes over where he landed.
+      if (this.app.playing) return;
       if (this.wasCleared && !this.current()?.sub) return this.fadeHero();
       await this.walkTo(stopX);
       return;
@@ -1852,6 +1859,12 @@ export class LevelScene extends QuestScene {
       cam.centerOn(this.hero.x + TILE, WORLD_H / 2);
       await this.tween({ targets: this.hero, y: mouth, duration: 600, delay: 200, ease: 'Linear' });
       this.hero.setDepth(40);
+      this.idle();
+      // Playing: the player takes over on top of the pipe.
+      if (this.app.playing) {
+        this.onPipe = true;
+        return;
+      }
       await this.hopTo((e.x + e.w) * TILE + 4, GROUND_Y);
       this.following = false;
       // A cleared level's hero lives in the castle: wave goodbye.
@@ -1876,6 +1889,7 @@ export class LevelScene extends QuestScene {
     });
     await this.hopTo(landX + TILE * 2, GROUND_Y);
     this.tweens.add({ targets: cloud, x: cloud.x - this.viewWidth, y: -TILE * 4, duration: 900, ease: 'Quad.in', onComplete: () => cloud.destroy() });
+    if (this.app.playing) return;
     this.following = false;
     if (this.wasCleared && !this.current()?.sub) return this.fadeHero();
     await this.walkTo(stopX);
