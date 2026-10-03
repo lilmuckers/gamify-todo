@@ -56,6 +56,8 @@ interface Egg {
   shadow?: Phaser.GameObjects.Image;
   shadowAt?: { x: number; y: number };
   home: Placed;
+  /** Where the thing lands when ejected: its home, or the juice cup's spot beside its puddle. */
+  back: { x: number; y: number };
   /** Juice drips, snack crumbs, soda fizz and the gamebook's die, cleared when the egg ends. */
   drips: Phaser.GameObjects.GameObject[];
   /** The juice's drip timer. A reset kills the insert's tweens mid-way, so it can't stop itself. */
@@ -74,6 +76,8 @@ interface Egg {
 
 /** Things that can go in the console, when this visit picks them. */
 const JUNKABLE = new Set<string>(JUNK_KINDS);
+/** The juice cup within its prop picture: centre and height (it spans x 0–29). */
+const CUP = { x: 14, y: 22, h: 18 };
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function rotate(p: { x: number; y: number }, deg: number) {
@@ -578,7 +582,7 @@ export class ProjectsScene extends QuestScene {
     const variant = pickVariant(j.kind, this.lastVariant.get(j.kind));
     this.lastVariant.set(j.kind, variant);
     track('junk_play', { kind: j.kind, variant });
-    const egg: Egg = { kind: j.kind, variant, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
+    const egg: Egg = { kind: j.kind, variant, img: j.img, shadow: j.shadow, shadowAt: j.shadow && { x: j.shadow.x, y: j.shadow.y }, home: j.home, back: j.home, drips: [], cancelled: false, resetting: false, padA: true, padB: true };
     this.egg = egg;
     window.addEventListener('keydown', this.onEggKey, true);
     // A click on the scene (not the dialogue box) bails out; skip the click that started it.
@@ -621,137 +625,281 @@ export class ProjectsScene extends QuestScene {
     if (this.egg === egg) await this.resetJunk(egg, false);
   }
 
-  /** Lifts the thing over the slot and squashes it in, with a bit of comedy per kind. */
+  /**
+   * Closes in on the console, lifts the thing over the slot and squashes it in,
+   * with a bit of comedy per kind. Each bit takes a second or so, close up,
+   * because at floor zoom the thing is a few pixels across and it all reads as
+   * a spin and a squish.
+   */
   private async insertJunk(egg: Egg) {
     const { img, kind } = egg;
     const c = this.room!.console;
     const slot = rotate(SLOT, c.angle);
-    const lift = rotate({ x: 0, y: -20 }, c.angle);
     const at = { x: c.x + slot.x, y: c.y + slot.y };
-    const fit = Math.min(1, SLOT.w / Math.max(img.width, img.height));
-    const above = { x: at.x + lift.x, y: at.y + lift.y };
+    /** A point `x` along the console and `y` above the slot (negative is up). */
+    const near = (x: number, y = -24) => {
+      const o = rotate({ x, y }, c.angle);
+      return { x: at.x + o.x, y: at.y + o.y };
+    };
+    const above = near(0);
+    if (kind === 'juice') this.pickUpCup(egg);
+    const fit = Math.min(1, SLOT.w / (kind === 'juice' ? 29 : Math.max(img.width, img.height)));
+    const gone = () => egg.cancelled;
+    const cam = this.cameras.main;
+    const close = Math.max(this.floorZoom, Math.min(cam.width / 230, cam.height / 170));
+    cam.pan(at.x, at.y - 10, 450, 'Sine.easeInOut');
+    cam.zoomTo(close, 450, 'Sine.easeInOut');
+
     // Juice drips all the way there.
     if (kind === 'juice') egg.dripping = this.time.addEvent({ delay: 45, loop: true, callback: () => this.drip(egg) });
-    await this.tween({ targets: img, ...above, angle: c.angle, scale: 1.1, duration: 340, ease: 'Quad.out' });
-    if (egg.cancelled) return;
-    if (kind === 'snack') {
-      // Upended and shaken for the last crumbs first.
-      await this.tween({ targets: img, angle: '+=180', duration: 180, ease: 'Back.out' });
-      for (let i = 0; i < 3; i++) {
-        this.crumb(egg, i);
-        await this.tween({ targets: img, y: above.y - 4, duration: 60, yoyo: true, ease: 'Sine.inOut' });
+    await this.tween({ targets: img, ...above, angle: c.angle, scale: 1.1, duration: 450, ease: 'Quad.out' });
+    if (gone()) return;
+
+    if (kind === 'sock') {
+      // Dangled by the toe, swinging, then stuffed in a shove at a time.
+      for (const a of [32, -26, 16, 0]) await this.tween({ targets: img, angle: c.angle + a, duration: 200, ease: 'Sine.inOut' });
+      for (const [i, s] of [0.7, 0.45, 0.25].entries()) {
+        const p = near(0, -24 * s);
+        await this.tween({ targets: img, ...p, scaleX: fit * 0.9, scaleY: s * 1.1, duration: 170, ease: 'Quad.in' });
+        this.cameras.main.shake(70, 0.004);
+        this.pop(egg, i === 2 ? 'STUFF!' : 'SHOVE', near(18 * (i % 2 ? -1 : 1), -30));
+        await this.wait(200);
+        if (gone()) return;
       }
-      await this.tween({ targets: img, angle: '+=180', duration: 160, ease: 'Quad.in' });
+    }
+    if (kind === 'snack') {
+      // Upended and shaken hard for the last crumbs, then crammed in with a crinkle.
+      await this.tween({ targets: img, angle: '+=180', duration: 260, ease: 'Back.out' });
+      this.pop(egg, 'SHAKE SHAKE', near(0, -46));
+      for (let i = 0; i < 4; i++) {
+        await this.tween({ targets: img, y: above.y - 10, duration: 80, ease: 'Quad.out' });
+        await this.tween({ targets: img, y: above.y, duration: 80, ease: 'Quad.in' });
+        for (let k = 0; k < 3; k++) this.crumb(egg, i * 3 + k);
+      }
+      await this.tween({ targets: img, angle: '+=180', duration: 220, ease: 'Quad.inOut' });
+      this.pop(egg, 'CRINKLE', near(20, -40));
+      await this.tween({ targets: img, scaleX: 0.7, duration: 90, yoyo: true, repeat: 2 });
     }
     if (kind === 'soda') {
-      // Shaken up good and proper (it fizzes out of the slot later).
-      await this.tween({ targets: img, x: above.x + 3, duration: 35, yoyo: true, repeat: 4, ease: 'Sine.inOut' });
-      await this.tween({ targets: img, x: above.x - 3, duration: 35, yoyo: true, repeat: 4, ease: 'Sine.inOut' });
+      // Shaken up good and proper; it fizzes out of the slot once it's in.
+      this.pop(egg, 'SHAKE!', near(0, -46));
+      for (let i = 0; i < 6; i++) {
+        const d = i % 2 ? -1 : 1;
+        await this.tween({ targets: img, x: above.x + 5 * d, angle: c.angle + 18 * d, duration: 55, ease: 'Sine.inOut' });
+      }
+      await this.tween({ targets: img, x: above.x, angle: c.angle, duration: 60 });
     }
-    if (kind === 'comic') {
-      // Rolled up tight into a tube to fit.
-      await this.tween({ targets: img, scaleX: 0.3, duration: 220, ease: 'Sine.in' });
-      await this.tween({ targets: img, scaleX: 0.4, duration: 60, yoyo: true });
-    }
-    if (kind === 'controller') {
-      // Still plugged in: the cable yanks it back, so it gets a firmer tug.
-      const back = { x: (img.x - egg.home.x) * 0.25, y: (img.y - egg.home.y) * 0.25 };
-      await this.tween({ targets: img, x: above.x - back.x, y: above.y - back.y, angle: c.angle - 15, duration: 110, ease: 'Back.out' });
-      this.cameras.main.shake(60, 0.003);
-      await this.tween({ targets: img, ...above, angle: c.angle, duration: 160, ease: 'Quad.in' });
+    if (kind === 'juice') {
+      // Tipped over the slot and squeezed: splosh.
+      await this.tween({ targets: img, angle: c.angle + 70, duration: 220, ease: 'Back.out' });
+      for (let i = 0; i < 3; i++) {
+        await this.tween({ targets: img, scaleX: 0.75, duration: 110, yoyo: true, ease: 'Quad.out' });
+        this.splash(egg, near(0, -10));
+        if (i === 1) this.pop(egg, 'SPLOSH', near(-22, -40));
+      }
+      await this.tween({ targets: img, angle: c.angle, duration: 160 });
     }
     if (kind === 'pizza') {
-      // Folded in half to fit.
-      await this.tween({ targets: img, scaleX: 0.55, angle: c.angle + 12, duration: 160, ease: 'Back.in' });
-      await this.tween({ targets: img, angle: c.angle, duration: 80 });
+      // Folded in half to fit, sags, and drips a bit of grease on the way in.
+      await this.tween({ targets: img, scaleX: 0.5, angle: c.angle + 14, duration: 280, ease: 'Back.in' });
+      this.pop(egg, 'FOLD', near(-20, -42));
+      await this.tween({ targets: img, scaleY: 1.4, y: above.y + 4, duration: 260, ease: 'Sine.inOut', yoyo: true });
+      this.grease(egg, near(4, -14));
+      await this.tween({ targets: img, angle: c.angle, duration: 120 });
+    }
+    if (kind === 'comic') {
+      // Rolled up into a tube, then posted like a letterbox: it springs back once.
+      this.pop(egg, 'ROLL', near(-20, -42));
+      for (const a of [-12, 12, -8, 0]) await this.tween({ targets: img, scaleX: Math.max(0.22, img.scaleX - 0.24), angle: c.angle + a, duration: 100 });
+      await this.tween({ targets: img, ...near(0, -6), scaleY: 0.5, duration: 140, ease: 'Quad.in' });
+      await this.tween({ targets: img, ...above, scaleY: 1.1, duration: 220, ease: 'Back.out' });
+      this.pop(egg, 'BOING', near(18, -42));
+      await this.wait(160);
+    }
+    if (kind === 'controller') {
+      // Still plugged in: the cable yanks it back twice before a big tug gets it there.
+      const home = egg.home;
+      const back = (f: number) => ({ x: above.x + (home.x - above.x) * f, y: above.y + (home.y - above.y) * f });
+      await this.tween({ targets: img, ...back(0.35), angle: c.angle - 25, duration: 120, ease: 'Back.out' });
+      this.cameras.main.shake(80, 0.005);
+      this.pop(egg, 'YANK!', near(-30, -50));
+      await this.wait(220);
+      await this.tween({ targets: img, ...back(0.1), angle: c.angle, duration: 260, ease: 'Quad.in' });
+      await this.tween({ targets: img, ...back(0.3), angle: c.angle - 18, duration: 110, ease: 'Back.out' });
+      this.cameras.main.shake(80, 0.005);
+      await this.wait(200);
+      this.pop(egg, 'TUG!', near(0, -46));
+      await this.tween({ targets: img, ...above, angle: c.angle, duration: 180, ease: 'Quad.in' });
     }
     if (kind === 'cassette') {
-      // Stood on its edge and clunked in like a tape deck.
-      await this.tween({ targets: img, angle: c.angle + 90, scaleX: 1, duration: 160, ease: 'Back.out' });
-      await this.tween({ targets: img, angle: c.angle, duration: 90 });
+      // Stood on its edge and clunked in like a tape deck, which spits it straight back out.
+      await this.tween({ targets: img, angle: c.angle + 90, scaleX: 1, duration: 220, ease: 'Back.out' });
+      await this.tween({ targets: img, angle: c.angle, duration: 120 });
+      await this.tween({ targets: img, ...near(0, -4), scaleY: 0.3, duration: 160, ease: 'Quad.in' });
+      this.pop(egg, 'CLUNK', near(-20, -38));
+      this.cameras.main.shake(70, 0.004);
+      await this.wait(260);
+      await this.tween({ targets: img, ...near(0, -40), scaleY: 1.1, angle: c.angle + 25, duration: 220, ease: 'Quad.out' });
+      this.pop(egg, 'EJECT', near(22, -50), '#e43b44');
+      await this.tween({ targets: img, ...above, angle: c.angle, duration: 240, ease: 'Bounce.out' });
+      await this.wait(160);
     }
     if (kind === 'banana') {
-      // Slips straight past the slot, then sheepishly slides back.
-      const past = rotate({ x: 34, y: 0 }, c.angle);
-      await this.tween({ targets: img, x: above.x + past.x, y: above.y + past.y, angle: c.angle + 40, duration: 180, ease: 'Quad.out' });
-      this.cameras.main.shake(70, 0.003);
-      await this.tween({ targets: img, ...above, angle: c.angle, duration: 260, ease: 'Sine.inOut' });
+      // Skids straight past the slot in a spin, then sheepishly slides back.
+      await this.tween({ targets: img, ...near(52, -14), angle: c.angle + 300, duration: 380, ease: 'Quad.out' });
+      this.cameras.main.shake(90, 0.004);
+      this.pop(egg, 'WHOOPS', near(44, -46));
+      await this.wait(380);
+      await this.tween({ targets: img, ...above, angle: c.angle + 360, duration: 600, ease: 'Sine.inOut' });
     }
     if (kind === 'duck') {
-      // Squeak, squeak: a squash and stretch before it'll go.
-      for (let i = 0; i < 2; i++) {
-        await this.tween({ targets: img, scaleX: 1.35, scaleY: 0.7, duration: 90, ease: 'Quad.out' });
-        await this.tween({ targets: img, scaleX: 0.85, scaleY: 1.25, duration: 90, ease: 'Quad.in' });
+      // Squeak, squeak: it squashes and stretches and won't go quietly.
+      for (let i = 0; i < 3; i++) {
+        await this.tween({ targets: img, scaleX: 1.6, scaleY: 0.6, duration: 120, ease: 'Quad.out' });
+        this.pop(egg, 'SQUEAK!', near(i % 2 ? -22 : 22, -40));
+        await this.tween({ targets: img, scaleX: 0.8, scaleY: 1.4, duration: 130, ease: 'Quad.in' });
+        await this.wait(110);
       }
     }
     if (kind === 'donut') {
-      // Rolls in on its edge.
-      await this.tween({ targets: img, angle: c.angle + 360, scaleX: 0.4, duration: 300, ease: 'Quad.in' });
+      // Stood on its edge and rolled along the console, hopping, before it drops in.
+      await this.tween({ targets: img, scaleX: 0.35, duration: 180 });
+      for (const [x, ms] of [[-42, 420], [40, 620], [0, 360]]) {
+        // A little hop half-way, like it's caught a crumb.
+        this.tweens.add({ targets: img, scaleY: 1.25, duration: ms / 2, yoyo: true, ease: 'Sine.out' });
+        await this.tween({ targets: img, ...near(x, -20), duration: ms, ease: 'Sine.inOut' });
+        if (gone()) return;
+      }
+      this.pop(egg, 'WOBBLE', near(0, -46));
+      for (const a of [18, -12, 7, 0]) await this.tween({ targets: img, angle: c.angle + a, duration: 110 });
     }
     if (kind === 'teddy') {
-      // A long, reluctant hug of a squeeze.
-      await this.tween({ targets: img, scaleX: 0.55, scaleY: 1.15, duration: 420, ease: 'Sine.inOut' });
-      await this.wait(120);
+      // Squeezed in a long hug, pops back out, and is squeezed again more gently.
+      await this.tween({ targets: img, scaleX: 0.5, scaleY: 1.2, duration: 420, ease: 'Sine.inOut' });
+      await this.tween({ targets: img, scaleX: 1.35, scaleY: 0.95, duration: 160, ease: 'Back.out' });
+      this.pop(egg, 'BOING', near(22, -42));
+      this.cameras.main.shake(60, 0.003);
+      await this.wait(240);
+      this.pop(egg, 'SQUISH', near(-22, -42));
+      await this.tween({ targets: img, scaleX: 0.5, scaleY: 1.2, duration: 600, ease: 'Sine.inOut' });
+      await this.wait(160);
     }
     if (kind === 'yoyo') {
-      // Down on its string and back up, twice, then in. Relative turns: Phaser
-      // wraps the angle, so absolute ones spun 360° then 720° the second time.
-      for (let i = 0; i < 2; i++) {
-        await this.tween({ targets: img, x: at.x, y: at.y, angle: '+=180', duration: 150, ease: 'Quad.in' });
-        await this.tween({ targets: img, ...above, angle: '+=180', duration: 170, ease: 'Quad.out' });
+      // Thrown down on its string and back up three times, then let go into the slot.
+      const hand = near(0, -64);
+      const line = this.add.graphics();
+      this.layer?.add(line);
+      egg.drips.push(line);
+      const string = () => line.clear().lineStyle(1, 0xf4f4f4, 1).lineBetween(hand.x, hand.y, img.x, img.y);
+      await this.tween({ targets: img, ...near(0, -50), duration: 150, onUpdate: string });
+      for (let i = 0; i < 3; i++) {
+        await this.tween({ targets: img, ...near(0, -6), angle: '+=360', duration: 220, ease: 'Quad.in', onUpdate: string });
+        await this.tween({ targets: img, ...near(0, -50), angle: '+=360', duration: 240, ease: 'Quad.out', onUpdate: string });
+        if (gone()) return;
       }
+      line.clear();
+      this.pop(egg, 'SNAP', hand);
+      await this.tween({ targets: img, ...above, duration: 120 });
     }
     if (kind === 'gamebook') {
-      // Riffled open and shut, flicking ahead to see how it ends, then a die rolls off it.
+      // Riffled open and shut to peek at the ending, then a die rolls off it and across the console.
+      this.pop(egg, 'FLIP FLIP', near(0, -50));
       for (let i = 0; i < 3; i++) {
-        await this.tween({ targets: img, scaleX: -1.1, duration: 70, ease: 'Sine.inOut' });
-        await this.tween({ targets: img, scaleX: 1.1, duration: 70, ease: 'Sine.inOut' });
+        await this.tween({ targets: img, scaleX: -1.1, duration: 110, ease: 'Sine.inOut' });
+        await this.tween({ targets: img, scaleX: 1.1, duration: 110, ease: 'Sine.inOut' });
       }
-      const die = this.add.rectangle(img.x, img.y, 5, 5, 0xf4f4f4).setStrokeStyle(1, 0x1a1c2c);
+      const die = this.add.rectangle(img.x, img.y, 6, 6, 0xf4f4f4).setStrokeStyle(1, 0x1a1c2c);
       this.layer?.add(die);
       egg.drips.push(die);
-      const off = rotate({ x: 26, y: 18 }, c.angle);
-      await this.tween({ targets: die, x: img.x + off.x, y: img.y + off.y, angle: 270, duration: 260, ease: 'Bounce.out' });
-    }
-    if (egg.cancelled) return;
-    if (kind === 'sock') {
-      // Stuffed in, a shove at a time.
-      for (const s of [0.75, 0.5, 0.3]) {
-        await this.tween({ targets: img, x: at.x + lift.x * s, y: at.y + lift.y * s, scaleX: fit * 0.9, scaleY: s, duration: 140, ease: 'Quad.in' });
-        this.cameras.main.shake(60, 0.003);
-        await this.wait(90);
-        if (egg.cancelled) return;
+      for (const [x, y] of [[20, -6], [36, 6], [46, 14]]) {
+        await this.tween({ targets: die, ...near(x, y), angle: '+=180', duration: 200, ease: 'Quad.out' });
+        if (gone()) return;
       }
+      this.pop(egg, `${Phaser.Math.Between(1, 6)}!`, near(46, -10), '#fee761');
+      await this.wait(260);
     }
+    if (gone()) return;
     const squash = kind === 'comic' ? fit * 0.4 : kind === 'pizza' || kind === 'teddy' || kind === 'donut' ? fit * 0.6 : fit;
-    await this.tween({ targets: img, x: at.x, y: at.y, angle: c.angle, scaleX: squash, scaleY: 0.18, duration: 200, ease: 'Quad.in' });
+    await this.tween({ targets: img, ...at, angle: c.angle, scaleX: squash, scaleY: 0.18, duration: 220, ease: 'Quad.in' });
     egg.dripping?.remove();
     this.cameras.main.shake(90, 0.004);
-    if (kind === 'soda' && !egg.cancelled) this.fizz(egg, at);
+    if (kind === 'soda' && !gone()) {
+      this.fizz(egg, at);
+      this.pop(egg, 'FZZZT!', near(0, -40), '#2ce8f5');
+      await this.wait(500);
+    }
   }
 
-  /** A crumb falls out of the upended snack bag and lands on the carpet. */
+  /**
+   * The juice prop is a cup lying in its own puddle, drawn as one picture.
+   * Leave a copy cropped to the puddle behind and carry just the cup, pivoting
+   * on its middle (the numbers match `juice()` in sprites/bedroom.ts).
+   */
+  private pickUpCup(egg: Egg) {
+    const { img, home } = egg;
+    const puddle = this.add.image(home.x, home.y, img.texture.key).setAngle(home.angle).setCrop(29, 0, 31, 44);
+    this.layer?.addAt(puddle, this.layer.getIndex(img));
+    egg.drips.push(puddle);
+    const dx = CUP.x - img.width / 2;
+    const shift = rotate({ x: dx * img.scaleX, y: 0 }, img.angle);
+    img.setCrop(0, CUP.y - CUP.h / 2, 29, CUP.h).setOrigin(CUP.x / img.width, 0.5);
+    img.setPosition(img.x + shift.x, img.y + shift.y);
+    const off = rotate({ x: dx, y: 0 }, home.angle);
+    egg.back = { x: home.x + off.x, y: home.y + off.y };
+  }
+
+  /** A sound word that pops up beside the action and floats away. Cleared with the drips. */
+  private pop(egg: Egg, word: string, p: { x: number; y: number }, color = '#ffffff') {
+    const t = this.text(p.x, p.y, word, 6, color).setOrigin(0.5).setDepth(400).setAlpha(0);
+    egg.drips.push(t);
+    this.tweens.add({ targets: t, alpha: 1, duration: 80 });
+    this.tweens.add({ targets: t, y: p.y - 12, angle: Phaser.Math.Between(-10, 10), duration: 700, ease: 'Quad.out' });
+    this.tweens.add({ targets: t, alpha: 0, delay: 500, duration: 250 });
+  }
+
+  /** Little bits flung from `p` that land around it: crumbs, juice. */
+  private fling(egg: Egg, p: { x: number; y: number }, color: number, n: number, size = 2) {
+    for (let i = 0; i < n; i++) {
+      const d = this.add.rectangle(p.x, p.y, size, size, color);
+      this.layer?.add(d);
+      egg.drips.push(d);
+      const dx = Phaser.Math.Between(-22, 22);
+      void this.tween({ targets: d, x: p.x + dx, y: p.y + Phaser.Math.Between(16, 34), duration: Phaser.Math.Between(240, 360), ease: 'Bounce.out' });
+    }
+  }
+
+  /** Crumbs fall out of the upended snack bag. */
   private crumb(egg: Egg, i: number) {
     const color = Phaser.Display.Color.HexStringToColor(['#fee761', '#feae34', '#e4a672'][i % 3]).color;
-    const d = this.add.rectangle(egg.img.x + Phaser.Math.Between(-6, 6), egg.img.y + 8, 2, 2, color);
-    this.layer?.add(d);
-    egg.drips.push(d);
-    void this.tween({ targets: d, y: d.y + Phaser.Math.Between(14, 22), duration: 220, ease: 'Bounce.out' });
+    this.fling(egg, { x: egg.img.x + Phaser.Math.Between(-6, 6), y: egg.img.y + 10 }, color, 1);
+  }
+
+  /** A squeeze of the carton splashes juice about. */
+  private splash(egg: Egg, p: { x: number; y: number }) {
+    this.fling(egg, p, this.junkColour(), 5);
+  }
+
+  /** One drop of grease off the folded pizza. */
+  private grease(egg: Egg, p: { x: number; y: number }) {
+    this.fling(egg, p, 0xfeae34, 2, 3);
   }
 
   /** Bubbles fizz up out of the slot after the shaken can goes in. */
   private fizz(egg: Egg, at: { x: number; y: number }) {
-    for (let i = 0; i < 8; i++) {
-      const b = this.add.circle(at.x + Phaser.Math.Between(-8, 8), at.y, Phaser.Math.Between(1, 2), 0xc0cbdc).setStrokeStyle(1, 0xf4f4f4);
+    for (let i = 0; i < 16; i++) {
+      const b = this.add.circle(at.x + Phaser.Math.Between(-10, 10), at.y, Phaser.Math.Between(1, 3), 0xc0cbdc).setStrokeStyle(1, 0xf4f4f4);
       this.layer?.add(b);
       egg.drips.push(b);
-      this.tweens.add({ targets: b, y: at.y - Phaser.Math.Between(10, 24), x: b.x + Phaser.Math.Between(-4, 4), alpha: 0, delay: i * 50, duration: 420, ease: 'Sine.out' });
+      this.tweens.add({ targets: b, y: at.y - Phaser.Math.Between(18, 46), x: b.x + Phaser.Math.Between(-10, 10), alpha: 0, delay: i * 40, duration: 600, ease: 'Sine.out' });
     }
   }
 
+  private junkColour() {
+    return Phaser.Display.Color.HexStringToColor(this.room?.props[this.room.junk]?.colors?.[0] ?? '#f77622').color;
+  }
+
   private drip(egg: Egg) {
-    const color = Phaser.Display.Color.HexStringToColor(this.room?.props[this.room.junk]?.colors?.[0] ?? '#f77622').color;
-    const d = this.add.rectangle(egg.img.x + Phaser.Math.Between(-4, 4), egg.img.y + 6, 2, 2, color);
+    const d = this.add.rectangle(egg.img.x + Phaser.Math.Between(-4, 4), egg.img.y + 6, 2, 2, this.junkColour());
     this.layer?.add(d);
     egg.drips.push(d);
   }
@@ -834,7 +982,7 @@ export class ProjectsScene extends QuestScene {
       await this.wait(500);
       // Ejected: pops out of the slot and lands back on its spot.
       await this.tween({ targets: img, scaleX: 1, scaleY: 1, y: img.y - 26, duration: 180, ease: 'Quad.out' });
-      await this.tween({ targets: img, x: home.x, y: home.y, angle: home.angle, duration: 320, ease: 'Bounce.out' });
+      await this.tween({ targets: img, ...egg.back, angle: home.angle, duration: 320, ease: 'Bounce.out' });
     }
     this.endEgg();
   }
@@ -852,7 +1000,7 @@ export class ProjectsScene extends QuestScene {
     this.tweens.killTweensOf(egg.drips);
     for (const d of egg.drips) d.destroy();
     if (egg.shadow && egg.shadowAt) egg.shadow.setVisible(true).setPosition(egg.shadowAt.x, egg.shadowAt.y).setAngle(egg.home.angle).setScale(1);
-    if (egg.img.active) egg.img.setVisible(true).setPosition(egg.home.x, egg.home.y).setAngle(egg.home.angle).setScale(1);
+    if (egg.img.active) egg.img.setCrop().setOrigin(0.5).setVisible(true).setPosition(egg.home.x, egg.home.y).setAngle(egg.home.angle).setScale(1);
     this.egg = undefined;
     this.busy = false;
     if (this.resized) {

@@ -224,7 +224,10 @@ and the camera pans up to the TV.
   donut, teddy, yo-yo and a pick-your-path fantasy gamebook, laid out randomly each visit.
   Hovering (or tapping) lifts an item and it mutters a quip.
 - **Easter egg (#56):** each visit, one non-game thing is "jammable" ("…wonder if it fits?").
-  Clicking it squashes it into the console, which boots to a silly TV title screen. Each kind
+  Clicking it closes in on the console for a bit of comedy per kind, with pop-up sound words
+  (the sock is dangled then stuffed in, the snack bag upended for crumbs, the can shaken until
+  it fizzes out of the slot, the tape ejected once, the controller yanked back by its own cable,
+  and so on). Then it squashes in and the console boots to a silly TV title screen. Each kind
   has five screen variants (its own, plus kart racer, shooter, fighter, falling blocks, RPG
   battle, platformer or quiz show), for example SOCK QUEST, PIZZA KART or QUACK QUIZ. The
   gamebook boots to its own dungeon map or an open page ("TURN TO 400"), or rolls for a quest.
