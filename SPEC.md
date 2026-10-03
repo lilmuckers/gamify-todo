@@ -586,7 +586,8 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   - a format check (advisory only);
   - `schema:check`, so the generated code stays current;
   - typecheck;
-  - tests.
+  - tests;
+  - the Playwright end-to-end suite (`npm run e2e`).
 - `pages.yml` validates, builds and deploys `main`.
 - Test coverage includes:
   - the shared model: ops, undo, structural sharing, scoring, layout, worldmap, Today, review,
@@ -595,7 +596,16 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   - the server;
   - the router, nav, play physics, catch-up, analytics, onboarding/tour, heroes/portraits/lines
     coverage, and zip.
-- Playwright end-to-end tests are not yet written (#38).
+- Playwright end-to-end tests (`e2e/`, #38) drive real builds in Chromium through the core
+  flows:
+  - the read-only site, from the project floor to an item's bubble and its deep link;
+  - the local editor against a fresh git repo: completing an item commits it, steps under a
+    warp pipe send the hero back up with the dependency done, and the hero picker writes
+    `data/settings.json`;
+  - offline edits surviving a reload and committing once back online;
+  - the phone layout;
+  - the demo keeping nothing;
+  - the `t`/`i`/`w` pads, and capturing an idea with `n` and placing it in a level.
 
 ---
 
@@ -648,7 +658,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #37 `quest.py review` scope-cut suggestions
 
 **Quality:**
-- #38 Playwright E2E
 - #39 Accessibility: screen-reader announcements, keyboard play, reduced motion
 - #40 Light theme
 - #41 Document the hero sprite format
