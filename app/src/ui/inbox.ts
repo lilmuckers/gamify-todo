@@ -1,5 +1,6 @@
 import {
   ITEM_TYPES,
+  safeLink,
   THEMES,
   uniqueId,
   type InboxItem,
@@ -174,7 +175,10 @@ export function inboxSheet(app: App): (Node | null | false | undefined)[] {
           'span',
           { class: 'pad-where' },
           item.notes ?? '',
-          item.link && [item.notes ? ' · ' : '', h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer' }, linkLabel(item.link))],
+          item.link && [
+            item.notes ? ' · ' : '',
+            safeLink(item.link) ? h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer' }, linkLabel(item.link)) : item.link,
+          ],
         ),
       edit &&
         h(
