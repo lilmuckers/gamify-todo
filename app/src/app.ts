@@ -1,4 +1,5 @@
 import {
+  currencyOf,
   diffWorkspaces,
   findLevel,
   findLevelAt,
@@ -62,6 +63,8 @@ export interface LevelView {
   level: Level;
   diff?: LevelDiff;
   readonly: boolean;
+  /** The project's currency, for budgets and costs. */
+  currency: string;
   /** Set when showing a dependency's sub-level. */
   sub?: { parent: Level; dep: Item };
 }
@@ -448,7 +451,7 @@ export class App {
     if (r.view === 'level' && this.state) {
       const world = this.state.worlds[r.worldId];
       const level = findLevel(this.state, r.worldId, r.levelId);
-      if (world && level) return { projectId: r.projectId, world, level, readonly: !this.caps.canEdit };
+      if (world && level) return { projectId: r.projectId, world, level, readonly: !this.caps.canEdit, currency: currencyOf(this.state) };
     }
     if (r.view === 'pr-level') {
       const v = this.pullViews.get(r.pr);
@@ -460,7 +463,8 @@ export class App {
       const diff = v.diff.levels.find(
         (l) => l.projectId === r.projectId && l.worldId === r.worldId && l.levelId === r.levelId,
       );
-      return { projectId: r.projectId, world, level: reviewLevel(before, after), diff, readonly: true };
+      const currency = currencyOf(pullLookup(v.data).project(r.projectId));
+      return { projectId: r.projectId, world, level: reviewLevel(before, after), diff, readonly: true, currency };
     }
   }
 }

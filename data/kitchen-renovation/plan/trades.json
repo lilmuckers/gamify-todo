@@ -78,7 +78,9 @@
         "plasterer",
         "fitter"
       ],
-      "notes": "Fitter 20%, everyone else on completion."
+      "notes": "Fitter 20%, everyone else on completion.",
+      "budget": 1200,
+      "spent": 1150
     }
   ],
   "stats": {

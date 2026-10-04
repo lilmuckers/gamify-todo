@@ -70,7 +70,8 @@
       "title": "Colour-coded cost chart",
       "type": "stretch",
       "status": "dropped",
-      "notes": "Spreadsheet is fine. Dropped."
+      "notes": "Spreadsheet is fine. Dropped.",
+      "budget": 15
     }
   ]
 }

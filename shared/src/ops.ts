@@ -1,6 +1,8 @@
 import type { Criterion, GameState, Goal, InboxItem, Item, ItemStatus, Level, Project, Settings, World, Workspace } from './model';
 import { clone, findLevelAt, uniqueId } from './model';
+import { COST_FIELDS } from './budget';
 import { isCleared } from './scoring';
+import { stringify } from './serialize';
 
 interface LevelAddr {
   worldId: string;
@@ -15,9 +17,9 @@ interface ItemAddr extends LevelAddr {
 
 type ItemPatch = Partial<Omit<Item, 'id'>>;
 type CriterionPatch = Partial<Omit<Criterion, 'id'>>;
-type LevelPatch = Partial<Pick<Level, 'name' | 'deliverable' | 'description' | 'timeboxDays'>>;
-type WorldPatch = Partial<Pick<World, 'name' | 'description' | 'theme' | 'goalIds' | 'unlocksAfter'>>;
-type ProjectPatch = Partial<Pick<Project, 'title' | 'description' | 'worldOrder'>>;
+type LevelPatch = Partial<Pick<Level, 'name' | 'deliverable' | 'description' | 'timeboxDays' | 'budget'>>;
+type WorldPatch = Partial<Pick<World, 'name' | 'description' | 'theme' | 'goalIds' | 'unlocksAfter' | 'budget'>>;
+type ProjectPatch = Partial<Pick<Project, 'title' | 'description' | 'currency' | 'worldOrder'>>;
 
 /** Ops that act inside one project. */
 type ProjectOpBody =
@@ -103,6 +105,22 @@ const isScopeCut = (op: Op) =>
   (op.kind === 'setItemStatus' && op.status === 'dropped') ||
   (op.kind === 'setSomeday' && op.someday);
 
+/** Patch keys whose value actually differs (missing = undefined; list order doesn't count). */
+function changedKeys(target: object, patch: object): string[] {
+  const norm = (v: unknown) => stringify(Array.isArray(v) ? [...v].sort() : v);
+  return Object.entries(patch).filter(([k, v]) => norm((target as Record<string, unknown>)[k]) !== norm(v)).map(([k]) => k);
+}
+
+/**
+ * Logging what something cost (or re-budgeting it) is bookkeeping, not
+ * polish: receipts often arrive after the work is done.
+ */
+function onlyCosts(target: object | undefined, patch: object): boolean {
+  if (!target) return false;
+  const changed = changedKeys(target, patch);
+  return changed.length > 0 && changed.every((k) => (COST_FIELDS as readonly string[]).includes(k));
+}
+
 /** Keeps `doneAt` in step with the status: stamped when it becomes done, gone otherwise. */
 function stampDone(item: Pick<Item, 'status' | 'doneAt'>, wasDone: boolean, at: string) {
   if (item.status !== 'done') delete item.doneAt;
@@ -152,7 +170,11 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
     level.stats = { ...level.stats, itemEdits };
   };
 
-  if (wasCleared && op.kind !== 'startLevel' && !isScopeCut(op))
+  const bookkeeping =
+    (op.kind === 'updateItem' && onlyCosts(list().find((i) => i.id === op.itemId), op.patch)) ||
+    (op.kind === 'updateLevel' && onlyCosts(level, op.patch));
+
+  if (wasCleared && op.kind !== 'startLevel' && !isScopeCut(op) && !bookkeeping)
     bump(op.kind === 'addItem' ? 'itemsAddedAfterClear' : 'editsAfterClear');
 
   switch (op.kind) {
@@ -181,7 +203,7 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
       break;
     case 'updateItem': {
       const item = findItem(op.itemId);
-      if (!wasCleared && item.status === 'done' && op.patch.status !== 'dropped') bumpItem(statKey(item.id));
+      if (!wasCleared && item.status === 'done' && op.patch.status !== 'dropped' && !bookkeeping) bumpItem(statKey(item.id));
       const wasDone = item.status === 'done';
       Object.assign(item, clone(op.patch));
       for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (item as any)[k];
@@ -365,9 +387,12 @@ function applyProjectOp(state: GameState, op: ProjectOp): GameState {
       next.worlds[op.world.id] = clone(op.world);
       if (!next.overworld.worldOrder.includes(op.world.id)) overworld().worldOrder.push(op.world.id);
       return next;
-    case 'updateWorld':
-      Object.assign(world(op.worldId), clone(op.patch));
+    case 'updateWorld': {
+      const w = world(op.worldId);
+      Object.assign(w, clone(op.patch));
+      for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (w as any)[k];
       return next;
+    }
     case 'deleteWorld': {
       world(op.worldId);
       delete next.worlds[op.worldId];
@@ -380,9 +405,12 @@ function applyProjectOp(state: GameState, op: ProjectOp): GameState {
       dropRefs((ref) => ref.startsWith(`${op.worldId}/`));
       return next;
     }
-    case 'updateProject':
-      Object.assign(overworld(), clone(op.patch));
+    case 'updateProject': {
+      const o = overworld();
+      Object.assign(o, clone(op.patch));
+      for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (o as any)[k];
       return next;
+    }
     case 'addGoal':
       if (next.overworld.goals.some((g) => g.id === op.goal.id))
         throw new OpConflict(`goal id "${op.goal.id}" already taken`, op);

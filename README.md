@@ -52,6 +52,13 @@ underground sub-level holding them. Clear the steps and the hero comes back up t
 the dependency done. Every dependency's bubble offers *Warp in* / *Hop on* (visit), *Got it!*
 (close) and *Jump over* (skip). Plain ones stay a pipe with a plant.
 
+**Budgets** are optional. Give a task, a dependency or one of its steps a cash budget, and log
+what it actually cost as receipts come in (logging a cost never counts as polish). Levels and
+worlds can have an allowance of their own, or just add up what's inside. The panel shows what's
+spent, what's left and what you've **saved**: savings are banked when an item is done or dropped,
+when a level clears, and when a world is finished. Dropping a budgeted item banks all of it, so
+cutting scope saves money too. Pick the currency when you edit the project (GBP by default).
+
 Pick your **hero** from eighteen characters in **⚙ Settings**. The choice is kept in your browser
 (next to the token). When the data is editable it is also saved to `data/settings.json` as the
 default for everyone; in read-only views your own choice wins over that default.

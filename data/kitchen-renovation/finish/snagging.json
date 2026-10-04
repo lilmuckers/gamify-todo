@@ -50,7 +50,8 @@
       "status": "todo",
       "dependsOn": [
         "walkround"
-      ]
+      ],
+      "budget": 1100
     },
     {
       "id": "register-appliance-warranties",
@@ -69,7 +70,8 @@
       "id": "style-the-open-shelves",
       "title": "Style the open shelves",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 60
     }
   ]
 }

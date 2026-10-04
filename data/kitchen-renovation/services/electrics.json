@@ -31,26 +31,34 @@
       "id": "chase-the-walls-for-cables",
       "title": "Chase the walls for cables",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "budget": 400,
+      "spent": 360
     },
     {
       "id": "cooker-circuit",
       "title": "Run the cooker circuit from the consumer unit",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "budget": 300,
+      "spent": 345
     },
     {
       "id": "cable-sockets-per-the-plan",
       "title": "Cable sockets per the plan",
       "type": "task",
       "status": "done",
-      "notes": "18 doubles plus three appliance spurs. 11 done."
+      "notes": "18 doubles plus three appliance spurs. 11 done.",
+      "budget": 450,
+      "spent": 410
     },
     {
       "id": "cable-the-led-downlights",
       "title": "Cable the LED downlights",
       "type": "task",
-      "status": "doing"
+      "status": "doing",
+      "budget": 380,
+      "spent": 150
     },
     {
       "id": "six-or-eight-downlights",
@@ -64,7 +72,8 @@
       "title": "Consumer unit needs an extra RCBO",
       "type": "blocker",
       "status": "todo",
-      "notes": "Electrician ordering it; three days lead time."
+      "notes": "Electrician ordering it; three days lead time.",
+      "budget": 90
     },
     {
       "id": "joists-block-downlight-positions",
@@ -78,12 +87,14 @@
       "id": "led-strip-under-the-wall-units",
       "title": "LED strip under the wall units",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 60
     }
   ],
   "stats": {
     "itemEdits": {
       "six-or-eight-downlights": 1
     }
-  }
+  },
+  "budget": 1800
 }

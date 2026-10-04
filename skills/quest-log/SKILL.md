@@ -82,6 +82,12 @@ A level is **cleared** when every success criterion marked `"mvp": true` is `"do
 Nothing else gates it. The whole point is "good enough, then move on": keep MVP criteria to the
 1–3 checks that truly matter, and put polish into non-MVP criteria or `stretch` items.
 
+**Money is optional.** Items and dependency steps can carry a cash `budget` (what it should cost)
+and `spent` (what it has cost so far). Levels and worlds can have a `budget` of their own; without
+one, theirs is the sum of what's inside. Amounts are plain numbers in the project's `currency`
+(GBP when unset). The app banks **savings** (budget minus spent) when an item is done or dropped,
+a level clears, or a world's levels are all cleared. Dropping a budgeted item banks all of it.
+
 ## 2. Folder layout
 
 ```
@@ -144,6 +150,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `id` | ✓ | id | = folder name |
 | `title` | ✓ | string ≤120 | |
 | `description` | | string ≤4000 | |
+| `currency` | | ISO 4217 code | e.g. `EUR`, `USD`: for every budget in this project. Omit for GBP. |
 | `goals` | ✓ | `{id, title, description?}[]` | 1–5 key outcomes |
 | `worldOrder` | ✓ | id[] | world folders, in map order |
 
@@ -157,6 +164,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `theme` | ✓ | `grass` \| `desert` \| `water` \| `ice` \| `sky` \| `castle` | grass = general, desert = long slog/infra, water = research, ice = cleanup, sky = vision/design, castle = launch/high stakes |
 | `goalIds` | ✓ | id[] | goal ids from this project's `project.json` |
 | `unlocksAfter` | | id[] | other worlds in this project to finish first. Draws the map: each world branches from the worlds it unlocks after (visual only; never blocks editing). Worlds without it start the map. |
+| `budget` | | number ≥0 | cash for the whole world. Omit to add up its levels' budgets. |
 | `levelOrder` | ✓ | id[] | level files, in play order |
 
 ### Level (`data/<project-id>/<world-id>/<level-id>.json`)
@@ -171,6 +179,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `startedAt` | | ISO date-time | see §5 |
 | `clearedAt` | | ISO date-time | see §5 |
 | `someday` | | boolean | `true` = parked on the someday shelf (see "weekly review" below). Omit otherwise. |
+| `budget` | | number ≥0 | cash for the whole level. Omit to add up its items' budgets. |
 | `successCriteria` | ✓ | Criterion[] (1–20) | at least one with `mvp: true` |
 | `items` | ✓ | Item[] (≤200) | may be empty |
 | `stats` | | object | **app-maintained; never write or change it** |
@@ -191,6 +200,8 @@ Item:
 | `dependsOn` | | ids of items **in the same level** that come first; no cycles |
 | `levelRef` | | dependency items only: `"<world-id>/<level-id>"` in the **same project**, not the item's own level |
 | `subtasks` | | dependency items only: the steps to get it (see below). Not together with `levelRef`. |
+| `budget` | | number ≥0: expected cost, e.g. `49.99`. On a dependency with steps it replaces the sum of theirs. |
+| `spent` | | number ≥0: cash spent on it so far. Fine to set after it's `done` (receipts come late). |
 | `link` | | URL to a ticket/doc/PR |
 | `notes` | | free text / markdown |
 
@@ -209,7 +220,7 @@ earns stars). `dropped` is a good status: cutting scope is encouraged.
 
 `subtasks` is an array of steps shaped like items: `id` (unique among that dependency's steps),
 `type` (any type **except** `dependency`; sub-levels don't nest), `title`, `status`, and optional
-`doneAt`, `mvp`, `dependsOn` (ids of **sibling steps**), `link`, `notes`. Keep it to the few steps that
+`doneAt`, `mvp`, `dependsOn` (ids of **sibling steps**), `budget`, `spent`, `link`, `notes`. Keep it to the few steps that
 matter. When every must-do step is `done` or `dropped`, the dependency itself is ready to mark
 `done`: do that in the same change when the user says it's sorted.
 
@@ -294,7 +305,7 @@ Repo-wide display settings; omit the file to use the defaults. Only change it wh
     { "id": "rounded", "text": "Edges rounded over", "mvp": false, "done": false }
   ],
   "items": [
-    { "id": "buy-timber", "type": "task", "title": "Buy 70x70 timber", "status": "todo" },
+    { "id": "buy-timber", "type": "task", "title": "Buy 70x70 timber", "status": "todo", "budget": 45 },
     { "id": "saw-choice", "type": "decision", "title": "Hand saw or borrow mitre saw?", "status": "todo" },
     { "id": "cut", "type": "task", "title": "Cut four legs", "status": "todo", "dependsOn": ["buy-timber", "saw-choice"] },
     { "id": "wonky-cuts", "type": "risk", "title": "Uneven cuts", "status": "todo", "mvp": false },
@@ -318,6 +329,8 @@ Always read the current files first, change the minimum, and keep the rest byte-
 | Reopen work | Set `status` back to `todo`/`doing` and remove `doneAt`. |
 | Add a step to a dependency | Append to that item's `subtasks` (create the array if missing) with a new id unique among its steps. Never on an item with `levelRef`. |
 | Finish a step | Set the step's `status` inside `subtasks` (and `doneAt` when it's `done`, as for items). The dependency's own `status` is separate. |
+| Set a budget | Set `budget` (a plain number, no currency symbol) on the item, step, level or world. Remove the key to go back to adding up what's inside. |
+| Log a cost | Set (or raise) `spent` on the item or step it was for. Don't change `status` or `doneAt`. |
 | Park a level (someday) | Set `"someday": true` and remove `startedAt`. Never on a cleared level. Bring it back by removing `someday` (and set `startedAt` to now if work is starting). |
 | Tick a criterion | Set `done: true`. If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
 | Delete a level | Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. |
@@ -544,6 +557,7 @@ delete. The user can commit them or paste them into a pull request.
 - [ ] `levelRef` and `goalIds` / `unlocksAfter` point at things in the same project.
 - [ ] `subtasks` only on dependencies without `levelRef`; no dependency steps; step `dependsOn` names sibling steps.
 - [ ] Inbox ideas have only `id`, `type`, `title`, `notes`, `link`, `addedAt`, with unique ids; a placed idea is removed from `data/inbox.json` in the same commit.
+- [ ] `budget` / `spent` are plain non-negative numbers (`49.99`, not `"£49.99"`); `currency` is a 3-letter code like `EUR`.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).
 
 ## 8. Optional: CI in the user's own repo

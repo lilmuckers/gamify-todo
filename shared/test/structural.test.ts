@@ -68,6 +68,11 @@ const OPS: OpBody[] = [
   { kind: 'updateWorld', projectId: 'p', worldId: 'w1', patch: { name: 'Uno' } },
   { kind: 'deleteWorld', projectId: 'p', worldId: 'w1' },
   { kind: 'updateProject', projectId: 'p', patch: { title: 'Renamed' } },
+  // Money: costs on an item, allowances on a level and world, the project's currency.
+  { kind: 'updateItem', ...p1, itemId: 'a', patch: { budget: 120, spent: 99.5 } },
+  { kind: 'updateLevel', ...p1, patch: { budget: 500 } },
+  { kind: 'updateWorld', projectId: 'p', worldId: 'w1', patch: { budget: 2000 } },
+  { kind: 'updateProject', projectId: 'p', patch: { currency: 'EUR' } },
   { kind: 'addGoal', projectId: 'p', goal: { id: 'k', title: 'K' } },
   { kind: 'updateGoal', projectId: 'p', goalId: 'g', patch: { title: 'G!' } },
   { kind: 'deleteGoal', projectId: 'p', goalId: 'h' },

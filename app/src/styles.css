@@ -255,6 +255,10 @@ main.desktop {
   color: var(--gold);
 }
 
+.win-text {
+  color: var(--green);
+}
+
 .deliverable {
   margin: 0;
   font-weight: 600;
@@ -519,6 +523,50 @@ p {
 .timer.cleared {
   border-color: var(--green);
   color: var(--green);
+}
+
+/* Cash: spent against the budget, like the timer box. */
+.money {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--ink);
+  border: 2px solid var(--panel-2);
+  font: 8px/1.6 var(--pixel);
+}
+
+.money small {
+  font: 12px var(--body);
+  color: var(--muted);
+}
+
+.money .bar i {
+  background: var(--gold-hi);
+}
+
+.money.over {
+  border-color: var(--red);
+  color: #f6757a;
+}
+
+.money.over .bar i {
+  background: var(--red);
+}
+
+.money-tag {
+  color: var(--gold-hi);
+  white-space: nowrap;
+}
+
+.money-tag.over {
+  color: #f6757a;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .score-row {

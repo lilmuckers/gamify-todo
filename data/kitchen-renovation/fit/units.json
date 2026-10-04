@@ -43,7 +43,8 @@
       "id": "base",
       "title": "Fit the base units",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 350
     },
     {
       "id": "fit-the-wall-units",
@@ -52,7 +53,8 @@
       "status": "todo",
       "dependsOn": [
         "base"
-      ]
+      ],
+      "budget": 250
     },
     {
       "id": "fit-the-peninsula",
@@ -61,7 +63,8 @@
       "status": "todo",
       "dependsOn": [
         "base"
-      ]
+      ],
+      "budget": 300
     },
     {
       "id": "hang-and-align-the-doors",
@@ -88,7 +91,9 @@
       "id": "soft-close-hinges-everywhere",
       "title": "Soft-close hinges everywhere",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 120
     }
-  ]
+  ],
+  "budget": 5000
 }

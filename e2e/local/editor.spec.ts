@@ -61,3 +61,24 @@ test('the hero picker saves the hero to data/settings.json', async ({ page }) =>
 
   await expect.poll(() => repoJson('data/settings.json').hero, { timeout: 15_000 }).toBe(chosen);
 });
+
+test('logging what a done item cost commits it, updates the money box and costs no polish', async ({ page }) => {
+  const file = 'data/kitchen-renovation/services/electrics.json';
+  type LevelFile = { items: { id: string; budget?: number; spent?: number }[]; stats?: { itemEdits?: Record<string, number> } };
+  const statsBefore = repoJson<LevelFile>(file).stats;
+  await page.goto('./#/p/kitchen-renovation/services/electrics/chase-the-walls-for-cables');
+  await inScene(page, 'level');
+  await expect(page.locator('.panel .money')).toContainText('£1,265 spent of £1,800');
+
+  await page.locator('#item-chase-the-walls-for-cables').getByRole('button', { name: 'Edit item' }).click();
+  await page.getByLabel('Spent (£)').fill('410');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  // £10 over its £400 budget: the tag turns red and the box adds it up.
+  await expect(page.locator('#item-chase-the-walls-for-cables .money-tag')).toHaveText('£410 of £400');
+  await expect(page.locator('#item-chase-the-walls-for-cables .money-tag')).toHaveClass(/\bover\b/);
+  await expect(page.locator('.panel .money')).toContainText('£1,315 spent of £1,800');
+
+  await expect.poll(() => repoJson<LevelFile>(file).items.find((i) => i.id === 'chase-the-walls-for-cables')?.spent, { timeout: 15_000 }).toBe(410);
+  expect(repoJson<LevelFile>(file).stats).toEqual(statsBefore);
+});
