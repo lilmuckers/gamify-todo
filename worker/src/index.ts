@@ -18,6 +18,8 @@ export interface Env {
   GITHUB_CLIENT_SECRET: string;
   /** Comma-separated origins allowed to call this Worker. */
   ALLOWED_ORIGINS: string;
+  /** Per-IP rate limit (`[[ratelimits]]` in wrangler.toml). Optional so tests run without it. */
+  LIMITER?: { limit(options: { key: string }): Promise<{ success: boolean }> };
 }
 
 const MAX_BODY = 4096;
@@ -58,6 +60,10 @@ export async function handle(request: Request, env: Env, fetchImpl?: typeof fetc
     });
   }
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { ...cors, Allow: 'POST, OPTIONS' });
+
+  if (!(await withinLimit(request, env))) {
+    return json({ error: 'rate_limited' }, 429, { ...cors, 'Retry-After': '60' });
+  }
 
   const body = await readBody(request);
   if (!body) return json({ error: 'invalid_request' }, 400, cors);
@@ -106,6 +112,21 @@ function allowedOrigins(env: Env): Set<string> {
       .map((o) => o.trim())
       .filter(Boolean),
   );
+}
+
+/**
+ * Checks the per-IP limit. Fails open (no binding, or the limiter errors): it's a speed bump,
+ * not the security boundary (PKCE and single-use codes are), so an outage shouldn't block sign-in.
+ */
+async function withinLimit(request: Request, env: Env): Promise<boolean> {
+  if (!env.LIMITER) return true;
+  try {
+    // Set by Cloudflare at the edge, so clients can't choose their own key.
+    const key = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+    return (await env.LIMITER.limit({ key })).success;
+  } catch {
+    return true;
+  }
 }
 
 /** A small JSON object, or null for anything else. */

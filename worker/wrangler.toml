@@ -18,6 +18,13 @@ enabled = false
 GITHUB_CLIENT_ID = ""
 ALLOWED_ORIGINS = "https://tasks.patrick-mckinley.com"
 
+# Per-IP limit on /exchange and /refresh (works on workers.dev, unlike zone WAF rules).
+# Real use is one exchange per sign-in and a refresh every 8 hours.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
 # Local and dev testing: npx wrangler@4 dev --env dev
 [env.dev]
 name = "quest-log-auth-dev"
@@ -28,3 +35,8 @@ enabled = false
 [env.dev.vars]
 GITHUB_CLIENT_ID = ""
 ALLOWED_ORIGINS = "https://tasks.patrick-mckinley.com,http://localhost:5173"
+
+[[env.dev.ratelimits]]
+name = "LIMITER"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }

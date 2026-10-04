@@ -28,6 +28,7 @@ last three are `null` if the App has token expiry turned off.
 | 401 | `bad_refresh_token` | The refresh token is wrong or expired: sign in again (keep the outbox) |
 | 403 | `forbidden_origin` | `Origin` isn't allowed (no CORS headers are sent) |
 | 404 / 405 | `not_found` / `method_not_allowed` | Wrong path or method |
+| 429 | `rate_limited` | Over 10 requests a minute from one IP. Wait for `Retry-After` (60 s) |
 | 500 | `server_misconfigured` | Client ID or secret missing or wrong |
 | 502 | `upstream_error` or GitHub's code | GitHub was down or answered something unexpected |
 
@@ -91,8 +92,11 @@ the deploy with a notice, so `main` stays green.
 
 - `[observability] enabled = false` keeps Workers Logs off. Leave it that way, and don't run
   `wrangler tail` against production.
-- Optional: a Cloudflare rate-limiting rule on `/exchange` and `/refresh` (the free plan has one).
-  CORS only stops browsers: scripts can send any `Origin`. That's why `/exchange` insists on
+- Rate limiting is built in: 10 requests a minute per client IP (`[[ratelimits]]` in
+  `wrangler.toml`), counted after the origin check, so preflights don't use it up. It works on
+  `workers.dev`, which zone WAF rules don't. It fails open if the limiter is down, because it's a
+  speed bump, not the security boundary.
+- CORS only stops browsers: scripts can send any `Origin`. That's why `/exchange` insists on
   PKCE, so a leaked `code` is useless without the verifier from the browser that started the
   sign-in.
 - A stolen **refresh token** can still be swapped here by anyone, because the Worker holds the

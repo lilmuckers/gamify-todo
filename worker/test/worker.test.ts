@@ -172,4 +172,49 @@ describe('token exchange worker', () => {
     expect(await res.json()).toEqual({ error: 'server_misconfigured' });
     expect(gh.sent).toHaveLength(0);
   });
+
+  describe('rate limit', () => {
+    /** A limiter stand-in that records keys and answers as told. */
+    function limiter(answer: () => Promise<{ success: boolean }>) {
+      const keys: string[] = [];
+      return { keys, LIMITER: { limit: async ({ key }: { key: string }) => (keys.push(key), answer()) } };
+    }
+    const ip = { 'CF-Connecting-IP': '203.0.113.7' };
+
+    it('429s over the limit without calling GitHub', async () => {
+      const gh = github();
+      const lim = limiter(async () => ({ success: false }));
+      const res = await handle(post('/exchange', { code: 'c', code_verifier: V }, ip), { ...env, LIMITER: lim.LIMITER }, gh.fn);
+      expect(res.status).toBe(429);
+      expect(await res.json()).toEqual({ error: 'rate_limited' });
+      expect(res.headers.get('Retry-After')).toBe('60');
+      expect(res.headers.get('Access-Control-Allow-Origin')).toBe(SITE);
+      expect(gh.sent).toHaveLength(0);
+      expect(lim.keys).toEqual(['203.0.113.7']);
+    });
+
+    it('lets requests under the limit through, keyed by client IP', async () => {
+      const lim = limiter(async () => ({ success: true }));
+      const res = await handle(post('/refresh', { refresh_token: 'r' }, ip), { ...env, LIMITER: lim.LIMITER }, github().fn);
+      expect(res.status).toBe(200);
+      expect(lim.keys).toEqual(['203.0.113.7']);
+    });
+
+    it('doesn’t count preflights or forbidden origins', async () => {
+      const lim = limiter(async () => ({ success: false }));
+      const e = { ...env, LIMITER: lim.LIMITER };
+      const pre = await handle(new Request('https://auth.example/exchange', { method: 'OPTIONS', headers: { Origin: SITE } }), e);
+      expect(pre.status).toBe(204);
+      const bad = await handle(post('/exchange', { code: 'c', code_verifier: V }, { Origin: 'https://evil.example' }), e);
+      expect(bad.status).toBe(403);
+      expect(lim.keys).toHaveLength(0);
+    });
+
+    it('fails open when the limiter errors', async () => {
+      const lim = limiter(() => Promise.reject(new Error('down')));
+      const res = await handle(post('/exchange', { code: 'c', code_verifier: V }), { ...env, LIMITER: lim.LIMITER }, github().fn);
+      expect(res.status).toBe(200);
+      expect(lim.keys).toEqual(['unknown']);
+    });
+  });
 });
