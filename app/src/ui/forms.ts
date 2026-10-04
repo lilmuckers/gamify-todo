@@ -1,14 +1,20 @@
 import {
+  budgetPrefs,
+  currencySymbol,
+  DEFAULT_ALERT_AT,
+  DEFAULT_CURRENCY,
   ITEM_TYPES,
   layoutLevel,
   STATUSES,
   THEMES,
   orderedWorlds,
+  roundMoney,
   uniqueId,
   type Criterion,
   type Goal,
   type Item,
   type ItemType,
+  type BudgetPrefs,
   type Level,
   type World,
 } from '@quest/shared';
@@ -121,6 +127,37 @@ function waitsFor(level: Level, item: Item | undefined, others: Item[], selected
   );
 }
 
+/** A cash amount field: blank means none set. */
+export function money(value?: number) {
+  return h('input', { type: 'number', min: 0, step: '0.01', inputMode: 'decimal', value: value === undefined ? '' : String(value), placeholder: '—' });
+}
+
+/** The amount in a money field (undefined when blank), or null after reporting a bad one. */
+export function readMoney(input: HTMLInputElement): number | undefined | null {
+  if (!input.value.trim()) return undefined;
+  const n = Number(input.value);
+  if (!input.checkValidity() || !Number.isFinite(n) || n < 0 || n > 1e9) {
+    input.reportValidity();
+    return null;
+  }
+  return roundMoney(n);
+}
+
+/** Budget and spent side by side; nothing when the project doesn't track budgets. */
+function costRow(prefs: BudgetPrefs | undefined, budget: HTMLInputElement, spent?: HTMLInputElement, hint?: string) {
+  if (!prefs) return null;
+  const sym = currencySymbol(prefs.currency);
+  return h(
+    'div',
+    { class: 'field-row' },
+    field(`Budget (${sym})`, budget, hint),
+    spent && field(`Spent (${sym})`, spent, 'Fill it in as receipts come in. Logging costs never counts as polish.'),
+  );
+}
+
+/** Currencies offered for a project; any other ISO code in the data is kept. */
+const CURRENCIES = ['GBP', 'EUR', 'USD', 'CAD', 'AUD', 'NZD', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'JPY', 'INR', 'ZAR'];
+
 const checked = (box: HTMLElement) =>
   [...box.querySelectorAll<HTMLInputElement>('input:checked')].map((i) => i.value);
 
@@ -172,6 +209,8 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
   );
   const link = h('input', { type: 'url', value: item?.link ?? '', placeholder: 'https://…' });
   const notes = area(item?.notes);
+  const budget = money(item?.budget);
+  const spent = money(item?.spent);
   const mvpRow = field('Critical path (MVP)', mvp, 'Unticked = optional: the hero walks past it.');
   const stepCount = item?.subtasks?.length ?? 0;
   // A dependency is either a ride to another level or a pipe down to its own steps.
@@ -205,12 +244,20 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
           `Tick anything that has to be finished before this ${inSub ? 'step' : 'item'} can start. Leave it all unticked if it can happen any time.`,
         )
       : null,
+    costRow(
+      cur.budgets,
+      budget,
+      spent,
+      stepCount ? 'Leave it blank to add up its steps.' : 'What you expect it to cost. Finish under it and you bank the rest.',
+    ),
     field('Link', link),
     field('Notes', notes),
   );
 
   const save = () => {
     if (!requireFilled(title)) return false;
+    const cost = { budget: readMoney(budget), spent: readMoney(spent) };
+    if (cost.budget === null || cost.spent === null) return false;
     if (link.value && !link.checkValidity()) {
       link.reportValidity();
       return false;
@@ -229,6 +276,8 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
       mvp: t === 'stretch' || mvp.checked ? undefined : false,
       dependsOn: orUndef(checked(deps)),
       levelRef: t === 'dependency' && !inSub && !stepCount ? trimOrUndef(levelRef.value) : undefined,
+      // Budgets off: leave whatever cost data the item has alone.
+      ...(cur.budgets ? { budget: cost.budget, spent: cost.spent } : {}),
       link: trimOrUndef(link.value),
       notes: trimOrUndef(notes.value),
     };
@@ -325,6 +374,7 @@ export function levelForm(app: App, world: World, level?: Level) {
   const deliverable = text(level?.deliverable, { max: 280 });
   const days = h('input', { type: 'number', min: 1, max: 90, value: String(level?.timeboxDays ?? 5), required: true });
   const desc = area(level?.description);
+  const budget = money(level?.budget);
   const firstCriterion = level ? null : text('', { max: 280, placeholder: 'e.g. Users can log in' });
   const body = h(
     'div',
@@ -333,6 +383,7 @@ export function levelForm(app: App, world: World, level?: Level) {
     field('Deliverable', deliverable, 'One sentence: what exists when this level is cleared.'),
     field('Time-box (days)', days, 'Finish early for bonus XP. Go over and you lose a star.'),
     firstCriterion && field('First MVP criterion', firstCriterion, 'The one check that says "good enough".'),
+    costRow(budgetPrefs(app.state), budget, undefined, "Cash for the whole level. Blank adds up its items' budgets."),
     field('Description', desc),
   );
   openModal(level ? 'Edit level' : 'New level', body, [
@@ -349,12 +400,15 @@ export function levelForm(app: App, world: World, level?: Level) {
       kind: 'primary',
       run: () => {
         if (!requireFilled(name, deliverable, ...(firstCriterion ? [firstCriterion] : []))) return false;
+        const cash = readMoney(budget);
+        if (cash === null) return false;
         const timeboxDays = Math.max(1, Math.min(90, Math.round(Number(days.value) || 5)));
         const patch = {
           name: name.value.trim(),
           deliverable: deliverable.value.trim(),
           timeboxDays,
           description: trimOrUndef(desc.value),
+          ...(budgetPrefs(app.state) ? { budget: cash } : {}),
         };
         if (level)
           return app.dispatch({ projectId, kind: 'updateLevel', worldId: world.id, levelId: level.id, patch }).ok;
@@ -388,6 +442,7 @@ export function worldForm(app: App, world?: World) {
     world?.theme ?? 'grass',
   );
   const desc = area(world?.description);
+  const budget = money(world?.budget);
   const goals = checks(
     state.overworld.goals.map((g) => ({ value: g.id, label: g.title })),
     world?.goalIds,
@@ -405,6 +460,7 @@ export function worldForm(app: App, world?: World) {
     field('Theme', theme),
     field('Contributes to goals', goals),
     field('Unlocks after', unlocks, 'Purely visual: shown locked until these are cleared.'),
+    costRow(budgetPrefs(state), budget, undefined, "Cash for the whole world. Blank adds up its levels' budgets."),
     field('Description', desc),
   );
   openModal(world ? 'Edit world' : 'New world', body, [
@@ -421,9 +477,12 @@ export function worldForm(app: App, world?: World) {
       kind: 'primary',
       run: () => {
         if (!requireFilled(name)) return false;
+        const cash = readMoney(budget);
+        if (cash === null) return false;
         const patch = {
           name: name.value.trim(),
           theme: theme.value as World['theme'],
+          ...(budgetPrefs(state) ? { budget: cash } : {}),
           description: trimOrUndef(desc.value),
           goalIds: checked(goals),
           unlocksAfter: orUndef(checked(unlocks)),
@@ -468,6 +527,31 @@ export function projectForm(app: App, create = false) {
   const o = create ? undefined : app.state!.overworld;
   const title = text(o?.title);
   const desc = area(o?.description);
+  // Cash budgets are opt-in: the tick shows their settings.
+  const money = o?.budgets;
+  const track = h('input', { type: 'checkbox', checked: !!money });
+  const current = money?.currency ?? DEFAULT_CURRENCY;
+  const currency = select(
+    [...new Set([current, ...CURRENCIES])].map((c) => ({ value: c, label: `${c} (${currencySymbol(c)})` })),
+    current,
+  );
+  const alerts = h('input', { type: 'checkbox', checked: money?.alerts !== false });
+  const alertAt = h('input', { type: 'number', min: 50, max: 100, step: 1, value: String(money?.alertAt ?? DEFAULT_ALERT_AT) });
+  const alertAtRow = field('Heads-up at (% of a budget spent)', alertAt, 'Going over a budget always alerts.');
+  const moneyRows = h(
+    'div',
+    null,
+    field('Currency', currency, 'For every budget and cost in this project.'),
+    field('Budget alerts', alerts, 'A heads-up as you log costs, when an item, level or world nears or goes over its budget.'),
+    alertAtRow,
+  );
+  const syncMoney = () => {
+    moneyRows.hidden = !track.checked;
+    alertAtRow.hidden = !alerts.checked;
+  };
+  track.addEventListener('change', syncMoney);
+  alerts.addEventListener('change', syncMoney);
+  syncMoney();
   const goal = create ? text('', { placeholder: 'e.g. Kitchen usable by Christmas' }) : null;
   const body = h(
     'div',
@@ -475,11 +559,33 @@ export function projectForm(app: App, create = false) {
     create && h('p', { class: 'muted' }, 'A project is a completely separate effort — a house renovation, a furniture build, a work launch. It gets its own folder and map.'),
     field('Project title', title),
     goal && field('First key goal', goal, 'What does success look like? You can add more later.'),
+    field(
+      'Track cash budgets',
+      track,
+      'Optional: budgets and costs on items, levels and worlds, with savings and alerts. Turning it off hides them; nothing is deleted.',
+    ),
+    moneyRows,
     field('Description', desc),
   );
   const save = () => {
     if (!requireFilled(title, ...(goal ? [goal] : []))) return false;
-    const values = { title: title.value.trim(), description: trimOrUndef(desc.value) };
+    const at = Number(alertAt.value);
+    if (track.checked && alerts.checked && (!alertAt.checkValidity() || !Number.isInteger(at))) {
+      alertAt.reportValidity();
+      return false;
+    }
+    const values = {
+      title: title.value.trim(),
+      description: trimOrUndef(desc.value),
+      // Defaults aren't written out, so turning budgets on is just "budgets": {}.
+      budgets: track.checked
+        ? stripUndefined({
+            currency: currency.value === DEFAULT_CURRENCY ? undefined : currency.value,
+            alerts: alerts.checked ? undefined : false,
+            alertAt: !Number.isInteger(at) || at === DEFAULT_ALERT_AT ? undefined : Math.max(50, Math.min(100, at)),
+          })
+        : undefined,
+    };
     if (!create) return app.dispatch({ projectId: app.projectId!, kind: 'updateProject', patch: values }).ok;
     const id = uniqueId(values.title, Object.keys(app.workspace?.projects ?? {}));
     const ok = app.dispatch({

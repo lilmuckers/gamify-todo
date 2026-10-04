@@ -24,7 +24,8 @@
       "title": "Order the appliances",
       "type": "task",
       "status": "todo",
-      "notes": "Delivery slot matters more than waiting for sales."
+      "notes": "Delivery slot matters more than waiting for sales.",
+      "budget": 2400
     },
     {
       "id": "appliance-delivery",
@@ -67,7 +68,8 @@
           "id": "take-away-old",
           "title": "Ask them to take the old fridge",
           "type": "stretch",
-          "status": "todo"
+          "status": "todo",
+          "budget": 30
         }
       ]
     },
@@ -106,7 +108,8 @@
       "id": "smart-plug-for-the-extractor",
       "title": "Smart plug for the extractor",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 20
     }
   ]
 }

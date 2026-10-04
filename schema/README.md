@@ -43,6 +43,10 @@ Checked by `npm run validate`, the app, and CI:
   Tools writing data by hand should set `doneAt` when they mark something `done` and remove it when
   they reopen it, so the weekly review can see what shipped.
 - `someday: true` parks a level (no `startedAt` while parked; never on a cleared level).
+- Money is optional and per project: `budgets` on the project turns it on (`currency`, an ISO 4217
+  code, GBP when unset; `alerts`; `alertAt`, the heads-up percentage). Then `budget` and `spent` go
+  on items and steps, and `budget` on levels and worlds. Amounts are plain numbers ≥ 0. A level or
+  world without its own `budget` adds up what's inside it. Without `budgets` the app ignores them.
 
 ## Generating data with an LLM
 

@@ -86,10 +86,12 @@ per-file schemas (`project`, `world`, `level`, `settings`, `inbox`) `$ref` it, a
 
 **Id:** `^[a-z0-9]+(-[a-z0-9]+)*$`, max 64 characters, derived from names and never renamed.
 
-**Project:** `id`, `title` (≤120), `description?` (≤4000, markdown), `goals[]` (`{id, title,
-description?}`, 1–5), `worldOrder[]`.
+**Project:** `id`, `title` (≤120), `description?` (≤4000, markdown), `budgets?` (`{currency?,
+alerts?, alertAt?}`: turns cash budgets on), `goals[]` (`{id, title, description?}`, 1–5),
+`worldOrder[]`.
 
-**World:** `id`, `name`, `description?`, `theme`, `goalIds[]`, `unlocksAfter?[]`, `levelOrder[]`.
+**World:** `id`, `name`, `description?`, `theme`, `goalIds[]`, `unlocksAfter?[]`, `budget?`,
+`levelOrder[]`.
 
 | Theme | Look | Use for |
 |---|---|---|
@@ -103,15 +105,15 @@ description?}`, 1–5), `worldOrder[]`.
 `unlocksAfter` draws the map's branches. It is purely visual: a locked world is still editable.
 
 **Level:** `id`, `name`, `deliverable` (≤280, one sentence), `description?`, `timeboxDays`
-(1–90), `startedAt?`, `clearedAt?`, `someday?`, `successCriteria[]` (1–20, at least one with
-`mvp: true`), `items[]` (≤200), `stats?` (app-maintained).
+(1–90), `startedAt?`, `clearedAt?`, `someday?`, `budget?`, `successCriteria[]` (1–20, at least one
+with `mvp: true`), `items[]` (≤200), `stats?` (app-maintained).
 
 **Criterion:** `{id, text (≤280), mvp, done}`, all required.
 
 **Item:** `id`, `type`, `title`, `status`, `doneAt?`, `mvp?` (default true; ignored for
 stretch), `dependsOn?[]` (same level; shown in the UI as **"Waits for"**), `levelRef?`
 (dependency only: `"<world>/<level>"` in the same project), `subtasks?[]` (dependency only;
-never together with `levelRef`), `link?`, `notes?`.
+never together with `levelRef`), `budget?`, `spent?`, `link?`, `notes?`.
 
 | Type | Sprite | Behaviour |
 |---|---|---|
@@ -126,7 +128,10 @@ never together with `levelRef`), `link?`, `notes?`.
 **Status:** `todo` | `doing` | `done` | `dropped`.
 
 **Subtask:** like an item, except the type can't be `dependency` (no nesting), and `dependsOn`
-stays among sibling steps.
+stays among sibling steps. Steps can have `budget?` and `spent?` too.
+
+**Money** (`Money` in the schema): a plain number, 0 to 1,000,000,000, in the project's currency,
+in whole units with up to 2 decimals. All of it is optional; see §4.1 for how it rolls up.
 
 **LevelStats** (app-maintained; tools must not write it): `editsAfterClear`,
 `itemsAddedAfterClear`, `itemEdits{ itemId | "dep/step": n }`, `timeboxExtendedDays`.
@@ -186,6 +191,34 @@ Defined in `shared/src/scoring.ts`.
   cleared) or locked. Locks are soft, and locked levels stay enterable.
 - **Suggest next:** finish started (non-someday) levels first, then the first uncleared level in
   an unlocked world.
+
+### 4.1 Budgets and savings
+
+Defined in `shared/src/budget.ts`. Each item, level, world and project has a `Cost`:
+
+- **Budget:** its own `budget` if set, otherwise the sum of the budgets below it (a dependency's
+  steps, a level's items, a world's levels, a project's worlds). An own budget smaller than the
+  parts below it gets a warning ("The parts below plan…").
+- **Spent:** its own `spent` (items and steps only) plus everything spent below it.
+- **Left:** budget − spent. Going negative shows "Over budget by…" in the panel.
+- **Saved:** banked when a thing **settles**: an item done or dropped, a level cleared, a world
+  with every level cleared. Then it's budget − spent (negative if over). Until then it's the sum
+  of what its settled children banked. Dropping a budgeted item banks all of it that wasn't
+  spent, so scope cuts save money too. A cleared level banks its leftover allowance.
+- **Not polish:** an `updateItem` or `updateLevel` that only changes `budget`/`spent` never
+  counts towards the polish penalty, even after clearing, because receipts often arrive after the
+  work is done. Values are compared, so a full-form save that only changed the cost is still free.
+- Amounts are rounded to pennies and shown with `Intl.NumberFormat` ("£1,200", "£49.99").
+- **Opt-in:** all of this is off unless the project has `budgets` (`budgetPrefs()`). Off, the
+  panels, bubble and forms show no money, and form saves leave any cost data in the files alone,
+  so turning it back on brings it back. `currency` defaults to GBP.
+- **Alerts** (`budgetAlerts()`): after an `addItem`, `updateItem`, `updateLevel` or `updateWorld`
+  in a project with `budgets.alerts` not `false`, the app compares the project before and after.
+  Anything (item, step, level, world) that got worse shows in one toast: a **heads-up** once
+  `alertAt`% (50–100, default 90) of its budget is spent while it's still open, and **over
+  budget** once spent passes the budget. Things already at that level don't alert again, and
+  undo never alerts. The money box turns gold past the heads-up point and red when over, with a
+  matching note.
 
 ---
 
@@ -260,6 +293,11 @@ mobile strip all share.
   **TICK! / UNTICK** bubble, and the hero hops onto it. Ticking the last must-do step sends him
   leaping onto the pole at his current height; he slides down as the flag rises and runs into
   the castle.
+- **Money:** the level panel shows a 💰 box (spent of budget, a bar, what's left and saved) under
+  the timer, and item rows carry a cost tag. The bubble adds a line such as "£35 OF £40 · £5 SAVED".
+  World, project map and project list panels show the same roll-up. Budgets are set in the item,
+  level and world forms. The project form's *Track cash budgets* tick turns them on, with the
+  currency, alerts and heads-up percentage.
 - **Item bubbles:** clicking an item opens a speech bubble with its details and actions:
   **DONE!**, **START**, **EDIT** and, for dependencies, **WARP IN** (warp pipe) / **HOP ON**
   (cloud) / **GOT IT!** (close) / **JUMP OVER** (skip) / **ADD STEPS** (turn a plain one into a
@@ -588,7 +626,7 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 
 ## 15. Quality gates
 
-- `npm run typecheck`, `npm test` (34 files, 330 tests at time of writing) and
+- `npm run typecheck`, `npm test` (35 files, 364 tests at time of writing) and
   `npm run validate` (90 example files) must pass.
 - CI (`validate.yml`) on every PR and push to main runs:
   - data validation;
@@ -599,7 +637,7 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   - the Playwright end-to-end suite (`npm run e2e`).
 - `pages.yml` validates, builds and deploys `main`.
 - Test coverage includes:
-  - the shared model: ops, undo, structural sharing, scoring, layout, worldmap, Today, review,
+  - the shared model: ops, undo, structural sharing, scoring, budgets, layout, worldmap, Today, review,
     diff, serialize, validation, the GitHub client, and skill/script parity;
   - the store's sync;
   - the server;
@@ -609,8 +647,8 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   flows:
   - the read-only site, from the project floor to an item's bubble and its deep link;
   - the local editor against a fresh git repo: completing an item commits it, steps under a
-    warp pipe send the hero back up with the dependency done, and the hero picker writes
-    `data/settings.json`;
+    warp pipe send the hero back up with the dependency done, the hero picker writes
+    `data/settings.json`, and logging a done item's cost commits it with no polish;
   - offline edits surviving a reload and committing once back online;
   - the phone layout;
   - the demo keeping nothing;

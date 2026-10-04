@@ -1,10 +1,15 @@
 import Phaser from 'phaser';
 import {
+  costLabel,
   dependencyMode,
+  formatMoney,
+  hasCost,
   isMvpItem,
+  itemCost,
   isResolved,
   layoutLevel,
   levelRefTarget,
+  savedLabel,
   scoreLevel,
   type Item,
   type Level,
@@ -1043,6 +1048,13 @@ export class LevelScene extends QuestScene {
     spec.lines.push({ text: `${info.label.toUpperCase()} · ${STATUS_LABEL[item.status].toUpperCase()}${optional ? ' · OPTIONAL' : ''}`, size: 3.5, muted: true });
     // Playing: just the name and status, so the bubble hides less of the level.
     if (item.notes && !this.playing) spec.lines.push({ text: truncate(item.notes, 160, '...'), size: 4 });
+    const cash = itemCost(item);
+    if (cur.budgets && hasCost(cash) && !this.playing) {
+      const { currency } = cur.budgets;
+      // Savings show once it's done or dropped; until then, only going over does.
+      const extra = cash.settled ? savedLabel(cash, currency) : cash.budgeted && cash.left < 0 ? `${formatMoney(-cash.left, currency)} over` : undefined;
+      spec.lines.push({ text: [costLabel(cash, currency), extra].filter(Boolean).join(' · ').toUpperCase(), size: 3.5, muted: true });
+    }
     if (item.dependsOn?.length && !this.playing) {
       const names = item.dependsOn.map((d) => cur.level.items.find((i) => i.id === d)?.title ?? d);
       spec.lines.push({ text: `After: ${names.join(', ')}`, size: 3.5, muted: true });

@@ -44,7 +44,8 @@
       "id": "tile",
       "title": "Tile the splashback",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 350
     },
     {
       "id": "grout-and-seal",
@@ -53,13 +54,15 @@
       "status": "todo",
       "dependsOn": [
         "tile"
-      ]
+      ],
+      "budget": 40
     },
     {
       "id": "level",
       "title": "Level the subfloor",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 120
     },
     {
       "id": "lay-the-lvt-flooring",
@@ -68,7 +71,8 @@
       "status": "todo",
       "dependsOn": [
         "level"
-      ]
+      ],
+      "budget": 700
     },
     {
       "id": "not-enough-tiles-from-one-batch",
@@ -81,7 +85,8 @@
       "id": "herringbone-floor-pattern",
       "title": "Herringbone floor pattern",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 250
     }
   ]
 }

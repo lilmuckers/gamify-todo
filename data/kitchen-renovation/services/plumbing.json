@@ -30,19 +30,24 @@
       "id": "move-supply",
       "title": "Move the sink supply 1.2m left",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "budget": 250,
+      "spent": 220
     },
     {
       "id": "waste",
       "title": "Run waste for sink and dishwasher",
       "type": "task",
-      "status": "doing"
+      "status": "doing",
+      "budget": 180,
+      "spent": 60
     },
     {
       "id": "fit-the-washing-machine-valve",
       "title": "Fit the washing-machine valve",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 25
     },
     {
       "id": "gas-safe-engineer-to-cap-the-gas",
@@ -75,7 +80,9 @@
           "dependsOn": [
             "two-quotes"
           ],
-          "notes": "4 October, 8am to 12pm."
+          "notes": "4 October, 8am to 12pm.",
+          "budget": 120,
+          "spent": 120
         },
         {
           "id": "clear-the-meter-cupboard",
@@ -105,7 +112,8 @@
       "dependsOn": [
         "move-supply",
         "waste"
-      ]
+      ],
+      "budget": 60
     },
     {
       "id": "water-softener-now-or-later",

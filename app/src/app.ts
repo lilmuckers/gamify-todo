@@ -1,4 +1,7 @@
 import {
+  alertText,
+  budgetAlerts,
+  budgetPrefs,
   diffWorkspaces,
   findLevel,
   findLevelAt,
@@ -9,6 +12,7 @@ import {
   reviewLevel,
   subLevel,
   validateWorkspace,
+  type BudgetPrefs,
   type GameState,
   type HeroId,
   type Issue,
@@ -62,9 +66,14 @@ export interface LevelView {
   level: Level;
   diff?: LevelDiff;
   readonly: boolean;
+  /** The project's budget settings; undefined when it doesn't track money. */
+  budgets?: BudgetPrefs;
   /** Set when showing a dependency's sub-level. */
   sub?: { parent: Level; dep: Item };
 }
+
+/** Edits that can change what's budgeted or spent. */
+const MONEY_OPS = new Set<OpBody['kind']>(['addItem', 'updateItem', 'updateLevel', 'updateWorld']);
 
 /** Where item ops in the current level view point: add to every item op. */
 export function itemAddr(cur: LevelView) {
@@ -281,7 +290,22 @@ export class App {
     if (!r.ok) toast(r.error ?? 'Edit rejected', 'alert', 5000);
     else if (r.polish && r.polish > 0)
       toast('Perfectionism detected 🐢 — this level is already clear. Move on!', 'warn', 5000);
+    if (r.ok && before && !meta?.undo) this.alertBudgets(body, before);
     return r;
+  }
+
+  /** A toast when an edit takes something past its heads-up point or over budget (if the project wants alerts). */
+  private alertBudgets(body: OpBody, before: Workspace) {
+    if (!MONEY_OPS.has(body.kind) || !('projectId' in body)) return;
+    const prev = before.projects[body.projectId];
+    const next = this.store.state?.projects[body.projectId];
+    const prefs = budgetPrefs(next);
+    if (!prev || !next || !prefs?.alerts) return;
+    const alerts = budgetAlerts(prev, next, prefs.alertAt);
+    if (!alerts.length) return;
+    // The most specific few: the thing itself, then what it tipped over.
+    const lines = alerts.slice(0, 3).map((a) => alertText(a, prefs.currency));
+    toast(`💰 ${lines.join(' ')}`, alerts.some((a) => a.level === 2) ? 'alert' : 'warn', 7000);
   }
 
   /**
@@ -448,7 +472,7 @@ export class App {
     if (r.view === 'level' && this.state) {
       const world = this.state.worlds[r.worldId];
       const level = findLevel(this.state, r.worldId, r.levelId);
-      if (world && level) return { projectId: r.projectId, world, level, readonly: !this.caps.canEdit };
+      if (world && level) return { projectId: r.projectId, world, level, readonly: !this.caps.canEdit, budgets: budgetPrefs(this.state) };
     }
     if (r.view === 'pr-level') {
       const v = this.pullViews.get(r.pr);
@@ -460,7 +484,8 @@ export class App {
       const diff = v.diff.levels.find(
         (l) => l.projectId === r.projectId && l.worldId === r.worldId && l.levelId === r.levelId,
       );
-      return { projectId: r.projectId, world, level: reviewLevel(before, after), diff, readonly: true };
+      const budgets = budgetPrefs(pullLookup(v.data).project(r.projectId));
+      return { projectId: r.projectId, world, level: reviewLevel(before, after), diff, readonly: true, budgets };
     }
   }
 }

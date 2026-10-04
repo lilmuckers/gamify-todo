@@ -26,5 +26,9 @@
     "services",
     "fit",
     "finish"
-  ]
+  ],
+  "budgets": {
+    "alertAt": 85,
+    "currency": "GBP"
+  }
 }

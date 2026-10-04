@@ -48,6 +48,7 @@ export interface Project {
   id: string;
   title: Title;
   description?: Notes;
+  budgets?: BudgetSettings;
   /**
    * Key project goals. Keep to 1-5.
    *
@@ -58,6 +59,23 @@ export interface Project {
    * World ids in the order they appear on the overworld path. Every world folder data/<project-id>/<world-id>/ must be listed here, and every id here must have data/<project-id>/<world-id>/world.json.
    */
   worldOrder: Id[];
+}
+/**
+ * Turns on cash budgets for this project. Omit it and the app hides every budget, cost and alert, even if items carry 'budget' or 'spent' (they are kept for when it's turned back on).
+ */
+export interface BudgetSettings {
+  /**
+   * Currency for every budget and cost in this project. Omit for GBP.
+   */
+  currency?: string;
+  /**
+   * true (default) = alert when a logged cost takes an item, step, level or world past alertAt or over its budget. false = no alerts; budgets still show.
+   */
+  alerts?: boolean;
+  /**
+   * Percentage of a budget that, once spent, gives a heads-up alert (default 90). Going over the budget always alerts while alerts are on.
+   */
+  alertAt?: number;
 }
 /**
  * A key project goal shown on the Overworld. Worlds reference goals they contribute to.
@@ -90,6 +108,10 @@ export interface World {
    * Optional ids of other worlds IN THE SAME PROJECT that should be cleared first. Purely visual (world is shown locked), never prevents editing.
    */
   unlocksAfter?: Id[];
+  /**
+   * Optional cash allowance for the whole world. Without it, the world's budget is the sum of its levels' budgets. What's left is banked as savings once every level is cleared.
+   */
+  budget?: number;
   /**
    * Level ids in play order. Each id must have a file data/<project-id>/<world-id>/<level-id>.json, and every level file in the folder must be listed here.
    *
@@ -131,6 +153,10 @@ export interface Level {
    * true = parked on the someday shelf (from the weekly review): the level isn't being worked on, so it drops out of Today, the review's overdue/stale lists and 'next level' suggestions. Parking clears startedAt, so the time-box starts afresh when work resumes; marking an item doing/done or ticking a criterion unparks it. Omit when false.
    */
   someday?: boolean;
+  /**
+   * Optional cash allowance for this level. Without it, the level's budget is the sum of its items' budgets. Whatever is left when the level clears is banked as savings.
+   */
+  budget?: number;
   /**
    * Checks that decide the level is done. At least one must have mvp=true. MVP criteria raise the flagpole; non-MVP criteria are bonus coins.
    *
@@ -195,6 +221,14 @@ export interface Item {
    */
   subtasks?: Subtask[];
   /**
+   * Optional estimated cost: the cash set aside for this item. For a dependency with subtasks, it replaces the sum of its steps' budgets. Savings (budget minus spent) are banked when it is done or dropped, so dropping it banks whatever wasn't spent.
+   */
+  budget?: number;
+  /**
+   * Optional cash actually spent on this item so far. Fill it in as receipts come in, before or after it is done. For a dependency, it adds to whatever its steps spent.
+   */
+  spent?: number;
+  /**
    * Optional URL to a ticket, doc or PR.
    */
   link?: string;
@@ -223,6 +257,14 @@ export interface Subtask {
    * Ids of OTHER SUBTASKS OF THE SAME DEPENDENCY that must come first. Must not form cycles.
    */
   dependsOn?: Id[];
+  /**
+   * Optional estimated cost of this step. Adds up into the dependency's budget unless the dependency sets its own.
+   */
+  budget?: number;
+  /**
+   * Optional cash actually spent on this step so far.
+   */
+  spent?: number;
   /**
    * Optional URL to a ticket, doc or PR.
    */

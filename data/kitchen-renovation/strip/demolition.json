@@ -31,7 +31,9 @@
       "id": "skip",
       "title": "Hire an 8-yard skip",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "budget": 320,
+      "spent": 295
     },
     {
       "id": "permit",
@@ -53,14 +55,18 @@
           "status": "done",
           "dependsOn": [
             "apply-online"
-          ]
+          ],
+          "budget": 60,
+          "spent": 60
         },
         {
           "id": "cones-and-lights",
           "title": "Borrow cones and lights for the skip",
           "type": "task",
           "status": "done",
-          "notes": "Skip company lends them for free."
+          "notes": "Skip company lends them for free.",
+          "budget": 40,
+          "spent": 0
         }
       ]
     },
