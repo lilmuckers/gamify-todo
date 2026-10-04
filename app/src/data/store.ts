@@ -50,6 +50,8 @@ export interface StoreOptions {
   online?: () => boolean;
   debounceMs?: number;
   retryMs?: number;
+  /** Re-pull a tab left open this long without a sync, even if it's never hidden. */
+  staleMs?: number;
 }
 
 const MAX_ATTEMPTS = 3;
@@ -112,6 +114,8 @@ export class Store {
   private online: () => boolean;
   private debounceMs: number;
   private retryMs: number;
+  private staleMs: number;
+  private pulledAt = 0;
 
   constructor(
     public source: DataSource,
@@ -121,6 +125,7 @@ export class Store {
     this.online = opts.online ?? (() => (typeof navigator === 'undefined' ? true : navigator.onLine));
     this.debounceMs = opts.debounceMs ?? 1500;
     this.retryMs = opts.retryMs ?? 30_000;
+    this.staleMs = opts.staleMs ?? 3 * 60 * 60 * 1000;
   }
 
   get caps() {
@@ -185,6 +190,7 @@ export class Store {
   /** Pulls the latest remote state (when nothing is queued). */
   async refresh(): Promise<void> {
     if (this.outbox.length && this.caps.canEdit) return this.sync();
+    this.pulledAt = Date.now();
     try {
       const remote = await this.freshest(await this.source.load());
       this.setBase(remote.state, remote.version);
@@ -456,6 +462,13 @@ export class Store {
     this.emit();
   }
 
+  /** Online, and the last pull (good or failed) is older than `staleMs`. */
+  isStale(now = Date.now()): boolean {
+    if (!this.online() || this.status === 'loading') return false;
+    const last = Math.max(this.pulledAt, this.lastSyncedAt ? Date.parse(this.lastSyncedAt) : 0);
+    return now - last >= this.staleMs;
+  }
+
   /** Wires browser events: reconnect, tab focus, periodic retry. */
   attachBrowserEvents() {
     window.addEventListener('online', () => void this.refresh());
@@ -468,6 +481,7 @@ export class Store {
     });
     setInterval(() => {
       if (this.outbox.length && this.online()) void this.sync();
+      else if (this.isStale() && document.visibilityState === 'visible') void this.refresh();
     }, this.retryMs);
   }
 }

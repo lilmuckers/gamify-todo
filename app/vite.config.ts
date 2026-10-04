@@ -142,7 +142,8 @@ export default defineConfig({
     csp(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'script',
+      // main.ts registers it (src/pwa.ts), to check for new builds while open.
+      injectRegister: false,
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'Quest Log',
