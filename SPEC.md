@@ -600,6 +600,13 @@ Security:
 - `vite-plugin-pwa` (auto-update) provides the manifest, icons, Android share target and
   standalone display. Workbox precaches the app shell, and data/schema JSON is `NetworkFirst`
   with a 4 s timeout.
+- The cached app expires after 3 hours while online (`app/src/pwa.ts`). `main.ts` registers the
+  service worker and asks for a new build at boot, on focus, on reconnect and every 15 minutes
+  once that age has passed. A new build reloads the page only when nobody would notice: during
+  boot, or the next time the tab is hidden. Offline, the cached app keeps working as long as it
+  needs to.
+- A tab left open and visible re-pulls its data once its last sync is 3 hours old (the store
+  already re-pulls on focus and reconnect).
 - The boot splash is inline in `index.html`, so it paints before any script. It uses CSS-only
   animation (transform-based shine) and fades once the store has something to show.
 - Performance work so far:

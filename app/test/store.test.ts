@@ -303,3 +303,31 @@ describe('keepUnchanged', () => {
     expect(keepUnchanged({ ...prev, inbox: [{ id: 'i', type: 'task' as const, title: 'Idea' }] }, structuredClone(prev)).inbox).toBeUndefined();
   });
 });
+
+describe('Store.isStale', () => {
+  it('goes stale a few hours after the last pull, only while online', async () => {
+    const remote = fakeRemote(fixture());
+    const online = { v: true };
+    const store = new Store(remote.source, memoryKV(), { ...opts(online), staleMs: 1000 });
+    await store.start();
+    const at = Date.parse(store.lastSyncedAt!);
+    expect(store.isStale(at + 999)).toBe(false);
+    expect(store.isStale(at + 1000)).toBe(true);
+    online.v = false;
+    expect(store.isStale(at + 1000)).toBe(false);
+  });
+
+  it('counts a failed pull, so errors are not retried every tick', async () => {
+    const remote = fakeRemote(fixture());
+    const online = { v: true };
+    const store = new Store(remote.source, memoryKV(), { ...opts(online), staleMs: 1000 });
+    remote.source.load = async () => {
+      throw new Error('down');
+    };
+    const before = Date.now();
+    await store.start();
+    expect(store.status).toBe('error');
+    expect(store.isStale(before + 500)).toBe(false);
+    expect(store.isStale(Date.now() + 1000)).toBe(true);
+  });
+});
