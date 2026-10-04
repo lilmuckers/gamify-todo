@@ -30,6 +30,7 @@ npm run e2e                     # Playwright: builds both targets, drives them i
 npm run validate                # schema + semantic validation of data/
 npm run format:data             # canonical formatting of data/ (CI only warns)
 npm run schema:gen              # regenerate types.gen.ts + validators.gen.js after editing schema/
+npm run skill:version           # bump the skill version after editing SKILL.md or quest.py
 npm run build:pages | build:local
 docker compose up --build       # local editor at http://localhost:8080
 ```
@@ -39,7 +40,8 @@ docker compose up --build       # local editor at http://localhost:8080
 
 **Before pushing**, run `npm run typecheck`, `npm test` and `npm run validate`, plus
 `npm run e2e` if you changed a flow it covers (scenes, panels, pads, sync). If you touched
-`schema/`, also run `npm run schema:check`. CI (`.github/workflows/validate.yml`) runs all of
+`schema/`, also run `npm run schema:check`. If you touched `skills/quest-log/SKILL.md` or
+`quest.py`, run `npm run skill:version` (CI runs `skill:check`, which fails without the bump). CI (`.github/workflows/validate.yml`) runs all of
 these on every PR. `pages.yml` deploys `main` to GitHub Pages.
 
 ## Layout
@@ -104,7 +106,10 @@ data/     five example projects (customer-portal, home-maintenance, bike-restora
   on every field and enum value, because LLMs learn the format from them), `npm run schema:gen`,
   `skills/quest-log/SKILL.md`, `schema/README.md` and `skills/quest-log/scripts/quest.py`. Parity
   tests (`shared/test/skill*.test.ts`) keep quest.py and the SKILL examples in step with the
-  TS validator.
+  TS validator. Then `npm run skill:version`, so assistants with an older copy reload the skill.
+- **The skill's three standing rules** (top of SKILL.md) are: check `version.json` for a newer
+  skill first, validate the whole tree before anything is committed or handed over, and update
+  from the base branch before opening or adding to a PR. Keep them when editing the skill.
 - **Security.** The Pages build has a strict CSP (`app/vite.config.ts` `csp()`): connect only to
   self + `api.github.com` (+ GA). The token lives in `localStorage` and is only sent to
   `api.github.com`. The server listens on loopback, checks `Host` (`ALLOWED_HOSTS`), requires

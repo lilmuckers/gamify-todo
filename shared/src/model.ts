@@ -89,8 +89,8 @@ export function orderedWorlds(state: GameState): World[] {
       seen.add(id);
     }
   }
-  // Worlds missing from worldOrder still show, at the end.
-  for (const w of Object.values(state.worlds)) if (!seen.has(w.id)) out.push(w);
+  // Worlds missing from worldOrder still show, at the end, by id (as fromFiles orders them).
+  for (const id of Object.keys(state.worlds).sort()) if (!seen.has(id)) out.push(state.worlds[id]);
   return out;
 }
 

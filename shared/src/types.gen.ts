@@ -56,7 +56,7 @@ export interface Project {
    */
   goals: Goal[];
   /**
-   * World ids in the order they appear on the overworld path. Every world folder data/<project-id>/<world-id>/ must be listed here, and every id here must have data/<project-id>/<world-id>/world.json.
+   * World ids in the order they appear on the overworld path. Every id here must have data/<project-id>/<world-id>/world.json. Worlds left out still count: they go after the listed ones, sorted by id, and the app adds them here on its next save. So to add a world, just create its world.json; only edit this list to change the order (editing it is what makes two pull requests conflict).
    */
   worldOrder: Id[];
 }
@@ -113,7 +113,7 @@ export interface World {
    */
   budget?: number;
   /**
-   * Level ids in play order. Each id must have a file data/<project-id>/<world-id>/<level-id>.json, and every level file in the folder must be listed here.
+   * Level ids in play order. Each id must have a file data/<project-id>/<world-id>/<level-id>.json. Level files left out still count: they go after the listed ones, sorted by id, and the app adds them here on its next save. So to add a level, just create its file; only edit this list to change the order (editing it is what makes two pull requests conflict).
    *
    * @maxItems 50
    */

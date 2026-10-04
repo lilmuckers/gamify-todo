@@ -146,7 +146,9 @@ addedAt}`.
 These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, CI and `quest.py`:
 
 - Folder and file names equal ids, and `world` is a reserved level id.
-- `worldOrder` and `levelOrder` list exactly the folders/files that exist.
+- `worldOrder` and `levelOrder` only name folders/files that exist. Ones left out go after the
+  listed ones, sorted by id, and are written into the list on the next save. This keeps adding a
+  world or level to a single new file, so parallel pull requests that add them never conflict.
 - No other `.json` files under `data/` except `settings.json` and `inbox.json` at the root.
 - Ids are unique in scope. `dependsOn` stays within its level (or within a dependency's steps),
   with no cycles.
@@ -560,11 +562,28 @@ Security:
   2. `quest.py pull/push`;
   3. the raw REST API;
   4. output the files for the user to commit.
+- Three rules come first, on every route: check for a newer skill before touching data, validate
+  the whole data tree against the schema before anything is committed or handed over, and update
+  from the base branch first (a new PR branches from the latest base; the base is merged into an
+  existing PR before adding commits, never rebased or force-pushed).
 - Further rules: never assume the repo (ask), and put requests with no clear home into
   `data/inbox.json` rather than guessing. "What should I do next?" mirrors Today.
-- `skills/quest-log/scripts/quest.py` is standard-library Python. Commands: `validate`, `info`,
-  `pull`, `status`, `push [--pr]`, `schemas`. It applies the same rules as the TS validator
-  (parity tests).
+- **Skill version.** SKILL.md carries a `**Skill version: N**` line and quest.py a matching
+  `SKILL_VERSION`. `skills/quest-log/version.json` publishes the latest `version` (plus the skill,
+  script and schema URLs). An assistant whose copy is older must load the published SKILL.md and
+  quest.py and tell the user to reinstall. `npm run skill:version` bumps all three and records a
+  fingerprint of SKILL.md + quest.py; `npm run skill:check` (CI and a test) fails if either file
+  changed without a bump.
+- `skills/quest-log/scripts/quest.py` is standard-library Python. Commands: `update-check`,
+  `validate [--refresh]`, `changes`, `info`, `pull`, `status`, `push [--pr] [--allow-delete KEY]`,
+  `schemas`. It applies the same
+  rules as the TS validator (parity tests). `push` always validates (no opt-out); if the branch
+  moved it validates the combined result and syncs the folder; if the branch has an open PR it
+  merges the PR's base into it first (`POST /merges`) and stops on a conflict; `--pr` branches
+  from the latest base. `changes` lists what a tree adds, changes and removes by id key
+  (`level:p/w/l`, `item:p/w/l/i`, `inbox:i`…) against another tree or a git ref, and exits 5 on
+  removals not named with `--allow-delete`; `push` applies the same guard against the branch it
+  commits to, so a stale or hand-rewritten file can't silently delete other people's work.
 - The in-app **AI SKILL** button explains this and downloads a zip of the skill, the script and
   the schemas (`app/src/ui/zip.ts`).
 - The skill and schemas are published at `https://tasks.patrick-mckinley.com/skills/...` and

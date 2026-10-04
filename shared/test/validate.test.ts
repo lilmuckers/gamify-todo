@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateFiles, validateWorkspace, toFiles } from '../src/index';
+import { fromFiles, validateFiles, validateWorkspace, toFiles } from '../src/index';
 import { readDataDir } from '../scripts/read-data';
 import { level, workspace } from './fixtures';
 
@@ -70,7 +70,7 @@ describe('validateFiles (folder structure)', () => {
     expect(fileMessages(files)).toMatch(/lvl\.json: id "other" must match its file name "lvl"/);
   });
 
-  it('requires order lists to match files and parents to exist', () => {
+  it('requires order lists to name existing files, and parents to exist', () => {
     const files = good();
     files['data/p/w/extra.json'] = files['data/p/w/lvl.json'].replace('"id": "lvl"', '"id": "extra"');
     files['data/p/orphan/stray.json'] = '{}';
@@ -78,9 +78,22 @@ describe('validateFiles (folder structure)', () => {
     delete files['data/p/w/lvl.json'];
     const m = fileMessages(files);
     expect(m).toMatch(/no data\/p\/w\/lvl\.json/);
-    expect(m).toMatch(/level "extra" missing from levelOrder/);
+    expect(m).not.toMatch(/extra/);
     expect(m).toMatch(/no data\/p\/orphan\/world\.json for this level/);
     expect(m).toMatch(/no data\/q\/project\.json for this world/);
+  });
+
+  it('accepts worlds and levels missing from the order lists, placing them last by id', () => {
+    const files = good();
+    files['data/p/w/b-extra.json'] = files['data/p/w/lvl.json'].replace('"id": "lvl"', '"id": "b-extra"');
+    files['data/p/w/a-extra.json'] = files['data/p/w/lvl.json'].replace('"id": "lvl"', '"id": "a-extra"');
+    files['data/p/v/world.json'] = files['data/p/w/world.json'].replace('"id": "w"', '"id": "v"').replace(/"levelOrder": \[[^\]]*\]/, '"levelOrder": []');
+    expect(validateFiles(files)).toEqual([]);
+    const ws = fromFiles(files);
+    expect(ws.projects.p.worlds.w.levels.map((l) => l.id)).toEqual(['lvl', 'a-extra', 'b-extra']);
+    expect(ws.projects.p.overworld.worldOrder).toEqual(['w', 'v']);
+    // The next save lists them.
+    expect(JSON.parse(toFiles(ws)['data/p/w/world.json']).levelOrder).toEqual(['lvl', 'a-extra', 'b-extra']);
   });
 
   it('flags stray files and bad JSON', () => {

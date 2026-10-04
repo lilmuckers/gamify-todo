@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { validateFiles } from '../src/index';
 
 // Keeps skills/quest-log/SKILL.md honest: its example files must validate.
@@ -11,5 +12,13 @@ describe('SKILL.md examples', () => {
     for (const m of section.matchAll(/`(data\/[^`]+\.json)`\n```json\n([\s\S]*?)```/g)) files[m[1]] = m[2];
     expect(Object.keys(files)).toHaveLength(3);
     expect(validateFiles(files)).toEqual([]);
+  });
+});
+
+// The published version.json is how assistants learn their copy is stale.
+describe('skill version', () => {
+  it('is bumped whenever SKILL.md or quest.py changes', () => {
+    const r = spawnSync(process.execPath, ['shared/scripts/skill-version.mjs', '--check'], { encoding: 'utf8' });
+    expect(r.status, r.stderr).toBe(0);
   });
 });

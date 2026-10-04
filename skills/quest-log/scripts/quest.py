@@ -4,10 +4,13 @@
 Standard library only (Python 3.8+), so it runs in Claude's code execution,
 ChatGPT's code interpreter, CI and a normal terminal.
 
-    python3 quest.py validate [DIR]              check a data tree (DIR contains data/)
+    python3 quest.py update-check                 is this copy of the skill the latest? (exit 3 = outdated)
+    python3 quest.py validate [DIR] [--refresh]   check a data tree (DIR contains data/)
     python3 quest.py info --repo OWNER/REPO       default branch and whether the token can push
     python3 quest.py pull --repo OWNER/REPO [--branch B] [--dir DIR]
-    python3 quest.py push [--dir DIR] -m MESSAGE [--pr TITLE]
+    python3 quest.py changes BASE DIR | --git REF DIR   what DIR adds, changes and removes vs BASE (exit 5 = removals)
+    python3 quest.py push [--dir DIR] -m MESSAGE [--pr TITLE] [--allow-delete KEY ...]
+                                                 updates from the branch (and a PR's base) first
     python3 quest.py schemas [--refresh]          where the schemas come from (download or bundled)
 
 GitHub commands read the token from GITHUB_TOKEN (or GH_TOKEN). It is only
@@ -19,11 +22,15 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+# The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
+SKILL_VERSION = 2
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -71,8 +78,11 @@ def download_schemas():
 def find_schemas(refresh=False):
     """Returns (directory, manifest). Downloads if nothing local is usable."""
     if refresh:
-        d = download_schemas()
-        return d, json.load(open(os.path.join(d, 'index.json')))
+        try:
+            d = download_schemas()
+            return d, json.load(open(os.path.join(d, 'index.json')))
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            print(f'warning: could not download the latest schemas ({e}); using local copies', file=sys.stderr)
     for d in _schema_dirs():
         idx = os.path.join(d, 'index.json')
         if os.path.isfile(idx):
@@ -257,6 +267,78 @@ def read_tree(root):
     return files
 
 
+# ---------------------------------------------------------------- what a change adds and removes
+
+def tree_keys(files):
+    """{key: json} for everything with an id, keyed like 'level:p/w/l' or 'item:p/w/l/i'."""
+    out = {}
+
+    def put(key, value):
+        out[key] = json.dumps(value, sort_keys=True)
+
+    def load(text):
+        try:
+            return json.loads(text)
+        except ValueError:
+            return None
+
+    for path, text in files.items():
+        d = load(text)
+        if not isinstance(d, dict):
+            continue
+        if path == 'data/inbox.json':
+            for i in d.get('items') or []:
+                put(f'inbox:{i.get("id")}', i)
+            continue
+        c = classify(path)
+        if not c or c[0] == 'settings' or c[0] == 'inbox':
+            continue
+        kind, p, w, lv = c
+        if kind == 'project':
+            put(f'project:{p}', {k: v for k, v in d.items() if k not in ('goals', 'worldOrder')})
+            for g in d.get('goals') or []:
+                put(f'goal:{p}/{g.get("id")}', g)
+        elif kind == 'world':
+            put(f'world:{p}/{w}', {k: v for k, v in d.items() if k != 'levelOrder'})
+        else:
+            put(f'level:{p}/{w}/{lv}', {k: v for k, v in d.items() if k not in ('items', 'successCriteria', 'stats')})
+            for cr in d.get('successCriteria') or []:
+                put(f'criterion:{p}/{w}/{lv}/{cr.get("id")}', cr)
+            for it in d.get('items') or []:
+                put(f'item:{p}/{w}/{lv}/{it.get("id")}', {k: v for k, v in it.items() if k != 'subtasks'})
+                for s in it.get('subtasks') or []:
+                    put(f'step:{p}/{w}/{lv}/{it.get("id")}/{s.get("id")}', s)
+    return out
+
+
+def diff_trees(before, after):
+    """(added, changed, removed) keys going from one data tree to another."""
+    a, b = tree_keys(before), tree_keys(after)
+    return (sorted(k for k in b if k not in a), sorted(k for k in b if k in a and a[k] != b[k]),
+            sorted(k for k in a if k not in b))
+
+
+def allowed(key, allow):
+    """A removal is allowed if it's named, or sits inside something named (a level's items)."""
+    kind, path = key.split(':', 1)
+    for a in allow:
+        akind, _, apath = a.partition(':')
+        if (akind == kind and apath == path) or (akind in ('project', 'world', 'level', 'item') and path.startswith(apath + '/')):
+            return True
+    return False
+
+
+def unapproved_removals(before, after, allow):
+    return [k for k in diff_trees(before, after)[2] if not allowed(k, allow or [])]
+
+
+def removal_error(keys, where):
+    return QuestError(f'This would remove {len(keys)} thing(s) that exist on {where}:\n  ' + '\n  '.join(keys) +
+                      '\nIf that is not what the user asked for, your copy is stale: update from the base branch and '
+                      're-apply only your change. If it is, name each one with --allow-delete KEY (a level or world '
+                      'also covers what is inside it).')
+
+
 def find_cycle(items):
     deps = {i['id']: [d for d in i.get('dependsOn', [])] for i in items}
     state, stack = {}, []
@@ -352,16 +434,15 @@ def validate_files(files, registry, by_name):
     for (p, w), ls in levels.items():
         if w not in worlds.get(p, set()):
             issues += [(f'data/{p}/{w}/{lv}.json', '/', f'no data/{p}/{w}/world.json for this level') for lv in ls]
+    # Order lists may leave worlds and levels out (they go last), but can't name missing ones.
     for p in projects:
         order = (parsed.get(f'data/{p}/project.json') or {}).get('worldOrder') or []
         present = worlds.get(p, set())
         issues += [(f'data/{p}/project.json', f'/worldOrder/{i}', f'no data/{p}/{w}/world.json') for i, w in enumerate(order) if w not in present]
-        issues += [(f'data/{p}/project.json', '/worldOrder', f'world "{w}" missing from worldOrder') for w in present if w not in order]
         for w in present:
             lorder = (parsed.get(f'data/{p}/{w}/world.json') or {}).get('levelOrder') or []
             lp = levels.get((p, w), set())
             issues += [(f'data/{p}/{w}/world.json', f'/levelOrder/{i}', f'no data/{p}/{w}/{lv}.json') for i, lv in enumerate(lorder) if lv not in lp]
-            issues += [(f'data/{p}/{w}/world.json', '/levelOrder', f'level "{lv}" missing from levelOrder') for lv in lp if lv not in lorder]
     if issues:
         return issues
 
@@ -382,11 +463,8 @@ def validate_files(files, registry, by_name):
             for i, u in enumerate(world.get('unlocksAfter', [])):
                 if u == w or u not in wids:
                     issues.append((wf, f'/unlocksAfter/{i}', f'invalid world reference "{u}"'))
-            for lv in world['levelOrder']:
+            for lv in sorted(levels.get((p, w), set())):
                 lf = f'data/{p}/{w}/{lv}.json'
-                if lv == 'world':
-                    issues.append((lf, '/id', '"world" is reserved'))
-                    continue
                 level = parsed[lf]
                 ids = [i['id'] for i in level['items']]
                 if len(set(ids)) != len(ids):
@@ -483,6 +561,17 @@ class GitHub:
     def blob(self, sha):
         return self.call('GET', f'/git/blobs/{sha}', raw=True)
 
+    def open_pull(self, branch):
+        """The open pull request whose head is `branch` in this repo, if any."""
+        owner = self.repo.split('/')[0]
+        pulls = self.call('GET', f'/pulls?state=open&head={urllib.parse.quote(f"{owner}:{branch}")}')
+        return pulls[0] if pulls else None
+
+    def merge(self, into, source):
+        """Merges `source` into branch `into`. True if that made a merge commit, False if already up to date."""
+        r = self.call('POST', '/merges', {'base': into, 'head': source, 'commit_message': f'Merge {source} into {into}'})
+        return r is not None
+
     def commit(self, changes, message, parent, branch, create_branch=False):
         tree_sha = self.call('GET', f'/git/commits/{parent}')['tree']['sha']
         entries = [{'path': p, 'mode': '100644', 'type': 'blob', **({'sha': None} if c is None else {'content': c})}
@@ -502,7 +591,38 @@ class GitHubError(QuestError):
         self.status = status
 
 
+# ---------------------------------------------------------------- skill updates
+
+def latest_skill():
+    """The published version.json, or None when the site can't be reached."""
+    try:
+        return json.loads(_http_get(urllib.parse.urljoin(SITE, 'skills/quest-log/version.json')))
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+def outdated_warning(latest):
+    return (f'SKILL OUTDATED: this copy is version {SKILL_VERSION}, the published skill is version {latest["version"]}. '
+            f'Stop and load the latest SKILL.md ({latest.get("skill")}) and quest.py ({latest.get("script")}) '
+            'before doing anything else, and ask the user to reinstall the skill.')
+
+
 # ---------------------------------------------------------------- commands
+
+def cmd_update_check(args):
+    latest = latest_skill()
+    report = {'installed': SKILL_VERSION, 'latest': latest and latest.get('version'), 'checked': latest is not None}
+    if latest:
+        report.update({'outdated': latest['version'] > SKILL_VERSION, 'skill': latest.get('skill'), 'script': latest.get('script')})
+    print(json.dumps(report, indent=2))
+    if not latest:
+        print(f'warning: could not reach {SITE} to check for a newer skill', file=sys.stderr)
+        return 4
+    if report['outdated']:
+        print(outdated_warning(latest), file=sys.stderr)
+        return 3
+    return 0
+
 
 def cmd_validate(args):
     registry, by_name, d = load_registry(args.schemas, args.refresh)
@@ -515,6 +635,9 @@ def cmd_validate(args):
         print(f'\n✗ {len(issues)} issue(s) in {len(files)} file(s)', file=sys.stderr)
         return 1
     print(f'✓ {len(files)} data file(s) valid (schemas: {d}, validator: {engine})')
+    latest = latest_skill() if args.refresh else None
+    if latest and latest.get('version', 0) > SKILL_VERSION:
+        print(outdated_warning(latest), file=sys.stderr)
     return 0
 
 
@@ -545,21 +668,27 @@ def cmd_pull(args):
         _, _, dirty = local_changes(root)
         if dirty:
             raise QuestError(f'Unpushed local changes in {len(dirty)} file(s); push them first or pass --force.')
-    if os.path.isdir(data):
-        for dirpath, _, names in os.walk(data):
-            for n in names:
-                if n.endswith('.json'):
-                    os.remove(os.path.join(dirpath, n))
-    for path, blob in sorted(blobs.items()):
-        full = os.path.join(root, *path.split('/'))
-        os.makedirs(os.path.dirname(full), exist_ok=True)
-        with open(full, 'w', encoding='utf-8', newline='\n') as f:
-            f.write(gh.blob(blob))
+    write_tree(root, {path: gh.blob(blob) for path, blob in blobs.items()})
     with open(os.path.join(root, BASE_FILE), 'w') as f:
         json.dump({'repo': args.repo, 'branch': branch, 'sha': sha, 'files': blobs}, f, indent=2)
     print(f'Pulled {len(blobs)} data file(s) from {args.repo}@{branch} ({sha[:7]}) into {os.path.abspath(root)}')
     print(f'Can push: {bool((info.get("permissions") or {}).get("push"))}')
     return 0
+
+
+def write_tree(root, files):
+    """Replaces every data file under root/data with `files` ({path: text})."""
+    data = os.path.join(root, 'data')
+    if os.path.isdir(data):
+        for dirpath, _, names in os.walk(data):
+            for n in names:
+                if n.endswith('.json'):
+                    os.remove(os.path.join(dirpath, n))
+    for path, text in sorted(files.items()):
+        full = os.path.join(root, *path.split('/'))
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text)
 
 
 def local_changes(root):
@@ -583,21 +712,83 @@ def cmd_status(args):
     return 0
 
 
+def _issues(files, schemas):
+    registry, by_name, _ = load_registry(schemas, False)
+    return validate_files(files, registry, by_name)
+
+
+def _report(issues, what):
+    for f, at, msg in issues:
+        print(f'{f}{at}: {msg}')
+    raise QuestError(f'{len(issues)} validation issue(s) {what}; fix them before pushing.')
+
+
+def update_pr_branch(gh, branch):
+    """Brings a pull request's base branch into its head branch before adding commits to it."""
+    try:
+        pr = gh.open_pull(branch)
+    except GitHubError as e:
+        print(f'warning: could not look up pull requests for {branch} ({e}); not updating it from its base', file=sys.stderr)
+        return
+    if not pr:
+        return
+    target = pr['base']['ref']
+    try:
+        merged = gh.merge(branch, target)
+    except GitHubError as e:
+        if e.status == 409:
+            raise QuestError(f'Pull request #{pr["number"]} ({branch}) conflicts with {target}. Pull {target}, re-apply the '
+                             f'pull request\'s changes on top, and commit them to {branch} as a merge, or ask the user.')
+        raise
+    print(f'Updated pull request #{pr["number"]} ({branch}) from {target}' if merged else f'{branch} is up to date with {target}')
+
+
+def git_tree(root, ref):
+    """Data files at a git ref of the checkout in root."""
+    def git(*a):
+        r = subprocess.run(['git', '-C', root, *a], capture_output=True)
+        if r.returncode:
+            raise QuestError(f'git {" ".join(a)}: {r.stderr.decode().strip()}')
+        return r.stdout.decode('utf-8')
+    return {p: git('show', f'{ref}:{p}') for p in git('ls-tree', '-r', '--name-only', ref, '--', 'data').splitlines() if classify(p)}
+
+
+def cmd_changes(args):
+    if args.git:
+        before, after_dir = git_tree(args.paths[0], args.git), args.paths[0]
+    elif len(args.paths) == 2:
+        before, after_dir = read_tree(args.paths[0]), args.paths[1]
+    else:
+        raise QuestError('Give BASE and DIR, or --git REF and DIR.')
+    added, changed, removed = diff_trees(before, read_tree(after_dir))
+    for label, keys in (('added', added), ('changed', changed), ('removed', removed)):
+        for k in keys:
+            print(f'{label:8} {k}')
+    if not (added or changed or removed):
+        print('no changes')
+    bad = [k for k in removed if not allowed(k, args.allow_delete or [])]
+    if bad and not args.warn:
+        print(f'\n✗ {len(bad)} removal(s) not named with --allow-delete', file=sys.stderr)
+        return 5
+    return 0
+
+
 def cmd_push(args):
     base, local, changes = local_changes(args.dir)
     if not changes:
         print('Nothing to push.')
         return 0
-    if not args.no_validate:
-        registry, by_name, _ = load_registry(args.schemas, False)
-        issues = validate_files(local, registry, by_name)
-        if issues:
-            for f, at, msg in issues:
-                print(f'{f}{at}: {msg}')
-            raise QuestError(f'{len(issues)} validation issue(s); fix them before pushing.')
+    # Validation is not optional: nothing reaches GitHub unless the whole tree passes.
+    issues = _issues(local, args.schemas)
+    if issues:
+        _report(issues, 'in your files')
     gh = GitHub(base['repo'])
+    if not args.pr:
+        update_pr_branch(gh, base['branch'])
     for attempt in range(3):
         head = gh.head(base['branch'])
+        result = dict(local)
+        remote = base['files']
         if head != base['sha']:
             # The branch moved: fine unless someone changed the same files.
             remote = gh.data_blobs(head)
@@ -605,13 +796,28 @@ def cmd_push(args):
             if clashes:
                 raise QuestError('Remote changed the same file(s) since your pull: ' + ', '.join(sorted(clashes)) +
                                  '. Run pull --force, re-apply your edits, then push again.')
+            # What the branch will hold after this commit: the latest files plus your changes.
+            result = {p: (local[p] if base['files'].get(p) == sha and p in local else gh.blob(sha))
+                      for p, sha in remote.items() if p not in changes}
+            result.update({p: c for p, c in changes.items() if c is not None})
+            upstream = sorted(p for p in set(remote) | set(base['files']) if p not in changes and remote.get(p) != base['files'].get(p))
+            print(f'{base["branch"]} moved to {head[:7]} since your pull ({len(upstream)} data file(s) changed there); '
+                  'validating your changes on top of it')
+            issues = _issues(result, args.schemas)
+            if issues:
+                _report(issues, f'once your changes are combined with the latest {base["branch"]}')
+        # Nothing on the branch disappears unless the user asked for it.
+        before = {p: (gh.blob(sha) if p in changes else result[p]) for p, sha in remote.items()}
+        bad = unapproved_removals(before, result, args.allow_delete)
+        if bad:
+            raise removal_error(bad, f'{base["branch"]}@{head[:7]}')
         if args.pr:
             stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')
             branch = f'quest/{re.sub(r"[^a-z0-9]+", "-", args.pr.lower()).strip("-")[:40]}-{stamp}'
             gh.commit(changes, args.message, head, branch, create_branch=True)
             pr = gh.call('POST', '/pulls', {'title': args.pr, 'head': branch, 'base': base['branch'],
                                             'body': args.body or args.message})
-            print(f'Opened pull request #{pr["number"]}: {pr["html_url"]}')
+            print(f'Opened pull request #{pr["number"]} from {base["branch"]}@{head[:7]}: {pr["html_url"]}')
             return 0
         try:
             new = gh.commit(changes, args.message, head, base['branch'])
@@ -620,7 +826,9 @@ def cmd_push(args):
                 time.sleep(1)
                 continue  # Lost a race: re-check and retry.
             raise
-        files = {p: s for p, s in base['files'].items() if changes.get(p, '') is not None}
+        # Bring the folder up to date with what the branch now holds.
+        write_tree(args.dir, result)
+        files = {p: s for p, s in remote.items() if p not in changes}
         files.update({p: git_blob_sha(c) for p, c in changes.items() if c is not None})
         with open(os.path.join(args.dir, BASE_FILE), 'w') as f:
             json.dump({**base, 'sha': new, 'files': files}, f, indent=2)
@@ -641,9 +849,12 @@ def main(argv=None):
     ap.add_argument('--schemas', help='directory with index.json and the schema files (default: bundled, repo, cache or download)')
     sub = ap.add_subparsers(dest='cmd', required=True)
 
+    p = sub.add_parser('update-check', help='compare this skill with the published one (exit 3 = outdated, 4 = could not check)')
+    p.set_defaults(run=cmd_update_check)
+
     p = sub.add_parser('validate', help='validate a data tree')
     p.add_argument('dir', nargs='?', default='.', help='folder containing data/ (default: .)')
-    p.add_argument('--refresh', action='store_true', help='download the latest schemas first')
+    p.add_argument('--refresh', action='store_true', help='download the latest schemas first and check for a newer skill')
     p.set_defaults(run=cmd_validate)
 
     p = sub.add_parser('info', help='repo default branch and push access')
@@ -666,8 +877,15 @@ def main(argv=None):
     p.add_argument('-m', '--message', required=True, help='commit message, e.g. "quest: done: Fit units (kitchen/fit/units)"')
     p.add_argument('--pr', metavar='TITLE', help='open a pull request instead of committing to the branch')
     p.add_argument('--body', help='pull request description')
-    p.add_argument('--no-validate', action='store_true')
+    p.add_argument('--allow-delete', action='append', metavar='KEY', help='a removal you mean to make, e.g. level:p/w/l or inbox:idea (repeat)')
     p.set_defaults(run=cmd_push)
+
+    p = sub.add_parser('changes', help='what a data tree adds, changes and removes compared with another (exit 5 = removals not allowed)')
+    p.add_argument('paths', nargs='+', metavar='DIR', help='BASE DIR, or just DIR with --git')
+    p.add_argument('--git', metavar='REF', help='compare the checkout in DIR with this git ref, e.g. origin/main')
+    p.add_argument('--allow-delete', action='append', metavar='KEY', help='a removal you mean to make (repeat)')
+    p.add_argument('--warn', action='store_true', help='list removals but exit 0 (for CI)')
+    p.set_defaults(run=cmd_changes)
 
     p = sub.add_parser('schemas', help='show where schemas are loaded from')
     p.add_argument('--refresh', action='store_true')

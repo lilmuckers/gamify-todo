@@ -33,7 +33,9 @@ diffs, pull requests and concurrent edits stay small and rarely conflict.
 Checked by `npm run validate`, the app, and CI:
 
 - Folder and file names equal the ids inside them; `world` is reserved as a level id.
-- `worldOrder` / `levelOrder` list exactly the worlds / levels that exist.
+- `worldOrder` / `levelOrder` only name worlds / levels that exist. Ones left out go after the
+  listed ones, sorted by id (the app adds them on its next save), so a new world or level is just
+  a new file and two pull requests adding them don't conflict.
 - Ids are unique in scope; `dependsOn` stays within a level with no cycles.
 - `levelRef`, `goalIds` and `unlocksAfter` point at things in the same project; a level can't depend on itself.
 - Only `dependency` items have `subtasks`, never together with `levelRef`; step ids are unique within the
