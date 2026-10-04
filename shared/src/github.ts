@@ -16,6 +16,27 @@ export class GitHubError extends Error {
   }
 }
 
+/**
+ * The sign-in has run out: the refresh token was rejected (or is past its expiry), so no
+ * request can succeed until the user signs in again. Queued edits must be kept.
+ */
+export class SignInExpiredError extends Error {
+  constructor(message = 'Your GitHub sign-in has expired. Sign in again to sync.') {
+    super(message);
+    this.name = 'SignInExpiredError';
+  }
+}
+
+/**
+ * Hands out access tokens that can expire (Sign in with GitHub). `get` refreshes ahead of
+ * expiry; `renew` is for a token GitHub rejected with 401. Both throw SignInExpiredError when
+ * the session can't be saved, and resolve undefined when there's no token at all.
+ */
+export interface TokenProvider {
+  get(): Promise<string | undefined>;
+  renew(rejected: string): Promise<string | undefined>;
+}
+
 /** The branch moved since the parent commit was read. Refetch, replay, retry. */
 export class ConflictError extends Error {
   constructor(message = 'Remote changed since last load') {
@@ -56,8 +77,9 @@ export type ReviewEvent = 'APPROVE' | 'COMMENT' | 'REQUEST_CHANGES';
 export class GitHubClient {
   private blobCache = new Map<string, string>();
 
+  /** A fixed token (a PAT, or none), or a provider of refreshing ones. */
   constructor(
-    private token: string | undefined,
+    private token: string | TokenProvider | undefined,
     public repo: RepoRef,
     private fetchImpl: typeof fetch = (...args) => fetch(...args),
   ) {}
@@ -72,18 +94,28 @@ export class GitHubClient {
     body?: unknown,
     accept = 'application/vnd.github+json',
   ): Promise<T> {
-    const headers: Record<string, string> = {
-      Accept: accept,
-      'X-GitHub-Api-Version': '2022-11-28',
+    const provider = typeof this.token === 'object' ? this.token : undefined;
+    let token = provider ? await provider.get() : (this.token as string | undefined);
+    const send = (token: string | undefined) => {
+      const headers: Record<string, string> = {
+        Accept: accept,
+        'X-GitHub-Api-Version': '2022-11-28',
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (body !== undefined) headers['Content-Type'] = 'application/json';
+      return this.fetchImpl(url.startsWith('http') ? url : `${this.base}${url}`, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        cache: 'no-store',
+      } as RequestInit);
     };
-    if (this.token) headers.Authorization = `Bearer ${this.token}`;
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
-    const res = await this.fetchImpl(url.startsWith('http') ? url : `${this.base}${url}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      cache: 'no-store',
-    } as RequestInit);
+    let res = await send(token);
+    // An app token GitHub no longer takes (revoked early, clock skew): refresh once and retry.
+    if (res.status === 401 && provider && token) {
+      const fresh = await provider.renew(token);
+      if (fresh && fresh !== token) res = await send((token = fresh));
+    }
     if (!res.ok) {
       let message = res.statusText;
       try {

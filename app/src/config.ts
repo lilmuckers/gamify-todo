@@ -47,10 +47,54 @@ function write(key: string, value: string | undefined) {
   }
 }
 
-// The token never leaves this browser except as an Authorization header to api.github.com.
+/**
+ * The GitHub credential this browser keeps: a pasted token (`pat`), or a Sign in with GitHub
+ * session (`app`) whose access token lasts 8 hours and comes with a refresh token.
+ */
+export interface StoredToken {
+  token: string;
+  kind: 'app' | 'pat';
+  refresh?: string;
+  /** Epoch ms when `token` stops working. */
+  expiresAt?: number;
+  /** Epoch ms when `refresh` stops working. */
+  refreshExpiresAt?: number;
+}
+
+/**
+ * Reads the saved credential. Older versions saved a bare PAT string, so anything that
+ * isn't a JSON session is taken as one: existing PAT users stay signed in.
+ */
+export function parseStoredToken(raw: string | undefined): StoredToken | undefined {
+  const text = raw?.trim();
+  if (!text) return undefined;
+  if (!text.startsWith('{')) return { token: text, kind: 'pat' };
+  try {
+    const s = JSON.parse(text) as Partial<StoredToken>;
+    if (typeof s.token !== 'string' || !s.token) return undefined;
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+    return {
+      token: s.token,
+      kind: s.kind === 'app' ? 'app' : 'pat',
+      refresh: typeof s.refresh === 'string' && s.refresh ? s.refresh : undefined,
+      expiresAt: num(s.expiresAt),
+      refreshExpiresAt: num(s.refreshExpiresAt),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+// Tokens never leave this browser except as an Authorization header to api.github.com, and
+// (refresh tokens only) in the body of a refresh request to the sign-in Worker.
 export const tokenStore = {
-  get: () => read(TOKEN_KEY),
+  /** The access token, whichever kind. */
+  get: () => parseStoredToken(read(TOKEN_KEY))?.token,
+  session: () => parseStoredToken(read(TOKEN_KEY)),
+  /** Saves a pasted token (a bare string, as before), or clears the credential. */
   set: (token: string | undefined) => write(TOKEN_KEY, token?.trim()),
+  /** Saves a sign-in session (or clears it). */
+  save: (session: StoredToken | undefined) => write(TOKEN_KEY, session && JSON.stringify(session)),
 };
 
 /**
@@ -60,6 +104,11 @@ export const tokenStore = {
 export function repoRef(): RepoRef | undefined {
   const saved = read(REPO_KEY);
   return parseRepo(saved ?? DEFAULT_REPO ?? '', read(BRANCH_KEY) || read(RESOLVED_BRANCH_KEY) || DEFAULT_BRANCH);
+}
+
+/** The repo chosen on this device ("owner/name"), not the site's fallback. */
+export function savedRepo(): string | undefined {
+  return read(REPO_KEY);
 }
 
 /** Branch explicitly chosen in Settings; empty = the repo's default branch. */

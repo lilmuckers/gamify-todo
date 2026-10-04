@@ -1,7 +1,9 @@
 import { parseRepo, THEMES, uniqueId, type OpBody, type Theme } from '@quest/shared';
 import { track } from '../../analytics';
 import type { App } from '../../app';
-import { patchUiPrefs, reloadWithMode, setRepo, TARGET, tokenStore, uiPrefs } from '../../config';
+import { needsSignIn } from '../../auth/session';
+import { signInAvailable, startSignIn, TEMPLATE_URL } from '../../auth/signin';
+import { patchUiPrefs, reloadWithMode, savedRepo, setRepo, TARGET, tokenStore, uiPrefs } from '../../config';
 import { exampleData } from '../../data/demo';
 import { go } from '../../router';
 import { heroKey } from '../../sprites/heroes';
@@ -9,6 +11,7 @@ import { spriteUrl } from '../../sprites/render';
 import { h } from '../dom';
 import { field, requireFilled, select, text } from '../forms';
 import { confirmDialog } from '../modal';
+import { repoChoice } from '../repo-picker';
 import { heroPicker } from '../settings';
 import { skillHelpDialog } from '../skill-help';
 import { toast } from '../toast';
@@ -16,7 +19,10 @@ import { testToken, type TokenReport } from './token-check';
 
 // ---- The wizard ----
 
-export type ChapterId = 'repo' | 'token' | 'connect' | 'local' | 'hero' | 'game' | 'ai';
+export type ChapterId = 'signin' | 'repo' | 'token' | 'connect' | 'local' | 'hero' | 'game' | 'ai';
+
+/** The pasted-token chapters: the way in when sign-in isn't set up, or the user prefers a token. */
+const TOKEN_CHAPTERS: ChapterId[] = ['repo', 'token', 'connect'];
 
 interface Chapter {
   id: ChapterId;
@@ -26,6 +32,8 @@ interface Chapter {
   /** The hero's handwritten tip on this page. */
   tip: string;
   render(w: Wizard): Node[];
+  /** False hides NEXT until the page is done (it moves on by itself). */
+  canNext?(w: Wizard): boolean;
 }
 
 interface Wizard {
@@ -33,6 +41,10 @@ interface Wizard {
   repo: string;
   token: string;
   report?: TokenReport;
+  /** Connecting with a pasted token rather than signing in. */
+  pat: boolean;
+  /** Switches between the token chapters and the sign-in one. */
+  usePat(on: boolean): void;
   next(): void;
   back(): void;
   rerender(): void;
@@ -42,6 +54,54 @@ interface Wizard {
 const ext = (url: string, label: string) => h('a', { class: 'manual-go', href: url, target: '_blank', rel: 'noopener' }, `${label} ↗`);
 
 const CHAPTERS: Chapter[] = [
+  {
+    id: 'signin',
+    title: 'Sign in with GitHub',
+    only: 'pages',
+    tip: 'Pick just your quest repo when GitHub asks. Nothing else.',
+    canNext: () => connectedBySignIn(),
+    render: (w) => {
+      const session = tokenStore.session();
+      if (session?.kind !== 'app' || needsSignIn(session)) {
+        const go = h(
+          'button',
+          {
+            class: 'btn primary signin-big',
+            type: 'button',
+            onclick: () => {
+              patchUiPrefs({ setup: { step: 'signin' } });
+              go.disabled = true;
+              startSignIn({ setup: true }).catch((err: Error) => ((go.disabled = false), toast(err.message, 'alert', 6000)));
+            },
+          },
+          'SIGN IN WITH GITHUB',
+        );
+        return [
+          h('p', { class: 'manual-lead' }, 'Your games live in a GitHub repo you own (private is fine). Sign in, then pick that repo. No tokens to make or paste.'),
+          h('div', { class: 'actions manual-signin' }, go),
+          h(
+            'div',
+            { class: 'manual-card' },
+            h('h3', null, 'NO REPO YET?'),
+            h('p', null, 'Make one from the Quest Log template first: it comes ready to play. Then sign in and give Quest Log that repo.'),
+            ext(TEMPLATE_URL, 'MAKE MY QUEST REPO'),
+          ),
+          h(
+            'p',
+            { class: 'manual-safe' },
+            '🔒 Quest Log only reaches the repos you pick on GitHub. Sign-in tokens last 8 hours, renew themselves and stay in this browser. ',
+          ),
+          h('p', { class: 'muted' }, 'Rather paste a token? ', h('button', { class: 'link-button', type: 'button', onclick: () => w.usePat(true) }, 'Use a token instead'), '.'),
+        ];
+      }
+      if (connectedBySignIn())
+        return [
+          h('p', { class: 'manual-lead' }, 'Signed in and playing ', h('b', null, savedRepo()!), '. Press NEXT to pick your hero.'),
+          h('details', null, h('summary', null, 'Play a different repo'), repoChoice({ setup: true })),
+        ];
+      return [h('p', { class: 'manual-lead' }, 'Signed in! Now pick the repo your games live in.'), repoChoice({ setup: true })];
+    },
+  },
   {
     id: 'repo',
     title: 'Make a repo for your quests',
@@ -54,7 +114,8 @@ const CHAPTERS: Chapter[] = [
         h('p', { class: 'manual-lead' }, 'Your games live in a GitHub repo you own: any repo works, private is fine. It needs one first commit, so tick ', h('b', null, 'Add a README'), ' when you make it.'),
         ext('https://github.com/new?name=my-quests&description=My%20Quest%20Log', 'MAKE A NEW REPO ON GITHUB'),
         field('Which repo? (owner/name)', repo, 'e.g. you/my-quests. Already have one? Use that.'),
-      ];
+        signInAvailable() && h('p', { class: 'muted' }, 'Rather not make a token? ', h('button', { class: 'link-button', type: 'button', onclick: () => w.usePat(false) }, 'Sign in with GitHub instead'), '.'),
+      ].filter(Boolean) as Node[];
     },
   },
   {
@@ -255,6 +316,12 @@ const CHAPTERS: Chapter[] = [
   },
 ];
 
+/** Signed in, with a repo chosen: the sign-in page is done. */
+function connectedBySignIn(): boolean {
+  const s = tokenStore.session();
+  return s?.kind === 'app' && !needsSignIn(s) && !!savedRepo();
+}
+
 function reportView(r: TokenReport): Node[] {
   return [
     h('ul', { class: 'token-checks' }, r.checks.map((c) => h('li', { class: c.ok === undefined ? 'unknown' : c.ok ? 'yes' : 'no' }, c.ok === undefined ? '? ' : c.ok ? '✓ ' : '✗ ', c.label))),
@@ -317,9 +384,12 @@ function finish(w: Wizard, where?: { projectId: string; worldId: string; levelId
  */
 export function openSetup(app: App, start?: ChapterId) {
   document.querySelector('.manual-overlay')?.remove();
-  const chapters = CHAPTERS.filter((c) => !c.only || c.only === TARGET);
   const saved = uiPrefs().setup;
-  let at = Math.max(0, chapters.findIndex((c) => c.id === (start ?? saved?.step)));
+  const first = start ?? saved?.step;
+  const pick = (pat: boolean) =>
+    CHAPTERS.filter((c) => (!c.only || c.only === TARGET) && (pat ? c.id !== 'signin' : !TOKEN_CHAPTERS.includes(c.id)));
+  let chapters = pick(!signInAvailable() || TOKEN_CHAPTERS.includes(first as ChapterId));
+  let at = Math.max(0, chapters.findIndex((c) => c.id === first));
   const side = h('ol', { class: 'manual-chapters' });
   const page = h('div', { class: 'manual-page' });
   const overlay = h(
@@ -337,6 +407,16 @@ export function openSetup(app: App, start?: ChapterId) {
     app,
     repo: saved?.repo ?? '',
     token: '',
+    pat: !chapters.some((c) => c.id === 'signin'),
+    usePat: (on) => {
+      w.pat = on;
+      chapters = pick(on);
+      const step: ChapterId = on ? 'repo' : 'signin';
+      at = chapters.findIndex((c) => c.id === step);
+      patchUiPrefs({ setup: { step, repo: w.repo || undefined } });
+      track('setup_step', { step });
+      render();
+    },
     next: () => move(1),
     back: () => move(-1),
     rerender: () => render(),
@@ -367,7 +447,7 @@ export function openSetup(app: App, start?: ChapterId) {
         { class: 'manual-nav' },
         at > 0 && h('button', { class: 'btn', type: 'button', onclick: () => w.back() }, '◀ BACK'),
         // Connecting moves on by itself (it restarts the app); the last page has its own finish.
-        !last && c.id !== 'connect' && h('button', { class: 'btn', type: 'button', onclick: () => w.next() }, c.id === 'game' ? 'SKIP ▶' : 'NEXT ▶'),
+        !last && c.id !== 'connect' && (c.canNext?.(w) ?? true) && h('button', { class: 'btn', type: 'button', onclick: () => w.next() }, c.id === 'game' ? 'SKIP ▶' : 'NEXT ▶'),
       ),
       h(
         'div',

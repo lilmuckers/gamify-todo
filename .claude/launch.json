@@ -18,6 +18,42 @@
       "url": "http://localhost:5173"
     },
     {
+      "name": "app-signin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "app",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173,
+      "url": "http://localhost:5173",
+      "env": {
+        "VITE_AUTH_URL": "http://localhost:8788",
+        "VITE_GITHUB_APP_CLIENT_ID": "Iv23li0iog5L65iOZ13S",
+        "VITE_GITHUB_APP_SLUG": "quest-log"
+      }
+    },
+    {
+      "name": "worker",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "wrangler@4",
+        "dev",
+        "--config",
+        "worker/wrangler.toml",
+        "--env",
+        "dev",
+        "--port",
+        "8788"
+      ],
+      "port": 8788
+    },
+    {
       "name": "server",
       "runtimeExecutable": "npx",
       "runtimeArgs": [

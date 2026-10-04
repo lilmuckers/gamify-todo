@@ -29,6 +29,11 @@ jobs:
         run: npm run build:pages
         env:
           VITE_GH_BRANCH: ${{ github.ref_name }}
+          # Sign in with GitHub (#92). Repo variables can't start with GITHUB_, hence QUEST_.
+          # Leave them unset (forks) and the site keeps the pasted-token flow only.
+          VITE_AUTH_URL: ${{ vars.QUEST_AUTH_URL }}
+          VITE_GITHUB_APP_CLIENT_ID: ${{ vars.QUEST_APP_CLIENT_ID }}
+          VITE_GITHUB_APP_SLUG: ${{ vars.QUEST_APP_SLUG }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist

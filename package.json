@@ -21,7 +21,7 @@
     "build:local": "npm run build:local -w app",
     "format:data": "tsx shared/scripts/format-data.ts",
     "format:data:check": "tsx shared/scripts/format-data.ts --check",
-    "e2e:build": "VITE_E2E=1 VITE_GA_ID= npm run build:pages -w app -- --outDir dist-e2e-pages && VITE_E2E=1 VITE_GA_ID= npm run build:local -w app -- --outDir dist-e2e-local",
+    "e2e:build": "VITE_E2E=1 VITE_GA_ID= VITE_AUTH_URL=https://auth.quest.test VITE_GITHUB_APP_CLIENT_ID=Iv23e2e VITE_GITHUB_APP_SLUG=quest-log-e2e npm run build:pages -w app -- --outDir dist-e2e-pages && VITE_E2E=1 VITE_GA_ID= npm run build:local -w app -- --outDir dist-e2e-local",
     "e2e": "npm run e2e:build && playwright test"
   },
   "devDependencies": {

@@ -37,7 +37,9 @@ cd worker && npx wrangler@4 deploy --env="" --var GITHUB_CLIENT_ID:…   # sign-
 ```
 
 `.claude/launch.json` defines `app-pages` (5173), `server` (8787), `app-local` (5174) and
-`app-preview` (4173).
+`app-preview` (4173). To try Sign in with GitHub locally, run `worker` (`wrangler dev --env dev`
+on 8788, secrets from `worker/.dev.vars`) with `app-signin` (5173, pointed at that Worker with
+the real App's Client ID and slug). The App's callback URLs must include `http://localhost:5173/`.
 
 **Before pushing**, run `npm run typecheck`, `npm test` and `npm run validate`, plus
 `npm run e2e` if you changed a flow it covers (scenes, panels, pads, sync). If you touched
@@ -64,6 +66,7 @@ shared/   Pure TS domain, used by app and server (no DOM, no Phaser)
 app/      Vite + Phaser 3 + plain DOM (no framework)
   src/main.ts       picks the DataSource, desktop vs mobile, boot splash dismissal
   src/app.ts        App: central state, routing, dispatch, undo, play-mode holding
+  src/auth/         Sign in with GitHub: PKCE + callback (oauth), refreshing token provider (session), repo discovery, signin glue
   src/data/         DataSource impls (static, github, local, demo), Store (outbox, sync, offline), kv (IndexedDB)
   src/game/         Phaser scenes: projects (bedroom/console), overworld, world, level (~2k lines), play/ (physics, input)
   src/sprites/      all art drawn in code: pixels palette, heroes, portraits, cartridge, bedroom, junk-tv, strip

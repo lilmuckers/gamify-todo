@@ -1,8 +1,8 @@
-import { fromFiles, GitHubClient, GitHubError, type RepoRef } from '@quest/shared';
+import { fromFiles, GitHubClient, GitHubError, type RepoRef, type TokenProvider } from '@quest/shared';
 import type { DataSource, Loaded, PullData } from './source';
 
 /**
- * Browser-only GitHub mode: token from localStorage, reads and atomic commits
+ * Browser-only GitHub mode: a token from localStorage (pasted, or a refreshing sign-in), reads and atomic commits
  * via the Git Data API. Works against any repo the token can see, so people can
  * keep their quest data in their own repo without cloning this project.
  */
@@ -12,7 +12,7 @@ export class GitHubSource implements DataSource {
   caps = { canEdit: false, canReviewPRs: false, canPublish: false };
   client: GitHubClient;
 
-  constructor(token: string, repo: RepoRef) {
+  constructor(token: string | TokenProvider, repo: RepoRef) {
     this.client = new GitHubClient(token, repo);
     this.id = `gh:${repo.owner}/${repo.repo}`;
     this.label = `${repo.owner}/${repo.repo}`;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ConflictError, applyOp, makeOp, type Workspace } from '@quest/shared';
+import { ConflictError, SignInExpiredError, applyOp, makeOp, type Workspace } from '@quest/shared';
 import { keepUnchanged, Store, type KV } from '../src/data/store';
 import type { DataSource } from '../src/data/source';
 import { at, lvlOf, workspace as fixture } from '../../shared/test/fixtures';
@@ -271,6 +271,59 @@ describe('Store', () => {
     await store.refresh();
     expect(store.state).not.toBe(loaded);
     expect(lvlOf(store.state!).items.find((i) => i.id === 'a')?.status).toBe('done');
+  });
+});
+
+describe('Store when the GitHub sign-in runs out', () => {
+  it('keeps the outbox, asks for a sign-in, and syncs it all after the next one', async () => {
+    const remote = fakeRemote(fixture());
+    const kv = memoryKV();
+    const store = new Store(remote.source, kv, opts({ v: true }));
+    await store.start();
+    store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' });
+    store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'b', status: 'doing' });
+
+    // Every request now fails the way GitHubClient does once the refresh token is dead.
+    const load = remote.source.load;
+    remote.source.load = async () => {
+      throw new SignInExpiredError();
+    };
+    let told = 0;
+    store.onSignInExpired = () => told++;
+    await store.sync();
+    expect(store.needsSignIn).toBe(true);
+    expect(store.status).toBe('error');
+    expect(store.error).toMatch(/sign in again to sync 2 edits/);
+    expect(told).toBe(1);
+    expect(store.outbox).toHaveLength(2);
+    expect(remote.commits).toHaveLength(0);
+    expect(lvlOf(store.state!).items[0].status).toBe('done');
+
+    // Signing in again reloads the app: same repo, same queue, one commit.
+    remote.source.load = load;
+    const after = new Store(remote.source, kv, opts({ v: true }));
+    await after.start();
+    expect(after.outbox).toHaveLength(0);
+    expect(remote.commits).toEqual([expect.stringMatching(/2 updates/)]);
+    expect(after.needsSignIn).toBe(false);
+  });
+
+  it('keeps the outbox when the sign-in runs out mid-commit', async () => {
+    const remote = fakeRemote(fixture());
+    const store = new Store(remote.source, memoryKV(), opts({ v: true }));
+    await store.start();
+    store.dispatch({ kind: 'setItemStatus', ...at, itemId: 'a', status: 'done' });
+    const commit = remote.source.commit!;
+    remote.source.commit = async () => {
+      throw new SignInExpiredError();
+    };
+    await store.sync();
+    expect(store.needsSignIn).toBe(true);
+    expect(store.outbox).toHaveLength(1);
+    remote.source.commit = commit;
+    await store.sync();
+    expect(store.outbox).toHaveLength(0);
+    expect(remote.commits).toHaveLength(1);
   });
 });
 

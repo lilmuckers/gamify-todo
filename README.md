@@ -83,12 +83,14 @@ The game is built to beat perfectionism:
 |---|---|---|---|
 | Read-only | GitHub Pages | – | – |
 | Demo (`?demo`) | GitHub Pages | Everything editable, kept in memory only: nothing is saved anywhere | – |
-| GitHub-connected | GitHub Pages + token in your browser | Commits straight to `main` via the GitHub API | ✓ |
+| Signed in | GitHub Pages + **Sign in with GitHub** | Commits straight to your repo via the GitHub API | ✓ |
+| GitHub-connected | GitHub Pages + a pasted token in your browser | Commits straight to `main` via the GitHub API | ✓ |
 | Local editor | Docker | Writes `data/` and commits in your checkout; **Publish** pushes | ✓ with `GITHUB_TOKEN` |
 | Mobile | Pages, installed as a PWA | Compact touch UI, works offline, syncs when back online | ✓ |
 
-Sign in with GitHub (instead of pasting a token) is on its way. Its token-exchange Worker lives
-in [`worker/`](worker/README.md).
+Sign in with GitHub needs one small server-side step, a token-exchange Worker that lives in
+[`worker/`](worker/README.md). Builds without its settings (forks, local builds) show the
+token flow only. See [Sign in with GitHub](#sign-in-with-github).
 
 All state lives in [`data/`](data) as JSON, one file per project, world and level, validated by the
 JSON Schemas in [`schema/`](schema):
@@ -114,18 +116,46 @@ ways in:
     time, and every line is in that guide's own voice.
   - The tour picks up where it left off after a reload, and can be restarted from Settings.
 - **★ Get started**: a set-up guide styled like an instruction manual (in the Docker editor it skips the GitHub steps and starts from the repo it is running on):
-  1. make a repo;
-  2. create a fine-grained token scoped to that one repo, with a **TEST IT** check of each
-     permission;
-  3. connect;
-  4. pick a hero;
-  5. start a first game;
-  6. (optionally) teach your AI the rules.
+  1. sign in with GitHub and pick your repo (or make one from the template);
+  2. pick a hero;
+  3. start a first game;
+  4. (optionally) teach your AI the rules.
+
+  **Use a token instead** on the first page swaps step 1 for the token route: make a repo, create
+  a fine-grained token scoped to it (with a **TEST IT** check of each permission), and connect.
+  Builds without sign-in always use that route.
 
 Opening a shared link on a first visit shows that screen with a small "New here?" banner instead.
 Add `?welcome` to any URL (or use **⚙ Settings → New here?**) to see the welcome screen again.
 
-### Use your own repo (no fork or clone needed)
+### Sign in with GitHub
+
+**⚙ Settings → Sign in with GitHub** (or the first page of Get started) sends you to GitHub, where
+you authorise the Quest Log GitHub App and choose which repos it may use. Back in the app:
+
+- It finds your Quest Log repos among them (a `data/` folder with `settings.json`, `inbox.json` or
+  a project). One repo connects straight away; with several you pick one, remembered on that
+  device. None: **Create my quest repo** makes one from
+  [`quest-log-template`](https://github.com/lilmuckers/quest-log-template), and **Add a repo to
+  Quest Log** gives the App another repo. A second device finds the same repos by signing in.
+- Sign-in tokens last 8 hours and renew themselves in the background, and they only reach the repos
+  you chose. They're kept in that browser's `localStorage`, like a pasted token. If the renewal
+  ever runs out, the app asks you to sign in again and keeps your unsynced edits until you do.
+- **Sign out** forgets the token and repo choice on that device. To cut Quest Log off everywhere,
+  revoke it under GitHub → Settings → Applications → Authorized GitHub Apps.
+
+The sign-in uses PKCE and a one-time `state`, and the callback's `?code=` is removed from the
+address before anything else runs. AI assistants still use a fine-grained token (see the AI skill
+dialog).
+
+Building your own copy with sign-in: create the GitHub App and deploy the Worker
+([`worker/README.md`](worker/README.md)), then set the repo variables `QUEST_AUTH_URL` (the Worker's
+origin), `QUEST_APP_CLIENT_ID` and `QUEST_APP_SLUG`. `pages.yml` passes them to the build as
+`VITE_AUTH_URL`, `VITE_GITHUB_APP_CLIENT_ID` and `VITE_GITHUB_APP_SLUG`, and the Worker's origin is
+added to the CSP's `connect-src`. For local development, set the same `VITE_` variables when
+running `npm run dev` (against `wrangler dev` on `http://localhost:8787`, say).
+
+### Use your own repo with a token (no fork or clone needed)
 
 You don't need write access to this repo. Create any GitHub repo (with a README so it has a first
 commit), open the site, go to **⚙ Settings**, and enter `owner/repo` (and optionally a branch) plus
@@ -143,7 +173,8 @@ Anyone can view it. To edit from the site (or from your phone), open **⚙ Setti
 fine-grained personal access token limited to this repository with **Contents: read & write**,
 **Pull requests: read & write** and **Checks: read**. The token is kept in that browser's
 `localStorage`, and the app only ever sends it to `api.github.com`. The page runs under a strict
-Content-Security-Policy that allows only GitHub's API and Google Analytics (below). Anything that
+Content-Security-Policy that allows only GitHub's API, the sign-in Worker and Google Analytics
+(below). Anything that
 can run script on the page (including the Google Analytics script), or anyone with access to that
 browser profile, can read it, so keep the token scoped to this one repo.
 
@@ -172,8 +203,8 @@ IndexedDB; the queue is replayed onto the latest remote data when the connection
 reconnect, when the app regains focus, and every 30 s). If a queued edit targets something that was
 deleted remotely it is skipped and listed under Settings → Sync.
 
-On iOS, an installed app has its own storage separate from Safari, so connect the token once inside
-the installed app.
+On iOS, an installed app has its own storage separate from Safari, so sign in (or connect the
+token) once inside the installed app.
 
 ### Local editor (Docker)
 

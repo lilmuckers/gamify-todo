@@ -2674,6 +2674,74 @@ a:focus-visible {
   color: var(--ink);
   font: 14px ui-monospace, monospace;
 }
+/* Sign in with GitHub: the user's Quest Log repos to pick from (Settings dialog and the manual). */
+.repo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+.repo-pick {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 3px solid var(--ink);
+  background: var(--panel-2);
+  color: var(--paper);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.repo-pick:hover,
+.repo-pick:focus-visible {
+  filter: brightness(1.15);
+}
+.repo-pick b {
+  font: 10px/1.5 var(--pixel);
+  overflow-wrap: anywhere;
+}
+.repo-pick small {
+  grid-column: 1;
+  opacity: 0.8;
+}
+.repo-pick .pill {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+.repo-pick.current {
+  border-color: var(--gold-hi);
+}
+.manual .repo-pick {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 4px 4px 0 #c9b99a;
+}
+/* A link that does something here rather than going somewhere. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gold-hi);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.manual .link-button,
+.manual .link {
+  color: #124e89;
+}
+.manual-signin {
+  margin-bottom: 16px;
+}
+.btn.signin-big {
+  font-size: 11px;
+  padding: 12px 16px;
+}
 .token-checks {
   margin: 12px 0 6px;
   padding: 0;

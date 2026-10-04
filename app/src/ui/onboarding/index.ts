@@ -1,4 +1,5 @@
 import type { App } from '../../app';
+import { signInAvailable } from '../../auth/signin';
 import { onboardedStore, patchUiPrefs, reloadWithMode, TARGET, uiPrefs, urlMode } from '../../config';
 import { toast } from '../toast';
 import { showBanner, showSplash, type Choice } from './splash';
@@ -57,5 +58,5 @@ export function beginTour(app: App) {
 /** The get-started wizard, from the start (Settings). */
 export function beginSetup(app: App) {
   onboardedStore.set();
-  void import('./setup').then((m) => m.openSetup(app, TARGET === 'local' ? 'local' : 'repo'));
+  void import('./setup').then((m) => m.openSetup(app, TARGET === 'local' ? 'local' : signInAvailable() ? 'signin' : 'repo'));
 }
