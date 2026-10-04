@@ -1,0 +1,61 @@
+name: Deploy Worker
+
+# Ships the sign-in token-exchange Worker (worker/README.md) when it changes on main.
+# Skips the deploy, with a notice, until the Cloudflare and GitHub App settings exist.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - worker/**
+      - shared/src/oauth.ts
+      - .github/workflows/worker.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy token exchange
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc -p worker
+      - run: npx vitest run worker/test shared/test/oauth.test.ts
+      - name: Check deploy settings
+        id: ready
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          GITHUB_APP_CLIENT_ID: ${{ vars.GITHUB_APP_CLIENT_ID }}
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing secret CLOUDFLARE_API_TOKEN,"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing variable CLOUDFLARE_ACCOUNT_ID,"
+          [ -n "$GITHUB_APP_CLIENT_ID" ] || missing="$missing variable GITHUB_APP_CLIENT_ID,"
+          if [ -n "$missing" ]; then
+            echo "::notice::Worker not deployed. Missing repo${missing%,} (see worker/README.md)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy
+        if: steps.ready.outputs.ok == 'true'
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          GITHUB_APP_CLIENT_ID: ${{ vars.GITHUB_APP_CLIENT_ID }}
+          WRANGLER_SEND_METRICS: 'false'
+        # Same Wrangler as the README; --var fills the Client ID left blank in wrangler.toml.
+        run: npx -y wrangler@4 deploy --env="" --var "GITHUB_CLIENT_ID:$GITHUB_APP_CLIENT_ID"

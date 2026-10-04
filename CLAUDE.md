@@ -32,7 +32,7 @@ npm run format:data             # canonical formatting of data/ (CI only warns)
 npm run schema:gen              # regenerate types.gen.ts + validators.gen.js after editing schema/
 npm run build:pages | build:local
 docker compose up --build       # local editor at http://localhost:8080
-cd worker && npx wrangler@4 deploy --env=""   # sign-in token exchange Worker (worker/README.md)
+cd worker && npx wrangler@4 deploy --env="" --var GITHUB_CLIENT_ID:…   # sign-in Worker (worker/README.md)
 ```
 
 `.claude/launch.json` defines `app-pages` (5173), `server` (8787), `app-local` (5174) and
@@ -41,7 +41,8 @@ cd worker && npx wrangler@4 deploy --env=""   # sign-in token exchange Worker (w
 **Before pushing**, run `npm run typecheck`, `npm test` and `npm run validate`, plus
 `npm run e2e` if you changed a flow it covers (scenes, panels, pads, sync). If you touched
 `schema/`, also run `npm run schema:check`. CI (`.github/workflows/validate.yml`) runs all of
-these on every PR. `pages.yml` deploys `main` to GitHub Pages.
+these on every PR. `pages.yml` deploys `main` to GitHub Pages. `worker.yml` deploys `worker/` to
+Cloudflare when a merge to `main` touches it (it skips until its secrets and variables are set).
 
 ## Layout
 

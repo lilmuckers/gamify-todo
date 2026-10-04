@@ -12,7 +12,8 @@ workers_dev = true
 enabled = false
 
 [vars]
-# The GitHub App's Client ID (public). The secret goes in with:
+# The GitHub App's Client ID (public). CI passes it with --var from the repo variable
+# GITHUB_APP_CLIENT_ID, so it can stay blank here. The secret goes in with:
 #   npx wrangler@4 secret put GITHUB_CLIENT_SECRET
 GITHUB_CLIENT_ID = ""
 ALLOWED_ORIGINS = "https://tasks.patrick-mckinley.com"

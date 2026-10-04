@@ -57,9 +57,8 @@ Then copy the **Client ID** and generate a **client secret**. No private key is 
 ```bash
 cd worker
 npx wrangler@4 login
-# Put the Client ID in wrangler.toml: GITHUB_CLIENT_ID under [vars] (and [env.dev.vars]).
 npx wrangler@4 secret put GITHUB_CLIENT_SECRET --env=""
-npx wrangler@4 deploy --env=""
+npx wrangler@4 deploy --env="" --var GITHUB_CLIENT_ID:Iv23…   # or let CI deploy (step 3)
 ```
 
 Wrangler prints the Worker's URL (`https://quest-log-auth.<you>.workers.dev`). For a nicer URL
@@ -70,7 +69,25 @@ the DNS record and certificate for you.
 The app's CSP `connect-src` (`csp()` in `app/vite.config.ts`) has to include whichever origin you
 pick.
 
-### 3. Lock it down
+### 3. Auto-deploy from GitHub
+
+[`.github/workflows/worker.yml`](../.github/workflows/worker.yml) typechecks, tests and deploys
+the Worker whenever a merge to `main` touches `worker/` or `shared/src/oauth.ts`. You can also
+run it by hand from the Actions tab ("Deploy Worker"). Until the settings below exist, it skips
+the deploy with a notice, so `main` stays green.
+
+1. Cloudflare → **My Profile → API Tokens → Create Token**, from the "Edit Cloudflare Workers"
+   template.
+2. In the GitHub repo, go to **Settings → Secrets and variables → Actions** and add:
+   - secret `CLOUDFLARE_API_TOKEN`: the token from step 1;
+   - variable `CLOUDFLARE_ACCOUNT_ID`: shown on the Workers overview page;
+   - variable `GITHUB_APP_CLIENT_ID`: the App's Client ID. The workflow passes it with
+     `--var`, so `GITHUB_CLIENT_ID` can stay blank in `wrangler.toml`.
+3. Set the client secret once by hand (step 2 above). The workflow never sees it, and deploys
+   keep it.
+4. Run "Deploy Worker" from the Actions tab for the first deploy.
+
+### 4. Lock it down
 
 - `[observability] enabled = false` keeps Workers Logs off. Leave it that way, and don't run
   `wrangler tail` against production.
