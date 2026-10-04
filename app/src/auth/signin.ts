@@ -2,6 +2,7 @@ import { GitHubClient } from '@quest/shared';
 import { patchUiPrefs, savedRepo, setRepo, TARGET, tokenStore } from '../config';
 import { discoverRepos, RepoScanner, type FoundRepo } from './discover';
 import { authorizeUrl, codeChallenge, newVerifier, parseCallback, randomString, SignInError, workerTokens, type Callback } from './oauth';
+import { CHANNEL, markPopup, openPopup, popupMessage, takeMarker, type PopupMessage } from './popup';
 import { browserLock, needsSignIn, RefreshingToken } from './session';
 
 /**
@@ -149,12 +150,170 @@ export async function finishSignIn(cb: Callback): Promise<SignInOutcome | 'redir
   if (!pending || !cb.state || cb.state !== pending.state)
     return { result: 'error', message: 'That sign-in didn’t start in this tab, so it was ignored. Try again.' };
   if (pending.hash) history.replaceState(history.state, '', `${location.pathname}${location.search}${pending.hash}`);
+  return completeSignIn(cb.code, pending.verifier, !!pending.setup);
+}
+
+/** Swaps the code (with its PKCE verifier) for a session, then finds the user's repos. */
+async function completeSignIn(code: string, verifier: string, setup: boolean): Promise<SignInOutcome> {
   try {
-    tokenStore.save(await workerTokens(AUTH_URL, '/exchange', { code: cb.code, code_verifier: pending.verifier }));
+    tokenStore.save(await workerTokens(AUTH_URL, '/exchange', { code, code_verifier: verifier }));
   } catch (err) {
     return { result: 'error', message: err instanceof SignInError ? err.message : 'Sign-in failed. Try again.' };
   }
-  return { result: 'ok', setup: pending.setup, ...(await pickRepo(!!pending.setup)) };
+  return { result: 'ok', setup, ...(await pickRepo(setup)) };
+}
+
+/** A sign-in running in a popup over this page. */
+export interface PopupSignIn {
+  /** Settles once GitHub answers, the window is closed, or the user gives up. */
+  done: Promise<SignInOutcome>;
+  /** Brings the GitHub window to the front. */
+  focus(): void;
+  /** Gives up: closes the window and settles as cancelled. */
+  cancel(): void;
+}
+
+/** Give up waiting on a popup after this long. */
+const POPUP_TIMEOUT_MS = 10 * 60_000;
+
+/**
+ * Starts a sign-in in a popup (desktop). Call it straight from the click, or the browser
+ * blocks the window; undefined when it did anyway (sign in with `startSignIn` instead).
+ */
+export function openSignInPopup(opts: { setup?: boolean } = {}): PopupSignIn | undefined {
+  // Open first, on the click; fill in GitHub's address once the challenge is ready.
+  const win = openPopup('quest-signin', '');
+  if (!win) return undefined;
+  const state = randomString(32);
+  const verifier = newVerifier();
+  markPopup({ kind: 'signin', state, at: Date.now() });
+  void codeChallenge(verifier).then((challenge) => {
+    win.location.href = authorizeUrl({ clientId: CLIENT_ID, redirectUri: redirectUri(), state, challenge });
+  });
+
+  const channel = new BroadcastChannel(CHANNEL);
+  let settle!: (r: SignInOutcome) => void;
+  let finished = false;
+  const done = new Promise<SignInOutcome>((resolve) => (settle = resolve));
+  const finish = (r: SignInOutcome) => {
+    if (finished) return;
+    finished = true;
+    clearInterval(watch);
+    clearTimeout(timeout);
+    channel.close();
+    settle(r);
+  };
+  let closedAt = 0;
+  let answered = false;
+  channel.onmessage = (e: MessageEvent<PopupMessage>) => {
+    const m = e.data;
+    if (m?.kind !== 'signin' || m.state !== state || finished) return;
+    answered = true;
+    channel.postMessage({ kind: 'ack', state } satisfies PopupMessage);
+    if (m.error) return finish(m.error === 'access_denied' ? { result: 'cancelled', message: 'Sign-in cancelled.' } : { result: 'error', message: `GitHub said no (${m.error}).` });
+    if (m.code) void completeSignIn(m.code, verifier, !!opts.setup).then(finish);
+  };
+  // Closed without an answer: give it a moment (the answer may still be on its way), then stop.
+  const watch = setInterval(() => {
+    if (!win.closed || answered) return;
+    closedAt ||= Date.now();
+    if (Date.now() - closedAt > 1500) finish({ result: 'cancelled', message: 'The GitHub window was closed before sign-in finished.' });
+  }, 500);
+  const timeout = setTimeout(() => finish({ result: 'cancelled', message: 'Sign-in timed out. Try again.' }), POPUP_TIMEOUT_MS);
+  return {
+    done,
+    focus: () => win.focus(),
+    cancel: () => {
+      if (!win.closed) win.close();
+      finish({ result: 'cancelled' });
+    },
+  };
+}
+
+/**
+ * Opens GitHub's install page in a popup (desktop). Our callback page tells the waiting tab
+ * when GitHub sends the popup back. False when the browser blocked the window.
+ */
+export function openInstallPopup(): boolean {
+  const win = openPopup('quest-install', installUrl(), 1000, 760);
+  if (win) markPopup({ kind: 'install', at: Date.now() });
+  return !!win;
+}
+
+/** Runs `fn` when a popup finishes an install. Returns a stop function. */
+export function onInstallPopup(fn: () => void): () => void {
+  if (typeof BroadcastChannel === 'undefined') return () => undefined;
+  const channel = new BroadcastChannel(CHANNEL);
+  channel.onmessage = (e: MessageEvent<PopupMessage>) => e.data?.kind === 'install' && fn();
+  return () => channel.close();
+}
+
+/**
+ * On our callback page inside a popup: hands GitHub's answer to the waiting tab and closes.
+ * True when this page was such a popup (the app shouldn't start here).
+ *
+ * If no tab answers (it was closed), the popup offers to carry on as a normal page: the
+ * verifier was in that tab's memory, so it starts a fresh sign-in here.
+ */
+export function answerPopup(cb: Callback): boolean {
+  if (cb.kind === 'none' || !signInAvailable() || typeof BroadcastChannel === 'undefined') return false;
+  const message = popupMessage(cb, takeMarker());
+  if (!message) return false;
+  const channel = new BroadcastChannel(CHANNEL);
+  const say = (text: string, action?: { label: string; run: () => void }) => {
+    const sub = document.querySelector('#boot .boot-sub');
+    if (sub) sub.textContent = text;
+    if (action) {
+      const btn = document.createElement('button');
+      btn.className = 'boot-action';
+      btn.textContent = action.label;
+      btn.onclick = action.run;
+      document.getElementById('boot')?.append(btn);
+    }
+  };
+  say(message.kind === 'install' ? 'DONE' : 'SIGNING IN');
+  if (message.kind === 'install') {
+    channel.postMessage(message);
+    setTimeout(() => window.close(), 300);
+    say('DONE · YOU CAN CLOSE THIS WINDOW');
+    return true;
+  }
+  let acked = false;
+  channel.onmessage = (e: MessageEvent<PopupMessage>) => {
+    if (e.data?.kind !== 'ack' || e.data.state !== message.state) return;
+    acked = true;
+    channel.close();
+    say('SIGNED IN · YOU CAN CLOSE THIS WINDOW');
+    window.close();
+  };
+  channel.postMessage(message);
+  setTimeout(() => {
+    if (acked) return;
+    channel.close();
+    say('THE QUEST LOG TAB HAS GONE', { label: 'Sign in here instead', run: () => void startSignIn({ hash: '#/' }) });
+  }, 3000);
+  return true;
+}
+
+const DONE_KEY = 'quest.signin.done';
+
+/** Keeps a popup sign-in's outcome across the reload onto the new repo, for main.ts to report. */
+export function stashOutcome(r: SignInOutcome) {
+  try {
+    sessionStorage.setItem(DONE_KEY, JSON.stringify({ ...r, repos: undefined }));
+  } catch {
+    /* the reload just won't say "Signed in" */
+  }
+}
+
+export function takeOutcome(): SignInOutcome | undefined {
+  try {
+    const raw = sessionStorage.getItem(DONE_KEY);
+    sessionStorage.removeItem(DONE_KEY);
+    return raw ? (JSON.parse(raw) as SignInOutcome) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Connects to the user's Quest Log repo when there's no choice to make. */

@@ -153,10 +153,65 @@ test('with no repo yet, the next steps tick off by themselves as the user sets u
   expect(await page.evaluate(() => localStorage.getItem('quest.github.repo'))).toBe('player/quests');
 });
 
+test('on desktop, GitHub opens in a small window and the app never leaves the page', async ({ page }) => {
+  const gh = new FakeGitHub({ repos: [{ owner: 'player', name: 'quests' }, { owner: 'family', name: 'house' }] });
+  await gh.install(page);
+  await page.goto('./#/');
+  await inScene(page, 'projects');
+  // Survives only if this page is never unloaded.
+  await page.evaluate(() => ((window as unknown as { stayed: boolean }).stayed = true));
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Sign in with GitHub' }).click()]);
+  await expect(page.getByRole('dialog', { name: 'Signing in…' })).toBeVisible();
+  // The popup lands back on our page, hands over the code, and closes itself.
+  await popup.waitForEvent('close');
+
+  const picker = page.getByRole('dialog', { name: 'Choose your repo' });
+  await expect(picker.locator('.repo-pick.quest')).toHaveCount(2);
+  expect(await page.evaluate(() => (window as unknown as { stayed?: boolean }).stayed)).toBe(true);
+  expect(gh.exchanges).toBe(1);
+  expect(await stored(page)).toMatchObject({ kind: 'app' });
+});
+
+test('installing Quest Log in a window ticks the checklist off at once', async ({ page, baseURL }) => {
+  const gh = new FakeGitHub({ repos: [], installed: false });
+  await gh.install(page);
+  await page.addInitScript((s) => {
+    if (!localStorage.getItem('quest.github.token')) localStorage.setItem('quest.github.token', s);
+  }, JSON.stringify(gh.session()));
+  await page.goto('./#/');
+  await inScene(page, 'projects');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Choose a repo' }).click();
+  const picker = page.getByRole('dialog', { name: 'Choose your repo' });
+  await expect(picker.locator('.watch.live')).toContainText('checked');
+
+  gh.installReturn = { redirectUri: baseURL!, repo: { owner: 'player', name: 'quests' } };
+  const [popup] = await Promise.all([page.waitForEvent('popup'), picker.getByRole('link', { name: 'Install Quest Log ↗' }).click()]);
+  await popup.waitForEvent('close');
+  // Told by the popup, not by the next 5-second poll.
+  await expect(picker.locator('.repo-pick.quest', { hasText: 'quests' })).toContainText('PLAY', { timeout: 3000 });
+});
+
+test('if the window is blocked, sign-in goes to GitHub and back in this tab', async ({ page }) => {
+  const gh = new FakeGitHub({ repos: [{ owner: 'player', name: 'quests' }, { owner: 'family', name: 'house' }] });
+  await gh.install(page);
+  await page.addInitScript(() => (window.open = () => null));
+  await page.goto('./#/');
+  await inScene(page, 'projects');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Sign in with GitHub' }).click();
+  const picker = page.getByRole('dialog', { name: 'Choose your repo' });
+  await expect(picker.locator('.repo-pick.quest')).toHaveCount(2);
+  expect(page.url()).not.toMatch(/code=|state=/);
+  expect(gh.exchanges).toBe(1);
+});
+
 test('cancelling on GitHub changes nothing', async ({ page }) => {
   const gh = new FakeGitHub({ repos: [{ owner: 'player', name: 'quests' }] });
   await gh.install(page);
-  await page.route('https://github.com/login/oauth/authorize?**', (route) => {
+  await page.context().route('https://github.com/login/oauth/authorize?**', (route) => {
     const url = new URL(route.request().url());
     const back = new URL(url.searchParams.get('redirect_uri')!);
     back.search = `?error=access_denied&state=${url.searchParams.get('state')}`;

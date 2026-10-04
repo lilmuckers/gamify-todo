@@ -2,13 +2,14 @@ import { describeOp, GitHubClient, HERO_IDS, parseRepo, REVIEW_SLOTS, type HeroI
 import { analyticsAllowed, analyticsAvailable, setAnalyticsAllowed, track } from '../analytics';
 import type { App } from '../app';
 import { needsSignIn } from '../auth/session';
-import { REVOKE_URL, signInAvailable, signOut, startSignIn } from '../auth/signin';
+import { REVOKE_URL, signInAvailable, signOut } from '../auth/signin';
 import { chosenBranch, heroStore, reloadWithMode, repoRef, savedRepo, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
 import { HEROES, heroKey } from '../sprites/heroes';
 import { spriteUrl } from '../sprites/render';
 import { h, relTime } from './dom';
 import { confirmDialog, openModal } from './modal';
 import { openRepoPicker } from './repo-picker';
+import { beginSignIn } from './sign-in';
 import { toast } from './toast';
 
 export function settingsDialog(app: App) {
@@ -230,7 +231,7 @@ function signInSection(app: App, closeSettings: () => void): Node[] {
   const session = tokenStore.session();
   const head = h('h3', null, 'GitHub');
   const signIn = (label: string) =>
-    h('button', { class: 'btn sm primary signin-big', type: 'button', onclick: () => void startSignIn().catch((err: Error) => toast(err.message, 'alert', 6000)) }, label);
+    h('button', { class: 'btn sm primary signin-big', type: 'button', onclick: () => (closeSettings(), beginSignIn(app)) }, label);
   if (session?.kind !== 'app')
     return [
       head,

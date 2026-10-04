@@ -12,6 +12,7 @@ import {
   VERIFIER_PATTERN,
   workerTokens,
 } from '../src/auth/oauth';
+import { markPopup, popupMessage, takeMarker } from '../src/auth/popup';
 import { needsSignIn, RefreshingToken, REFRESH_EARLY_MS, type SessionDeps } from '../src/auth/session';
 import { parseStoredToken, type StoredToken } from '../src/config';
 
@@ -458,5 +459,40 @@ describe('repo discovery', () => {
   it('finds nothing when the App isn’t installed anywhere', async () => {
     const get = fake({ '/user/installations?per_page=100': { installations: [] } });
     expect(await discoverRepos(get)).toEqual({ repos: [], installed: 0 });
+  });
+});
+
+describe('sign-in popups', () => {
+  function storage() {
+    const m = new Map<string, string>();
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k), m };
+  }
+
+  it('remembers a popup once, and forgets stale ones', () => {
+    const store = storage();
+    markPopup({ kind: 'signin', state: 'st', at: 1000 }, store);
+    expect(takeMarker(store, 2000)).toEqual({ kind: 'signin', state: 'st', at: 1000 });
+    expect(takeMarker(store, 2000)).toBeUndefined();
+    markPopup({ kind: 'install', at: 0 }, store);
+    expect(takeMarker(store, 16 * 60_000)).toBeUndefined();
+    store.setItem('quest.signin.popup', '{nope');
+    expect(takeMarker(store)).toBeUndefined();
+  });
+
+  it('answers only the sign-in it was opened for', () => {
+    const signin = { kind: 'signin' as const, state: 'st', at: 0 };
+    expect(popupMessage({ kind: 'code', code: 'c', state: 'st' }, signin)).toEqual({ kind: 'signin', state: 'st', code: 'c' });
+    expect(popupMessage({ kind: 'error', error: 'access_denied' }, signin)).toEqual({ kind: 'signin', state: 'st', error: 'access_denied' });
+    // Someone else's state, or no popup at all: load the app as normal.
+    expect(popupMessage({ kind: 'code', code: 'c', state: 'other' }, signin)).toBeUndefined();
+    expect(popupMessage({ kind: 'code', code: 'c', state: 'st' }, undefined)).toBeUndefined();
+    expect(popupMessage({ kind: 'none' }, signin)).toBeUndefined();
+  });
+
+  it('reports a finished install, never passing its code on', () => {
+    const install = { kind: 'install' as const, at: 0 };
+    expect(popupMessage({ kind: 'code', code: 'c', setupAction: 'install' }, install)).toEqual({ kind: 'install', setupAction: 'install' });
+    expect(popupMessage({ kind: 'install', setupAction: 'update' }, install)).toEqual({ kind: 'install', setupAction: 'update' });
+    expect(popupMessage({ kind: 'code', code: 'c', state: 'x' }, install)).toBeUndefined();
   });
 });
