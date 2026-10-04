@@ -139,6 +139,13 @@ function strip<T extends { $schema?: string }>(o: T): Omit<T, '$schema'> {
 }
 
 /**
+ * An empty lookup table with no prototype. Ids like "constructor" and "prototype"
+ * are valid slugs, so on a plain `{}` they would find Object's built-ins and let a
+ * crafted path such as data/constructor/prototype/x.json write to Object.prototype.
+ */
+const table = <T>(): Record<string, T> => Object.create(null) as Record<string, T>;
+
+/**
  * Builds the in-memory workspace. Lenient: files that can't be placed (a world
  * without project.json, unparseable JSON) are skipped; validateFiles reports them.
  * Worlds and levels missing from worldOrder/levelOrder go after the listed ones,
@@ -155,8 +162,8 @@ export function fromFiles(files: Record<string, string>): Workspace {
   const projects: Record<string, GameState> = {};
   let settings: Workspace['settings'];
   let inbox: InboxItem[] | undefined;
-  const worldFiles: Record<string, Record<string, WorldFile>> = {};
-  const levels: Record<string, Record<string, Record<string, Level>>> = {};
+  const worldFiles = table<Record<string, WorldFile>>();
+  const levels = table<Record<string, Record<string, Level>>>();
   for (const path of Object.keys(files)) {
     const f = classifyPath(path);
     if (!f) continue;
@@ -171,19 +178,19 @@ export function fromFiles(files: Record<string, string>): Workspace {
       if (p) projects[f.projectId] = { overworld: strip(p) as Project, worlds: {} };
     } else if (f.kind === 'world') {
       const w = parse<WorldFile>(path);
-      if (w) (worldFiles[f.projectId] ??= {})[f.worldId] = w;
+      if (w) (worldFiles[f.projectId] ??= table())[f.worldId] = w;
     } else if (f.levelId !== 'world') {
       const l = parse<Level>(path);
-      if (l) ((levels[f.projectId] ??= {})[f.worldId] ??= {})[f.levelId] = strip(l) as Level;
+      if (l) ((levels[f.projectId] ??= table())[f.worldId] ??= table())[f.levelId] = strip(l) as Level;
     }
   }
   for (const [pid, state] of Object.entries(projects)) {
     for (const [wid, wf] of Object.entries(worldFiles[pid] ?? {})) {
       const { levelOrder, $schema: _, ...rest } = wf;
-      const pool = { ...levels[pid]?.[wid] };
+      const pool = Object.assign(table<Level>(), levels[pid]?.[wid]);
       const ordered: Level[] = [];
       for (const lid of Array.isArray(levelOrder) ? levelOrder : []) {
-        if (pool[lid]) ordered.push(pool[lid]);
+        if (typeof lid === 'string' && pool[lid]) ordered.push(pool[lid]);
         delete pool[lid];
       }
       ordered.push(...Object.keys(pool).sort().map((k) => pool[k]));

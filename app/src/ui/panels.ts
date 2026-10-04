@@ -23,6 +23,7 @@ import {
   nudges,
   orderedProjects,
   orderedWorlds,
+  safeLink,
   scoreLevel,
   suggestNextLevel,
   totals,
@@ -479,7 +480,8 @@ function levelPanel(app: App) {
           item.dependsOn?.length &&
             h('small', null, 'After: ', item.dependsOn.map((id) => level.items.find((i) => i.id === id)?.title ?? id).join(', ')),
           !cur.sub && dependencyLinks(app, cur, item),
-          item.link && h('div', null, h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer', class: 'link' }, item.link)),
+          item.link &&
+            h('div', null, safeLink(item.link) ? h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer', class: 'link' }, item.link) : item.link),
           d?.fields.length &&
             h(
               'ul',

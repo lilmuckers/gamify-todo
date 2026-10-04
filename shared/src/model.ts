@@ -166,3 +166,19 @@ export function subLevel(parent: Level, dep: Item): Level {
 export function clone<T>(value: T): T {
   return structuredClone(value);
 }
+
+const LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+
+/**
+ * `url` if it is safe to use as an href, else undefined. Data can come from
+ * anyone who opens a pull request, and the schema's "uri" format allows
+ * `javascript:` and `data:` URLs, which would run in the app next to the token.
+ */
+export function safeLink(url: unknown): string | undefined {
+  if (typeof url !== 'string') return undefined;
+  try {
+    return LINK_PROTOCOLS.has(new URL(url).protocol) ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
