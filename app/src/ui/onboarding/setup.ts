@@ -99,7 +99,8 @@ const CHAPTERS: Chapter[] = [
           h('p', { class: 'manual-lead' }, 'Signed in and playing ', h('b', null, savedRepo()!), '. Press NEXT to pick your hero.'),
           h('details', null, h('summary', null, 'Play a different repo'), repoChoice({ setup: true })),
         ];
-      return [h('p', { class: 'manual-lead' }, 'Signed in! Now pick the repo your games live in.'), repoChoice({ setup: true })];
+      // Signed in, no repo yet: the repos to pick from, or the next steps on GitHub (it watches for them).
+      return [repoChoice({ setup: true })];
     },
   },
   {

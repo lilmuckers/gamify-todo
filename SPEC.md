@@ -638,8 +638,12 @@ Security:
     user to sign in again, then syncs it.
   - Repo discovery: `/user/installations` → each installation's repositories → `contents/data`,
     keeping repos with `data/settings.json`, `data/inbox.json` or a `data/<project>/project.json`.
+  - With no Quest Log repo, the picker shows the next steps (template, install or add the repo)
+    and polls every 5 s while visible, and on focus, for up to 10 minutes. `RepoScanner` only
+    re-checks a repo's `data/` every 30 s, so a poll costs a call or two. Other reachable repos
+    can be used at once; empty ones (409) can't.
   - After an install (`setup_action`), the returned code is not redeemed (it had no PKCE
-    challenge); a normal sign-in starts instead.
+    challenge). Already signed in: discovery runs again. Otherwise a normal sign-in starts.
 
 ## 13. PWA and performance
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GitHubClient, GitHubError, SignInExpiredError, type TokenProvider } from '@quest/shared';
 import { handle, type Env } from '../../worker/src/index';
-import { discoverRepos, isQuestRepo, type GitHubGet } from '../src/auth/discover';
+import { checkRepo, discoverRepos, isQuestRepo, RepoScanner, type GitHubGet } from '../src/auth/discover';
 import {
   authorizeUrl,
   codeChallenge,
@@ -409,6 +409,50 @@ describe('repo discovery', () => {
       '/repos/me/broken/contents/data': new GitHubError('Server Error', 500),
     });
     expect((await discoverRepos(get)).repos.map((x) => x.fullName)).toEqual(['me/quests']);
+  });
+
+  it('tells empty repos from ones with no quest log yet', async () => {
+    const get = fake({
+      '/repos/a/empty/contents/data': new GitHubError('This repository is empty.', 409),
+      '/repos/a/quest/contents/data': [{ name: 'settings.json', type: 'file' }],
+    });
+    expect(await checkRepo(get, 'a/empty')).toBe('empty');
+    expect(await checkRepo(get, 'a/plain')).toBe('other');
+    expect(await checkRepo(get, 'a/quest')).toBe('quest');
+  });
+
+  it('scans again cheaply: only new repos, and the rest once they’re due', async () => {
+    const routes: Record<string, unknown> = {
+      '/user/installations?per_page=100': { installations: [] },
+    };
+    const get = fake(routes);
+    const clock = { now: 0 };
+    const scanner = new RepoScanner(get, { recheckMs: 30_000, now: () => clock.now });
+    expect(await scanner.scan()).toEqual({ installations: 0, repos: [] });
+
+    // The user installs the App on a plain repo.
+    routes['/user/installations?per_page=100'] = { installations: [{ id: 1 }] };
+    routes['/user/installations/1/repositories?per_page=100'] = { repositories: [repo('me', 'notes', '2026-09-01T00:00:00Z')] };
+    clock.now = 5000;
+    expect((await scanner.scan()).repos).toEqual([expect.objectContaining({ fullName: 'me/notes', kind: 'other' })]);
+
+    // Then adds their new quest repo. Only that one is looked at; notes isn't due yet.
+    routes['/user/installations/1/repositories?per_page=100'] = { repositories: [repo('me', 'notes', '2026-09-01T00:00:00Z'), repo('me', 'quests', '2026-10-04T00:00:00Z')] };
+    routes['/repos/me/quests/contents/data'] = [{ name: 'settings.json', type: 'file' }];
+    clock.now = 10_000;
+    get.calls.length = 0;
+    const scan = await scanner.scan();
+    expect(scan.repos.map((r) => [r.fullName, r.kind])).toEqual([
+      ['me/quests', 'quest'],
+      ['me/notes', 'other'],
+    ]);
+    expect(get.calls.filter((c) => c.includes('/contents/'))).toEqual(['/repos/me/quests/contents/data']);
+
+    // Later, notes is checked again; the quest repo never is.
+    clock.now = 40_000;
+    get.calls.length = 0;
+    await scanner.scan();
+    expect(get.calls.filter((c) => c.includes('/contents/'))).toEqual(['/repos/me/notes/contents/data']);
   });
 
   it('finds nothing when the App isn’t installed anywhere', async () => {

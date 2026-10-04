@@ -2713,6 +2713,85 @@ a:focus-visible {
   grid-row: 1 / span 2;
   grid-column: 2;
 }
+.repo-pick.disabled {
+  cursor: default;
+  opacity: 0.6;
+  filter: none;
+}
+.repo-pick.quest .pill {
+  background: var(--green);
+  color: var(--ink);
+}
+/* The next steps on GitHub, ticked off as the app notices them. */
+.next-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.next-steps li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 34px;
+  counter-increment: step;
+}
+.next-steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: -2px;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid currentColor;
+  font: 9px var(--pixel);
+}
+.next-steps li.done::before {
+  content: '✓';
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--ink);
+}
+.next-steps li.done > span,
+.next-steps li.done > b {
+  opacity: 0.7;
+}
+.next-steps b {
+  font: 9px/1.6 var(--pixel);
+}
+.next-steps .actions {
+  margin-top: 2px;
+}
+.watch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.watch .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: watch-pulse 1.2s steps(2) infinite;
+}
+@keyframes watch-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .watch .dot {
+    animation: none;
+  }
+}
 .repo-pick.current {
   border-color: var(--gold-hi);
 }
