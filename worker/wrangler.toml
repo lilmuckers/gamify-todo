@@ -1,0 +1,46 @@
+# Quest Log token exchange Worker. Deploy guide: worker/README.md.
+name = "quest-log-auth"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# Served only at the custom domain (the zone is on Cloudflare). Cloudflare creates the DNS
+# record and certificate on deploy; don't add an `auth` record by hand.
+workers_dev = false
+routes = [{ pattern = "auth.patrick-mckinley.com", custom_domain = true }]
+
+# Stores nothing, logs nothing: keep Workers Logs off.
+[observability]
+enabled = false
+
+[vars]
+# The GitHub App's Client ID (public). CI passes it with --var from the repo variable
+# GITHUB_APP_CLIENT_ID, so it can stay blank here. The secret goes in with:
+#   npx wrangler@4 secret put GITHUB_CLIENT_SECRET
+GITHUB_CLIENT_ID = ""
+ALLOWED_ORIGINS = "https://tasks.patrick-mckinley.com"
+
+# Per-IP limit on /exchange and /refresh. Lives in the Worker, so it also covers dev on workers.dev.
+# Real use is one exchange per sign-in and a refresh every 8 hours.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+# Local and dev testing: npx wrangler@4 dev --env dev
+[env.dev]
+name = "quest-log-auth-dev"
+# routes and workers_dev are inherited: dev must not claim the production domain.
+workers_dev = true
+routes = []
+
+[env.dev.observability]
+enabled = false
+
+[env.dev.vars]
+GITHUB_CLIENT_ID = ""
+ALLOWED_ORIGINS = "https://tasks.patrick-mckinley.com,http://localhost:5173"
+
+[[env.dev.ratelimits]]
+name = "LIMITER"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }

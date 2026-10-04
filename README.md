@@ -87,6 +87,9 @@ The game is built to beat perfectionism:
 | Local editor | Docker | Writes `data/` and commits in your checkout; **Publish** pushes | ✓ with `GITHUB_TOKEN` |
 | Mobile | Pages, installed as a PWA | Compact touch UI, works offline, syncs when back online | ✓ |
 
+Sign in with GitHub (instead of pasting a token) is on its way. Its token-exchange Worker lives
+in [`worker/`](worker/README.md).
+
 All state lives in [`data/`](data) as JSON, one file per project, world and level, validated by the
 JSON Schemas in [`schema/`](schema):
 
