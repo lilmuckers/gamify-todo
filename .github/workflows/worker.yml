@@ -57,5 +57,5 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           GITHUB_APP_CLIENT_ID: ${{ vars.GITHUB_APP_CLIENT_ID }}
           WRANGLER_SEND_METRICS: 'false'
-        # Same Wrangler as the README; --var fills the Client ID left blank in wrangler.toml.
-        run: npx -y wrangler@4 deploy --env="" --var "GITHUB_CLIENT_ID:$GITHUB_APP_CLIENT_ID"
+        # Pinned: this step holds the Cloudflare token. --var fills the Client ID left blank in wrangler.toml.
+        run: npx -y wrangler@4.147.0 deploy --env="" --var "GITHUB_CLIENT_ID:$GITHUB_APP_CLIENT_ID"

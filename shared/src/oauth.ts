@@ -73,6 +73,8 @@ async function requestToken(body: Record<string, string>, fetchImpl: typeof fetc
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      // The secret is in the body: never follow a redirect with it.
+      redirect: 'manual',
     });
   } catch {
     throw new OAuthError('upstream_error', 'GitHub could not be reached');

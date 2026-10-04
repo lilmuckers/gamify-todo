@@ -28,6 +28,7 @@ describe('exchangeCode', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe(GITHUB_TOKEN_URL);
     expect(calls[0].init.method).toBe('POST');
+    expect(calls[0].init.redirect).toBe('manual');
     expect(calls[0].init.headers).toMatchObject({ Accept: 'application/json', 'Content-Type': 'application/json' });
     expect(calls[0].body).toEqual({ client_id: 'Iv23id', client_secret: 'shh', code: 'c0de' });
   });
@@ -73,6 +74,7 @@ describe('exchangeCode', () => {
 
   it.each([
     ['a non-2xx reply', () => new Response('nope', { status: 503 })],
+    ['a redirect', () => new Response(null, { status: 307, headers: { Location: 'https://evil.example/' } })],
     ['a non-JSON reply', () => new Response('<html>', { status: 200 })],
     ['no access token', ok({ token_type: 'bearer' })],
     ['a network failure', () => Promise.reject(new TypeError('fetch failed'))],

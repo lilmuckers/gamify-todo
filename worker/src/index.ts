@@ -3,7 +3,11 @@
  * can't call GitHub's token endpoint itself (it needs the client secret and has no CORS), so it
  * posts here. Stores nothing and logs nothing: tokens only ever appear in the response.
  *
- *   POST /exchange { code, code_verifier? } → token set
+ * PKCE is required: without it, anyone who saw a sign-in `code` (history, logs, a Referer)
+ * could redeem it here, since the Worker holds the secret. With it, GitHub also wants the
+ * verifier, which never leaves the browser that started the sign-in.
+ *
+ *   POST /exchange { code, code_verifier } → token set
  *   POST /refresh  { refresh_token }        → token set
  */
 import { exchangeCode, OAuthError, refreshToken, type TokenSet } from '@quest/shared/oauth';
@@ -19,6 +23,8 @@ export interface Env {
 const MAX_BODY = 4096;
 const MAX_FIELD = 512;
 const ROUTES = new Set(['/exchange', '/refresh']);
+/** RFC 7636 §4.1: 43–128 unreserved characters. */
+const VERIFIER = /^[A-Za-z0-9\-._~]{43,128}$/;
 
 /** GitHub's error code → our status. Anything unlisted is GitHub's fault: 502. */
 const ERROR_STATUS: Record<string, number> = {
@@ -62,8 +68,8 @@ export async function handle(request: Request, env: Env, fetchImpl?: typeof fetc
   try {
     if (pathname === '/exchange') {
       const code = field(body, 'code');
-      const verifier = body.code_verifier === undefined ? undefined : field(body, 'code_verifier');
-      if (!code || verifier === null) return json({ error: 'invalid_request' }, 400, cors);
+      const verifier = field(body, 'code_verifier');
+      if (!code || !verifier || !VERIFIER.test(verifier)) return json({ error: 'invalid_request' }, 400, cors);
       tokens = await exchangeCode({ ...creds, code, codeVerifier: verifier }, fetchImpl);
     } else {
       const refresh = field(body, 'refresh_token');
@@ -107,14 +113,42 @@ async function readBody(request: Request): Promise<Record<string, unknown> | nul
   if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return null;
   const length = Number(request.headers.get('Content-Length') ?? 0);
   if (length > MAX_BODY) return null;
-  const text = await request.text();
-  if (text.length > MAX_BODY) return null;
+  const text = await readCapped(request, MAX_BODY);
+  if (text === null) return null;
   try {
     const parsed: unknown = JSON.parse(text);
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * The body as text, or null past `max` bytes. Reads chunk by chunk, so a chunked upload with
+ * no Content-Length can't make us buffer megabytes.
+ */
+async function readCapped(request: Request, max: number): Promise<string | null> {
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 /** A non-empty, bounded string field, or null. */

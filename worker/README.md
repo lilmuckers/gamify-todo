@@ -15,7 +15,7 @@ Both routes take JSON, need an `Origin` from `ALLOWED_ORIGINS`, and reply with
 
 | Route | Body | 200 reply |
 |---|---|---|
-| `POST /exchange` | `{ "code": "…", "code_verifier": "…" }` (verifier optional, for PKCE) | token set |
+| `POST /exchange` | `{ "code": "…", "code_verifier": "…" }` (PKCE verifier required: 43–128 of `A-Z a-z 0-9 - . _ ~`) | token set |
 | `POST /refresh` | `{ "refresh_token": "…" }` | token set (GitHub rotates the refresh token too) |
 
 Token set: `{ "access_token", "refresh_token", "expires_in", "refresh_token_expires_in" }`. The
@@ -92,9 +92,15 @@ the deploy with a notice, so `main` stays green.
 - `[observability] enabled = false` keeps Workers Logs off. Leave it that way, and don't run
   `wrangler tail` against production.
 - Optional: a Cloudflare rate-limiting rule on `/exchange` and `/refresh` (the free plan has one).
-  CORS only stops browsers. Without a fresh code or a refresh token, the Worker gives nothing
-  away, though.
+  CORS only stops browsers: scripts can send any `Origin`. That's why `/exchange` insists on
+  PKCE, so a leaked `code` is useless without the verifier from the browser that started the
+  sign-in.
+- A stolen **refresh token** can still be swapped here by anyone, because the Worker holds the
+  secret. That's inherent to a browser-only app. Keep tokens out of URLs and logs, and treat an
+  XSS bug as serious. To cut everyone off, revoke the App's tokens or rotate the client secret.
 - Never commit the secret. `.dev.vars` (local secrets) is git-ignored.
+- The deploy workflow pins Wrangler to an exact version, because that step holds the Cloudflare
+  API token. Bump it on purpose.
 
 ## Local development
 
