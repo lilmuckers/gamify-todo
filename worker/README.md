@@ -62,13 +62,16 @@ npx wrangler@4 secret put GITHUB_CLIENT_SECRET --env=""
 npx wrangler@4 deploy --env="" --var GITHUB_CLIENT_ID:Iv23…   # or let CI deploy (step 3)
 ```
 
-Wrangler prints the Worker's URL (`https://quest-log-auth.<you>.workers.dev`). For a nicer URL
-with the zone on Cloudflare, uncomment the `routes` line in `wrangler.toml` (for example
-`auth.patrick-mckinley.com`), set `workers_dev = false` and deploy again. Cloudflare creates
-the DNS record and certificate for you.
+Production is served only at **`https://auth.patrick-mckinley.com`** (`routes` in
+`wrangler.toml`; `workers_dev = false`). The `patrick-mckinley.com` zone is on Cloudflare, so the
+first deploy creates the `auth` DNS record and its certificate. Don't add an `auth` record by
+hand, because the deploy refuses to replace one. The API token needs access to that zone (see
+step 3).
 
-The app's CSP `connect-src` (`csp()` in `app/vite.config.ts`) has to include whichever origin you
-pick.
+The app's CSP `connect-src` (`csp()` in `app/vite.config.ts`) has to include that origin.
+
+If the zone ever leaves Cloudflare, delete `routes`, set `workers_dev = true` and redeploy. The
+Worker then lives at `https://quest-log-auth.<subdomain>.workers.dev`.
 
 ### 3. Auto-deploy from GitHub
 
@@ -78,7 +81,9 @@ run it by hand from the Actions tab ("Deploy Worker"). Until the settings below 
 the deploy with a notice, so `main` stays green.
 
 1. Cloudflare → **My Profile → API Tokens → Create Token**, from the "Edit Cloudflare Workers"
-   template.
+   template. Under **Zone Resources**, include `patrick-mckinley.com`, because the deploy manages
+   the `auth` custom domain there. If the first deploy fails with an authentication error on the
+   custom domain, add **Zone → DNS → Edit** for that zone to the token.
 2. In the GitHub repo, go to **Settings → Secrets and variables → Actions** and add:
    - secret `CLOUDFLARE_API_TOKEN`: the token from step 1;
    - variable `CLOUDFLARE_ACCOUNT_ID`: shown on the Workers overview page;
@@ -93,9 +98,10 @@ the deploy with a notice, so `main` stays green.
 - `[observability] enabled = false` keeps Workers Logs off. Leave it that way, and don't run
   `wrangler tail` against production.
 - Rate limiting is built in: 10 requests a minute per client IP (`[[ratelimits]]` in
-  `wrangler.toml`), counted after the origin check, so preflights don't use it up. It works on
-  `workers.dev`, which zone WAF rules don't. It fails open if the limiter is down, because it's a
-  speed bump, not the security boundary.
+  `wrangler.toml`), counted after the origin check, so preflights don't use it up. It fails
+  open if the limiter is down, because it's a speed bump, not the security boundary. Now that the
+  zone is on Cloudflare, a WAF rate-limiting rule on `auth.patrick-mckinley.com` can be added on
+  top, but it isn't needed.
 - CORS only stops browsers: scripts can send any `Origin`. That's why `/exchange` insists on
   PKCE, so a leaked `code` is useless without the verifier from the browser that started the
   sign-in.
@@ -114,7 +120,8 @@ echo 'GITHUB_CLIENT_SECRET=…' > .dev.vars
 npx wrangler@4 dev --env dev     # http://localhost:8787, allows http://localhost:5173
 ```
 
-`[env.dev]` also deploys as a separate `quest-log-auth-dev` Worker with its own secret
+`[env.dev]` also deploys as a separate `quest-log-auth-dev` Worker at
+`https://quest-log-auth-dev.<subdomain>.workers.dev` (never the custom domain), with its own secret
 (`npx wrangler@4 secret put GITHUB_CLIENT_SECRET --env dev`), so you can try sign-in from
 `localhost` without loosening production.
 

@@ -2,10 +2,11 @@
 name = "quest-log-auth"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"
-workers_dev = true
 
-# Custom domain (needs the zone on Cloudflare). Uncomment, then set workers_dev = false.
-# routes = [{ pattern = "auth.patrick-mckinley.com", custom_domain = true }]
+# Served only at the custom domain (the zone is on Cloudflare). Cloudflare creates the DNS
+# record and certificate on deploy; don't add an `auth` record by hand.
+workers_dev = false
+routes = [{ pattern = "auth.patrick-mckinley.com", custom_domain = true }]
 
 # Stores nothing, logs nothing: keep Workers Logs off.
 [observability]
@@ -18,7 +19,7 @@ enabled = false
 GITHUB_CLIENT_ID = ""
 ALLOWED_ORIGINS = "https://tasks.patrick-mckinley.com"
 
-# Per-IP limit on /exchange and /refresh (works on workers.dev, unlike zone WAF rules).
+# Per-IP limit on /exchange and /refresh. Lives in the Worker, so it also covers dev on workers.dev.
 # Real use is one exchange per sign-in and a refresh every 8 hours.
 [[ratelimits]]
 name = "LIMITER"
@@ -28,6 +29,9 @@ simple = { limit = 10, period = 60 }
 # Local and dev testing: npx wrangler@4 dev --env dev
 [env.dev]
 name = "quest-log-auth-dev"
+# routes and workers_dev are inherited: dev must not claim the production domain.
+workers_dev = true
+routes = []
 
 [env.dev.observability]
 enabled = false
