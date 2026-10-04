@@ -146,7 +146,9 @@ addedAt}`.
 These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, CI and `quest.py`:
 
 - Folder and file names equal ids, and `world` is a reserved level id.
-- `worldOrder` and `levelOrder` list exactly the folders/files that exist.
+- `worldOrder` and `levelOrder` only name folders/files that exist. Ones left out go after the
+  listed ones, sorted by id, and are written into the list on the next save. This keeps adding a
+  world or level to a single new file, so parallel pull requests that add them never conflict.
 - No other `.json` files under `data/` except `settings.json` and `inbox.json` at the root.
 - Ids are unique in scope. `dependsOn` stays within its level (or within a dependency's steps),
   with no cycles.
@@ -573,11 +575,15 @@ Security:
   fingerprint of SKILL.md + quest.py; `npm run skill:check` (CI and a test) fails if either file
   changed without a bump.
 - `skills/quest-log/scripts/quest.py` is standard-library Python. Commands: `update-check`,
-  `validate [--refresh]`, `info`, `pull`, `status`, `push [--pr]`, `schemas`. It applies the same
+  `validate [--refresh]`, `changes`, `info`, `pull`, `status`, `push [--pr] [--allow-delete KEY]`,
+  `schemas`. It applies the same
   rules as the TS validator (parity tests). `push` always validates (no opt-out); if the branch
   moved it validates the combined result and syncs the folder; if the branch has an open PR it
   merges the PR's base into it first (`POST /merges`) and stops on a conflict; `--pr` branches
-  from the latest base.
+  from the latest base. `changes` lists what a tree adds, changes and removes by id key
+  (`level:p/w/l`, `item:p/w/l/i`, `inbox:i`…) against another tree or a git ref, and exits 5 on
+  removals not named with `--allow-delete`; `push` applies the same guard against the branch it
+  commits to, so a stale or hand-rewritten file can't silently delete other people's work.
 - The in-app **AI SKILL** button explains this and downloads a zip of the skill, the script and
   the schemas (`app/src/ui/zip.ts`).
 - The skill and schemas are published at `https://tasks.patrick-mckinley.com/skills/...` and

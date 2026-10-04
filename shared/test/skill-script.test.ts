@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -71,7 +71,7 @@ describe('quest.py validate', () => {
     ['no MVP criterion', () => edit(good(), lvl, (d) => d.successCriteria.forEach((c: any) => (c.mvp = false))), /mvp/],
     ['unknown levelRef', () => edit(good(), lvl, (d) => (d.items[0].levelRef = 'w/missing')), /unknown level/],
     ['id does not match file', () => edit(good(), lvl, (d) => (d.id = 'other')), /must match/],
-    ['level missing from levelOrder', () => ({ ...good(), 'data/p/w/extra.json': good()[lvl].replace('"id": "lvl"', '"id": "extra"') }), /missing from levelOrder/],
+    ['levelOrder names a missing level', () => edit(good(), 'data/p/w/world.json', (d) => d.levelOrder.push('ghost')), /no data\/p\/w\/ghost\.json/],
     ['stray file', () => ({ ...good(), 'data/notes.json': '{}' }), /unexpected file/],
     ['invalid JSON', () => ({ ...good(), [lvl]: '{nope' }), /invalid JSON/],
     ['subtasks on a task', () => edit(good(), lvl, (d) => (d.items[0].subtasks = [{ id: 's', type: 'task', title: 'S', status: 'todo' }])), /only dependency items/],
@@ -85,6 +85,15 @@ describe('quest.py validate', () => {
     ['negative time-box extension', () => edit(good(), lvl, (d) => (d.stats = { timeboxExtendedDays: -1 })), /minimum|>= 0|less than/],
     ['level depends on itself', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].levelRef = 'w/lvl'))), /cannot depend on itself/],
   ];
+
+  it('accepts worlds and levels left out of the order lists, like the app', async () => {
+    const files = { ...good(), 'data/p/w/extra.json': good()[lvl].replace('"id": "lvl"', '"id": "extra"'), 'data/p/v/world.json': good()['data/p/w/world.json'].replace('"id": "w"', '"id": "v"').replace(/"levelOrder": \[[^\]]*\]/, '"levelOrder": []') };
+    expect(validateFiles(files)).toEqual([]);
+    for (const env of ENGINES) {
+      const r = await run(['validate', writeTree(files)], env);
+      expect(r.code, r.out).toBe(0);
+    }
+  });
 
   it('accepts the fixture', async () => {
     const r = await run(['validate', writeTree(good())], { QUEST_NO_JSONSCHEMA: '1' });
@@ -425,6 +434,26 @@ describe('quest.py GitHub sync', () => {
     expect(gh.refs.get('main')).toBe(head);
   });
 
+  it('refuses to remove anything the user did not name', async () => {
+    const dir = fresh();
+    await run(['pull', '--repo', 'o/r', '--dir', dir], env);
+    const d = JSON.parse(readFileSync(lvlPath(dir), 'utf8'));
+    d.items = d.items.filter((i: { id: string }) => i.id !== 'c');
+    d.successCriteria = d.successCriteria.filter((c: { id: string }) => c.id !== 'bonus');
+    writeFileSync(lvlPath(dir), JSON.stringify(d, null, 2) + '\n');
+    const head = gh.refs.get('main');
+    const r = await run(['push', '--dir', dir, '-m', 'rewrite lvl'], env);
+    expect(r.code).toBe(2);
+    expect(r.out).toMatch(/item:p\/w\/lvl\/c/);
+    expect(r.out).toMatch(/criterion:p\/w\/lvl\/bonus/);
+    expect(gh.refs.get('main')).toBe(head);
+    const partly = await run(['push', '--dir', dir, '-m', 'drop c', '--allow-delete', 'item:p/w/lvl/c'], env);
+    expect(partly.code).toBe(2);
+    expect(partly.out).not.toMatch(/item:p\/w\/lvl\/c/);
+    const ok = await run(['push', '--dir', dir, '-m', 'drop c', '--allow-delete', 'item:p/w/lvl/c', '--allow-delete', 'criterion:p/w/lvl/bonus'], env);
+    expect(ok.code, ok.out).toBe(0);
+  });
+
   it('opens a pull request instead of committing when asked', async () => {
     const dir = fresh();
     await run(['pull', '--repo', 'o/r', '--dir', dir], env);
@@ -451,7 +480,10 @@ describe('quest.py GitHub sync', () => {
     world.levelOrder.pop();
     writeFileSync(join(dir, 'data/p/w/world.json'), JSON.stringify(world, null, 2) + '\n');
     rmSync(join(dir, 'data/p/w/two.json'));
-    const r = await run(['push', '--dir', dir, '-m', 'remove two'], env);
+    const refused = await run(['push', '--dir', dir, '-m', 'remove two'], env);
+    expect(refused.code).toBe(2);
+    expect(refused.out).toMatch(/level:p\/w\/two/);
+    const r = await run(['push', '--dir', dir, '-m', 'remove two', '--allow-delete', 'level:p/w/two'], env);
     expect(r.code, r.out).toBe(0);
     expect(gh.filesAt('main')['data/p/w/two.json']).toBeUndefined();
   });
@@ -489,14 +521,14 @@ describe('quest.py GitHub sync', () => {
     renameProject('Newer title');
     const dir = fresh();
     expect((await run(['pull', '--repo', 'o/r', '--branch', branch, '--dir', dir], env)).code).toBe(0);
-    tick(dir, 2, 'dropped');
-    const r = await run(['push', '--dir', dir, '-m', 'drop C'], env);
+    tick(dir, 0, 'dropped');
+    const r = await run(['push', '--dir', dir, '-m', 'drop A'], env);
     expect(r.code, r.out).toBe(0);
     expect(r.out).toMatch(/Updated pull request #\d+ \(.+\) from main/);
     const files = gh.filesAt(branch);
     expect(files['data/p/project.json']).toContain('Newer title');
     const items = JSON.parse(files['data/p/w/lvl.json']).items;
-    expect([items[1].status, items[2].status]).toEqual(['doing', 'dropped']);
+    expect([items[0].status, items[1].status]).toEqual(['dropped', 'doing']);
     // The new commit sits on a merge of main into the branch.
     const parent = gh.commits.get(gh.refs.get(branch)!)!.parents[0];
     expect(gh.commits.get(parent)!.parents).toContain(gh.refs.get('main'));
@@ -511,11 +543,55 @@ describe('quest.py GitHub sync', () => {
     const dir = fresh();
     await run(['pull', '--repo', 'o/r', '--branch', branch, '--dir', dir], env);
     const head = gh.refs.get(branch);
-    tick(dir, 2, 'done');
-    const r = await run(['push', '--dir', dir, '-m', 'finish C'], env);
+    tick(dir, 1, 'done');
+    const r = await run(['push', '--dir', dir, '-m', 'finish B'], env);
     expect(r.code).toBe(2);
     expect(r.out).toMatch(/conflicts with main/);
     expect(gh.refs.get(branch)).toBe(head);
+  });
+});
+
+describe('quest.py changes', () => {
+  const lvl = 'data/p/w/lvl.json';
+  const base = () => toFiles(workspace());
+  const changed = () => {
+    const files = base();
+    const d = JSON.parse(files[lvl]);
+    d.items = d.items.filter((i: { id: string }) => i.id !== 'c');
+    d.items[0].status = 'done';
+    d.items.push({ id: 'new', type: 'task', title: 'New', status: 'todo' });
+    files[lvl] = JSON.stringify(d, null, 2);
+    files['data/p/w/two.json'] = JSON.stringify(level({ id: 'two' }), null, 2);
+    return files;
+  };
+
+  it('lists additions, changes and removals by id', async () => {
+    const r = await run(['changes', writeTree(base()), writeTree(changed())]);
+    expect(r.code).toBe(5);
+    expect(r.out).toMatch(/added +item:p\/w\/lvl\/new/);
+    expect(r.out).toMatch(/added +level:p\/w\/two/);
+    expect(r.out).toMatch(/added +item:p\/w\/two\/a/);
+    expect(r.out).toMatch(/changed +item:p\/w\/lvl\/a/);
+    expect(r.out).toMatch(/removed +item:p\/w\/lvl\/c/);
+  });
+
+  it('passes when every removal is named, or only warns', async () => {
+    expect((await run(['changes', writeTree(base()), writeTree(changed()), '--allow-delete', 'item:p/w/lvl/c'])).code).toBe(0);
+    expect((await run(['changes', writeTree(base()), writeTree(changed()), '--allow-delete', 'level:p/w/lvl'])).code).toBe(0);
+    expect((await run(['changes', writeTree(changed()), writeTree(base()), '--allow-delete', 'level:p/w/two'])).code).toBe(5);
+    expect((await run(['changes', writeTree(base()), writeTree(changed()), '--warn'])).code).toBe(0);
+  });
+
+  it('compares a checkout with a git ref', async () => {
+    const dir = writeTree(base());
+    const git = (...a: string[]) => spawnSync('git', ['-C', dir, ...a], { env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } });
+    git('init', '-q', '-b', 'main');
+    git('add', '-A');
+    git('commit', '-qm', 'base');
+    for (const [p, c] of Object.entries(changed())) writeFileSync(join(dir, p), c);
+    const r = await run(['changes', '--git', 'main', dir]);
+    expect(r.code, r.out).toBe(5);
+    expect(r.out).toMatch(/removed +item:p\/w\/lvl\/c/);
   });
 });
 

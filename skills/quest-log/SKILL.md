@@ -11,18 +11,20 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 1**
+**Skill version: 2**
 
-Three rules apply to every request, whatever route you use. Each has its own section below.
+Four rules apply to every request, whatever route you use. Each has its own section below.
 
 1. **Check for a newer skill first** (§0). If the published skill is newer than this copy, load
    the new one and follow it instead of this document.
-2. **Validate against the schema before anything leaves your hands** ("Schema validation").
-   No commit, push, pull request or hand-over of files without a passing validation of the whole
-   data tree.
+2. **Validation is a blocking gate** ("Schema validation"). No commit, push, pull request or
+   hand-over of files until the whole data tree passes validation against the current schema.
 3. **Update from the base branch first.** Base a new pull request on the latest base branch, and
    bring the base branch into an existing pull request before you add commits to it ("Branches
    and pull requests").
+4. **Add, don't rewrite; never remove what you weren't asked to** ("Parallel changes"). Add new
+   things as new files where you can, patch the latest copy of a file rather than replacing it,
+   and check that your change removes nothing the user didn't ask to remove.
 
 This skill ships with a helper, `scripts/quest.py` (see "The helper script"). Its main job is
 **validation**. It can also check for skill updates, and pull and push through the GitHub API,
@@ -62,34 +64,62 @@ protects the data.
 
 ## Schema validation (mandatory)
 
-Every data file must match the JSON Schema (§3) **and** the cross-file rules (§2, §7). The app
-and CI reject anything that doesn't, so invalid data is never "nearly done": it's broken.
+Validation is a **blocking gate**, not a quality check you do if there's time. Every data file
+must match the JSON Schema (§3) **and** the cross-file rules (§2, §7). The app and CI reject
+anything that doesn't, so invalid data is never "nearly done": it's broken.
 
-**The rule:** before you commit, push, open or update a pull request, or give the user files to
-commit, validate the **whole data tree** as it will be after your change, and only continue when
-it passes.
+**The gate:** before **any** GitHub write (a commit, a push, creating a branch with data on it,
+opening or updating a pull request) and before you give the user files to commit, validate the
+**whole data tree** as it will be after your change. Only go on when it passes.
 
 ```bash
 python3 scripts/quest.py validate --refresh DIR      # DIR contains data/
 ```
 
+The order is always:
+
+```
+read the current schema (§3) and the latest files
+        ↓
+make the change
+        ↓
+validate the whole tree  ←──────────┐
+        ↓                          │
+passed? ── no ──→ fix every issue ─┘
+        │
+       yes
+        ↓
+commit → push / open or update the pull request → tell the user
+```
+
 - **Pass** means exit code 0 and a line starting `✓ N data file(s) valid`. Anything else is a
   fail: exit 1 lists every issue as `file/path: message`.
+- **Use the current schema, never your memory.** `--refresh` downloads the schemas that every
+  file's `$schema` points at (and checks for a newer skill). Without internet it warns and uses
+  the bundled copies; that's fine.
+- **Look up closed values; never guess them.** Before you write a value that the schema limits
+  (an `enum` such as `type`, `status`, `theme` or `hero`, a `const`, a `pattern` such as ids or
+  dates, a `minimum`/`maximum`, a `maxLength`), check the allowed values in the current schema.
+  Don't copy them from examples, other files or memory, and never invent a plausible one.
+- **Never assume generated JSON is valid.** However simple the change, run the validator.
 - **Validate the whole tree**, not just the files you touched. Many rules span files
-  (`worldOrder`, `levelOrder`, `levelRef`, `goalIds`, `unlocksAfter`), so a change can break a
-  file you never opened.
+  (`worldOrder`, `levelOrder`, `levelRef`, `goalIds`, `unlocksAfter`, `dependsOn` and cycles,
+  ids that match file and folder names), so a change can break a file you never opened.
 - **Validate the result after updating from the base branch** (see "Branches and pull
   requests"), not only your own copy. Someone else's change plus yours can be invalid even when
   each is valid alone.
-- **`--refresh`** downloads the latest published schemas (and checks for a newer skill). Without
-  internet it warns and uses the bundled schemas; that's fine.
-- **On a fail:** fix every issue, then run `validate` again. Repeat until it passes. Never commit
-  "to fix later", never commit part of a change to get round an issue, and never edit the schema
-  files to make data pass.
+- **On a fail:** don't commit, push, or open or update the pull request. Fix every issue, then
+  run the **full** validation again. Repeat until it passes. Never commit "to fix later", never
+  commit part of a change to get round an issue, and never edit the schema files to make data
+  pass.
+- **CI is a second check, not the first.** Never push to see whether CI passes.
 - **Data that was already invalid before you started:** run `validate` once before editing, so
   you know. If it fails, tell the user what's wrong and ask before fixing it; don't commit on top
   of a broken tree.
-- **Show it:** tell the user the result in one line, e.g. *"Validated: ✓ 14 data files valid."*
+- **Done means validated.** "Pull request opened" is not success; "validated changes are in a
+  pull request" is. Never tell the user a branch or pull request is ready until validation has
+  passed on exactly what you committed. Report it in one line, e.g. *"Validated: ✓ 14 data files
+  valid."*
 - **`quest.py push`** validates by itself and refuses to commit invalid data, both your copy and
   your copy combined with the latest branch. It has no way to skip this.
 
@@ -187,6 +217,54 @@ on top of it if it moved.
 | `quest.py` | `pull`, edit, `push --pr TITLE`: it branches from the latest base and validates your change on top of it | `pull --branch <pr-branch>`, edit, `push`: it merges the base into the branch first and stops on a conflict |
 | REST API | §6.3 | §6.4 |
 
+## Parallel changes: add, don't rewrite
+
+Several pull requests (from you, other assistants and the app) are often open at once. The data
+is laid out so that **adding** things rarely clashes, as long as you follow these rules.
+
+**Add new things as new files.** A new project, world or level is a new file, and nothing else
+has to change:
+
+- A new world's `world.json` or a new level's `<level-id>.json` does **not** need adding to
+  `worldOrder` / `levelOrder`. Worlds and levels left out of those lists go after the listed ones,
+  sorted by id, and the app writes them into the list next time it saves.
+- Only edit `worldOrder` / `levelOrder` when the order matters (several new levels that must be
+  played in sequence in an existing world, or the user asks to reorder). That edits a shared
+  file, so two pull requests doing it at once will conflict.
+- Planning a **new** world or project is always conflict-free: its own `world.json` lists its
+  own levels.
+
+**Patch the latest copy; never replace a file from memory.** When you change an existing file
+(adding an item to a level, ticking a criterion, capturing an idea in `data/inbox.json`):
+
+- Read that file from the latest base branch (or pull request branch) **immediately** before you
+  write it, not from earlier in the chat.
+- Change only the keys and array entries you mean to: append an item, set one `status`. Keep
+  everything else byte-for-byte, including other people's items.
+- Never write a whole file from your memory of it, from an example, or from an earlier snapshot.
+  That's how other people's work gets deleted without anyone noticing.
+
+**Never remove anything the user didn't ask you to remove.** Before you commit, compare your
+tree with the branch you're committing on:
+
+```bash
+python3 scripts/quest.py changes --git origin/main .     # a git checkout, against the base branch
+python3 scripts/quest.py changes BASE_DIR DIR             # two folders that each contain data/
+```
+
+It lists every project, goal, world, level, criterion, item, step and inbox idea that is
+**added**, **changed** or **removed**, by key (`level:p/w/l`, `item:p/w/l/i`, `inbox:i`, …). Read
+the list. Every removal must be one the user asked for (deleting a level, cutting an item,
+placing an inbox idea). If something else is removed, your copy was stale: update from the base
+branch and redo only your change. `changes` exits 5 if anything is removed that you didn't name
+with `--allow-delete KEY` (a world or level also covers what's inside it). `quest.py push` runs
+the same check against the branch it commits to and refuses unnamed removals.
+
+**Some edits still touch the same lines,** so two pull requests can conflict: both adding items
+to the same level, both capturing inbox ideas, or both editing the same item. When you resolve
+such a conflict (see "Branches and pull requests"), **keep both sides**: every item, idea and
+list entry from both, then validate. Only drop something if the user asked for that.
+
 ## 1. Concepts
 
 | Level of the tree | Game meaning | Real meaning |
@@ -244,8 +322,10 @@ Rules:
 - Every id is lowercase kebab-case: `^[a-z0-9]+(-[a-z0-9]+)*$`, max 64 chars. Derive ids from names
   (`"Kitchen cabinets"` → `kitchen-cabinets`). Never rename an existing id.
 - Folder/file names **equal** the `id` inside the file.
-- `project.json` → `worldOrder` lists **exactly** the world folders in that project.
-- `world.json` → `levelOrder` lists **exactly** the level files in that folder.
+- `project.json` → `worldOrder` sets the map order. Every id in it must have a world folder;
+  worlds left out go last, by id.
+- `world.json` → `levelOrder` sets the play order. Every id in it must have a level file;
+  levels left out go last, by id.
 - A level id may not be `world` (that name is the world file).
 - The only files directly in `data/` are the optional `settings.json` and `inbox.json`. No other `.json` files anywhere under `data/`.
 - Files are UTF-8 JSON, 2-space indent, trailing newline.
@@ -278,7 +358,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `description` | | string ≤4000 | |
 | `budgets` | | `{currency?, alerts?, alertAt?}` | turns on cash budgets (off when missing; `{}` = on with defaults). `currency`: ISO 4217 code, default `GBP`. `alerts`: `false` turns off alerts. `alertAt`: 50–100, % of a budget spent that gives a heads-up, default 90. |
 | `goals` | ✓ | `{id, title, description?}[]` | 1–5 key outcomes |
-| `worldOrder` | ✓ | id[] | world folders, in map order |
+| `worldOrder` | ✓ | id[] | world folders, in map order. Only names existing worlds; ones left out go last. |
 
 ### World (`data/<project-id>/<world-id>/world.json`)
 
@@ -291,7 +371,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `goalIds` | ✓ | id[] | goal ids from this project's `project.json` |
 | `unlocksAfter` | | id[] | other worlds in this project to finish first. Draws the map: each world branches from the worlds it unlocks after (visual only; never blocks editing). Worlds without it start the map. |
 | `budget` | | number ≥0 | cash for the whole world. Omit to add up its levels' budgets. |
-| `levelOrder` | ✓ | id[] | level files, in play order |
+| `levelOrder` | ✓ | id[] | level files, in play order. Only names existing levels; ones left out go last. |
 
 ### Level (`data/<project-id>/<world-id>/<level-id>.json`)
 
@@ -443,13 +523,14 @@ Repo-wide display settings; omit the file to use the defaults. Only change it wh
 
 ## 5. Changing data correctly
 
-Always read the current files first, change the minimum, and keep the rest byte-for-byte.
+Always read the current files first (from the latest branch, just before writing), change the
+minimum, and keep the rest byte-for-byte. See "Parallel changes".
 
 | To… | Do this |
 |---|---|
 | Add a project | Create `data/<p>/project.json` with `worldOrder: []` and at least one goal. |
-| Add a world | Create `data/<p>/<w>/world.json` (`levelOrder: []`) **and** append `<w>` to `worldOrder` in `project.json`. |
-| Add a level | Create `data/<p>/<w>/<l>.json` **and** append `<l>` to `levelOrder` in `world.json`. |
+| Add a world | Create `data/<p>/<w>/world.json` (with its own levels in `levelOrder`). Leave `project.json` alone: it goes at the end of the map. Add it to `worldOrder` only to put it somewhere else. |
+| Add a level | Create `data/<p>/<w>/<l>.json`. Leave `world.json` alone: it goes after the listed levels, by id. Add it to `levelOrder` only when its position matters. |
 | Add an item | Append to `items` in the level file with a new unique id and `"status": "todo"`. |
 | Start work | Set item `status` to `doing`. If the level has no `startedAt`, set it to the current UTC time. |
 | Finish work | Set item `status` to `done` and `doneAt` to the current UTC time (or `status` `dropped` to cut it, no `doneAt`). |
@@ -461,13 +542,14 @@ Always read the current files first, change the minimum, and keep the rest byte-
 | Log a cost | Set (or raise) `spent` on the item or step it was for. Don't change `status` or `doneAt`. |
 | Park a level (someday) | Set `"someday": true` and remove `startedAt`. Never on a cleared level. Bring it back by removing `someday` (and set `startedAt` to now if work is starting). |
 | Tick a criterion | Set `done: true`. If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
-| Delete a level | Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. |
+| Delete a level | Only when asked. Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. Name it with `--allow-delete level:<p>/<w>/<l>`. |
 | Delete a step | Remove it from `subtasks` and from its siblings' `dependsOn`; drop the `subtasks` key if it's now empty. |
-| Delete a world | Delete the folder's files **and** remove it from `worldOrder` and from other worlds' `unlocksAfter`. |
+| Delete a world | Only when asked. Delete the folder's files **and** remove it from `worldOrder` and from other worlds' `unlocksAfter`. Name it with `--allow-delete world:<p>/<w>`. |
 | Capture an idea (inbox) | Append `{ id, type, title, notes?, link?, addedAt }` to `items` in `data/inbox.json` (create the file with its `$schema` if missing). `id` unique within the inbox; `addedAt` = now (UTC). |
-| Place an inbox idea | Add it to the target level's `items` as a normal item (`"status": "todo"`, fresh id unique in that level, keep `type`, `title`, `notes`, `link`) **and** remove it from `data/inbox.json`, in the **same commit**. Delete `data/inbox.json` if `items` is now empty. |
+| Place an inbox idea | Add it to the target level's `items` as a normal item (`"status": "todo"`, fresh id unique in that level, keep `type`, `title`, `notes`, `link`) **and** remove it from `data/inbox.json`, in the **same commit** (`--allow-delete inbox:<id>`). Delete `data/inbox.json` if `items` is now empty. |
 
-Never write `stats`. Never touch other projects when working on one.
+Never write `stats`. Never touch other projects when working on one. Never delete or drop
+anything the user didn't ask you to.
 
 ### When it's not clear where something goes: use the inbox
 
@@ -549,11 +631,13 @@ reach GitHub"); it's better than hand-written API calls.
 ```bash
 python3 scripts/quest.py update-check                 # 0 = up to date, 3 = newer skill published (§0), 4 = couldn't check
 python3 scripts/quest.py validate --refresh DIR       # DIR contains data/; exit 1 lists every issue
+python3 scripts/quest.py changes --git origin/main .  # added / changed / removed by id; exit 5 = unnamed removals
 python3 scripts/quest.py info --repo OWNER/REPO       # default branch, can_push
 python3 scripts/quest.py pull --repo OWNER/REPO [--branch B] --dir quest-data
 python3 scripts/quest.py status --dir quest-data      # what changed since pull
 python3 scripts/quest.py push --dir quest-data -m "quest: done: Fit units (kitchen/fit/units)"
 python3 scripts/quest.py push --dir quest-data -m "..." --pr "Plan the garden project"   # PR instead
+python3 scripts/quest.py push --dir quest-data -m "quest: delete level ..." --allow-delete level:p/w/l
 ```
 
 With your own integration: get the files however your integration does (a clone, a checkout, or
@@ -565,6 +649,7 @@ Without one: `update-check` → `pull` → edit the JSON files under `quest-data
 changed, and:
 
 - validates your copy first and refuses invalid data (there is no way to skip this);
+- refuses to remove anything that's on the branch unless you name it with `--allow-delete KEY`;
 - if the branch has an **open pull request**, merges its base branch into it before committing,
   and stops if they conflict;
 - if the branch moved since your pull, validates your changes **combined with** the latest
@@ -628,7 +713,9 @@ data repo. Every step below works the same for any repo the token can access.
 
 ### 6.2 Write: one atomic commit (preferred)
 
-Commit all changed files at once so the data is never half-updated.
+Commit all changed files at once so the data is never half-updated. Send only the files you
+changed (`base_tree` keeps the rest), and build each one from the copy you read at **HEAD** in
+6.1, just before this, with only your edit applied.
 
 1. `GET R/git/commits/<HEAD>` → `tree.sha` = **BASE_TREE**.
 2. `POST R/git/trees`
@@ -713,12 +800,16 @@ Every time, whatever the route:
       requests").
 - [ ] `python3 scripts/quest.py validate --refresh DIR` passed (`✓ … valid`, exit 0) on the
       **whole** data tree as it will be after your commit, and you told the user.
+- [ ] Every value the schema limits (enums, patterns, ranges) was checked against the current
+      schema, not remembered.
+- [ ] Your change removes nothing the user didn't ask to remove (`quest.py changes`), and you
+      added new worlds and levels as new files without rewriting shared ones.
 
 `validate` checks all of the following for you. Without Python, check every box by hand against
 https://tasks.patrick-mckinley.com/schema/quest.schema.json, and tell the user you did:
 
 - [ ] Every file is under `data/<project>/…` with the right name, and its `id` matches.
-- [ ] `worldOrder` / `levelOrder` list exactly the worlds / levels that exist.
+- [ ] `worldOrder` / `levelOrder` only name worlds / levels that exist (leaving new ones out is fine).
 - [ ] Every file has the correct `$schema` and no fields beyond the tables above.
 - [ ] Ids are kebab-case and unique in scope (items and criteria within a level).
 - [ ] Every level has ≥1 criterion with `"mvp": true`.
@@ -743,7 +834,13 @@ jobs:
       - uses: actions/checkout@v4
       - run: curl -sfo quest.py https://tasks.patrick-mckinley.com/skills/quest-log/scripts/quest.py
       - run: python3 quest.py validate .
+      - name: What this pull request removes
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          python3 quest.py changes --git "origin/${{ github.base_ref }}" . --warn
 ```
 
 It downloads the schemas through the manifest and runs the same schema, folder and
-cross-reference checks as the app.
+cross-reference checks as the app. On pull requests it also lists everything the change adds,
+changes and removes, so a reviewer can spot an accidental deletion.

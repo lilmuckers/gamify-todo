@@ -8,7 +8,8 @@ ChatGPT's code interpreter, CI and a normal terminal.
     python3 quest.py validate [DIR] [--refresh]   check a data tree (DIR contains data/)
     python3 quest.py info --repo OWNER/REPO       default branch and whether the token can push
     python3 quest.py pull --repo OWNER/REPO [--branch B] [--dir DIR]
-    python3 quest.py push [--dir DIR] -m MESSAGE [--pr TITLE]
+    python3 quest.py changes BASE DIR | --git REF DIR   what DIR adds, changes and removes vs BASE (exit 5 = removals)
+    python3 quest.py push [--dir DIR] -m MESSAGE [--pr TITLE] [--allow-delete KEY ...]
                                                  updates from the branch (and a PR's base) first
     python3 quest.py schemas [--refresh]          where the schemas come from (download or bundled)
 
@@ -21,6 +22,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.error
@@ -28,7 +30,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 1
+SKILL_VERSION = 2
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -265,6 +267,78 @@ def read_tree(root):
     return files
 
 
+# ---------------------------------------------------------------- what a change adds and removes
+
+def tree_keys(files):
+    """{key: json} for everything with an id, keyed like 'level:p/w/l' or 'item:p/w/l/i'."""
+    out = {}
+
+    def put(key, value):
+        out[key] = json.dumps(value, sort_keys=True)
+
+    def load(text):
+        try:
+            return json.loads(text)
+        except ValueError:
+            return None
+
+    for path, text in files.items():
+        d = load(text)
+        if not isinstance(d, dict):
+            continue
+        if path == 'data/inbox.json':
+            for i in d.get('items') or []:
+                put(f'inbox:{i.get("id")}', i)
+            continue
+        c = classify(path)
+        if not c or c[0] == 'settings' or c[0] == 'inbox':
+            continue
+        kind, p, w, lv = c
+        if kind == 'project':
+            put(f'project:{p}', {k: v for k, v in d.items() if k not in ('goals', 'worldOrder')})
+            for g in d.get('goals') or []:
+                put(f'goal:{p}/{g.get("id")}', g)
+        elif kind == 'world':
+            put(f'world:{p}/{w}', {k: v for k, v in d.items() if k != 'levelOrder'})
+        else:
+            put(f'level:{p}/{w}/{lv}', {k: v for k, v in d.items() if k not in ('items', 'successCriteria', 'stats')})
+            for cr in d.get('successCriteria') or []:
+                put(f'criterion:{p}/{w}/{lv}/{cr.get("id")}', cr)
+            for it in d.get('items') or []:
+                put(f'item:{p}/{w}/{lv}/{it.get("id")}', {k: v for k, v in it.items() if k != 'subtasks'})
+                for s in it.get('subtasks') or []:
+                    put(f'step:{p}/{w}/{lv}/{it.get("id")}/{s.get("id")}', s)
+    return out
+
+
+def diff_trees(before, after):
+    """(added, changed, removed) keys going from one data tree to another."""
+    a, b = tree_keys(before), tree_keys(after)
+    return (sorted(k for k in b if k not in a), sorted(k for k in b if k in a and a[k] != b[k]),
+            sorted(k for k in a if k not in b))
+
+
+def allowed(key, allow):
+    """A removal is allowed if it's named, or sits inside something named (a level's items)."""
+    kind, path = key.split(':', 1)
+    for a in allow:
+        akind, _, apath = a.partition(':')
+        if (akind == kind and apath == path) or (akind in ('project', 'world', 'level', 'item') and path.startswith(apath + '/')):
+            return True
+    return False
+
+
+def unapproved_removals(before, after, allow):
+    return [k for k in diff_trees(before, after)[2] if not allowed(k, allow or [])]
+
+
+def removal_error(keys, where):
+    return QuestError(f'This would remove {len(keys)} thing(s) that exist on {where}:\n  ' + '\n  '.join(keys) +
+                      '\nIf that is not what the user asked for, your copy is stale: update from the base branch and '
+                      're-apply only your change. If it is, name each one with --allow-delete KEY (a level or world '
+                      'also covers what is inside it).')
+
+
 def find_cycle(items):
     deps = {i['id']: [d for d in i.get('dependsOn', [])] for i in items}
     state, stack = {}, []
@@ -360,16 +434,15 @@ def validate_files(files, registry, by_name):
     for (p, w), ls in levels.items():
         if w not in worlds.get(p, set()):
             issues += [(f'data/{p}/{w}/{lv}.json', '/', f'no data/{p}/{w}/world.json for this level') for lv in ls]
+    # Order lists may leave worlds and levels out (they go last), but can't name missing ones.
     for p in projects:
         order = (parsed.get(f'data/{p}/project.json') or {}).get('worldOrder') or []
         present = worlds.get(p, set())
         issues += [(f'data/{p}/project.json', f'/worldOrder/{i}', f'no data/{p}/{w}/world.json') for i, w in enumerate(order) if w not in present]
-        issues += [(f'data/{p}/project.json', '/worldOrder', f'world "{w}" missing from worldOrder') for w in present if w not in order]
         for w in present:
             lorder = (parsed.get(f'data/{p}/{w}/world.json') or {}).get('levelOrder') or []
             lp = levels.get((p, w), set())
             issues += [(f'data/{p}/{w}/world.json', f'/levelOrder/{i}', f'no data/{p}/{w}/{lv}.json') for i, lv in enumerate(lorder) if lv not in lp]
-            issues += [(f'data/{p}/{w}/world.json', '/levelOrder', f'level "{lv}" missing from levelOrder') for lv in lp if lv not in lorder]
     if issues:
         return issues
 
@@ -390,11 +463,8 @@ def validate_files(files, registry, by_name):
             for i, u in enumerate(world.get('unlocksAfter', [])):
                 if u == w or u not in wids:
                     issues.append((wf, f'/unlocksAfter/{i}', f'invalid world reference "{u}"'))
-            for lv in world['levelOrder']:
+            for lv in sorted(levels.get((p, w), set())):
                 lf = f'data/{p}/{w}/{lv}.json'
-                if lv == 'world':
-                    issues.append((lf, '/id', '"world" is reserved'))
-                    continue
                 level = parsed[lf]
                 ids = [i['id'] for i in level['items']]
                 if len(set(ids)) != len(ids):
@@ -673,6 +743,36 @@ def update_pr_branch(gh, branch):
     print(f'Updated pull request #{pr["number"]} ({branch}) from {target}' if merged else f'{branch} is up to date with {target}')
 
 
+def git_tree(root, ref):
+    """Data files at a git ref of the checkout in root."""
+    def git(*a):
+        r = subprocess.run(['git', '-C', root, *a], capture_output=True)
+        if r.returncode:
+            raise QuestError(f'git {" ".join(a)}: {r.stderr.decode().strip()}')
+        return r.stdout.decode('utf-8')
+    return {p: git('show', f'{ref}:{p}') for p in git('ls-tree', '-r', '--name-only', ref, '--', 'data').splitlines() if classify(p)}
+
+
+def cmd_changes(args):
+    if args.git:
+        before, after_dir = git_tree(args.paths[0], args.git), args.paths[0]
+    elif len(args.paths) == 2:
+        before, after_dir = read_tree(args.paths[0]), args.paths[1]
+    else:
+        raise QuestError('Give BASE and DIR, or --git REF and DIR.')
+    added, changed, removed = diff_trees(before, read_tree(after_dir))
+    for label, keys in (('added', added), ('changed', changed), ('removed', removed)):
+        for k in keys:
+            print(f'{label:8} {k}')
+    if not (added or changed or removed):
+        print('no changes')
+    bad = [k for k in removed if not allowed(k, args.allow_delete or [])]
+    if bad and not args.warn:
+        print(f'\n✗ {len(bad)} removal(s) not named with --allow-delete', file=sys.stderr)
+        return 5
+    return 0
+
+
 def cmd_push(args):
     base, local, changes = local_changes(args.dir)
     if not changes:
@@ -706,6 +806,11 @@ def cmd_push(args):
             issues = _issues(result, args.schemas)
             if issues:
                 _report(issues, f'once your changes are combined with the latest {base["branch"]}')
+        # Nothing on the branch disappears unless the user asked for it.
+        before = {p: (gh.blob(sha) if p in changes else result[p]) for p, sha in remote.items()}
+        bad = unapproved_removals(before, result, args.allow_delete)
+        if bad:
+            raise removal_error(bad, f'{base["branch"]}@{head[:7]}')
         if args.pr:
             stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')
             branch = f'quest/{re.sub(r"[^a-z0-9]+", "-", args.pr.lower()).strip("-")[:40]}-{stamp}'
@@ -772,7 +877,15 @@ def main(argv=None):
     p.add_argument('-m', '--message', required=True, help='commit message, e.g. "quest: done: Fit units (kitchen/fit/units)"')
     p.add_argument('--pr', metavar='TITLE', help='open a pull request instead of committing to the branch')
     p.add_argument('--body', help='pull request description')
+    p.add_argument('--allow-delete', action='append', metavar='KEY', help='a removal you mean to make, e.g. level:p/w/l or inbox:idea (repeat)')
     p.set_defaults(run=cmd_push)
+
+    p = sub.add_parser('changes', help='what a data tree adds, changes and removes compared with another (exit 5 = removals not allowed)')
+    p.add_argument('paths', nargs='+', metavar='DIR', help='BASE DIR, or just DIR with --git')
+    p.add_argument('--git', metavar='REF', help='compare the checkout in DIR with this git ref, e.g. origin/main')
+    p.add_argument('--allow-delete', action='append', metavar='KEY', help='a removal you mean to make (repeat)')
+    p.add_argument('--warn', action='store_true', help='list removals but exit 0 (for CI)')
+    p.set_defaults(run=cmd_changes)
 
     p = sub.add_parser('schemas', help='show where schemas are loaded from')
     p.add_argument('--refresh', action='store_true')
