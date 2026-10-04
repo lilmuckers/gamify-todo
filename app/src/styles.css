@@ -1386,11 +1386,17 @@ a:focus-visible {
 
 .pad-line {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 8px;
+  display: flow-root;
   min-height: var(--line);
+}
+/* Plain text flow, not flex: a long title wraps under itself like handwriting,
+   instead of dropping onto its own row and leaving its tick box behind. */
+.pad-line > * + * {
+  margin-left: 8px;
+}
+.pad-line > .pad-box + *,
+.pad-line > .review-tick + * {
+  margin-left: 0;
 }
 .pad-line.late {
   color: var(--pen-red);
@@ -1406,6 +1412,8 @@ a:focus-visible {
   outline: none;
 }
 .pad-where {
+  display: inline-block;
+  max-width: 100%;
   font-size: 17px;
   opacity: 0.7;
   white-space: nowrap;
@@ -1427,6 +1435,7 @@ a:focus-visible {
   color: var(--pen-red);
 }
 .pad-bang {
+  display: inline-block;
   font-weight: 700;
   font-size: 26px;
   color: var(--pen-red);
@@ -1435,8 +1444,6 @@ a:focus-visible {
 
 .pad-box,
 .pad-start {
-  align-self: flex-start;
-  margin-top: 5px;
   background: none;
   border: none;
   padding: 0;
@@ -1444,10 +1451,13 @@ a:focus-visible {
   cursor: pointer;
   font: inherit;
 }
+/* Hangs in the margin, level with the first line however far the text wraps. */
 .pad-box {
+  position: absolute;
+  top: calc((var(--line) - 20px) / 2);
+  left: -28px;
   width: 20px;
   height: 20px;
-  margin-left: -28px;
 }
 .pad-box:disabled {
   cursor: default;
@@ -1883,6 +1893,9 @@ a:focus-visible {
   padding: 0;
 }
 .pad-line.inbox .pad-link {
+  /* A button is an atomic box: leave room for the icon so it stays on the first line. */
+  max-width: calc(100% - 24px);
+  vertical-align: top;
   background: none;
   border: none;
   padding: 0;
@@ -1896,13 +1909,19 @@ a:focus-visible {
   background: linear-gradient(transparent 20%, rgba(255, 235, 59, 0.55) 20% 85%, transparent 85%);
 }
 .pad-icon {
-  align-self: center;
+  vertical-align: top;
+  margin-top: calc((var(--line) - 16px) / 2);
   width: 16px;
   height: 16px;
   image-rendering: pixelated;
 }
+.pad-line:has(> .pad-cross) {
+  padding-right: 28px;
+}
 .pad-cross {
-  margin-left: auto;
+  position: absolute;
+  top: calc((var(--line) - 20px) / 2);
+  right: 0;
   color: var(--pen-red);
   font-size: 20px;
 }
@@ -1976,10 +1995,12 @@ a:focus-visible {
   color: #2f7d32;
 }
 .pad-line.shipped .stars {
-  align-self: center;
+  vertical-align: middle;
 }
 .review-tick {
-  margin-left: -26px;
+  position: absolute;
+  top: 0;
+  left: -26px;
   width: 18px;
   font-weight: 700;
   color: #2f7d32;
@@ -1988,8 +2009,10 @@ a:focus-visible {
   margin: 0;
   white-space: normal;
 }
+.pad-line > .review-acts {
+  margin-left: 0;
+}
 .review-acts {
-  flex-basis: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
