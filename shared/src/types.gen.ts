@@ -48,10 +48,7 @@ export interface Project {
   id: string;
   title: Title;
   description?: Notes;
-  /**
-   * Currency for every budget and cost in this project. Omit for GBP.
-   */
-  currency?: string;
+  budgets?: BudgetSettings;
   /**
    * Key project goals. Keep to 1-5.
    *
@@ -62,6 +59,23 @@ export interface Project {
    * World ids in the order they appear on the overworld path. Every world folder data/<project-id>/<world-id>/ must be listed here, and every id here must have data/<project-id>/<world-id>/world.json.
    */
   worldOrder: Id[];
+}
+/**
+ * Turns on cash budgets for this project. Omit it and the app hides every budget, cost and alert, even if items carry 'budget' or 'spent' (they are kept for when it's turned back on).
+ */
+export interface BudgetSettings {
+  /**
+   * Currency for every budget and cost in this project. Omit for GBP.
+   */
+  currency?: string;
+  /**
+   * true (default) = alert when a logged cost takes an item, step, level or world past alertAt or over its budget. false = no alerts; budgets still show.
+   */
+  alerts?: boolean;
+  /**
+   * Percentage of a budget that, once spent, gives a heads-up alert (default 90). Going over the budget always alerts while alerts are on.
+   */
+  alertAt?: number;
 }
 /**
  * A key project goal shown on the Overworld. Worlds reference goals they contribute to.

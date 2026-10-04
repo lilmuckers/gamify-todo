@@ -74,11 +74,39 @@ test('logging what a done item cost commits it, updates the money box and costs 
   await page.getByLabel('Spent (£)').fill('410');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-  // £10 over its £400 budget: the tag turns red and the box adds it up.
+  // £10 over its £400 budget: an alert, a red tag, and the box adds it up.
+  await expect(page.locator('.toast.alert')).toContainText('Over budget: Chase the walls for cables is at £410 of £400.');
   await expect(page.locator('#item-chase-the-walls-for-cables .money-tag')).toHaveText('£410 of £400');
   await expect(page.locator('#item-chase-the-walls-for-cables .money-tag')).toHaveClass(/\bover\b/);
   await expect(page.locator('.panel .money')).toContainText('£1,315 spent of £1,800');
 
   await expect.poll(() => repoJson<LevelFile>(file).items.find((i) => i.id === 'chase-the-walls-for-cables')?.spent, { timeout: 15_000 }).toBe(410);
   expect(repoJson<LevelFile>(file).stats).toEqual(statsBefore);
+});
+
+test('budgets stay hidden until the project turns them on, then alert as costs are logged', async ({ page }) => {
+  const level = './#/p/home-maintenance/garden/fence/dig';
+  await page.goto(level);
+  await inScene(page, 'level');
+  await expect(page.locator('.panel .money')).toHaveCount(0);
+  await page.locator('#item-dig').getByRole('button', { name: 'Edit item' }).click();
+  await expect(page.getByLabel('Budget (£)')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cancel' }).click();
+
+  await page.goto('./#/p/home-maintenance');
+  await inScene(page, 'overworld');
+  await page.locator('.panel').getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Track cash budgets').check();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect.poll(() => repoJson('data/home-maintenance/project.json').budgets, { timeout: 15_000 }).toEqual({});
+
+  await page.goto(level);
+  await inScene(page, 'level');
+  await page.locator('#item-dig').getByRole('button', { name: 'Edit item' }).click();
+  await page.getByLabel('Budget (£)').fill('20');
+  await page.getByLabel('Spent (£)').fill('19');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // The item and its level are finished, so only the Garden world (still open) gets a heads-up.
+  await expect(page.locator('.toast.warn')).toContainText('Heads-up: Garden has used 95% of its £20.');
+  await expect(page.locator('.panel .money')).toContainText('£19 spent of £20');
 });

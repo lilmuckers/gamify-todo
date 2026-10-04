@@ -82,10 +82,14 @@ A level is **cleared** when every success criterion marked `"mvp": true` is `"do
 Nothing else gates it. The whole point is "good enough, then move on": keep MVP criteria to the
 1–3 checks that truly matter, and put polish into non-MVP criteria or `stretch` items.
 
-**Money is optional.** Items and dependency steps can carry a cash `budget` (what it should cost)
+**Money is optional, and off unless the project turns it on** with `"budgets": {}` in
+`project.json` (optionally `currency`, `alerts`, `alertAt`). Without it the app shows no money at
+all, so only add costs to projects that have it, and add it when the user asks to track spending.
+Items and dependency steps can carry a cash `budget` (what it should cost)
 and `spent` (what it has cost so far). Levels and worlds can have a `budget` of their own; without
-one, theirs is the sum of what's inside. Amounts are plain numbers in the project's `currency`
-(GBP when unset). The app banks **savings** (budget minus spent) when an item is done or dropped,
+one, theirs is the sum of what's inside. Amounts are plain numbers in the project's currency
+(`budgets.currency`, GBP when unset). The app alerts as costs are logged: a heads-up at `alertAt`%
+of a budget (90 by default) and an alert when it goes over. The app banks **savings** (budget minus spent) when an item is done or dropped,
 a level clears, or a world's levels are all cleared. Dropping a budgeted item banks all of it.
 
 ## 2. Folder layout
@@ -150,7 +154,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `id` | ✓ | id | = folder name |
 | `title` | ✓ | string ≤120 | |
 | `description` | | string ≤4000 | |
-| `currency` | | ISO 4217 code | e.g. `EUR`, `USD`: for every budget in this project. Omit for GBP. |
+| `budgets` | | `{currency?, alerts?, alertAt?}` | turns on cash budgets (off when missing; `{}` = on with defaults). `currency`: ISO 4217 code, default `GBP`. `alerts`: `false` turns off alerts. `alertAt`: 50–100, % of a budget spent that gives a heads-up, default 90. |
 | `goals` | ✓ | `{id, title, description?}[]` | 1–5 key outcomes |
 | `worldOrder` | ✓ | id[] | world folders, in map order |
 
@@ -273,6 +277,7 @@ Repo-wide display settings; omit the file to use the defaults. Only change it wh
   "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
   "id": "desk-build",
   "title": "Standing desk build",
+  "budgets": { "currency": "GBP" },
   "goals": [
     { "id": "usable-desk", "title": "A sturdy desk I work at daily" }
   ],
@@ -329,7 +334,8 @@ Always read the current files first, change the minimum, and keep the rest byte-
 | Reopen work | Set `status` back to `todo`/`doing` and remove `doneAt`. |
 | Add a step to a dependency | Append to that item's `subtasks` (create the array if missing) with a new id unique among its steps. Never on an item with `levelRef`. |
 | Finish a step | Set the step's `status` inside `subtasks` (and `doneAt` when it's `done`, as for items). The dependency's own `status` is separate. |
-| Set a budget | Set `budget` (a plain number, no currency symbol) on the item, step, level or world. Remove the key to go back to adding up what's inside. |
+| Track money in a project | Add `"budgets": {}` to `project.json` (with `"currency": "EUR"` etc. if not GBP). Remove it to hide money again; leave the costs in place. |
+| Set a budget | Set `budget` (a plain number, no currency symbol) on the item, step, level or world, in a project with `budgets`. Remove the key to go back to adding up what's inside. |
 | Log a cost | Set (or raise) `spent` on the item or step it was for. Don't change `status` or `doneAt`. |
 | Park a level (someday) | Set `"someday": true` and remove `startedAt`. Never on a cleared level. Bring it back by removing `someday` (and set `startedAt` to now if work is starting). |
 | Tick a criterion | Set `done: true`. If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
@@ -557,7 +563,7 @@ delete. The user can commit them or paste them into a pull request.
 - [ ] `levelRef` and `goalIds` / `unlocksAfter` point at things in the same project.
 - [ ] `subtasks` only on dependencies without `levelRef`; no dependency steps; step `dependsOn` names sibling steps.
 - [ ] Inbox ideas have only `id`, `type`, `title`, `notes`, `link`, `addedAt`, with unique ids; a placed idea is removed from `data/inbox.json` in the same commit.
-- [ ] `budget` / `spent` are plain non-negative numbers (`49.99`, not `"£49.99"`); `currency` is a 3-letter code like `EUR`.
+- [ ] `budget` / `spent` are plain non-negative numbers (`49.99`, not `"£49.99"`); costs only in projects with `budgets`, whose `currency` is a 3-letter code like `EUR`.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).
 
 ## 8. Optional: CI in the user's own repo

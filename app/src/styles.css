@@ -545,6 +545,14 @@ p {
   background: var(--gold-hi);
 }
 
+.money.near {
+  border-color: var(--gold);
+}
+
+.money.near .bar i {
+  background: var(--gold);
+}
+
 .money.over {
   border-color: var(--red);
   color: #f6757a;

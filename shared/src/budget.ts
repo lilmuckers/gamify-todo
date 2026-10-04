@@ -74,8 +74,26 @@ export function projectCost(state: GameState): Cost {
 /** Whether there's any money to show: a budget, or cash spent. */
 export const hasCost = (c: Cost) => c.budgeted || c.spent > 0;
 
-export function currencyOf(state: GameState | undefined): string {
-  return state?.overworld.currency ?? DEFAULT_CURRENCY;
+/** Heads-up alert point when a project doesn't set one: 90% of a budget spent. */
+export const DEFAULT_ALERT_AT = 90;
+
+/** A project's budget settings with defaults filled in. */
+export interface BudgetPrefs {
+  currency: string;
+  /** Alert as costs are logged. */
+  alerts: boolean;
+  /** Percentage of a budget that gives a heads-up. */
+  alertAt: number;
+}
+
+/**
+ * Budgets are opt-in per project: undefined when this project hasn't turned
+ * them on, and then nothing about money is shown (whatever the files hold).
+ */
+export function budgetPrefs(state: GameState | undefined): BudgetPrefs | undefined {
+  const b = state?.overworld.budgets;
+  if (!b) return undefined;
+  return { currency: b.currency ?? DEFAULT_CURRENCY, alerts: b.alerts !== false, alertAt: b.alertAt ?? DEFAULT_ALERT_AT };
 }
 
 const formats = new Map<string, Intl.NumberFormat>();
@@ -111,10 +129,75 @@ export function savedLabel(c: Cost, currency = DEFAULT_CURRENCY): string | undef
   return c.saved > 0 ? `${formatMoney(c.saved, currency)} saved` : `${formatMoney(-c.saved, currency)} over`;
 }
 
-/** A warning for panels when the money needs a look: over budget, or the parts below plan more than it. */
-export function costNote(c: Cost, currency = DEFAULT_CURRENCY): { tone: 'warn' | 'alert'; text: string } | undefined {
+/** How worried to be: 0 fine, 1 past the heads-up point (while still open), 2 over budget. */
+export type AlertLevel = 0 | 1 | 2;
+
+export function alertLevel(c: Cost, alertAt = DEFAULT_ALERT_AT): AlertLevel {
+  if (!c.budgeted) return 0;
+  if (c.spent > c.budget) return 2;
+  // Nearly spent is only news while there's still work to pay for.
+  if (!c.settled && c.budget > 0 && c.spent >= (c.budget * alertAt) / 100) return 1;
+  return 0;
+}
+
+export interface BudgetAlert {
+  kind: 'item' | 'step' | 'level' | 'world';
+  title: string;
+  level: 1 | 2;
+  cost: Cost;
+}
+
+/**
+ * What an edit pushed past the heads-up point or over budget, comparing a
+ * project before and after it: items and steps first, then their level and
+ * world. Only things that got worse count, so a second receipt on something
+ * already over doesn't alert again. Unchanged worlds and levels are skipped
+ * by reference (ops are copy-on-write).
+ */
+export function budgetAlerts(before: GameState, after: GameState, alertAt = DEFAULT_ALERT_AT): BudgetAlert[] {
+  const items: BudgetAlert[] = [];
+  const containers: BudgetAlert[] = [];
+  const check = (out: BudgetAlert[], kind: BudgetAlert['kind'], title: string, prev: Cost | undefined, next: Cost) => {
+    const level = alertLevel(next, alertAt);
+    if (level > (prev ? alertLevel(prev, alertAt) : 0)) out.push({ kind, title, level: level as 1 | 2, cost: next });
+  };
+  for (const [wid, world] of Object.entries(after.worlds)) {
+    const oldWorld = before.worlds[wid];
+    if (world === oldWorld) continue;
+    for (const lvl of world.levels) {
+      const oldLevel = oldWorld?.levels.find((l) => l.id === lvl.id);
+      if (lvl === oldLevel) continue;
+      for (const item of lvl.items) {
+        const oldItem = oldLevel?.items.find((i) => i.id === item.id);
+        for (const step of item.subtasks ?? []) {
+          const oldStep = oldItem?.subtasks?.find((x) => x.id === step.id);
+          check(items, 'step', step.title, oldStep && itemCost(oldStep), itemCost(step));
+        }
+        check(items, 'item', item.title, oldItem && itemCost(oldItem), itemCost(item));
+      }
+      check(containers, 'level', lvl.name, oldLevel && levelCost(oldLevel), levelCost(lvl));
+    }
+    check(containers, 'world', world.name, oldWorld && worldCost(oldWorld), worldCost(world));
+  }
+  return [...items, ...containers];
+}
+
+/** "Over budget: Tiling is at £520 of £450." / "Heads-up: Tiling has used 92% of its £450." */
+export function alertText(a: BudgetAlert, currency = DEFAULT_CURRENCY): string {
+  const m = (n: number) => formatMoney(n, currency);
+  if (a.level === 2) return `Over budget: ${a.title} is at ${m(a.cost.spent)} of ${m(a.cost.budget)}.`;
+  return `Heads-up: ${a.title} has used ${Math.floor((100 * a.cost.spent) / a.cost.budget)}% of its ${m(a.cost.budget)}.`;
+}
+
+/**
+ * A warning for panels when the money needs a look: over budget, past the
+ * heads-up point (when `alertAt` is given), or the parts below plan more than it.
+ */
+export function costNote(c: Cost, currency = DEFAULT_CURRENCY, alertAt?: number): { tone: 'warn' | 'alert'; text: string } | undefined {
   const m = (n: number) => formatMoney(Math.abs(n), currency);
   if (c.budgeted && c.left < 0) return { tone: 'alert', text: `Over budget by ${m(c.left)}. Anything optional you could drop?` };
+  if (alertAt !== undefined && alertLevel(c, alertAt) === 1)
+    return { tone: 'warn', text: `${Math.floor((100 * c.spent) / c.budget)}% of the budget spent, ${m(c.left)} left. Keep an eye on it.` };
   if (c.capped && c.planned > c.budget)
     return { tone: 'warn', text: `The parts below plan ${m(c.planned)}: ${m(c.planned - c.budget)} more than the budget.` };
   return undefined;

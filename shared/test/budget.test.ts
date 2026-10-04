@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  alertLevel,
+  alertText,
   applyOp,
+  budgetAlerts,
+  budgetPrefs,
   costLabel,
   costNote,
   currencySymbol,
@@ -120,29 +124,31 @@ describe('cost ops', () => {
     expect(lvlOf(ws).stats?.editsAfterClear).toBe(1);
   });
 
-  it('removes budgets and currency when patched to undefined', () => {
+  it('removes budgets and budget settings when patched to undefined', () => {
     let ws = workspace();
     ws = applyOp(ws, makeOp({ kind: 'updateWorld', projectId: 'p', worldId: 'w', patch: { budget: 10 } }));
-    ws = applyOp(ws, makeOp({ kind: 'updateProject', projectId: 'p', patch: { currency: 'EUR' } }));
+    ws = applyOp(ws, makeOp({ kind: 'updateProject', projectId: 'p', patch: { budgets: { currency: 'EUR' } } }));
     expect(ws.projects.p.worlds.w.budget).toBe(10);
     expect(validateWorkspace(ws)).toEqual([]);
     ws = applyOp(ws, makeOp({ kind: 'updateWorld', projectId: 'p', worldId: 'w', patch: { budget: undefined } }));
-    ws = applyOp(ws, makeOp({ kind: 'updateProject', projectId: 'p', patch: { currency: undefined } }));
+    ws = applyOp(ws, makeOp({ kind: 'updateProject', projectId: 'p', patch: { budgets: undefined } }));
     expect('budget' in ws.projects.p.worlds.w).toBe(false);
-    expect('currency' in ws.projects.p.overworld).toBe(false);
+    expect('budgets' in ws.projects.p.overworld).toBe(false);
   });
 });
 
 describe('schema', () => {
-  it('accepts money and rejects negative amounts or odd currency codes', () => {
+  it('accepts money and rejects negative amounts, odd currency codes or alert points', () => {
     const ws = workspace(level({ budget: 99.99, items: [task('a', { budget: 10, spent: 0 })] }));
-    ws.projects.p.overworld.currency = 'EUR';
+    ws.projects.p.overworld.budgets = { currency: 'EUR', alerts: false, alertAt: 75 };
     ws.projects.p.worlds.w.budget = 1000;
     expect(validateFiles(toFiles(ws))).toEqual([]);
     lvlOf(ws).items[0].spent = -1;
-    ws.projects.p.overworld.currency = 'euro';
+    ws.projects.p.overworld.budgets = { currency: 'euro', alertAt: 20 };
     const issues = validateFiles(toFiles(ws)).map((i) => `${i.file}${i.path}`);
-    expect(issues).toEqual(expect.arrayContaining(['data/p/project.json/currency', 'data/p/w/lvl.json/items/0/spent']));
+    expect(issues).toEqual(
+      expect.arrayContaining(['data/p/project.json/budgets/currency', 'data/p/project.json/budgets/alertAt', 'data/p/w/lvl.json/items/0/spent']),
+    );
   });
 });
 
@@ -155,5 +161,73 @@ describe('labels', () => {
     expect(savedLabel(itemCost(task('a', { budget: 40, spent: 45, status: 'done' })))).toBe('£5 over');
     expect(savedLabel(itemCost(task('a', { budget: 40, spent: 35 })))).toBeUndefined();
     expect(currencySymbol('EUR')).toBe('€');
+  });
+});
+
+describe('budgetPrefs', () => {
+  it('is off unless the project turns budgets on, with defaults filled in', () => {
+    const s = state();
+    expect(budgetPrefs(s)).toBeUndefined();
+    s.overworld.budgets = {};
+    expect(budgetPrefs(s)).toEqual({ currency: 'GBP', alerts: true, alertAt: 90 });
+    s.overworld.budgets = { currency: 'EUR', alerts: false, alertAt: 75 };
+    expect(budgetPrefs(s)).toEqual({ currency: 'EUR', alerts: false, alertAt: 75 });
+  });
+});
+
+describe('budget alerts', () => {
+  const ws0 = () => workspace(level({ budget: 1000, items: [task('a', { budget: 100, spent: 50 }), task('b', { budget: 500 })] }));
+  const log = (ws: ReturnType<typeof ws0>, itemId: string, spent: number) =>
+    applyOp(ws, makeOp({ kind: 'updateItem', ...at, itemId, patch: { spent } }));
+  const alerts = (a: ReturnType<typeof ws0>, b: ReturnType<typeof ws0>, at = 90) =>
+    budgetAlerts(a.projects.p, b.projects.p, at).map((x) => `${x.kind}:${x.title}:${x.level}`);
+
+  it('levels: fine, heads-up while open, over', () => {
+    expect(alertLevel(itemCost(task('a', { budget: 100, spent: 89 })))).toBe(0);
+    expect(alertLevel(itemCost(task('a', { budget: 100, spent: 90 })))).toBe(1);
+    expect(alertLevel(itemCost(task('a', { budget: 100, spent: 95, status: 'done' })))).toBe(0);
+    expect(alertLevel(itemCost(task('a', { budget: 100, spent: 101, status: 'done' })))).toBe(2);
+    expect(alertLevel(itemCost(task('a', { budget: 0, spent: 1 })))).toBe(2);
+    expect(alertLevel(itemCost(task('a', { spent: 1000 })))).toBe(0);
+    expect(alertLevel(itemCost(task('a', { budget: 100, spent: 80 })), 80)).toBe(1);
+  });
+
+  it('fire when a cost crosses a line, once', () => {
+    const ws = ws0();
+    const near = log(ws, 'a', 92);
+    expect(alerts(ws, near)).toEqual(['item:a:1']);
+    const over = log(near, 'a', 130);
+    expect(alerts(near, over)).toEqual(['item:a:2']);
+    // Already over: another receipt doesn't nag again.
+    expect(alerts(over, log(over, 'a', 140))).toEqual([]);
+  });
+
+  it('include the level and world a cost tips over', () => {
+    const ws = ws0();
+    const big = log(ws, 'b', 900);
+    expect(alerts(ws, big)).toEqual(['item:b:2', 'level:Level:1', 'world:W:1']);
+    ws.projects.p.worlds.w.budget = 950;
+    expect(alerts(ws, log(ws, 'b', 960))).toEqual(['item:b:2', 'level:Level:2', 'world:W:2']);
+  });
+
+  it('cover dependency steps, and new items added over budget', () => {
+    const dep: Item = { id: 'dep', type: 'dependency', title: 'Dep', status: 'todo', subtasks: [{ id: 's', type: 'task', title: 'S', status: 'todo', budget: 10 }] };
+    const ws = workspace(level({ items: [dep] }));
+    const next = applyOp(ws, makeOp({ kind: 'updateItem', ...at, parentId: 'dep', itemId: 's', patch: { spent: 12 } }));
+    expect(alerts(ws, next)).toEqual(['step:S:2', 'item:Dep:2', 'level:Level:2', 'world:W:2']);
+    const added = applyOp(ws, makeOp({ kind: 'addItem', ...at, item: task('new', { budget: 5, spent: 5 }) }));
+    expect(alerts(ws, added, 100)).toEqual(['item:new:1']);
+  });
+
+  it('say what happened', () => {
+    const [over] = budgetAlerts(ws0().projects.p, log(ws0(), 'a', 130).projects.p);
+    expect(alertText(over)).toBe('Over budget: a is at £130 of £100.');
+    const [near] = budgetAlerts(ws0().projects.p, log(ws0(), 'a', 92.5).projects.p);
+    expect(alertText(near, 'EUR')).toBe('Heads-up: a has used 92% of its €100.');
+  });
+
+  it('show as a panel note at the heads-up point', () => {
+    expect(costNote(itemCost(task('a', { budget: 100, spent: 95 })), 'GBP', 90)?.text).toBe('95% of the budget spent, £5 left. Keep an eye on it.');
+    expect(costNote(itemCost(task('a', { budget: 100, spent: 95 })))).toBeUndefined();
   });
 });

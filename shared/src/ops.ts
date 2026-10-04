@@ -19,7 +19,7 @@ type ItemPatch = Partial<Omit<Item, 'id'>>;
 type CriterionPatch = Partial<Omit<Criterion, 'id'>>;
 type LevelPatch = Partial<Pick<Level, 'name' | 'deliverable' | 'description' | 'timeboxDays' | 'budget'>>;
 type WorldPatch = Partial<Pick<World, 'name' | 'description' | 'theme' | 'goalIds' | 'unlocksAfter' | 'budget'>>;
-type ProjectPatch = Partial<Pick<Project, 'title' | 'description' | 'currency' | 'worldOrder'>>;
+type ProjectPatch = Partial<Pick<Project, 'title' | 'description' | 'budgets' | 'worldOrder'>>;
 
 /** Ops that act inside one project. */
 type ProjectOpBody =

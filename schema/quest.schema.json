@@ -72,6 +72,35 @@
         "USD"
       ]
     },
+    "BudgetSettings": {
+      "type": "object",
+      "description": "Optional cash budgets for a project. Its presence turns them on; every field inside has a default, so {} is fine.",
+      "additionalProperties": false,
+      "properties": {
+        "currency": {
+          "$ref": "#/$defs/Currency",
+          "description": "Currency for every budget and cost in this project. Omit for GBP."
+        },
+        "alerts": {
+          "type": "boolean",
+          "default": true,
+          "description": "true (default) = alert when a logged cost takes an item, step, level or world past alertAt or over its budget. false = no alerts; budgets still show."
+        },
+        "alertAt": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 100,
+          "default": 90,
+          "description": "Percentage of a budget that, once spent, gives a heads-up alert (default 90). Going over the budget always alerts while alerts are on."
+        }
+      },
+      "examples": [
+        {
+          "currency": "GBP",
+          "alertAt": 80
+        }
+      ]
+    },
     "Goal": {
       "type": "object",
       "description": "A key project goal shown on the Overworld. Worlds reference goals they contribute to.",
@@ -123,9 +152,9 @@
         "description": {
           "$ref": "#/$defs/Notes"
         },
-        "currency": {
-          "$ref": "#/$defs/Currency",
-          "description": "Currency for every budget and cost in this project. Omit for GBP."
+        "budgets": {
+          "$ref": "#/$defs/BudgetSettings",
+          "description": "Turns on cash budgets for this project. Omit it and the app hides every budget, cost and alert, even if items carry 'budget' or 'spent' (they are kept for when it's turned back on)."
         },
         "goals": {
           "type": "array",

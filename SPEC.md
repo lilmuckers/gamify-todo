@@ -86,8 +86,9 @@ per-file schemas (`project`, `world`, `level`, `settings`, `inbox`) `$ref` it, a
 
 **Id:** `^[a-z0-9]+(-[a-z0-9]+)*$`, max 64 characters, derived from names and never renamed.
 
-**Project:** `id`, `title` (≤120), `description?` (≤4000, markdown), `currency?` (ISO 4217 code,
-GBP when unset), `goals[]` (`{id, title, description?}`, 1–5), `worldOrder[]`.
+**Project:** `id`, `title` (≤120), `description?` (≤4000, markdown), `budgets?` (`{currency?,
+alerts?, alertAt?}`: turns cash budgets on), `goals[]` (`{id, title, description?}`, 1–5),
+`worldOrder[]`.
 
 **World:** `id`, `name`, `description?`, `theme`, `goalIds[]`, `unlocksAfter?[]`, `budget?`,
 `levelOrder[]`.
@@ -208,6 +209,16 @@ Defined in `shared/src/budget.ts`. Each item, level, world and project has a `Co
   counts towards the polish penalty, even after clearing, because receipts often arrive after the
   work is done. Values are compared, so a full-form save that only changed the cost is still free.
 - Amounts are rounded to pennies and shown with `Intl.NumberFormat` ("£1,200", "£49.99").
+- **Opt-in:** all of this is off unless the project has `budgets` (`budgetPrefs()`). Off, the
+  panels, bubble and forms show no money, and form saves leave any cost data in the files alone,
+  so turning it back on brings it back. `currency` defaults to GBP.
+- **Alerts** (`budgetAlerts()`): after an `addItem`, `updateItem`, `updateLevel` or `updateWorld`
+  in a project with `budgets.alerts` not `false`, the app compares the project before and after.
+  Anything (item, step, level, world) that got worse shows in one toast: a **heads-up** once
+  `alertAt`% (50–100, default 90) of its budget is spent while it's still open, and **over
+  budget** once spent passes the budget. Things already at that level don't alert again, and
+  undo never alerts. The money box turns gold past the heads-up point and red when over, with a
+  matching note.
 
 ---
 
@@ -285,7 +296,8 @@ mobile strip all share.
 - **Money:** the level panel shows a 💰 box (spent of budget, a bar, what's left and saved) under
   the timer, and item rows carry a cost tag. The bubble adds a line such as "£35 OF £40 · £5 SAVED".
   World, project map and project list panels show the same roll-up. Budgets are set in the item,
-  level and world forms, and the currency in the project form.
+  level and world forms. The project form's *Track cash budgets* tick turns them on, with the
+  currency, alerts and heads-up percentage.
 - **Item bubbles:** clicking an item opens a speech bubble with its details and actions:
   **DONE!**, **START**, **EDIT** and, for dependencies, **WARP IN** (warp pipe) / **HOP ON**
   (cloud) / **GOT IT!** (close) / **JUMP OVER** (skip) / **ADD STEPS** (turn a plain one into a
@@ -614,7 +626,7 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 
 ## 15. Quality gates
 
-- `npm run typecheck`, `npm test` (35 files, 357 tests at time of writing) and
+- `npm run typecheck`, `npm test` (35 files, 364 tests at time of writing) and
   `npm run validate` (90 example files) must pass.
 - CI (`validate.yml`) on every PR and push to main runs:
   - data validation;
