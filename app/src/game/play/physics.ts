@@ -13,7 +13,7 @@ export interface Rect {
 }
 
 export interface Collider extends Rect {
-  /** Item id, EXIT_ID for a sub-level's exit pipe, FLAG_ID for the pole, or stepId(criterion) for a stair step. */
+  /** Item id, EXIT_ID for a sub-level's exit pipe, HOME_ID for the cloud back, FLAG_ID for the pole, or stepId(criterion) for a stair step. */
   id: string;
   kind: 'qblock' | 'checkpoint' | 'wall' | 'pipe' | 'warp' | 'cloud' | 'critter' | 'sign' | 'coins' | 'plant' | 'exit' | 'flag' | 'step' | 'gate';
   /** Blocks movement from every side. */
@@ -92,6 +92,10 @@ export type PlayEvent =
 
 export const EXIT_ID = '!exit';
 export const FLAG_ID = '!flag';
+/** The cloud back to where the hero rode in from. */
+export const HOME_ID = '!home';
+/** Where that cloud waits, in tiles: the empty ground before the first item, as high as a dependency's cloud. */
+export const HOME_CLOUD = { x: 1, y: 2, w: 3, h: 1 };
 /** Collider (and bubble) ids for stair steps; criterion ids can't contain '!'. */
 export const STEP_PREFIX = '!step:';
 export const stepId = (criterionId: string) => `${STEP_PREFIX}${criterionId}`;
@@ -128,6 +132,8 @@ export interface WorldOpts {
   groundY: number;
   /** A dependency's sub-level: exit pipe instead of a flagpole. */
   sub?: boolean;
+  /** The hero rode a cloud here: one waits to take him back. */
+  home?: boolean;
 }
 
 /** Gates reach well above the top of the world, so nothing jumps over them. */
@@ -136,7 +142,7 @@ const WORLD_ABOVE = 20;
 const GATE_W = 8;
 
 /** Colliders for a laid-out level. Tile rects become pixel rects, as the scene draws them. */
-export function buildWorld(layout: LevelLayout, { tile: T, groundY, sub }: WorldOpts): PlayWorld {
+export function buildWorld(layout: LevelLayout, { tile: T, groundY, sub, home }: WorldOpts): PlayWorld {
   const colliders: Collider[] = [];
   for (const e of layout.entities) {
     const x = e.x * T;
@@ -192,6 +198,10 @@ export function buildWorld(layout: LevelLayout, { tile: T, groundY, sub }: World
       const sky = -WORLD_ABOVE * T;
       colliders.push({ id, kind: 'gate', x: x + s.w * T - GATE_W / 2, y: sky, w: GATE_W, h: top - sky, solid: true, gate: true });
     }
+  }
+  if (home) {
+    const c = HOME_CLOUD;
+    colliders.push({ id: HOME_ID, kind: 'cloud', x: c.x * T, y: groundY - (c.y + c.h) * T + 2, w: c.w * T, h: 6, oneWay: true, enter: true });
   }
   const fx = layout.flagX * T;
   if (sub) colliders.push({ id: EXIT_ID, kind: 'exit', x: fx, y: groundY - 2 * T, w: 2 * T, h: 2 * T, solid: true, enter: true });

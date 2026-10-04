@@ -145,6 +145,10 @@ export class App {
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
+      // The cloud home waits in the level it went to (and its sub-levels); anywhere else it's gone.
+      const t = this.cloudTrip;
+      const r = this.route;
+      if (t && !(r.view === 'level' && r.projectId === t.projectId && r.worldId === t.to.worldId && r.levelId === t.to.levelId)) this.cloudTrip = undefined;
       // Warping or riding a cloud keeps playing; leaving the levels stops.
       if (!this.canPlay && this.playing) this.endPlay('left');
       pageView(this.route);
@@ -381,6 +385,46 @@ export class App {
    * pipe, drops off a cloud...). Set just before navigating; read once.
    */
   arrival?: { kind: 'pipe-down' | 'pipe-up' | 'cloud'; itemId?: string };
+
+  /**
+   * The last cloud ride: the dependency it left from and the level it went
+   * to. While that level is on screen, a cloud waits there to ride back.
+   */
+  private cloudTrip?: { projectId: string; worldId: string; levelId: string; itemId: string; to: { worldId: string; levelId: string } };
+
+  /** Sets off on a dependency's cloud to `to`, remembering the way back. Navigate after. */
+  rideCloud(from: { projectId: string; worldId: string; levelId: string; itemId: string }, to: { worldId: string; levelId: string }) {
+    track('cloud_ride', { back: false });
+    this.arrival = { kind: 'cloud' };
+    this.cloudTrip = { ...from, to: { worldId: to.worldId, levelId: to.levelId } };
+  }
+
+  /**
+   * The ride back from the level on screen, if the hero came here by cloud
+   * and the dependency it left from is still there.
+   */
+  cloudHome(): { route: Route; label: string } | undefined {
+    const t = this.cloudTrip;
+    const r = this.route;
+    if (!t || r.view !== 'level' || r.subId || r.projectId !== t.projectId || r.worldId !== t.to.worldId || r.levelId !== t.to.levelId) return;
+    const world = this.state?.worlds[t.worldId];
+    const level = this.state && findLevel(this.state, t.worldId, t.levelId);
+    if (!world || !level?.items.some((i) => i.id === t.itemId)) return;
+    return {
+      route: { view: 'level', projectId: t.projectId, worldId: t.worldId, levelId: t.levelId, itemId: t.itemId },
+      label: `${world.name}: ${level.name}`,
+    };
+  }
+
+  /** Rides the cloud back to the dependency it left from. Navigate to the returned route after. */
+  rideHome(): Route | undefined {
+    const home = this.cloudHome();
+    if (!home || home.route.view !== 'level') return;
+    track('cloud_ride', { back: true });
+    this.arrival = { kind: 'cloud', itemId: home.route.itemId };
+    this.cloudTrip = undefined;
+    return home.route;
+  }
 
   takeArrival() {
     const a = this.arrival;

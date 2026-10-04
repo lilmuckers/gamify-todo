@@ -47,7 +47,7 @@ Most edits show an **UNDO** toast for a few seconds (Ctrl/Cmd+Z works too); edit
 synced yet are simply taken back, with no commit.
 
 Dependencies can go further. One that needs another level becomes a **cloud** the hero rides
-there. One you have to chase yourself can get **steps** of its own: a **warp pipe** down to an
+there, and a cloud waits at the start of that level to ride back. One you have to chase yourself can get **steps** of its own: a **warp pipe** down to an
 underground sub-level holding them. Clear the steps and the hero comes back up the pipe with
 the dependency done. Every dependency's bubble offers *Warp in* / *Hop on* (visit), *Got it!*
 (close) and *Jump over* (skip). Plain ones stay a pipe with a plant.

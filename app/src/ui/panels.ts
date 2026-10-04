@@ -531,6 +531,7 @@ function levelPanel(app: App) {
     h('div', { class: 'title-row' }, h('h2', null, level.name), badge(diff?.change), edit && smallBtn('Edit', () => levelForm(app, world, level))),
     h('p', { class: 'deliverable' }, '🎯 ', level.deliverable),
     level.description && h('p', { class: 'muted' }, level.description),
+    cloudHomeLink(app),
     diff?.fields.length &&
       h('ul', { class: 'fielddiff' }, diff.fields.map((f) => h('li', null, h('code', null, f.field), ' changed'))),
     timerBlock(app, world, level, readonly),
@@ -559,6 +560,18 @@ function levelPanel(app: App) {
   );
 }
 
+/** The cloud back to the dependency the hero rode over from, while it waits here. */
+function cloudHomeLink(app: App) {
+  const home = app.cloudHome();
+  if (!home) return null;
+  const ride = (e: MouseEvent) => {
+    e.preventDefault();
+    const to = app.rideHome();
+    if (to) location.hash = href(to);
+  };
+  return h('p', null, h('a', { class: 'link', href: href(home.route), onclick: ride }, `☁ Ride the cloud back to ${home.label}`));
+}
+
 /** Ways into a dependency: down its warp pipe, onto its cloud, or (when editing) add steps. */
 function dependencyLinks(app: App, cur: LevelView, item: Item) {
   const mode = dependencyMode(item);
@@ -567,10 +580,7 @@ function dependencyLinks(app: App, cur: LevelView, item: Item) {
   if (mode === 'cloud') {
     const target = app.state && levelRefTarget(app.state, item);
     if (!target || r.view !== 'level') return h('small', { class: 'muted' }, `Needs level ${item.levelRef}`);
-    const ride = () => {
-      track('cloud_ride');
-      app.arrival = { kind: 'cloud' };
-    };
+    const ride = () => app.rideCloud({ projectId: cur.projectId, worldId: cur.world.id, levelId: cur.level.id, itemId: item.id }, target);
     const to = href({ view: 'level', projectId: cur.projectId, worldId: target.worldId, levelId: target.levelId });
     return h('div', null, h('a', { class: 'link', href: to, onclick: ride }, `☁ Ride the cloud to ${target.world.name}: ${target.level.name}`));
   }
