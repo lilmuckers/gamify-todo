@@ -135,9 +135,13 @@ you authorise the Quest Log GitHub App and choose which repos it may use. Back i
 
 - It finds your Quest Log repos among them (a `data/` folder with `settings.json`, `inbox.json` or
   a project). One repo connects straight away; with several you pick one, remembered on that
-  device. None: **Create my quest repo** makes one from
-  [`quest-log-template`](https://github.com/lilmuckers/quest-log-template), and **Add a repo to
-  Quest Log** gives the App another repo. A second device finds the same repos by signing in.
+  device. A second device finds the same repos by signing in.
+- No Quest Log repo yet? A checklist shows the next steps on GitHub: **Create my quest repo**
+  (from [`quest-log-template`](https://github.com/lilmuckers/quest-log-template)), then **Install
+  Quest Log** on it (or add it, if Quest Log is already installed). Both open in a new tab. The
+  checklist asks GitHub every few seconds while it's showing, and at once when you come back to
+  the tab, then offers the repo as soon as it appears. Any other repo Quest Log can see can be
+  used straight away too (its first save starts the quest log), except an empty one.
 - Sign-in tokens last 8 hours and renew themselves in the background, and they only reach the repos
   you chose. They're kept in that browser's `localStorage`, like a pasted token. If the renewal
   ever runs out, the app asks you to sign in again and keeps your unsynced edits until you do.

@@ -1,8 +1,8 @@
 import { GitHubClient } from '@quest/shared';
 import { patchUiPrefs, savedRepo, setRepo, TARGET, tokenStore } from '../config';
-import { discoverRepos, type FoundRepo } from './discover';
+import { discoverRepos, RepoScanner, type FoundRepo } from './discover';
 import { authorizeUrl, codeChallenge, newVerifier, parseCallback, randomString, SignInError, workerTokens, type Callback } from './oauth';
-import { browserLock, RefreshingToken } from './session';
+import { browserLock, needsSignIn, RefreshingToken } from './session';
 
 /**
  * Sign in with GitHub in the browser: the redirect out, the redirect back, and the session
@@ -86,10 +86,25 @@ export function sessionTokens(): RefreshingToken {
   }));
 }
 
+const sessionGet = () => {
+  const client = new GitHubClient(sessionTokens(), { owner: '', repo: '', branch: '' });
+  return <T>(url: string) => client.request<T>('GET', url);
+};
+
 /** The Quest Log repos the signed-in user can reach. */
 export function findRepos(): Promise<{ repos: FoundRepo[]; installed: number }> {
-  const client = new GitHubClient(sessionTokens(), { owner: '', repo: '', branch: '' });
-  return discoverRepos((url) => client.request('GET', url));
+  return discoverRepos(sessionGet());
+}
+
+/** A scanner for the next-steps checklist, which polls while the user sets up on GitHub. */
+export function repoScanner(): RepoScanner {
+  return new RepoScanner(sessionGet());
+}
+
+/** Signed in with a session that still works (or can refresh). */
+function signedIn(): boolean {
+  const s = tokenStore.session();
+  return s?.kind === 'app' && !needsSignIn(s);
 }
 
 /** What came of GitHub sending the user back, for main.ts to report once the app is up. */
@@ -119,12 +134,14 @@ export async function finishSignIn(cb: Callback): Promise<SignInOutcome | 'redir
   if (cb.kind === 'install') {
     if (cb.setupAction === 'request') return { result: 'ok', install: true, message: 'Asked an owner of that account to approve Quest Log. Sign in again once they have.' };
     // Repos added or removed: look again, signing in first if needed.
-    if (tokenStore.session()?.kind !== 'app') return startSignIn().then(() => 'redirecting' as const);
+    if (!signedIn()) return startSignIn().then(() => 'redirecting' as const);
     return { result: 'ok', install: true, ...(await pickRepo(false)) };
   }
   const pending = takePending();
   // Back from installing the App. That code came with no PKCE challenge or state of ours, so
-  // don't redeem it: a normal sign-in is one click-free round trip now the App is authorised.
+  // don't redeem it. Already signed in (adding a repo from the next-steps list): just look
+  // again. Otherwise a normal sign-in is one click-free round trip now the App is authorised.
+  if (cb.setupAction && signedIn()) return { result: 'ok', install: true, setup: pending?.setup, ...(await pickRepo(!!pending?.setup)) };
   if (cb.setupAction) {
     await startSignIn({ setup: pending?.setup, hash: pending?.hash });
     return 'redirecting';

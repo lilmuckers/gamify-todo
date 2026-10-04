@@ -74,6 +74,8 @@ class FakeRepo {
 export interface FakeOptions {
   /** Repos the App is installed on. `quest: false` gives a repo with no Quest Log data. */
   repos: { owner: string; name: string; quest?: boolean }[];
+  /** False: the user hasn't installed the App anywhere yet (until `addRepo`). */
+  installed?: boolean;
 }
 
 export class FakeGitHub {
@@ -88,13 +90,19 @@ export class FakeGitHub {
   seen: string[] = [];
   private n = 0;
   private challenges = new Map<string, string>();
+  installed: boolean;
 
   constructor(opts: FakeOptions) {
-    const examples = exampleFiles();
-    for (const r of opts.repos) {
-      const files = r.quest === false ? {} : examples;
-      this.repos.set(`${r.owner}/${r.name}`, new FakeRepo(r.owner, r.name, files));
-    }
+    this.installed = opts.installed ?? true;
+    for (const r of opts.repos) this.addRepo(r);
+  }
+
+  /** Gives the App a repo, as the user would on GitHub (installing it first if need be). */
+  addRepo(r: { owner: string; name: string; quest?: boolean }) {
+    // A plain repo has a README, so it isn't empty.
+    const files = r.quest === false ? { 'README.md': '# Notes\n' } : exampleFiles();
+    this.repos.set(`${r.owner}/${r.name}`, new FakeRepo(r.owner, r.name, files));
+    this.installed = true;
   }
 
   repo(full: string) {
@@ -180,7 +188,7 @@ export class FakeGitHub {
     if (!this.valid.has(auth.replace(/^Bearer /, ''))) return json(401, { message: 'Bad credentials' });
 
     if (path === '/user') return json(200, { login: 'player' });
-    if (path === '/user/installations') return json(200, { installations: [{ id: 1 }] });
+    if (path === '/user/installations') return json(200, { installations: this.installed ? [{ id: 1 }] : [] });
     if (path === '/user/installations/1/repositories')
       return json(200, {
         repositories: [...this.repos.values()].map((r, i) => ({

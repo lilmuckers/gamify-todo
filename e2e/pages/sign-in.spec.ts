@@ -49,10 +49,10 @@ test('sign in, pick a repo, and edit it', async ({ page }) => {
   await expect(picker).toBeVisible();
   expect(page.url()).not.toMatch(/code=|state=/);
   expect(gh.exchanges).toBe(1);
-  await expect(picker.locator('.repo-pick')).toHaveText([/house/, /quests/]);
+  await expect(picker.locator('.repo-pick.quest')).toHaveText([/house/, /quests/]);
   expect(await stored(page)).toMatchObject({ kind: 'app', token: 'ghu_2', refresh: 'ghr_2' });
 
-  await picker.locator('.repo-pick', { hasText: 'quests' }).click();
+  await picker.locator('.repo-pick.quest', { hasText: 'quests' }).click();
   await inScene(page, 'projects');
   await expect(page.locator('.sync-pill.synced')).toBeVisible();
 
@@ -119,6 +119,38 @@ test('an expired sign-in keeps the edits and syncs them after signing in again',
   expect(gh.repo('player/quests').appCommits()[0].auth).toMatch(/^Bearer ghu_\d+$/);
   await expect(page.locator('.panel label.check input').first()).toBeChecked();
   await expect(page.locator('.sync-pill.synced')).toBeVisible();
+});
+
+test('with no repo yet, the next steps tick off by themselves as the user sets up on GitHub', async ({ page }) => {
+  const gh = new FakeGitHub({ repos: [], installed: false });
+  await gh.install(page);
+  await page.goto('./#/');
+  await inScene(page, 'projects');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Sign in with GitHub' }).click();
+
+  const picker = page.getByRole('dialog', { name: 'Choose your repo' });
+  const steps = picker.locator('.next-steps li');
+  await expect(steps).toHaveCount(4);
+  await expect(steps.nth(0)).toHaveClass(/done/);
+  await expect(picker.getByRole('link', { name: 'Create my quest repo ↗' })).toHaveAttribute('href', /template_name=quest-log-template/);
+  await expect(picker.getByRole('link', { name: 'Install Quest Log ↗' })).toHaveAttribute('href', 'https://github.com/apps/quest-log-e2e/installations/new');
+  await expect(picker.locator('.watch.live')).toContainText('Watching GitHub');
+
+  // Installed on a repo with no quest log in it: that repo can be used, and the steps move on.
+  gh.addRepo({ owner: 'player', name: 'notes', quest: false });
+  await expect(steps.nth(2)).toHaveClass(/done/, { timeout: 15_000 });
+  await expect(picker.locator('.repo-pick', { hasText: 'notes' })).toContainText('START HERE');
+
+  // Then the repo made from the template: found, ready to play, and the checking stops.
+  gh.addRepo({ owner: 'player', name: 'quests' });
+  const play = picker.locator('.repo-pick', { hasText: 'quests' });
+  await expect(play).toContainText('PLAY', { timeout: 15_000 });
+  await expect(picker.locator('.watch.live')).toHaveCount(0);
+  await play.click();
+  await inScene(page, 'projects');
+  await expect(page.locator('.sync-pill.synced')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('quest.github.repo'))).toBe('player/quests');
 });
 
 test('cancelling on GitHub changes nothing', async ({ page }) => {
