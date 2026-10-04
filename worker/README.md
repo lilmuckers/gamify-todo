@@ -87,8 +87,9 @@ the deploy with a notice, so `main` stays green.
 2. In the GitHub repo, go to **Settings → Secrets and variables → Actions** and add:
    - secret `CLOUDFLARE_API_TOKEN`: the token from step 1;
    - variable `CLOUDFLARE_ACCOUNT_ID`: shown on the Workers overview page;
-   - variable `GITHUB_APP_CLIENT_ID`: the App's Client ID. The workflow passes it with
+   - variable `QUEST_APP_CLIENT_ID`: the App's Client ID. The workflow passes it with
      `--var`, so `GITHUB_CLIENT_ID` can stay blank in `wrangler.toml`.
+     (GitHub reserves the `GITHUB_` prefix for repo variables and secrets, hence `QUEST_`.)
 3. Set the client secret once by hand (step 2 above). The workflow never sees it, and deploys
    keep it.
 4. Run "Deploy Worker" from the Actions tab for the first deploy.
