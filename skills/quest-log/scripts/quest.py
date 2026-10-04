@@ -4,10 +4,12 @@
 Standard library only (Python 3.8+), so it runs in Claude's code execution,
 ChatGPT's code interpreter, CI and a normal terminal.
 
-    python3 quest.py validate [DIR]              check a data tree (DIR contains data/)
+    python3 quest.py update-check                 is this copy of the skill the latest? (exit 3 = outdated)
+    python3 quest.py validate [DIR] [--refresh]   check a data tree (DIR contains data/)
     python3 quest.py info --repo OWNER/REPO       default branch and whether the token can push
     python3 quest.py pull --repo OWNER/REPO [--branch B] [--dir DIR]
     python3 quest.py push [--dir DIR] -m MESSAGE [--pr TITLE]
+                                                 updates from the branch (and a PR's base) first
     python3 quest.py schemas [--refresh]          where the schemas come from (download or bundled)
 
 GitHub commands read the token from GITHUB_TOKEN (or GH_TOKEN). It is only
@@ -24,6 +26,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+# The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
+SKILL_VERSION = 1
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -71,8 +76,11 @@ def download_schemas():
 def find_schemas(refresh=False):
     """Returns (directory, manifest). Downloads if nothing local is usable."""
     if refresh:
-        d = download_schemas()
-        return d, json.load(open(os.path.join(d, 'index.json')))
+        try:
+            d = download_schemas()
+            return d, json.load(open(os.path.join(d, 'index.json')))
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            print(f'warning: could not download the latest schemas ({e}); using local copies', file=sys.stderr)
     for d in _schema_dirs():
         idx = os.path.join(d, 'index.json')
         if os.path.isfile(idx):
@@ -483,6 +491,17 @@ class GitHub:
     def blob(self, sha):
         return self.call('GET', f'/git/blobs/{sha}', raw=True)
 
+    def open_pull(self, branch):
+        """The open pull request whose head is `branch` in this repo, if any."""
+        owner = self.repo.split('/')[0]
+        pulls = self.call('GET', f'/pulls?state=open&head={urllib.parse.quote(f"{owner}:{branch}")}')
+        return pulls[0] if pulls else None
+
+    def merge(self, into, source):
+        """Merges `source` into branch `into`. True if that made a merge commit, False if already up to date."""
+        r = self.call('POST', '/merges', {'base': into, 'head': source, 'commit_message': f'Merge {source} into {into}'})
+        return r is not None
+
     def commit(self, changes, message, parent, branch, create_branch=False):
         tree_sha = self.call('GET', f'/git/commits/{parent}')['tree']['sha']
         entries = [{'path': p, 'mode': '100644', 'type': 'blob', **({'sha': None} if c is None else {'content': c})}
@@ -502,7 +521,38 @@ class GitHubError(QuestError):
         self.status = status
 
 
+# ---------------------------------------------------------------- skill updates
+
+def latest_skill():
+    """The published version.json, or None when the site can't be reached."""
+    try:
+        return json.loads(_http_get(urllib.parse.urljoin(SITE, 'skills/quest-log/version.json')))
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+def outdated_warning(latest):
+    return (f'SKILL OUTDATED: this copy is version {SKILL_VERSION}, the published skill is version {latest["version"]}. '
+            f'Stop and load the latest SKILL.md ({latest.get("skill")}) and quest.py ({latest.get("script")}) '
+            'before doing anything else, and ask the user to reinstall the skill.')
+
+
 # ---------------------------------------------------------------- commands
+
+def cmd_update_check(args):
+    latest = latest_skill()
+    report = {'installed': SKILL_VERSION, 'latest': latest and latest.get('version'), 'checked': latest is not None}
+    if latest:
+        report.update({'outdated': latest['version'] > SKILL_VERSION, 'skill': latest.get('skill'), 'script': latest.get('script')})
+    print(json.dumps(report, indent=2))
+    if not latest:
+        print(f'warning: could not reach {SITE} to check for a newer skill', file=sys.stderr)
+        return 4
+    if report['outdated']:
+        print(outdated_warning(latest), file=sys.stderr)
+        return 3
+    return 0
+
 
 def cmd_validate(args):
     registry, by_name, d = load_registry(args.schemas, args.refresh)
@@ -515,6 +565,9 @@ def cmd_validate(args):
         print(f'\n✗ {len(issues)} issue(s) in {len(files)} file(s)', file=sys.stderr)
         return 1
     print(f'✓ {len(files)} data file(s) valid (schemas: {d}, validator: {engine})')
+    latest = latest_skill() if args.refresh else None
+    if latest and latest.get('version', 0) > SKILL_VERSION:
+        print(outdated_warning(latest), file=sys.stderr)
     return 0
 
 
@@ -545,21 +598,27 @@ def cmd_pull(args):
         _, _, dirty = local_changes(root)
         if dirty:
             raise QuestError(f'Unpushed local changes in {len(dirty)} file(s); push them first or pass --force.')
-    if os.path.isdir(data):
-        for dirpath, _, names in os.walk(data):
-            for n in names:
-                if n.endswith('.json'):
-                    os.remove(os.path.join(dirpath, n))
-    for path, blob in sorted(blobs.items()):
-        full = os.path.join(root, *path.split('/'))
-        os.makedirs(os.path.dirname(full), exist_ok=True)
-        with open(full, 'w', encoding='utf-8', newline='\n') as f:
-            f.write(gh.blob(blob))
+    write_tree(root, {path: gh.blob(blob) for path, blob in blobs.items()})
     with open(os.path.join(root, BASE_FILE), 'w') as f:
         json.dump({'repo': args.repo, 'branch': branch, 'sha': sha, 'files': blobs}, f, indent=2)
     print(f'Pulled {len(blobs)} data file(s) from {args.repo}@{branch} ({sha[:7]}) into {os.path.abspath(root)}')
     print(f'Can push: {bool((info.get("permissions") or {}).get("push"))}')
     return 0
+
+
+def write_tree(root, files):
+    """Replaces every data file under root/data with `files` ({path: text})."""
+    data = os.path.join(root, 'data')
+    if os.path.isdir(data):
+        for dirpath, _, names in os.walk(data):
+            for n in names:
+                if n.endswith('.json'):
+                    os.remove(os.path.join(dirpath, n))
+    for path, text in sorted(files.items()):
+        full = os.path.join(root, *path.split('/'))
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text)
 
 
 def local_changes(root):
@@ -583,21 +642,53 @@ def cmd_status(args):
     return 0
 
 
+def _issues(files, schemas):
+    registry, by_name, _ = load_registry(schemas, False)
+    return validate_files(files, registry, by_name)
+
+
+def _report(issues, what):
+    for f, at, msg in issues:
+        print(f'{f}{at}: {msg}')
+    raise QuestError(f'{len(issues)} validation issue(s) {what}; fix them before pushing.')
+
+
+def update_pr_branch(gh, branch):
+    """Brings a pull request's base branch into its head branch before adding commits to it."""
+    try:
+        pr = gh.open_pull(branch)
+    except GitHubError as e:
+        print(f'warning: could not look up pull requests for {branch} ({e}); not updating it from its base', file=sys.stderr)
+        return
+    if not pr:
+        return
+    target = pr['base']['ref']
+    try:
+        merged = gh.merge(branch, target)
+    except GitHubError as e:
+        if e.status == 409:
+            raise QuestError(f'Pull request #{pr["number"]} ({branch}) conflicts with {target}. Pull {target}, re-apply the '
+                             f'pull request\'s changes on top, and commit them to {branch} as a merge, or ask the user.')
+        raise
+    print(f'Updated pull request #{pr["number"]} ({branch}) from {target}' if merged else f'{branch} is up to date with {target}')
+
+
 def cmd_push(args):
     base, local, changes = local_changes(args.dir)
     if not changes:
         print('Nothing to push.')
         return 0
-    if not args.no_validate:
-        registry, by_name, _ = load_registry(args.schemas, False)
-        issues = validate_files(local, registry, by_name)
-        if issues:
-            for f, at, msg in issues:
-                print(f'{f}{at}: {msg}')
-            raise QuestError(f'{len(issues)} validation issue(s); fix them before pushing.')
+    # Validation is not optional: nothing reaches GitHub unless the whole tree passes.
+    issues = _issues(local, args.schemas)
+    if issues:
+        _report(issues, 'in your files')
     gh = GitHub(base['repo'])
+    if not args.pr:
+        update_pr_branch(gh, base['branch'])
     for attempt in range(3):
         head = gh.head(base['branch'])
+        result = dict(local)
+        remote = base['files']
         if head != base['sha']:
             # The branch moved: fine unless someone changed the same files.
             remote = gh.data_blobs(head)
@@ -605,13 +696,23 @@ def cmd_push(args):
             if clashes:
                 raise QuestError('Remote changed the same file(s) since your pull: ' + ', '.join(sorted(clashes)) +
                                  '. Run pull --force, re-apply your edits, then push again.')
+            # What the branch will hold after this commit: the latest files plus your changes.
+            result = {p: (local[p] if base['files'].get(p) == sha and p in local else gh.blob(sha))
+                      for p, sha in remote.items() if p not in changes}
+            result.update({p: c for p, c in changes.items() if c is not None})
+            upstream = sorted(p for p in set(remote) | set(base['files']) if p not in changes and remote.get(p) != base['files'].get(p))
+            print(f'{base["branch"]} moved to {head[:7]} since your pull ({len(upstream)} data file(s) changed there); '
+                  'validating your changes on top of it')
+            issues = _issues(result, args.schemas)
+            if issues:
+                _report(issues, f'once your changes are combined with the latest {base["branch"]}')
         if args.pr:
             stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')
             branch = f'quest/{re.sub(r"[^a-z0-9]+", "-", args.pr.lower()).strip("-")[:40]}-{stamp}'
             gh.commit(changes, args.message, head, branch, create_branch=True)
             pr = gh.call('POST', '/pulls', {'title': args.pr, 'head': branch, 'base': base['branch'],
                                             'body': args.body or args.message})
-            print(f'Opened pull request #{pr["number"]}: {pr["html_url"]}')
+            print(f'Opened pull request #{pr["number"]} from {base["branch"]}@{head[:7]}: {pr["html_url"]}')
             return 0
         try:
             new = gh.commit(changes, args.message, head, base['branch'])
@@ -620,7 +721,9 @@ def cmd_push(args):
                 time.sleep(1)
                 continue  # Lost a race: re-check and retry.
             raise
-        files = {p: s for p, s in base['files'].items() if changes.get(p, '') is not None}
+        # Bring the folder up to date with what the branch now holds.
+        write_tree(args.dir, result)
+        files = {p: s for p, s in remote.items() if p not in changes}
         files.update({p: git_blob_sha(c) for p, c in changes.items() if c is not None})
         with open(os.path.join(args.dir, BASE_FILE), 'w') as f:
             json.dump({**base, 'sha': new, 'files': files}, f, indent=2)
@@ -641,9 +744,12 @@ def main(argv=None):
     ap.add_argument('--schemas', help='directory with index.json and the schema files (default: bundled, repo, cache or download)')
     sub = ap.add_subparsers(dest='cmd', required=True)
 
+    p = sub.add_parser('update-check', help='compare this skill with the published one (exit 3 = outdated, 4 = could not check)')
+    p.set_defaults(run=cmd_update_check)
+
     p = sub.add_parser('validate', help='validate a data tree')
     p.add_argument('dir', nargs='?', default='.', help='folder containing data/ (default: .)')
-    p.add_argument('--refresh', action='store_true', help='download the latest schemas first')
+    p.add_argument('--refresh', action='store_true', help='download the latest schemas first and check for a newer skill')
     p.set_defaults(run=cmd_validate)
 
     p = sub.add_parser('info', help='repo default branch and push access')
@@ -666,7 +772,6 @@ def main(argv=None):
     p.add_argument('-m', '--message', required=True, help='commit message, e.g. "quest: done: Fit units (kitchen/fit/units)"')
     p.add_argument('--pr', metavar='TITLE', help='open a pull request instead of committing to the branch')
     p.add_argument('--body', help='pull request description')
-    p.add_argument('--no-validate', action='store_true')
     p.set_defaults(run=cmd_push)
 
     p = sub.add_parser('schemas', help='show where schemas are loaded from')

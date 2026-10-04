@@ -185,11 +185,46 @@ class MockGitHub {
     return Object.fromEntries(Object.entries(tree).map(([p, s]) => [p, this.blobs.get(s)!]));
   }
 
+  ancestors(sha: string) {
+    const seen = new Set<string>();
+    const queue = [sha];
+    while (queue.length) {
+      const s = queue.shift()!;
+      if (seen.has(s)) continue;
+      seen.add(s);
+      queue.push(...this.commits.get(s)!.parents);
+    }
+    return seen;
+  }
+
+  /** Three-way merge of branch `source` into branch `into`, like POST /merges. */
+  merge(into: string, source: string, send: (status: number, body: unknown) => void) {
+    const ours = this.refs.get(into)!;
+    const theirs = this.refs.get(source)!;
+    const mine = this.ancestors(ours);
+    if (mine.has(theirs)) return send(204, null);
+    const base = [...this.ancestors(theirs)].find((c) => mine.has(c))!;
+    const files = (c: string) => this.trees.get(this.commits.get(c)!.tree)!;
+    const [b, o, t] = [files(base), files(ours), files(theirs)];
+    const tree: Record<string, string> = {};
+    for (const p of new Set([...Object.keys(o), ...Object.keys(t)])) {
+      const pick = o[p] === t[p] || t[p] === b[p] ? o[p] : o[p] === b[p] ? t[p] : 'conflict';
+      if (pick === 'conflict') return send(409, { message: 'Merge conflict' });
+      if (pick) tree[p] = pick;
+    }
+    const treeId = randomUUID().replace(/-/g, '');
+    this.trees.set(treeId, tree);
+    const id = randomUUID().replace(/-/g, '');
+    this.commits.set(id, { tree: treeId, parents: [ours, theirs], message: `Merge ${source} into ${into}` });
+    this.refs.set(into, id);
+    send(201, { sha: id });
+  }
+
   async start() {
     this.server = createServer(async (req, res) => {
       const send = (status: number, body: unknown, raw = false) => {
         res.writeHead(status, { 'Content-Type': raw ? 'text/plain' : 'application/json' });
-        res.end(raw ? String(body) : JSON.stringify(body));
+        res.end(raw ? String(body) : body === null ? undefined : JSON.stringify(body));
       };
       if (req.headers.authorization !== 'Bearer test-token') return send(401, { message: 'Bad credentials' });
       const url = new URL(req.url!, 'http://x');
@@ -241,6 +276,11 @@ class MockGitHub {
         this.refs.set(body.ref.replace('refs/heads/', ''), body.sha);
         return send(201, {});
       }
+      if (path === '/pulls' && req.method === 'GET') {
+        const head = url.searchParams.get('head')?.replace(/^o:/, '');
+        return send(200, this.pulls.flatMap((p, i) => (p.head === head ? [{ number: i + 1, head: { ref: p.head }, base: { ref: p.base } }] : [])));
+      }
+      if (path === '/merges' && req.method === 'POST') return this.merge(body.base, body.head, send);
       if (path === '/pulls' && req.method === 'POST') {
         this.pulls.push({ title: body.title, head: body.head, base: body.base });
         return send(201, { number: this.pulls.length, html_url: `https://github.com/o/r/pull/${this.pulls.length}` });
@@ -331,6 +371,30 @@ describe('quest.py GitHub sync', () => {
     const files = gh.filesAt('main');
     expect(files['data/p/project.json']).toContain('Renamed');
     expect(JSON.parse(files['data/p/w/lvl.json']).items[1].status).toBe('doing');
+    // The folder now matches the branch, so nothing looks changed.
+    expect(readFileSync(join(dir, 'data/p/project.json'), 'utf8')).toContain('Renamed');
+    expect((await run(['status', '--dir', dir], env)).out).toMatch(/no local changes/);
+  });
+
+  it('refuses changes that only break once combined with the latest branch', async () => {
+    const remote = gh.filesAt('main');
+    const world = JSON.parse(remote['data/p/w/world.json']);
+    world.levelOrder.push('other');
+    gh.commitFiles('main', { ...remote, 'data/p/w/world.json': JSON.stringify(world, null, 2) + '\n', 'data/p/w/other.json': JSON.stringify(level({ id: 'other' }), null, 2) + '\n' });
+    const dir = fresh();
+    await run(['pull', '--repo', 'o/r', '--dir', dir], env);
+    // Someone deletes "other" while we add a dependency on it: each change is valid alone.
+    gh.commitFiles('main', remote);
+    const head = gh.refs.get('main');
+    const d = JSON.parse(readFileSync(lvlPath(dir), 'utf8'));
+    d.items.push({ id: 'needs-other', type: 'dependency', title: 'Other', status: 'todo', levelRef: 'w/other' });
+    writeFileSync(lvlPath(dir), JSON.stringify(d, null, 2) + '\n');
+    expect((await run(['validate', dir], env)).code).toBe(0);
+    const r = await run(['push', '--dir', dir, '-m', 'needs other'], env);
+    expect(r.code).toBe(2);
+    expect(r.out).toMatch(/unknown level/);
+    expect(r.out).toMatch(/combined with the latest main/);
+    expect(gh.refs.get('main')).toBe(head);
   });
 
   it('refuses to overwrite a file someone else changed', async () => {
@@ -390,6 +454,110 @@ describe('quest.py GitHub sync', () => {
     const r = await run(['push', '--dir', dir, '-m', 'remove two'], env);
     expect(r.code, r.out).toBe(0);
     expect(gh.filesAt('main')['data/p/w/two.json']).toBeUndefined();
+  });
+
+  /** Opens a pull request from a fresh pull of main and returns its branch. */
+  const openPr = async (title: string, itemIdx: number) => {
+    const dir = fresh();
+    await run(['pull', '--repo', 'o/r', '--dir', dir], env);
+    tick(dir, itemIdx, 'doing');
+    const r = await run(['push', '--dir', dir, '-m', title, '--pr', title], env);
+    expect(r.code, r.out).toBe(0);
+    return gh.pulls.at(-1)!.head;
+  };
+  const renameProject = (title: string) => {
+    const remote = gh.filesAt('main');
+    const project = JSON.parse(remote['data/p/project.json']);
+    project.title = title;
+    gh.commitFiles('main', { ...remote, 'data/p/project.json': JSON.stringify(project, null, 2) + '\n' });
+  };
+
+  it('bases a new pull request on the latest branch, not the pulled one', async () => {
+    const dir = fresh();
+    await run(['pull', '--repo', 'o/r', '--dir', dir], env);
+    renameProject('Moved on');
+    tick(dir, 0, 'doing');
+    const r = await run(['push', '--dir', dir, '-m', 'start A', '--pr', 'Start A'], env);
+    expect(r.code, r.out).toBe(0);
+    const pr = gh.pulls.at(-1)!.head;
+    expect(gh.commits.get(gh.refs.get(pr)!)!.parents).toEqual([gh.refs.get('main')]);
+    expect(gh.filesAt(pr)['data/p/project.json']).toContain('Moved on');
+  });
+
+  it('updates an open pull request from its base before adding commits to it', async () => {
+    const branch = await openPr('Work on B', 1);
+    renameProject('Newer title');
+    const dir = fresh();
+    expect((await run(['pull', '--repo', 'o/r', '--branch', branch, '--dir', dir], env)).code).toBe(0);
+    tick(dir, 2, 'dropped');
+    const r = await run(['push', '--dir', dir, '-m', 'drop C'], env);
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toMatch(/Updated pull request #\d+ \(.+\) from main/);
+    const files = gh.filesAt(branch);
+    expect(files['data/p/project.json']).toContain('Newer title');
+    const items = JSON.parse(files['data/p/w/lvl.json']).items;
+    expect([items[1].status, items[2].status]).toEqual(['doing', 'dropped']);
+    // The new commit sits on a merge of main into the branch.
+    const parent = gh.commits.get(gh.refs.get(branch)!)!.parents[0];
+    expect(gh.commits.get(parent)!.parents).toContain(gh.refs.get('main'));
+  });
+
+  it('stops when an open pull request conflicts with its base', async () => {
+    const branch = await openPr('Start A again', 0);
+    const remote = gh.filesAt('main');
+    const lv = JSON.parse(remote['data/p/w/lvl.json']);
+    lv.items[0].status = 'dropped';
+    gh.commitFiles('main', { ...remote, 'data/p/w/lvl.json': JSON.stringify(lv, null, 2) + '\n' });
+    const dir = fresh();
+    await run(['pull', '--repo', 'o/r', '--branch', branch, '--dir', dir], env);
+    const head = gh.refs.get(branch);
+    tick(dir, 2, 'done');
+    const r = await run(['push', '--dir', dir, '-m', 'finish C'], env);
+    expect(r.code).toBe(2);
+    expect(r.out).toMatch(/conflicts with main/);
+    expect(gh.refs.get(branch)).toBe(head);
+  });
+});
+
+describe('quest.py update-check', () => {
+  const installed = Number(/^SKILL_VERSION = (\d+)$/m.exec(readFileSync(SCRIPT, 'utf8'))![1]);
+  let site: Server;
+  let published = installed;
+  let url = '';
+
+  beforeAll(async () => {
+    site = createServer((req, res) => {
+      if (req.url !== '/skills/quest-log/version.json') return res.writeHead(404).end();
+      res.end(JSON.stringify({ version: published, skill: 'https://example.com/SKILL.md', script: 'https://example.com/quest.py' }));
+    });
+    await new Promise<void>((r) => site.listen(0, '127.0.0.1', r));
+    url = `http://127.0.0.1:${(site.address() as { port: number }).port}/`;
+  });
+  afterAll(() => site.close());
+
+  it('passes when the installed skill is the published one', async () => {
+    published = installed;
+    const r = await run(['update-check'], { QUEST_SITE: url });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toMatch(/"outdated": false/);
+  });
+
+  it('exits 3 and says to reload when a newer skill is published', async () => {
+    published = installed + 1;
+    const r = await run(['update-check'], { QUEST_SITE: url });
+    expect(r.code).toBe(3);
+    expect(r.out).toMatch(/SKILL OUTDATED/);
+    expect(r.out).toContain('https://example.com/SKILL.md');
+    // validate --refresh says the same, but the data itself still validates.
+    const v = await run(['validate', '--refresh', '.'], { QUEST_SITE: url });
+    expect(v.code, v.out).toBe(0);
+    expect(v.out).toMatch(/SKILL OUTDATED/);
+  });
+
+  it('exits 4 when it cannot reach the site', async () => {
+    const r = await run(['update-check']);
+    expect(r.code).toBe(4);
+    expect(r.out).toMatch(/could not reach/);
   });
 });
 
