@@ -642,6 +642,13 @@ Security:
     and polls every 5 s while visible, and on focus, for up to 10 minutes. `RepoScanner` only
     re-checks a repo's `data/` every 30 s, so a poll costs a call or two. Other reachable repos
     can be used at once; empty ones (409) can't.
+  - Desktop signs in in a popup (`app/src/auth/popup.ts`): opened on the click, so it isn't
+    blocked; a localStorage marker tells our callback page it's in a popup. The callback page
+    posts the code over a `BroadcastChannel` to the waiting tab, which holds the PKCE verifier in
+    memory, acks and swaps the code; the popup then closes. No ack within 3 s (the tab has gone):
+    the popup offers to sign in there instead. A closed window, Cancel or 10 minutes settle it as
+    cancelled. Phones, the installed app and blocked popups use the redirect. Install popups
+    report back the same way, so the checklist re-checks at once.
   - After an install (`setup_action`), the returned code is not redeemed (it had no PKCE
     challenge). Already signed in: discovery runs again. Otherwise a normal sign-in starts.
 

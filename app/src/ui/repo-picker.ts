@@ -1,7 +1,8 @@
 import { GitHubError, SignInExpiredError } from '@quest/shared';
 import type { App } from '../app';
 import type { FoundRepo, ScannedRepo, SetupScan } from '../auth/discover';
-import { installUrl, repoScanner, startSignIn, TEMPLATE_URL } from '../auth/signin';
+import { openPopup, popupsWork } from '../auth/popup';
+import { installUrl, onInstallPopup, openInstallPopup, repoScanner, startSignIn, TEMPLATE_URL } from '../auth/signin';
 import { patchUiPrefs, reloadWithMode, savedRepo, setRepo } from '../config';
 import { h, relTime } from './dom';
 import { openModal } from './modal';
@@ -18,7 +19,26 @@ export function useRepo(fullName: string, opts: { setup?: boolean } = {}) {
   reloadWithMode(undefined, '#/');
 }
 
-const ext = (href: string, label: string, cls = 'btn sm') => h('a', { class: cls, href, target: '_blank', rel: 'noopener' }, `${label} ↗`);
+/**
+ * A link to GitHub. On desktop it opens in a small window over the app (the install page
+ * reports back when it's done); elsewhere, or if the window is blocked, in a new tab.
+ */
+const ext = (href: string, label: string, cls = 'btn sm') =>
+  h(
+    'a',
+    {
+      class: cls,
+      href,
+      target: '_blank',
+      rel: 'noopener',
+      onclick: (e: MouseEvent) => {
+        if (!popupsWork() || e.metaKey || e.ctrlKey || e.shiftKey) return;
+        const opened = href === installUrl() ? openInstallPopup() : !!openPopup('quest-github', href, 1000, 760);
+        if (opened) e.preventDefault();
+      },
+    },
+    `${label} ↗`,
+  );
 
 /**
  * The signed-in user's Quest Log repos to choose from. With none yet, the next steps on
@@ -83,7 +103,7 @@ export function repoChoice(opts: { repos?: FoundRepo[]; setup?: boolean }): HTML
         h('p', null, quest.length === 1 ? 'Found your Quest Log repo:' : 'Found these Quest Log repos. Which one do you want to play?'),
         h('ul', { class: 'repo-list' }, quest.map((r) => h('li', null, pick(r, 'PLAY ▶', ' quest')))),
         ...(rest.length ? [h('details', null, h('summary', null, 'Start a new quest log in another repo'), others(rest))] : []),
-        h('small', { class: 'muted' }, 'Missing one? ', h('a', { class: 'link', href: installUrl(), target: '_blank', rel: 'noopener' }, 'Add it to Quest Log ↗'), ' on GitHub, then come back here.'),
+        h('small', { class: 'muted' }, 'Missing one? ', ext(installUrl(), 'Add it to Quest Log', 'link'), ' on GitHub, then come back here.'),
       );
       return;
     }
@@ -164,8 +184,13 @@ export function repoChoice(opts: { repos?: FoundRepo[]; setup?: boolean }): HTML
     if (!box.isConnected) return stop();
     if (!document.hidden && watching && !expired) void tick();
   };
+  // An install popup reporting back: look now, not at the next poll.
+  const stopInstall = onInstallPopup(() => {
+    restart();
+  });
   function stop() {
     clearTimeout(timer);
+    stopInstall();
     document.removeEventListener('visibilitychange', onBack);
     window.removeEventListener('focus', onBack);
   }

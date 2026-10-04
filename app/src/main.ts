@@ -5,7 +5,7 @@ import './styles.css';
 import { GitHubError, HERO_IDS, type HeroId } from '@quest/shared';
 import { bucket, initAnalytics, setUserProps, track } from './analytics';
 import { App } from './app';
-import { finishSignIn, sessionTokens, signInAvailable, startSignIn, takeCallback, type SignInOutcome } from './auth/signin';
+import { answerPopup, finishSignIn, sessionTokens, signInAvailable, takeCallback, takeOutcome, type SignInOutcome } from './auth/signin';
 import { chosenBranch, isFirstVisit, rememberBranch, repoRef, TARGET, tokenStore, uiPrefs, urlMode } from './config';
 import { DemoSource, memoryKV } from './data/demo';
 import { GitHubSource } from './data/github';
@@ -16,6 +16,7 @@ import { StaticSource } from './data/static';
 import { Store } from './data/store';
 import { startFreshness } from './pwa';
 import { prefillCapture } from './ui/inbox';
+import { beginSignIn } from './ui/sign-in';
 import { toast } from './ui/toast';
 
 async function createSource(): Promise<DataSource> {
@@ -52,6 +53,8 @@ function dismissBoot() {
 async function main() {
   // GitHub's sign-in callback comes off the URL before anything else can see it.
   const callback = takeCallback();
+  // A sign-in (or install) popup back from GitHub: hand the answer to the waiting tab, and stop.
+  if (answerPopup(callback)) return;
   // Before anything writes its own keys.
   const firstVisit = isFirstVisit();
   // Offline cache for the app, refreshed when it's a few hours old.
@@ -70,7 +73,8 @@ async function main() {
   }
   // Phones open on today's plan (once they've been here before).
   else if (mobile && /^#?\/?$/.test(location.hash) && !isFirstVisit()) history.replaceState(history.state, '', '#/~today');
-  const signIn = await finishSignIn(callback).catch((err: Error): SignInOutcome => ({ result: 'error', message: err.message }));
+  // Back from GitHub in this tab, or restarted onto the repo a popup sign-in found.
+  const signIn = (await finishSignIn(callback).catch((err: Error): SignInOutcome => ({ result: 'error', message: err.message }))) ?? takeOutcome();
   // Off to GitHub for a fresh sign-in: nothing to start here.
   if (signIn === 'redirecting') return;
   const source = await createSource();
@@ -108,7 +112,7 @@ async function main() {
     warned = true;
     const n = store.outbox.length;
     const kept = n ? ` Your ${n} unsynced edit${n === 1 ? ' is' : 's are'} kept until you do.` : '';
-    toast(`Your GitHub sign-in has expired. Sign in again to keep saving.${kept}`, 'warn', 20_000, { label: 'SIGN IN', run: () => void startSignIn() });
+    toast(`Your GitHub sign-in has expired. Sign in again to keep saving.${kept}`, 'warn', 20_000, { label: 'SIGN IN', run: () => beginSignIn(app) });
   };
   window.addEventListener('appinstalled', () => track('pwa_install'));
   document.body.classList.toggle('is-mobile', mobile);

@@ -2,7 +2,7 @@ import { parseRepo, THEMES, uniqueId, type OpBody, type Theme } from '@quest/sha
 import { track } from '../../analytics';
 import type { App } from '../../app';
 import { needsSignIn } from '../../auth/session';
-import { signInAvailable, startSignIn, TEMPLATE_URL } from '../../auth/signin';
+import { signInAvailable, TEMPLATE_URL } from '../../auth/signin';
 import { patchUiPrefs, reloadWithMode, savedRepo, setRepo, TARGET, tokenStore, uiPrefs } from '../../config';
 import { exampleData } from '../../data/demo';
 import { go } from '../../router';
@@ -12,6 +12,7 @@ import { h } from '../dom';
 import { field, requireFilled, select, text } from '../forms';
 import { confirmDialog } from '../modal';
 import { repoChoice } from '../repo-picker';
+import { beginSignIn } from '../sign-in';
 import { heroPicker } from '../settings';
 import { skillHelpDialog } from '../skill-help';
 import { toast } from '../toast';
@@ -70,8 +71,8 @@ const CHAPTERS: Chapter[] = [
             type: 'button',
             onclick: () => {
               patchUiPrefs({ setup: { step: 'signin' } });
-              go.disabled = true;
-              startSignIn({ setup: true }).catch((err: Error) => ((go.disabled = false), toast(err.message, 'alert', 6000)));
+              // Signed in without leaving the page (desktop popup): this page moves on to the repo.
+              beginSignIn(w.app, { setup: true, onSignedIn: () => w.rerender() });
             },
           },
           'SIGN IN WITH GITHUB',

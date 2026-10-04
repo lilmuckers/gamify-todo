@@ -130,15 +130,19 @@ Add `?welcome` to any URL (or use **⚙ Settings → New here?**) to see the wel
 
 ### Sign in with GitHub
 
-**⚙ Settings → Sign in with GitHub** (or the first page of Get started) sends you to GitHub, where
-you authorise the Quest Log GitHub App and choose which repos it may use. Back in the app:
+**⚙ Settings → Sign in with GitHub** (or the first page of Get started) opens GitHub, where you
+authorise the Quest Log GitHub App and choose which repos it may use. On desktop GitHub opens in a
+small window over the app, which stays where it was and carries on when that window closes. On
+phones, in the installed app, or if the browser blocks the window, the page goes to GitHub and
+back instead. Then:
 
 - It finds your Quest Log repos among them (a `data/` folder with `settings.json`, `inbox.json` or
   a project). One repo connects straight away; with several you pick one, remembered on that
   device. A second device finds the same repos by signing in.
 - No Quest Log repo yet? A checklist shows the next steps on GitHub: **Create my quest repo**
   (from [`quest-log-template`](https://github.com/lilmuckers/quest-log-template)), then **Install
-  Quest Log** on it (or add it, if Quest Log is already installed). Both open in a new tab. The
+  Quest Log** on it (or add it, if Quest Log is already installed). Both open in a small window
+  on desktop (a new tab elsewhere), and the install window reports back when it's done. The
   checklist asks GitHub every few seconds while it's showing, and at once when you come back to
   the tab, then offers the repo as soon as it appears. Any other repo Quest Log can see can be
   used straight away too (its first save starts the quest log), except an empty one.

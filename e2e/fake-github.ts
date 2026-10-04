@@ -137,10 +137,24 @@ export class FakeGitHub {
     return { access_token: `ghu_${n}`, refresh_token: `ghr_${n}`, expires_in: 28800, refresh_token_expires_in: 15897600 };
   }
 
+  /** Answers for the whole browser context, so sign-in and install popups see the fakes too. */
   async install(page: Page) {
-    await page.route('https://github.com/login/oauth/authorize?**', (route) => this.authorize(route));
-    await page.route(`${AUTH_URL}/**`, (route) => this.worker(route));
-    await page.route(`${API}/**`, (route) => this.api(route));
+    const context = page.context();
+    await context.route('https://github.com/login/oauth/authorize?**', (route) => this.authorize(route));
+    await context.route(`https://github.com/apps/**`, (route) => this.installPage(route));
+    await context.route(`${AUTH_URL}/**`, (route) => this.worker(route));
+    await context.route(`${API}/**`, (route) => this.api(route));
+  }
+
+  /** Where the install page's callback goes; set by a test that "installs" in a popup. */
+  installReturn?: { redirectUri: string; repo: { owner: string; name: string } };
+
+  /** GitHub's install page: installs on `installReturn.repo` and sends the popup back. */
+  private installPage(route: Route) {
+    const r = this.installReturn;
+    if (!r) return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Install Quest Log</p>' });
+    this.addRepo(r.repo);
+    return route.fulfill({ status: 302, headers: { Location: `${r.redirectUri}?installation_id=1&setup_action=install` } });
   }
 
   /** github.com's authorize page: says yes at once and sends the user back with a code. */
