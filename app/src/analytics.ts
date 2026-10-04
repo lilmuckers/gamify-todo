@@ -42,6 +42,7 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   skill_download: ['format'],
   github_connect: ['can_push'],
   github_disconnect: [],
+  sign_in: ['result'],
   publish: ['ok'],
   sync: ['result', 'ops_bucket'],
   sync_conflict: ['count'],

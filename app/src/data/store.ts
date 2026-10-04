@@ -9,6 +9,7 @@ import {
   polishPoints,
   replay,
   revalidate,
+  SignInExpiredError,
   validateWorkspace,
   type LevelAt,
   type Workspace,
@@ -102,6 +103,10 @@ export class Store {
   onSyncResult?: (r: { result: 'ok' | 'offline' | 'error' | 'conflict'; ops: number; conflicts: number; error?: unknown }) => void;
   status: SyncStatus = 'loading';
   error?: string;
+  /** The GitHub sign-in ran out. Queued edits stay put and sync after the next sign-in. */
+  needsSignIn = false;
+  /** Called when a request finds the sign-in has run out. */
+  onSignInExpired?: () => void;
   issues: Issue[] = [];
   lastSyncedAt?: string;
 
@@ -221,6 +226,14 @@ export class Store {
   }
 
   private fail(err: unknown) {
+    if (err instanceof SignInExpiredError) {
+      this.status = 'error';
+      this.needsSignIn = true;
+      const n = this.outbox.length;
+      this.error = n ? `Signed out of GitHub: sign in again to sync ${n} edit${n === 1 ? '' : 's'}.` : err.message;
+      this.onSignInExpired?.();
+      return;
+    }
     if (!this.online()) {
       this.status = 'offline';
       return;

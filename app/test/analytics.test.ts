@@ -33,6 +33,10 @@ describe('sanitize', () => {
   it('has an allow-list for every event', () => {
     for (const keys of Object.values(EVENT_PARAMS)) expect(Array.isArray(keys)).toBe(true);
   });
+
+  it('sends only the result of a sign-in', () => {
+    expect(sanitize(EVENT_PARAMS.sign_in, { result: 'ok', login: 'octocat', repo: 'me/quests', token: 'ghu_x' } as Record<string, string>)).toEqual({ result: 'ok' });
+  });
 });
 
 describe('routeType', () => {

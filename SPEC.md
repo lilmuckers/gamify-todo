@@ -409,8 +409,12 @@ canvas give ▲ up, ◀ ▶ prev/next and Play.
 
 - **Your hero:** an 18-hero carousel. The choice is kept in this browser. When the data is
   editable it is also saved to `data/settings.json` as everyone's default.
+- **GitHub** (builds with sign-in): **Sign in with GitHub**; once signed in, the repo in use,
+  **Change repo** (the repo picker), **Sign out** and a link to revoke the App on GitHub. An
+  expired sign-in shows **Sign in again** and the number of edits it is holding.
 - **GitHub connection:** repo `owner/repo`, optional branch (blank = default branch) and a
-  fine-grained token, with a read-only/editable status line.
+  fine-grained token, with a read-only/editable status line. With sign-in available it folds
+  into "Use a token instead".
 - **New here?:** reopen the welcome screen, tour or set-up guide.
 - **Display:** layout auto (by screen size) / full game view / compact.
 - **Weekly review:** Fri / Mon / Sun / off.
@@ -464,9 +468,12 @@ console box and magazine ad. It offers three ways in:
      pipe/cloud, and climbing the stairs.
    - The tour is resumable after a reload, can be skipped, and can be restarted from Settings.
 3. **★ Get started:** an instruction-manual-style set-up guide.
-   - **Pages:** make a repo → create a fine-grained token scoped to that one repo, with a
-     **TEST IT** check per permission → connect → pick a hero → first game (or copy the
-     examples) → teach your AI the rules.
+   - **Pages with sign-in:** sign in with GitHub and pick a repo (or make one from the template,
+     or add one to the App) → pick a hero → first game (or copy the examples) → teach your AI
+     the rules. "Use a token instead" switches to the token steps below.
+   - **Pages without sign-in:** make a repo → create a fine-grained token scoped to that one
+     repo, with a **TEST IT** check per permission → connect → pick a hero → first game (or copy
+     the examples) → teach your AI the rules.
    - **Docker:** starts at "Your local repo" (branch, last commit, remote) and skips the GitHub
      steps.
 
@@ -482,7 +489,7 @@ brings the welcome screen back. An empty repo is detected via `GET /commits?per_
 | Read-only Pages | `StaticSource` (deployed `data/` + `data/index.json`) | – | – |
 | Demo (`?demo`) | `DemoSource` (in-memory copy of the examples) | In memory only | – |
 | Tour (`?tour`) | `StaticSource` | – | – |
-| GitHub-connected | `GitHubSource` (token in `localStorage`) | Atomic commits to the chosen branch via Git Data API; read-only without push rights | ✓ |
+| GitHub-connected | `GitHubSource` (pasted token, or a Sign in with GitHub session, in `localStorage`) | Atomic commits to the chosen branch via Git Data API; read-only without push rights | ✓ |
 | Local editor (Docker) | `LocalApiSource` → `/api` | Server writes `data/` and commits; **Publish** pull-rebases and pushes | ✓ with `GITHUB_TOKEN` |
 | Mobile PWA | Pages + any of the above | Offline queue | ✓ |
 
@@ -605,7 +612,7 @@ Security:
 ## 12. Security
 
 - **CSP** (meta tag injected at build): `default-src 'self'`; `connect-src` is self +
-  `api.github.com` (+ GA); fonts are same-origin only (never inlined); `object-src 'none'`;
+  `api.github.com` (+ the sign-in Worker's origin, + GA); fonts are same-origin only (never inlined); `object-src 'none'`;
   `form-action 'none'`.
 - The token lives in `localStorage` and is only ever sent as an Authorization header to
   `api.github.com`. Users are told to scope it to one repo:
@@ -613,6 +620,26 @@ Security:
   - Pull requests: read & write
   - Checks: read
 - On iOS, the installed PWA has its own storage, so the token must be connected again there.
+- **Sign in with GitHub** (#30, #92; Pages builds with `VITE_AUTH_URL`,
+  `VITE_GITHUB_APP_CLIENT_ID` and `VITE_GITHUB_APP_SLUG`):
+  - A GitHub App user token. The redirect carries a random `state` and a PKCE S256 challenge;
+    both the state and the verifier are kept in `sessionStorage` and checked on return.
+  - `main.ts` strips `code`, `state` and the other callback parameters from the URL with
+    `history.replaceState` before anything else runs. `<meta name="referrer"
+    content="no-referrer">` keeps addresses out of Referers.
+  - The code is swapped for tokens by the Worker (`worker/`), which holds the client secret.
+    Tokens are stored as `{ token, refresh, expiresAt, refreshExpiresAt, kind }` under the same
+    key as a pasted token (a bare string is still read as a PAT).
+  - `GitHubClient` takes a token provider (`app/src/auth/session.ts`). It refreshes five minutes
+    before expiry and once on a 401. One refresh runs at a time across requests, and across tabs
+    under a `navigator.locks` lock, because GitHub rotates the refresh token. The rotated
+    session is saved before it is used. There are no refresh attempts while offline.
+  - A dead refresh token raises `SignInExpiredError`: the store keeps the outbox and asks the
+    user to sign in again, then syncs it.
+  - Repo discovery: `/user/installations` → each installation's repositories → `contents/data`,
+    keeping repos with `data/settings.json`, `data/inbox.json` or a `data/<project>/project.json`.
+  - After an install (`setup_action`), the returned code is not redeemed (it had no PKCE
+    challenge); a normal sign-in starts instead.
 
 ## 13. PWA and performance
 

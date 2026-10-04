@@ -24,6 +24,12 @@ npx playwright test --project local e2e/local/offline.spec.ts   # one file, afte
 and commits the app writes (`repo.ts`). They share that repo, so tests run one at
 a time and each edits different items.
 
+The Pages build also gets made-up Sign in with GitHub settings (`VITE_AUTH_URL`
+`https://auth.quest.test` and a fake App). `pages/sign-in.spec.ts` answers for that Worker,
+github.com's authorize page and api.github.com with `fake-github.ts`: in-memory repos seeded
+from `data/`, tokens that can expire or be revoked, and commits the tests can read. Those specs
+block the service worker, because routes don't see requests it handles.
+
 The game is a canvas. Tests wait on the game's own state instead of sleeping:
 `settled()` waits until no tween, timer or camera effect that ends is still
 running, and `clickItem()` / `clickLocator()` click things where the scenes say

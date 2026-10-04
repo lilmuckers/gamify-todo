@@ -23,6 +23,16 @@ const repo = process.env.VITE_GH_REPO ?? detectRepo();
 // Google Analytics: on for the Pages build, off for Docker/local unless set explicitly.
 const gaId = process.env.VITE_GA_ID ?? (target === 'pages' ? 'G-5D7YVR6VN6' : '');
 const GOOGLE = 'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com';
+// Sign in with GitHub (Pages only): the token-exchange Worker and the GitHub App. All three or
+// none: without them the app hides sign-in and keeps the pasted-token flow.
+const signIn = {
+  authUrl: target === 'pages' ? (process.env.VITE_AUTH_URL ?? '').trim() : '',
+  clientId: target === 'pages' ? (process.env.VITE_GITHUB_APP_CLIENT_ID ?? '').trim() : '',
+  slug: target === 'pages' ? (process.env.VITE_GITHUB_APP_SLUG ?? '').trim() : '',
+};
+if (signIn.authUrl && !/^https:\/\/|^http:\/\/localhost[:/]/.test(signIn.authUrl)) throw new Error(`VITE_AUTH_URL must be https: ${signIn.authUrl}`);
+/** The Worker's origin, for the CSP. */
+const authOrigin = signIn.authUrl ? new URL(signIn.authUrl).origin : '';
 // Pages builds use relative URLs so the same build works at /<repo>/ on github.io
 // and at the root of a custom domain (routing is hash-based). Override with VITE_BASE.
 const base = process.env.VITE_BASE ?? (target === 'pages' ? './' : '/');
@@ -96,7 +106,7 @@ function repoData(): Plugin {
 
 /** Strict CSP for production builds (dev needs inline HMR scripts). */
 function csp(): Plugin {
-  const connect = target === 'pages' ? "'self' https://api.github.com" : "'self'";
+  const connect = target === 'pages' ? `'self' https://api.github.com${authOrigin ? ` ${authOrigin}` : ''}` : "'self'";
   const ga = (sources: string) => (gaId ? ` ${sources}` : '');
   const policy = [
     "default-src 'self'",
@@ -125,6 +135,9 @@ export default defineConfig({
     'import.meta.env.VITE_TARGET': JSON.stringify(target),
     'import.meta.env.VITE_GH_REPO': JSON.stringify(repo ?? ''),
     'import.meta.env.VITE_GA_ID': JSON.stringify(gaId),
+    'import.meta.env.VITE_AUTH_URL': JSON.stringify(signIn.authUrl),
+    'import.meta.env.VITE_GITHUB_APP_CLIENT_ID': JSON.stringify(signIn.clientId),
+    'import.meta.env.VITE_GITHUB_APP_SLUG': JSON.stringify(signIn.slug),
   },
   server: {
     port: 5173,

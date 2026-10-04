@@ -1,11 +1,14 @@
 import { describeOp, GitHubClient, HERO_IDS, parseRepo, REVIEW_SLOTS, type HeroId, type ReviewDay } from '@quest/shared';
 import { analyticsAllowed, analyticsAvailable, setAnalyticsAllowed, track } from '../analytics';
 import type { App } from '../app';
-import { chosenBranch, heroStore, reloadWithMode, repoRef, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
+import { needsSignIn } from '../auth/session';
+import { REVOKE_URL, signInAvailable, signOut, startSignIn } from '../auth/signin';
+import { chosenBranch, heroStore, reloadWithMode, repoRef, savedRepo, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
 import { HEROES, heroKey } from '../sprites/heroes';
 import { spriteUrl } from '../sprites/render';
 import { h, relTime } from './dom';
 import { confirmDialog, openModal } from './modal';
+import { openRepoPicker } from './repo-picker';
 import { toast } from './toast';
 
 export function settingsDialog(app: App) {
@@ -16,84 +19,8 @@ export function settingsDialog(app: App) {
   if (s.source.id === 'demo') {
     body.append(h('h3', null, 'Demo'), ...demoNotice(app));
   } else if (TARGET === 'pages') {
-    const cur = repoRef();
-    const repo = h('input', { type: 'text', value: cur ? `${cur.owner}/${cur.repo}` : '', placeholder: 'owner/repo' });
-    const branch = h('input', { type: 'text', value: chosenBranch() ?? '', placeholder: 'default branch' });
-    const token = h('input', { type: 'password', value: '', placeholder: tokenStore.get() ? '•••••• (saved)' : 'github_pat_…', autocomplete: 'off' });
-    const status = h(
-      'small',
-      { class: 'muted' },
-      !tokenStore.get()
-        ? 'Not connected: read-only view of this site’s data.'
-        : app.caps.canEdit
-          ? `Connected to ${s.source.label}: edits commit straight to GitHub.`
-          : `Connected to ${s.source.label} read-only (token cannot push).`,
-    );
-    const save = h(
-      'button',
-      {
-        class: 'btn sm primary',
-        type: 'button',
-        onclick: async () => {
-          const ref = parseRepo(repo.value);
-          const t = token.value.trim() || tokenStore.get();
-          if (!ref || !t) return toast('Need a repo (owner/repo) and a token', 'warn');
-          status.textContent = 'Checking…';
-          try {
-            const who = await new GitHubClient(t, { ...ref, branch: branch.value.trim() || 'main' }).whoami();
-            if (who.empty) throw new Error(`${ref.owner}/${ref.repo} has no commits yet. Add a README on GitHub first.`);
-            setRepo(`${ref.owner}/${ref.repo}`, branch.value);
-            tokenStore.set(t);
-            track('github_connect', { can_push: who.canPush });
-            toast(who.canPush ? `Connected as ${who.login}` : `Connected read-only: ${who.login} cannot push there`, who.canPush ? 'win' : 'warn');
-            location.hash = '#/';
-            location.reload();
-          } catch (err) {
-            status.textContent = `✗ ${(err as Error).message}`;
-          }
-        },
-      },
-      'Test & save',
-    );
-    const disconnect = h(
-      'button',
-      {
-        class: 'btn sm danger',
-        type: 'button',
-        disabled: !tokenStore.get(),
-        onclick: async () => {
-          if (s.outbox.length && !(await confirmDialog('Disconnect', `${s.outbox.length} edit(s) are not synced yet and will stay queued until you reconnect.`, 'Disconnect')))
-            return;
-          tokenStore.set(undefined);
-          track('github_disconnect');
-          location.reload();
-        },
-      },
-      'Disconnect',
-    );
-    body.append(
-      h('h3', null, 'GitHub connection'),
-      h(
-        'p',
-        { class: 'muted' },
-        'Keep your quests in any GitHub repo you own — no need to fork or clone this project. Create a repo (with a README so it has a first commit), then paste a fine-grained personal access token scoped to only that repo with ',
-        h('b', null, 'Contents: read & write'),
-        ', ',
-        h('b', null, 'Pull requests: read & write'),
-        ' and ',
-        h('b', null, 'Checks: read'),
-        '. Data goes in data/<project>/… (see the ',
-        h('a', { href: 'skills/quest-log/SKILL.md', target: '_blank', class: 'link' }, 'skill guide'),
-        '). The token is stored in this browser’s localStorage and the app sends it only to api.github.com. Anyone with access to this browser profile can read it.',
-        analyticsAvailable() &&
-          ' This page also loads Google Analytics (no titles, ids or repo names are sent); you can switch it off under Privacy below.',
-      ),
-      h('label', { class: 'field' }, h('span', null, 'Repository'), repo),
-      h('label', { class: 'field' }, h('span', null, 'Branch (optional)'), branch),
-      h('label', { class: 'field' }, h('span', null, 'Token'), token),
-      status,
-      h('div', { class: 'actions' }, save, disconnect),
-    );
+    if (signInAvailable()) body.append(...signInSection(app, () => closeAll()));
+    body.append(...tokenSection(app, signInAvailable()));
   }
 
   body.append(
@@ -203,6 +130,154 @@ export function settingsDialog(app: App) {
       h('p', { class: 'muted' }, 'Edits are committed locally. Publishing pushes them so GitHub Pages redeploys.'),
     );
   const closeAll = openModal('Settings', body);
+}
+
+/** Pasting a fine-grained token: the way in without sign-in, and what AI assistants still use. */
+function tokenSection(app: App, fallback: boolean): Node[] {
+  const s = app.store;
+  // Only a pasted token belongs to this form; a sign-in session has its own section.
+  const saved = tokenStore.session();
+  const pat = saved?.kind === 'pat' ? saved.token : undefined;
+  const cur = repoRef();
+  const repo = h('input', { type: 'text', value: cur ? `${cur.owner}/${cur.repo}` : '', placeholder: 'owner/repo' });
+  const branch = h('input', { type: 'text', value: chosenBranch() ?? '', placeholder: 'default branch' });
+  const token = h('input', { type: 'password', value: '', placeholder: pat ? '•••••• (saved)' : 'github_pat_…', autocomplete: 'off' });
+  const status = h(
+    'small',
+    { class: 'muted' },
+    !pat
+      ? saved
+        ? 'Signed in with GitHub. Saving a token here replaces the sign-in.'
+        : 'Not connected: read-only view of this site’s data.'
+      : app.caps.canEdit
+        ? `Connected to ${s.source.label}: edits commit straight to GitHub.`
+        : `Connected to ${s.source.label} read-only (token cannot push).`,
+  );
+  const save = h(
+    'button',
+    {
+      class: 'btn sm primary',
+      type: 'button',
+      onclick: async () => {
+        const ref = parseRepo(repo.value);
+        const t = token.value.trim() || pat;
+        if (!ref || !t) return toast('Need a repo (owner/repo) and a token', 'warn');
+        status.textContent = 'Checking…';
+        try {
+          const who = await new GitHubClient(t, { ...ref, branch: branch.value.trim() || 'main' }).whoami();
+          if (who.empty) throw new Error(`${ref.owner}/${ref.repo} has no commits yet. Add a README on GitHub first.`);
+          setRepo(`${ref.owner}/${ref.repo}`, branch.value);
+          tokenStore.set(t);
+          track('github_connect', { can_push: who.canPush });
+          toast(who.canPush ? `Connected as ${who.login}` : `Connected read-only: ${who.login} cannot push there`, who.canPush ? 'win' : 'warn');
+          location.hash = '#/';
+          location.reload();
+        } catch (err) {
+          status.textContent = `✗ ${(err as Error).message}`;
+        }
+      },
+    },
+    'Test & save',
+  );
+  const disconnect = h(
+    'button',
+    {
+      class: 'btn sm danger',
+      type: 'button',
+      disabled: !pat,
+      onclick: async () => {
+        if (s.outbox.length && !(await confirmDialog('Disconnect', `${s.outbox.length} edit(s) are not synced yet and will stay queued until you reconnect.`, 'Disconnect')))
+          return;
+        tokenStore.set(undefined);
+        track('github_disconnect');
+        location.reload();
+      },
+    },
+    'Disconnect',
+  );
+  const intro = h('h3', null, 'GitHub connection');
+  const parts: Node[] = [
+    h(
+      'p',
+      { class: 'muted' },
+      'Keep your quests in any GitHub repo you own — no need to fork or clone this project. Create a repo (with a README so it has a first commit), then paste a fine-grained personal access token scoped to only that repo with ',
+      h('b', null, 'Contents: read & write'),
+      ', ',
+      h('b', null, 'Pull requests: read & write'),
+      ' and ',
+      h('b', null, 'Checks: read'),
+      '. Data goes in data/<project>/… (see the ',
+      h('a', { href: 'skills/quest-log/SKILL.md', target: '_blank', class: 'link' }, 'skill guide'),
+      '). The token is stored in this browser’s localStorage and the app sends it only to api.github.com. Anyone with access to this browser profile can read it.',
+      fallback && ' AI assistants that edit your quests use a token like this too.',
+      analyticsAvailable() &&
+        ' This page also loads Google Analytics (no titles, ids or repo names are sent); you can switch it off under Privacy below.',
+    ),
+    h('label', { class: 'field' }, h('span', null, 'Repository'), repo),
+    h('label', { class: 'field' }, h('span', null, 'Branch (optional)'), branch),
+    h('label', { class: 'field' }, h('span', null, 'Token'), token),
+    status,
+    h('div', { class: 'actions' }, save, disconnect),
+  ];
+  if (!fallback) return [intro, ...parts];
+  // Sign-in is the way in; the token form folds away (open while a token is in use).
+  return [h('details', { class: 'token-fallback', open: tokenStore.session()?.kind === 'pat' }, h('summary', null, 'Use a token instead'), ...parts)];
+}
+
+/** Sign in with GitHub: who's signed in, which repo, and the ways to change either. */
+function signInSection(app: App, closeSettings: () => void): Node[] {
+  const s = app.store;
+  const session = tokenStore.session();
+  const head = h('h3', null, 'GitHub');
+  const signIn = (label: string) =>
+    h('button', { class: 'btn sm primary signin-big', type: 'button', onclick: () => void startSignIn().catch((err: Error) => toast(err.message, 'alert', 6000)) }, label);
+  if (session?.kind !== 'app')
+    return [
+      head,
+      h('p', null, 'Keep your quests in your own GitHub repo, private if you like. Sign in and pick the repo: no tokens to make or paste.'),
+      h('div', { class: 'actions' }, signIn('Sign in with GitHub')),
+      h('small', { class: 'muted' }, 'Quest Log only sees the repos you choose when you install it on GitHub.'),
+    ];
+  const signOutBtn = h(
+    'button',
+    {
+      class: 'btn sm danger',
+      type: 'button',
+      onclick: async () => {
+        if (s.outbox.length && !(await confirmDialog('Sign out', `${s.outbox.length} edit(s) are not synced yet. They stay queued in this browser until you sign in again.`, 'Sign out')))
+          return;
+        signOut();
+        track('github_disconnect');
+        reloadWithMode(undefined, '#/');
+      },
+    },
+    'Sign out',
+  );
+  const revoke = h('a', { class: 'link', href: REVOKE_URL, target: '_blank', rel: 'noopener' }, 'revoke its access on GitHub');
+  if (s.needsSignIn || needsSignIn(session))
+    return [
+      head,
+      h('p', { class: 'note warn' }, `Your GitHub sign-in has expired.${s.outbox.length ? ` ${s.outbox.length} edit(s) are kept and will sync once you sign in.` : ''}`),
+      h('div', { class: 'actions' }, signIn('Sign in again'), signOutBtn),
+    ];
+  const repo = savedRepo();
+  return [
+    head,
+    h('p', null, repo ? `Signed in with GitHub, playing ${s.source.label}.` : 'Signed in with GitHub. No repo chosen yet.'),
+    h(
+      'div',
+      { class: 'actions' },
+      h('button', { class: `btn sm${repo ? '' : ' primary'}`, type: 'button', onclick: () => (closeSettings(), openRepoPicker(app)) }, repo ? 'Change repo' : 'Choose a repo'),
+      signOutBtn,
+    ),
+    h(
+      'small',
+      { class: 'muted' },
+      'Sign-in tokens last 8 hours and renew themselves. They only reach the repos you gave Quest Log on GitHub, and they stay in this browser’s localStorage. Signing out forgets them here; to cut Quest Log off everywhere, ',
+      revoke,
+      '.',
+    ),
+  ];
 }
 
 /** What the demo is (and isn't), with the ways out. */
