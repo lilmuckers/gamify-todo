@@ -39,6 +39,21 @@
       }
     },
     {
+      "name": "worker",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "wrangler@4",
+        "dev",
+        "--config",
+        "worker/wrangler.toml",
+        "--env",
+        "dev",
+        "--port",
+        "8788"
+      ],
+      "port": 8788
+    },
+    {
       "name": "server",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
