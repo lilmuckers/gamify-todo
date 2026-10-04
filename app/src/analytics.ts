@@ -31,7 +31,7 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   edit_rejected: ['reason'],
   warp_enter: ['steps_bucket', 'adding'],
   warp_exit: ['closed'],
-  cloud_ride: [],
+  cloud_ride: ['back'],
   dependency_resolve: ['action', 'dep_mode'],
   hero_select: ['hero', 'saved_to_repo'],
   nav_shortcut: ['key'],

@@ -267,7 +267,11 @@ mobile strip all share.
 - **Warp pipe sub-level:** an underground level holding the dependency's steps, with an exit
   pipe. **GOT IT! WARP UP** (once the steps are clear) brings the hero back up with the
   dependency done. **WARP UP** just leaves.
-- **Cloud:** the hero rides it to the referenced level.
+- **Cloud:** the hero rides it to the referenced level. The cloud parks before that level's
+  first item, labelled **BACK TO** the level he came from: **RIDE BACK** (or the panel's "Ride
+  the cloud back" link, or down on it in play mode) floats him home on the dependency's own
+  cloud, with its bubble open. It waits while you stay in that level (sub-levels included) and
+  is gone once you go anywhere else, or reload.
 - **Side panel (desktop):** level details, timer, score, nudges, items and criteria lists,
   quick-add (keeps focus so you can add item after item), and forms for items, criteria, the
   level, the world, goals and the project. The "Waits for" picker shows each candidate's status

@@ -24,7 +24,7 @@ import { itemAddr, type App } from '../app';
 import { go } from '../router';
 import { GROUND_Y, heroWalk, QuestScene, tex, WORLD_H } from './common';
 import { PlayControls, type Controls } from './play/input';
-import { ahead, buildWorld, criterionOf, EXIT_ID, FLAG_ID, HITBOX, nearest, newBody, step, stepId, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
+import { ahead, buildWorld, criterionOf, EXIT_ID, FLAG_ID, HITBOX, HOME_CLOUD, HOME_ID, nearest, newBody, step, stepId, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
 import { poleQuip } from './quips';
 
 export interface LevelParams {
@@ -101,8 +101,10 @@ export class LevelScene extends QuestScene {
   private goal?: Phaser.GameObjects.Container;
   /** One view per item, each redrawn only when its own item changes. */
   private itemLayer?: Phaser.GameObjects.Container;
-  /** What the scenery and goal were last drawn from. */
-  private drawn = { scenery: '', goal: '' };
+  /** The cloud home, when the hero rode one here. */
+  private homeLayer?: Phaser.GameObjects.Container;
+  /** What the scenery, goal and cloud home were last drawn from. */
+  private drawn = { scenery: '', goal: '', home: '' };
   private fx!: Phaser.GameObjects.Container;
   private views = new Map<string, View>();
   private hero!: Phaser.GameObjects.Sprite;
@@ -148,6 +150,8 @@ export class LevelScene extends QuestScene {
   private parallax: Phaser.GameObjects.Image[] = [];
   /** A sub-level's exit pipe, in pixels. */
   private exitPipe?: { x: number; w: number; top: number };
+  /** The cloud waiting to ride back to where the hero came from, and where that is. */
+  private home?: { cloud: Phaser.GameObjects.Image; label: string };
   /** Set while the hero is warping or riding away, so nothing else moves him. */
   private leaving = false;
   /** What the stage was last built from (the level, not the selection). */
@@ -192,13 +196,14 @@ export class LevelScene extends QuestScene {
     this.flagPending = undefined;
     this.poleSpeech = undefined;
     this.stage = undefined;
-    this.drawn = { scenery: '', goal: '' };
+    this.drawn = { scenery: '', goal: '', home: '' };
     this.sig = '';
     this.selSig = '';
     this.selGfx = undefined;
     this.bubble = undefined;
     this.dismissedAuto = undefined;
     this.exitPipe = undefined;
+    this.home = undefined;
     this.leaving = false;
     // A restart kills tweens mid-flight: their promises would never settle.
     this.busy = undefined;
@@ -418,7 +423,7 @@ export class LevelScene extends QuestScene {
     if (!this.syncBubbleToSelection() && this.bubble) {
       const item = cur.level.items.find((i) => i.id === this.bubble!.itemId);
       const cid = criterionOf(this.bubble.itemId);
-      if (this.bubble.itemId === EXIT) this.openBubble(EXIT, { pop: false, auto: this.bubble.auto });
+      if (this.bubble.itemId === EXIT || this.bubble.itemId === HOME_ID) this.openBubble(this.bubble.itemId, { pop: false, auto: this.bubble.auto });
       else if (cid && this.steps.has(cid)) this.openBubble(this.bubble.itemId, { pop: false, auto: this.bubble.auto });
       else if (cid) this.closeBubble();
       else if (!item || item.status === 'done') this.closeBubble();
@@ -463,12 +468,13 @@ export class LevelScene extends QuestScene {
     if (full || !this.stage) {
       this.stage?.destroy();
       this.views.clear();
-      this.drawn = { scenery: '', goal: '' };
+      this.drawn = { scenery: '', goal: '', home: '' };
       this.stage = this.add.container(0, 0).setDepth(0);
       this.scenery = this.add.container(0, 0);
       this.goal = this.add.container(0, 0);
       this.itemLayer = this.add.container(0, 0);
-      this.stage.add([this.scenery, this.goal, this.itemLayer]);
+      this.homeLayer = this.add.container(0, 0);
+      this.stage.add([this.scenery, this.goal, this.itemLayer, this.homeLayer]);
     }
     // Text resolution follows the zoom; the sky, ground and a sub-level's ceiling follow the camera bounds.
     const b = this.cameras.main.getBounds();
@@ -514,6 +520,13 @@ export class LevelScene extends QuestScene {
     }
     for (const v of [...this.views.values()]) if (!shown.has(v.item.id)) this.dropView(v);
 
+    const home = sub || this.params.pr ? undefined : this.app.cloudHome();
+    const homeSig = JSON.stringify([home?.label, this.zoom]);
+    if (homeSig !== this.drawn.home) {
+      this.drawn.home = homeSig;
+      this.drawHome(home?.label);
+    }
+
     this.drawSelection();
 
     this.prev = new Map(level.items.map((i) => [i.id, i.status]));
@@ -554,6 +567,30 @@ export class LevelScene extends QuestScene {
     v.root.destroy();
     v.label.destroy();
     this.views.delete(v.item.id);
+  }
+
+  /**
+   * The cloud the hero rode in on, parked before the first item to take him
+   * back to the dependency he left from.
+   */
+  private drawHome(label?: string) {
+    const layer = this.homeLayer!;
+    if (this.home) this.tweens.killTweensOf(this.home.cloud);
+    layer.removeAll(true);
+    this.home = undefined;
+    if (!label) return;
+    const c = HOME_CLOUD;
+    const x = c.x * TILE;
+    const top = GROUND_Y - (c.y + c.h) * TILE;
+    // Drawn like a dependency's cloud (see drawEntity), bobbing in place.
+    const cloud = this.add.image(x, top - 4, 'cloud-ride').setOrigin(0, 0).setScale(1.5);
+    this.tweens.add({ targets: cloud, y: top - 8, yoyo: true, repeat: -1, duration: 1100, ease: 'Sine.inOut' });
+    layer.add(cloud);
+    layer.add(this.text(x + (c.w * TILE) / 2, GROUND_Y + 18, `BACK TO\n${truncate(label, 22)}`, 4, '#8fd3ff', 58).setOrigin(0.5, 0));
+    const hit = this.add.zone(x, top - 6, c.w * TILE, c.h * TILE + 6).setOrigin(0, 0);
+    this.clickable(hit, () => (this.bubble?.itemId === HOME_ID ? this.closeBubble() : this.openBubble(HOME_ID)));
+    layer.add(hit);
+    this.home = { cloud, label };
   }
 
   /** Staircase, flagpole and castle at the end of a normal level. */
@@ -969,6 +1006,16 @@ export class LevelScene extends QuestScene {
       return spec;
     }
 
+    if (id === HOME_ID) {
+      if (!this.home) return;
+      const c = HOME_CLOUD;
+      spec.title = 'Cloud home';
+      if (!this.playing) spec.lines.push({ text: `Back to ${this.home.label}, where you hopped on.`, size: 4 });
+      button('RIDE BACK', 0x8fd3ff, () => void this.rideHome());
+      spec.anchor = { cx: (c.x + c.w / 2) * TILE, top: GROUND_Y - (c.y + c.h) * TILE - 6, bottom: GROUND_Y - c.y * TILE };
+      return spec;
+    }
+
     const cid = criterionOf(id);
     if (cid) {
       const sv = this.steps.get(cid);
@@ -1252,7 +1299,7 @@ export class LevelScene extends QuestScene {
   }
 
   private rebuildWorld() {
-    this.world = buildWorld(this.layout, { tile: TILE, groundY: GROUND_Y, sub: !!this.current()?.sub });
+    this.world = buildWorld(this.layout, { tile: TILE, groundY: GROUND_Y, sub: !!this.current()?.sub, home: !!this.home });
     this.played.clear();
   }
 
@@ -1336,7 +1383,7 @@ export class LevelScene extends QuestScene {
     if (id === FLAG_ID) return this.app.select({ kind: 'criteria' });
     this.openBubble(id);
     if (criterionOf(id)) this.app.select({ kind: 'criteria' });
-    else if (id !== EXIT) this.app.select({ kind: 'item', id });
+    else if (id !== EXIT && id !== HOME_ID) this.app.select({ kind: 'item', id });
   }
 
   /** Y / E: the bubble follows whatever's ahead, or goes away. */
@@ -1397,6 +1444,7 @@ export class LevelScene extends QuestScene {
     }
     if (e.kind === 'enter') {
       if (e.id === EXIT) return void this.leaveSub(scoreLevel(cur.level).cleared && this.canEdit());
+      if (e.id === HOME_ID) return void this.rideHome();
       const v = this.views.get(e.id);
       if (!v || cur.sub) return;
       if (v.entity.kind === 'warp') void this.enterPipe(e.id);
@@ -1791,7 +1839,6 @@ export class LevelScene extends QuestScene {
     await this.busy;
     const e = v.entity;
     const cloudTop = GROUND_Y - (e.y + e.h) * TILE + 2;
-    track('cloud_ride');
     this.tweens.killTweensOf(v.top!);
     await this.getOnto(e.x * TILE - TILE, e.x * TILE + TILE, cloudTop);
     this.cameras.main.stopFollow();
@@ -1803,8 +1850,27 @@ export class LevelScene extends QuestScene {
       duration: 1100,
       ease: 'Quad.in',
     });
-    this.app.arrival = { kind: 'cloud' };
+    this.app.rideCloud({ projectId: cur.projectId, worldId: cur.world.id, levelId: cur.level.id, itemId }, target);
     go({ view: 'level', projectId: cur.projectId, worldId: target.worldId, levelId: target.levelId });
+  }
+
+  /** Hops on the cloud home and floats back the way he came, to the dependency he left from. */
+  private async rideHome() {
+    const home = this.home;
+    if (!home || !this.app.cloudHome() || this.leaving) return;
+    this.leaving = true;
+    this.closeBubble();
+    await this.busy;
+    const c = HOME_CLOUD;
+    this.tweens.killTweensOf(home.cloud);
+    await this.getOnto((c.x + c.w) * TILE + TILE, c.x * TILE + TILE, GROUND_Y - (c.y + c.h) * TILE + 2);
+    this.hero.setFlipX(true);
+    this.cameras.main.stopFollow();
+    this.following = false;
+    // Back the way he came: up and off to the left.
+    await this.tween({ targets: [home.cloud, this.hero], x: `-=${this.viewWidth}`, y: `-=${GROUND_Y}`, duration: 1100, ease: 'Quad.in' });
+    const to = this.app.rideHome();
+    if (to) go(to);
   }
 
   /**
@@ -1872,23 +1938,37 @@ export class LevelScene extends QuestScene {
       await this.walkTo(stopX);
       return;
     }
-    // Cloud: float in from the top left and hop off by the first stop.
-    const cloud = this.add.image(0, 0, 'cloud-ride').setOrigin(0, 0).setScale(1.5).setDepth(39);
-    const landX = Math.max(TILE * 2, stopX - TILE * 2);
-    const by = GROUND_Y - 3 * TILE;
-    cloud.setPosition(landX - this.viewWidth / 2, -TILE * 3);
-    this.hero.setPosition(cloud.x + TILE, cloud.y + 2);
+    // Cloud: float in from the top left and hop off. Riding back, it's the
+    // dependency's own cloud, coming home; riding out, it parks as the cloud home.
+    const dep = a.itemId ? this.views.get(a.itemId) : undefined;
+    const e = dep?.entity.kind === 'cloud' ? dep.entity : undefined;
+    const home = this.home;
+    const own = e ? (dep!.top as Phaser.GameObjects.Image) : home?.cloud;
+    const cloud = own ?? this.add.image(0, 0, 'cloud-ride').setOrigin(0, 0).setScale(1.5).setDepth(39);
+    if (own) this.tweens.killTweensOf(own);
+    // Where the cloud's image ends up, in scene coordinates.
+    const parent = e ? dep!.root : undefined;
+    const ox = parent?.x ?? 0;
+    const oy = parent?.y ?? 0;
+    const landX = e ? e.x * TILE : home ? HOME_CLOUD.x * TILE : Math.max(TILE * 2, stopX - TILE * 2);
+    const by = e ? GROUND_Y - (e.y + e.h) * TILE - 4 : home ? GROUND_Y - (HOME_CLOUD.y + HOME_CLOUD.h) * TILE - 4 : GROUND_Y - 3 * TILE;
+    cloud.setPosition(landX - this.viewWidth / 2 - ox, -TILE * 3 - oy);
+    this.hero.setPosition(cloud.x + ox + TILE, cloud.y + oy + (own ? 6 : 2)).setFlipX(false);
     cam.stopFollow();
     cam.centerOn(landX, WORLD_H / 2);
     await this.tween({
       targets: [cloud, this.hero],
-      x: `+=${landX - cloud.x}`,
-      y: `+=${by - cloud.y}`,
+      x: `+=${landX - cloud.x - ox}`,
+      y: `+=${by - cloud.y - oy}`,
       duration: 1000,
       ease: 'Quad.out',
     });
-    await this.hopTo(landX + TILE * 2, GROUND_Y);
-    this.tweens.add({ targets: cloud, x: cloud.x - this.viewWidth, y: -TILE * 4, duration: 900, ease: 'Quad.in', onComplete: () => cloud.destroy() });
+    const offX = e ? (e.x + e.w) * TILE + 4 : home ? (HOME_CLOUD.x + HOME_CLOUD.w) * TILE + 4 : landX + TILE * 2;
+    await this.hopTo(offX, GROUND_Y);
+    if (own) {
+      // Settle back into its bob (see drawEntity and drawHome).
+      if (!e || !isResolved(dep!.item)) this.tweens.add({ targets: own, y: own.y - 4, yoyo: true, repeat: -1, duration: 1100, ease: 'Sine.inOut' });
+    } else this.tweens.add({ targets: cloud, x: cloud.x - this.viewWidth, y: -TILE * 4, duration: 900, ease: 'Quad.in', onComplete: () => cloud.destroy() });
     if (this.app.playing) return;
     this.following = false;
     if (this.wasCleared && !this.current()?.sub) return this.fadeHero();

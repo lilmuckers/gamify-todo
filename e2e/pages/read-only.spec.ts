@@ -35,3 +35,32 @@ test('browse from the project floor to an item, and deep-link to it', async ({ p
   await expect.poll(() => bubbleItem(page)).toBe(itemId);
   await expect(page.locator(`#item-${itemId}`)).toHaveClass(/selected/);
 });
+
+test('ride a cloud to the level a dependency waits on, and back again', async ({ page }) => {
+  const from = '#/p/customer-portal/platform/api';
+  await page.goto(`./${from}/auth-live`);
+  await inScene(page, 'level');
+
+  // Over on the dependency's cloud: one waits there to ride back.
+  await page.getByRole('link', { name: /Ride the cloud to/ }).click();
+  await expect.poll(() => hash(page)).toBe('#/p/customer-portal/platform/auth');
+  await inScene(page, 'level');
+  const parked = () => page.evaluate(() => !!(window.__questGame!.scene.getScene('level') as unknown as { home?: unknown }).home);
+  await expect.poll(parked).toBe(true);
+
+  // Back again: the hero lands by the dependency, its bubble open.
+  await page.getByRole('link', { name: /Ride the cloud back to/ }).click();
+  await expect.poll(() => hash(page)).toBe(`${from}/auth-live`);
+  await inScene(page, 'level');
+  await expect.poll(() => bubbleItem(page)).toBe('auth-live');
+
+  // That trip's done: going over again starts a new one, and walking off forgets it.
+  await page.getByRole('link', { name: /Ride the cloud to/ }).click();
+  await inScene(page, 'level');
+  await page.goto('./#/p/customer-portal/platform');
+  await inScene(page, 'world');
+  await page.goto('./#/p/customer-portal/platform/auth');
+  await inScene(page, 'level');
+  await expect(page.getByRole('link', { name: /Ride the cloud back to/ })).toHaveCount(0);
+  expect(await parked()).toBe(false);
+});

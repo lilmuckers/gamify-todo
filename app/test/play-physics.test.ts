@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LayoutEntity, LevelLayout, StairStep } from '@quest/shared';
-import { ahead, buildWorld, nearest, newBody, step, stepId, TUNING, type Body, type PlayEvent, type PlayInput, type PlayWorld } from '../src/game/play/physics';
+import { ahead, buildWorld, HOME_CLOUD, HOME_ID, nearest, newBody, step, stepId, TUNING, type Body, type PlayEvent, type PlayInput, type PlayWorld } from '../src/game/play/physics';
 
 const T = 16;
 const GROUND = 192;
@@ -113,6 +113,16 @@ describe('play physics', () => {
     run(b, w, 5);
     expect(b.standingOn).toBe('warp-6');
     expect(step(b, { ...idle, downPressed: true }, w, DT)).toContainEqual({ kind: 'enter', id: 'warp-6' });
+  });
+
+  it('parks a cloud home before the first item, to hop on and ride back', () => {
+    const layout: LevelLayout = { width: 60, entities: [], decorations: [], stairs: [], flagX: 50, castleX: 59, stops: [], hero: { x: 0, kind: 'flag' } };
+    expect(buildWorld(layout, { tile: T, groundY: GROUND }).colliders.some((c) => c.id === HOME_ID)).toBe(false);
+    const w = buildWorld(layout, { tile: T, groundY: GROUND, home: true });
+    const b = newBody((HOME_CLOUD.x + 1) * T, GROUND);
+    run(b, w, 90, jumpOnce);
+    expect(b.standingOn).toBe(HOME_ID);
+    expect(step(b, { ...idle, downPressed: true }, w, DT)).toContainEqual({ kind: 'enter', id: HOME_ID });
   });
 
   it('collects coins and touches the flagpole', () => {
