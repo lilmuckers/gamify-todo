@@ -13,6 +13,7 @@ import { LocalApiSource } from './data/local';
 import type { DataSource } from './data/source';
 import { StaticSource } from './data/static';
 import { Store } from './data/store';
+import { startFreshness } from './pwa';
 import { prefillCapture } from './ui/inbox';
 
 async function createSource(): Promise<DataSource> {
@@ -47,6 +48,8 @@ function dismissBoot() {
 async function main() {
   // Before anything writes its own keys.
   const firstVisit = isFirstVisit();
+  // Offline cache for the app, refreshed when it's a few hours old.
+  void startFreshness().catch(() => undefined);
   const root = document.getElementById('app')!;
   const mobile = useMobile();
   // Something shared to the installed app lands in the inbox, ready to save.

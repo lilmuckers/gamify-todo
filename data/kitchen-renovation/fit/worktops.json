@@ -36,7 +36,8 @@
       "id": "template",
       "title": "Template the worktops",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 150
     },
     {
       "id": "joint",
@@ -45,7 +46,8 @@
       "status": "todo",
       "dependsOn": [
         "template"
-      ]
+      ],
+      "budget": 200
     },
     {
       "id": "make-the-sink-cut-out",
@@ -54,14 +56,16 @@
       "status": "todo",
       "dependsOn": [
         "joint"
-      ]
+      ],
+      "budget": 120
     },
     {
       "id": "oil-every-surface-especially-cut-edges",
       "title": "Oil every surface, especially cut edges",
       "type": "task",
       "status": "todo",
-      "notes": "End grain soaks up water: three coats on every cut edge."
+      "notes": "End grain soaks up water: three coats on every cut edge.",
+      "budget": 30
     },
     {
       "id": "undermount-or-inset-sink",
@@ -77,5 +81,6 @@
       "mvp": false,
       "notes": "Buy the worktop 300mm long so there is a second chance."
     }
-  ]
+  ],
+  "budget": 1500
 }

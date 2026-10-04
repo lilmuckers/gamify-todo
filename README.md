@@ -47,10 +47,20 @@ Most edits show an **UNDO** toast for a few seconds (Ctrl/Cmd+Z works too); edit
 synced yet are simply taken back, with no commit.
 
 Dependencies can go further. One that needs another level becomes a **cloud** the hero rides
-there. One you have to chase yourself can get **steps** of its own: a **warp pipe** down to an
+there, and a cloud waits at the start of that level to ride back. One you have to chase yourself can get **steps** of its own: a **warp pipe** down to an
 underground sub-level holding them. Clear the steps and the hero comes back up the pipe with
 the dependency done. Every dependency's bubble offers *Warp in* / *Hop on* (visit), *Got it!*
 (close) and *Jump over* (skip). Plain ones stay a pipe with a plant.
+
+**Budgets** are optional and off by default: tick *Track cash budgets* when you edit a project to
+turn them on for it. Then give a task, a dependency or one of its steps a cash budget, and log
+what it actually cost as receipts come in (logging a cost never counts as polish). Levels and
+worlds can have an allowance of their own, or just add up what's inside. The panel shows what's
+spent, what's left and what you've **saved**: savings are banked when an item is done or dropped,
+when a level clears, and when a world is finished. Dropping a budgeted item banks all of it, so
+cutting scope saves money too. As you log costs, an alert pops up when something reaches 90% of
+its budget (you can change that, or turn alerts off) or goes over. Pick the currency in the same
+place (GBP by default).
 
 Pick your **hero** from eighteen characters in **⚙ Settings**. The choice is kept in your browser
 (next to the token). When the data is editable it is also saved to `data/settings.json` as the
@@ -216,10 +226,16 @@ personal access token. A test keeps its examples valid.
 
 The skill includes [`scripts/quest.py`](skills/quest-log/scripts/quest.py), a standard-library
 Python helper (no installs) that validates data with the same rules as the app and pulls/pushes it
-through the GitHub API (`validate`, `info`, `pull`, `status`, `push [--pr]`). It works in Claude,
+through the GitHub API (`update-check`, `validate`, `changes`, `info`, `pull`, `status`,
+`push [--pr]`). `push` refuses to remove anything that isn't named with `--allow-delete`. It works in Claude,
 ChatGPT's code interpreter (validation only: no internet there), CI and a terminal. The **AI SKILL**
 button in the app downloads the skill as a zip with the script and schemas bundled. All schemas are
 listed in the static manifest [`schema/index.json`](schema/index.json), published with the site.
+
+The skill is versioned. [`skills/quest-log/version.json`](skills/quest-log/version.json) is
+published with the site, and assistants compare it with their copy before touching data: an
+outdated copy loads the latest skill and asks you to reinstall. After editing `SKILL.md` or
+`quest.py`, run `npm run skill:version` (CI fails until you do).
 
 
 [`schema/quest.schema.json`](schema/quest.schema.json) is the contract: JSON Schema 2020-12,

@@ -1,5 +1,18 @@
 import {
+  alertLevel,
+  budgetPrefs,
+  costLabel,
+  costNote,
   dependencyMode,
+  formatMoney,
+  hasCost,
+  itemCost,
+  levelCost,
+  projectCost,
+  savedLabel,
+  worldCost,
+  type BudgetPrefs,
+  type Cost,
   isBlocking,
   isMvpItem,
   isResolved,
@@ -31,6 +44,48 @@ import { mergeDialog, reviewDialog } from './review';
 
 const link = (label: string, to: string, cls = 'link') => h('a', { href: to, class: cls }, label);
 
+/** Small cash tag for list rows; nothing when budgets are off or there's no money involved. */
+function costTag(c: Cost, prefs: BudgetPrefs | undefined) {
+  if (!prefs || !hasCost(c)) return null;
+  const { currency } = prefs;
+  const over = c.budgeted && c.left < 0;
+  return h('small', { class: `money-tag${over ? ' over' : ''}`, title: savedLabel(c, currency) }, costLabel(c, currency));
+}
+
+/**
+ * The money box for a level, world, project or dependency: spent against the
+ * budget, what's left and the savings banked so far, plus a note when it's
+ * over (or the parts below plan more than the budget).
+ */
+function costBlock(c: Cost, prefs: BudgetPrefs | undefined, opts: { note?: boolean } = {}) {
+  if (!prefs || !hasCost(c)) return null;
+  const { currency } = prefs;
+  const m = (n: number) => formatMoney(n, currency);
+  const over = c.budgeted && c.left < 0;
+  const near = prefs.alerts && alertLevel(c, prefs.alertAt) === 1;
+  const head = !c.budgeted
+    ? `💰 ${m(c.spent)} spent, no budget set`
+    : c.spent > 0
+      ? `💰 ${m(c.spent)} spent of ${m(c.budget)}`
+      : `💰 ${m(c.budget)} budget, nothing spent yet`;
+  const facts = [
+    c.budgeted && c.spent > 0 && (over ? `${m(-c.left)} over` : `${m(c.left)} left`),
+    c.saved > 0 && `${m(c.saved)} saved${c.settled ? '' : ' so far'}`,
+    c.saved < 0 && `${m(-c.saved)} overspent on finished things`,
+  ].filter(Boolean);
+  const note = opts.note ? costNote(c, currency, prefs.alerts ? prefs.alertAt : undefined) : undefined;
+  return [
+    h(
+      'div',
+      { class: `money${over ? ' over' : near ? ' near' : ''}` },
+      h('span', null, head),
+      c.budgeted && c.budget > 0 && h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, (100 * c.spent) / c.budget)}%` })),
+      facts.length > 0 && h('small', null, facts.join(' · ')),
+    ),
+    note && h('p', { class: `note ${note.tone}` }, note.text),
+  ];
+}
+
 function projectsPanel(app: App) {
   const ws = app.workspace!;
   const projects = orderedProjects(ws);
@@ -51,6 +106,8 @@ function projectsPanel(app: App) {
       { class: 'list' },
       projects.map((p) => {
         const t = totals(p);
+        const cash = projectCost(p);
+        const money = budgetPrefs(p);
         const nextLevel = suggestNextLevel(p)?.level;
         return h(
           'li',
@@ -69,6 +126,7 @@ function projectsPanel(app: App) {
             { class: 'muted' },
             `${Object.keys(p.worlds).length} world(s) · ${t.levelsCleared}/${t.levels} levels · ${t.xp} XP`,
             nextLevel ? ` · next: ${nextLevel.name}` : '',
+            money && hasCost(cash) ? ` · ${costLabel(cash, money.currency)}` : '',
           ),
         );
       }),
@@ -150,6 +208,7 @@ function overworldPanel(app: App) {
       h('div', null, h('b', null, `${t.stars}/${t.maxStars}`), h('span', null, 'stars')),
       h('div', null, h('b', null, `${t.levelsCleared}/${t.levels}`), h('span', null, 'levels')),
     ),
+    costBlock(projectCost(s), budgetPrefs(s)),
     next &&
       h(
         'a',
@@ -195,6 +254,7 @@ function overworldPanel(app: App) {
               link(`${i + 1}. ${w.name}`, href({ view: 'world', projectId: pid, worldId: w.id })),
               locked && h('small', { class: 'muted' }, '🔒'),
               h('span', { class: 'grow' }),
+              costTag(worldCost(w), budgetPrefs(s)),
               h('small', null, `${wt.cleared}/${wt.levels}`),
               edit &&
                 h(
@@ -239,6 +299,7 @@ function worldPanel(app: App, worldId: string) {
     w.description && h('p', { class: 'muted' }, w.description),
     h('p', null, stars(wt.stars, wt.maxStars || 3), ' ', h('small', null, `${wt.cleared}/${wt.levels} levels cleared`)),
     goals.length > 0 && h('div', { class: 'chips' }, goals.map((g) => h('span', { class: 'chip' }, g.title))),
+    costBlock(worldCost(w), budgetPrefs(s), { note: true }),
     isWorldLocked(s, w) &&
       h('p', { class: 'note warn' }, `Locked until ${(w.unlocksAfter ?? []).map((id) => s.worlds[id]?.name ?? id).join(', ')} cleared. You can still play it.`),
     section(
@@ -260,6 +321,7 @@ function worldPanel(app: App, worldId: string) {
               icon(NODE_SPRITE[st], 'grass', 'icon sm'),
               link(l.name, href({ view: 'level', projectId: pid, worldId: w.id, levelId: l.id })),
               h('span', { class: 'grow' }),
+              costTag(levelCost(l), budgetPrefs(s)),
               sc.cleared ? stars(sc.stars) : h('small', { class: 'muted' }, `${l.someday ? '💤 someday · ' : ''}${sc.mvpDone}/${sc.mvpTotal} MVP`),
               edit &&
                 h(
@@ -375,6 +437,8 @@ function levelPanel(app: App) {
     const d = diff?.items[item.id];
     const selected = sel?.kind === 'item' && sel.id === item.id;
     const optional = item.type === 'stretch' || item.mvp === false;
+    const cash = itemCost(item);
+    const saved = cur.budgets && cash.settled ? savedLabel(cash, cur.budgets.currency) : undefined;
     const quick = (status: Item['status'], label: string) =>
       item.status !== status &&
       smallBtn(label, () => app.dispatch({ kind: 'setItemStatus', ...itemAt, itemId: item.id, status }), status === 'done' ? 'go' : '');
@@ -402,6 +466,7 @@ function levelPanel(app: App) {
         h('span', { class: `pill ${item.status}` }, STATUS_LABEL[item.status]),
         h('small', { class: 'muted' }, TYPE_INFO[item.type].label),
         optional ? h('small', { class: 'muted' }, '· optional') : isBlocking(item) && h('small', { class: 'warn-text' }, '· blocks'),
+        costTag(cash, cur.budgets),
         h('span', { class: 'grow' }),
         edit && [quick('doing', 'Start'), quick('done', '✓ Done'), !isResolved(item) && quick('dropped', 'Drop')],
       ),
@@ -410,6 +475,7 @@ function levelPanel(app: App) {
           'div',
           { class: 'detail' },
           item.notes && h('p', { class: 'notes' }, item.notes),
+          saved && h('small', { class: cash.saved > 0 ? 'win-text' : 'warn-text' }, cash.saved > 0 ? `💰 ${saved} on this one` : `💰 ${saved} budget`),
           item.dependsOn?.length &&
             h('small', null, 'After: ', item.dependsOn.map((id) => level.items.find((i) => i.id === id)?.title ?? id).join(', ')),
           !cur.sub && dependencyLinks(app, cur, item),
@@ -484,6 +550,7 @@ function levelPanel(app: App) {
       h('div', { class: 'title-row' }, h('h2', null, '⬇ ', dep.title), h('span', { class: `pill ${dep.status}` }, STATUS_LABEL[dep.status])),
       h('p', { class: 'deliverable' }, 'Below the warp pipe: the steps it takes to get this dependency.'),
       dep.notes && h('p', { class: 'muted' }, dep.notes),
+      costBlock(itemCost(dep), cur.budgets, { note: true }),
       h(
         'p',
         { class: `note ${sc.cleared ? 'win' : 'info'}` },
@@ -531,9 +598,11 @@ function levelPanel(app: App) {
     h('div', { class: 'title-row' }, h('h2', null, level.name), badge(diff?.change), edit && smallBtn('Edit', () => levelForm(app, world, level))),
     h('p', { class: 'deliverable' }, '🎯 ', level.deliverable),
     level.description && h('p', { class: 'muted' }, level.description),
+    cloudHomeLink(app),
     diff?.fields.length &&
       h('ul', { class: 'fielddiff' }, diff.fields.map((f) => h('li', null, h('code', null, f.field), ' changed'))),
     timerBlock(app, world, level, readonly),
+    costBlock(levelCost(level), cur.budgets, { note: !readonly }),
     h(
       'div',
       { class: 'score-row' },
@@ -559,6 +628,18 @@ function levelPanel(app: App) {
   );
 }
 
+/** The cloud back to the dependency the hero rode over from, while it waits here. */
+function cloudHomeLink(app: App) {
+  const home = app.cloudHome();
+  if (!home) return null;
+  const ride = (e: MouseEvent) => {
+    e.preventDefault();
+    const to = app.rideHome();
+    if (to) location.hash = href(to);
+  };
+  return h('p', null, h('a', { class: 'link', href: href(home.route), onclick: ride }, `☁ Ride the cloud back to ${home.label}`));
+}
+
 /** Ways into a dependency: down its warp pipe, onto its cloud, or (when editing) add steps. */
 function dependencyLinks(app: App, cur: LevelView, item: Item) {
   const mode = dependencyMode(item);
@@ -567,10 +648,7 @@ function dependencyLinks(app: App, cur: LevelView, item: Item) {
   if (mode === 'cloud') {
     const target = app.state && levelRefTarget(app.state, item);
     if (!target || r.view !== 'level') return h('small', { class: 'muted' }, `Needs level ${item.levelRef}`);
-    const ride = () => {
-      track('cloud_ride');
-      app.arrival = { kind: 'cloud' };
-    };
+    const ride = () => app.rideCloud({ projectId: cur.projectId, worldId: cur.world.id, levelId: cur.level.id, itemId: item.id }, target);
     const to = href({ view: 'level', projectId: cur.projectId, worldId: target.worldId, levelId: target.levelId });
     return h('div', null, h('a', { class: 'link', href: to, onclick: ride }, `☁ Ride the cloud to ${target.world.name}: ${target.level.name}`));
   }

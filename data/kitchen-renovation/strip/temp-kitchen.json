@@ -37,7 +37,9 @@
       "id": "buy-a-camping-washing-up-bowl",
       "title": "Buy a camping washing-up bowl",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "budget": 15,
+      "spent": 8
     },
     {
       "id": "box-up-crockery",
@@ -57,7 +59,8 @@
       "id": "slow-cooker-station-for-weekday-dinners",
       "title": "Slow-cooker station for weekday dinners",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 40
     }
   ]
 }

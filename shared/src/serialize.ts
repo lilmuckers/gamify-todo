@@ -141,6 +141,8 @@ function strip<T extends { $schema?: string }>(o: T): Omit<T, '$schema'> {
 /**
  * Builds the in-memory workspace. Lenient: files that can't be placed (a world
  * without project.json, unparseable JSON) are skipped; validateFiles reports them.
+ * Worlds and levels missing from worldOrder/levelOrder go after the listed ones,
+ * by id, and are written into the list on the next save.
  */
 export function fromFiles(files: Record<string, string>): Workspace {
   const parse = <T>(path: string): T | undefined => {
@@ -187,6 +189,9 @@ export function fromFiles(files: Record<string, string>): Workspace {
       ordered.push(...Object.keys(pool).sort().map((k) => pool[k]));
       state.worlds[wid] = { ...(rest as Omit<World, 'levels'>), levels: ordered };
     }
+    const listed = Array.isArray(state.overworld.worldOrder) ? state.overworld.worldOrder : [];
+    const unlisted = Object.keys(state.worlds).filter((w) => !listed.includes(w)).sort();
+    if (unlisted.length) state.overworld = { ...state.overworld, worldOrder: [...listed, ...unlisted] };
   }
   return { projects, ...(settings ? { settings } : {}), ...(inbox ? { inbox } : {}) };
 }

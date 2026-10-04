@@ -36,7 +36,9 @@
       "title": "Paint samples posted from the supplier",
       "type": "dependency",
       "status": "doing",
-      "notes": "Ordered Monday, 3–5 working days."
+      "notes": "Ordered Monday, 3–5 working days.",
+      "budget": 25,
+      "spent": 18
     },
     {
       "id": "two-coats-on-the-walls",
@@ -45,13 +47,15 @@
       "status": "todo",
       "dependsOn": [
         "mist"
-      ]
+      ],
+      "budget": 120
     },
     {
       "id": "paint-the-ceiling",
       "title": "Paint the ceiling",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 45
     },
     {
       "id": "gloss-the-skirting-and-door-frame",
@@ -70,7 +74,8 @@
       "id": "feature-wall-in-the-dining-area",
       "title": "Feature wall in the dining area",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 80
     }
   ]
 }

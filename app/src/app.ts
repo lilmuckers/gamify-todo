@@ -1,4 +1,7 @@
 import {
+  alertText,
+  budgetAlerts,
+  budgetPrefs,
   diffWorkspaces,
   findLevel,
   findLevelAt,
@@ -9,6 +12,7 @@ import {
   reviewLevel,
   subLevel,
   validateWorkspace,
+  type BudgetPrefs,
   type GameState,
   type HeroId,
   type Issue,
@@ -62,9 +66,14 @@ export interface LevelView {
   level: Level;
   diff?: LevelDiff;
   readonly: boolean;
+  /** The project's budget settings; undefined when it doesn't track money. */
+  budgets?: BudgetPrefs;
   /** Set when showing a dependency's sub-level. */
   sub?: { parent: Level; dep: Item };
 }
+
+/** Edits that can change what's budgeted or spent. */
+const MONEY_OPS = new Set<OpBody['kind']>(['addItem', 'updateItem', 'updateLevel', 'updateWorld']);
 
 /** Where item ops in the current level view point: add to every item op. */
 export function itemAddr(cur: LevelView) {
@@ -145,6 +154,10 @@ export class App {
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
+      // The cloud home waits in the level it went to (and its sub-levels); anywhere else it's gone.
+      const t = this.cloudTrip;
+      const r = this.route;
+      if (t && !(r.view === 'level' && r.projectId === t.projectId && r.worldId === t.to.worldId && r.levelId === t.to.levelId)) this.cloudTrip = undefined;
       // Warping or riding a cloud keeps playing; leaving the levels stops.
       if (!this.canPlay && this.playing) this.endPlay('left');
       pageView(this.route);
@@ -277,7 +290,22 @@ export class App {
     if (!r.ok) toast(r.error ?? 'Edit rejected', 'alert', 5000);
     else if (r.polish && r.polish > 0)
       toast('Perfectionism detected 🐢 — this level is already clear. Move on!', 'warn', 5000);
+    if (r.ok && before && !meta?.undo) this.alertBudgets(body, before);
     return r;
+  }
+
+  /** A toast when an edit takes something past its heads-up point or over budget (if the project wants alerts). */
+  private alertBudgets(body: OpBody, before: Workspace) {
+    if (!MONEY_OPS.has(body.kind) || !('projectId' in body)) return;
+    const prev = before.projects[body.projectId];
+    const next = this.store.state?.projects[body.projectId];
+    const prefs = budgetPrefs(next);
+    if (!prev || !next || !prefs?.alerts) return;
+    const alerts = budgetAlerts(prev, next, prefs.alertAt);
+    if (!alerts.length) return;
+    // The most specific few: the thing itself, then what it tipped over.
+    const lines = alerts.slice(0, 3).map((a) => alertText(a, prefs.currency));
+    toast(`💰 ${lines.join(' ')}`, alerts.some((a) => a.level === 2) ? 'alert' : 'warn', 7000);
   }
 
   /**
@@ -382,6 +410,46 @@ export class App {
    */
   arrival?: { kind: 'pipe-down' | 'pipe-up' | 'cloud'; itemId?: string };
 
+  /**
+   * The last cloud ride: the dependency it left from and the level it went
+   * to. While that level is on screen, a cloud waits there to ride back.
+   */
+  private cloudTrip?: { projectId: string; worldId: string; levelId: string; itemId: string; to: { worldId: string; levelId: string } };
+
+  /** Sets off on a dependency's cloud to `to`, remembering the way back. Navigate after. */
+  rideCloud(from: { projectId: string; worldId: string; levelId: string; itemId: string }, to: { worldId: string; levelId: string }) {
+    track('cloud_ride', { back: false });
+    this.arrival = { kind: 'cloud' };
+    this.cloudTrip = { ...from, to: { worldId: to.worldId, levelId: to.levelId } };
+  }
+
+  /**
+   * The ride back from the level on screen, if the hero came here by cloud
+   * and the dependency it left from is still there.
+   */
+  cloudHome(): { route: Route; label: string } | undefined {
+    const t = this.cloudTrip;
+    const r = this.route;
+    if (!t || r.view !== 'level' || r.subId || r.projectId !== t.projectId || r.worldId !== t.to.worldId || r.levelId !== t.to.levelId) return;
+    const world = this.state?.worlds[t.worldId];
+    const level = this.state && findLevel(this.state, t.worldId, t.levelId);
+    if (!world || !level?.items.some((i) => i.id === t.itemId)) return;
+    return {
+      route: { view: 'level', projectId: t.projectId, worldId: t.worldId, levelId: t.levelId, itemId: t.itemId },
+      label: `${world.name}: ${level.name}`,
+    };
+  }
+
+  /** Rides the cloud back to the dependency it left from. Navigate to the returned route after. */
+  rideHome(): Route | undefined {
+    const home = this.cloudHome();
+    if (!home || home.route.view !== 'level') return;
+    track('cloud_ride', { back: true });
+    this.arrival = { kind: 'cloud', itemId: home.route.itemId };
+    this.cloudTrip = undefined;
+    return home.route;
+  }
+
   takeArrival() {
     const a = this.arrival;
     this.arrival = undefined;
@@ -404,7 +472,7 @@ export class App {
     if (r.view === 'level' && this.state) {
       const world = this.state.worlds[r.worldId];
       const level = findLevel(this.state, r.worldId, r.levelId);
-      if (world && level) return { projectId: r.projectId, world, level, readonly: !this.caps.canEdit };
+      if (world && level) return { projectId: r.projectId, world, level, readonly: !this.caps.canEdit, budgets: budgetPrefs(this.state) };
     }
     if (r.view === 'pr-level') {
       const v = this.pullViews.get(r.pr);
@@ -416,7 +484,8 @@ export class App {
       const diff = v.diff.levels.find(
         (l) => l.projectId === r.projectId && l.worldId === r.worldId && l.levelId === r.levelId,
       );
-      return { projectId: r.projectId, world, level: reviewLevel(before, after), diff, readonly: true };
+      const budgets = budgetPrefs(pullLookup(v.data).project(r.projectId));
+      return { projectId: r.projectId, world, level: reviewLevel(before, after), diff, readonly: true, budgets };
     }
   }
 }

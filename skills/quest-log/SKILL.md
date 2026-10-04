@@ -1,6 +1,6 @@
 ---
 name: quest-log
-description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repository the user chooses — usually their own data repo, not the Quest Log app repo. Use your own GitHub integration if you have one (ChatGPT's GitHub connector or Codex, Claude's GitHub integration, Claude Code with git), otherwise the bundled quest.py or the GitHub REST API with a personal access token; always validate with quest.py. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, capture a quick idea or to-do (into the inbox when it's unclear where it belongs), say what to work on next, or open a pull request with Quest Log changes.
+description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repository the user chooses — usually their own data repo, not the Quest Log app repo. First check the published skill version and reload the skill if it is newer. Use your own GitHub integration if you have one (ChatGPT's GitHub connector or Codex, Claude's GitHub integration, Claude Code with git), otherwise the bundled quest.py or the GitHub REST API with a personal access token. Every change must pass schema validation with quest.py before it is committed, pushed or handed over, and branches are updated from the base branch before a pull request is opened or added to. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, capture a quick idea or to-do (into the inbox when it's unclear where it belongs), say what to work on next, or open a pull request with Quest Log changes.
 ---
 
 # Quest Log data skill
@@ -11,28 +11,144 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
+**Skill version: 2**
+
+Four rules apply to every request, whatever route you use. Each has its own section below.
+
+1. **Check for a newer skill first** (§0). If the published skill is newer than this copy, load
+   the new one and follow it instead of this document.
+2. **Validation is a blocking gate** ("Schema validation"). No commit, push, pull request or
+   hand-over of files until the whole data tree passes validation against the current schema.
+3. **Update from the base branch first.** Base a new pull request on the latest base branch, and
+   bring the base branch into an existing pull request before you add commits to it ("Branches
+   and pull requests").
+4. **Add, don't rewrite; never remove what you weren't asked to** ("Parallel changes"). Add new
+   things as new files where you can, patch the latest copy of a file rather than replacing it,
+   and check that your change removes nothing the user didn't ask to remove.
+
 This skill ships with a helper, `scripts/quest.py` (see "The helper script"). Its main job is
-**validation**: run it on your changes before every commit whenever you can run Python. It can
-also pull and push through the GitHub API, but only use that when you have no better way to
-reach GitHub (see "How to reach GitHub").
+**validation**. It can also check for skill updates, and pull and push through the GitHub API,
+but only use pull/push when you have no better way to reach GitHub (see "How to reach GitHub").
+
+## 0. Before anything else: is this skill up to date?
+
+The skill changes as the app changes: new fields, new rules, new steps. An old copy writes data
+the app rejects. So at the **start of every conversation or task that uses this skill**, before
+you read or change any data, compare this copy's version (the **Skill version** line above) with
+the published one:
+
+- **With Python and internet:** `python3 scripts/quest.py update-check`. Exit 0 = up to date,
+  3 = outdated, 4 = the site couldn't be reached.
+- **Otherwise:** fetch **https://tasks.patrick-mckinley.com/skills/quest-log/version.json** with
+  any tool you have (web fetch, browsing, `curl`, code execution). If that host is blocked but you
+  can read GitHub, read `skills/quest-log/version.json` on the `main` branch of
+  `lilmuckers/gamify-todo` instead. Its `version` field is the latest version.
+
+If the published `version` is **higher** than this copy's, this copy is out of date. You **must**
+update before doing anything else:
+
+1. Fetch the latest `SKILL.md` (the `skill` URL in `version.json`), read **all** of it, and follow
+   it in place of this document for the rest of the conversation.
+2. Use the latest `quest.py` (the `script` URL), e.g. `curl -sfo quest.py <script URL>`, rather
+   than the bundled one, and validate with `--refresh` so you get the latest schemas.
+3. Tell the user, once: *"Your Quest Log skill is out of date (version N, latest M). I'm using
+   the latest version for this chat. To update it for good, download the skill again from the
+   app's AI SKILL button and reinstall it."*
+
+If you can't fetch the latest `SKILL.md`, don't carry on silently with the old one: tell the
+user the skill is out of date, and ask them to reinstall it before you write anything.
+
+If you can't check at all (no internet, no GitHub access), say so in one line (*"I couldn't
+check for a newer Quest Log skill, so I'm using version N"*) and carry on. Validation still
+protects the data.
+
+## Schema validation (mandatory)
+
+Validation is a **blocking gate**, not a quality check you do if there's time. Every data file
+must match the JSON Schema (§3) **and** the cross-file rules (§2, §7). The app and CI reject
+anything that doesn't, so invalid data is never "nearly done": it's broken.
+
+**The gate:** before **any** GitHub write (a commit, a push, creating a branch with data on it,
+opening or updating a pull request) and before you give the user files to commit, validate the
+**whole data tree** as it will be after your change. Only go on when it passes.
+
+```bash
+python3 scripts/quest.py validate --refresh DIR      # DIR contains data/
+```
+
+The order is always:
+
+```
+read the current schema (§3) and the latest files
+        ↓
+make the change
+        ↓
+validate the whole tree  ←──────────┐
+        ↓                          │
+passed? ── no ──→ fix every issue ─┘
+        │
+       yes
+        ↓
+commit → push / open or update the pull request → tell the user
+```
+
+- **Pass** means exit code 0 and a line starting `✓ N data file(s) valid`. Anything else is a
+  fail: exit 1 lists every issue as `file/path: message`.
+- **Use the current schema, never your memory.** `--refresh` downloads the schemas that every
+  file's `$schema` points at (and checks for a newer skill). Without internet it warns and uses
+  the bundled copies; that's fine.
+- **Look up closed values; never guess them.** Before you write a value that the schema limits
+  (an `enum` such as `type`, `status`, `theme` or `hero`, a `const`, a `pattern` such as ids or
+  dates, a `minimum`/`maximum`, a `maxLength`), check the allowed values in the current schema.
+  Don't copy them from examples, other files or memory, and never invent a plausible one.
+- **Never assume generated JSON is valid.** However simple the change, run the validator.
+- **Validate the whole tree**, not just the files you touched. Many rules span files
+  (`worldOrder`, `levelOrder`, `levelRef`, `goalIds`, `unlocksAfter`, `dependsOn` and cycles,
+  ids that match file and folder names), so a change can break a file you never opened.
+- **Validate the result after updating from the base branch** (see "Branches and pull
+  requests"), not only your own copy. Someone else's change plus yours can be invalid even when
+  each is valid alone.
+- **On a fail:** don't commit, push, or open or update the pull request. Fix every issue, then
+  run the **full** validation again. Repeat until it passes. Never commit "to fix later", never
+  commit part of a change to get round an issue, and never edit the schema files to make data
+  pass.
+- **CI is a second check, not the first.** Never push to see whether CI passes.
+- **Data that was already invalid before you started:** run `validate` once before editing, so
+  you know. If it fails, tell the user what's wrong and ask before fixing it; don't commit on top
+  of a broken tree.
+- **Done means validated.** "Pull request opened" is not success; "validated changes are in a
+  pull request" is. Never tell the user a branch or pull request is ready until validation has
+  passed on exactly what you committed. Report it in one line, e.g. *"Validated: ✓ 14 data files
+  valid."*
+- **`quest.py push`** validates by itself and refuses to commit invalid data, both your copy and
+  your copy combined with the latest branch. It has no way to skip this.
+
+**If you can't run Python**, validate by hand instead, and say that you did: fetch
+https://tasks.patrick-mckinley.com/schema/quest.schema.json and check every file you wrote or
+changed field by field against it (required fields, types, enums, patterns, lengths, **no extra
+fields**), then go through every box in the checklist in §7. Tell the user: *"I couldn't run the
+validator, so I checked by hand. The app will flag anything I missed."* If they have CI (§8), a
+pull request is the safer route.
 
 ## How to reach GitHub
 
 Use the first of these that you have. Whichever you use, the files and rules in this document are
-the same, and you still validate with `quest.py` before committing.
+the same, you still validate with `quest.py` before committing ("Schema validation"), and you
+still update from the base branch first ("Branches and pull requests").
 
 1. **Your own GitHub integration.** For example: ChatGPT's GitHub connector or Codex, Claude's
    GitHub integration or a GitHub MCP server, Claude Code or another agent with `git`/`gh` and a
    clone. Use it to read the data, commit and open pull requests, the same way you would for any
-   repo. It handles authentication, so **don't ask the user for a token**. Use `quest.py` only to
-   validate: run `python3 scripts/quest.py validate DIR` on a checkout or on the files you've
-   written (`DIR` contains `data/`), and fix every issue before committing.
+   repo. It handles authentication, so **don't ask the user for a token**. Use `quest.py` to
+   validate: run `python3 scripts/quest.py validate --refresh DIR` on a checkout, or on a folder
+   where you've written **every** file under `data/` as it will be after your change (`DIR`
+   contains `data/`), and fix every issue before committing.
 2. **`quest.py pull` / `push`** with a token, when you can run Python **and** reach
    `api.github.com` but have no integration. See "The helper script".
 3. **The GitHub REST API directly** (§6), when you can make HTTP requests but can't run Python.
    Check the rules in §7 by hand.
 4. **No access at all:** write the files, validate them if you can run Python, and give them to
-   the user to commit (§6.5).
+   the user to commit (§6.6).
 
 Tell the user which route you're using when it isn't obvious, e.g. *"Committing through the
 GitHub connector to alice/quests@main"*.
@@ -60,10 +176,94 @@ work on the same repo.
 - **Check access before writing.** With an integration, check it can write to that repo (or
   open a pull request instead). With a token, `GET https://api.github.com/repos/<owner>/<repo>`
   returns `permissions.push`. If that's false, the token can only read: tell the user, and
-  either ask for a token with write access to that repo or output the files instead (§6.5).
+  either ask for a token with write access to that repo or output the files instead (§6.6).
   Opening a pull request (§6.3) also needs push access, because it creates a branch in the repo.
 - **Say where you're writing.** Before committing, tell the user the repo and branch, e.g.
   *"Committing to alice/quests@main"*.
+
+## Branches and pull requests: update from the base branch first
+
+The **base branch** is the branch the data lives on: the repo's default branch (usually `main`)
+unless the user named another. The app, the user on their phone and other assistants commit to it
+all the time, so the copy you read earlier goes stale fast. Never build on a stale copy.
+
+**Before opening a pull request:**
+
+1. Fetch the base branch's latest commit **right before** you create the pull request branch, not
+   the copy you read at the start of the chat.
+2. Create the pull request branch from that commit, and make your changes to the latest files.
+3. Validate the whole tree ("Schema validation"), then commit, push and open the pull request
+   against the base branch.
+
+**Before adding commits to an existing pull request** (the user asks for more changes, a
+reviewer asks for a fix, or you're adding to a pull request you opened earlier):
+
+1. Fetch the latest base branch and the latest pull request branch.
+2. If the base branch has commits the pull request branch doesn't, **merge the base branch into
+   the pull request branch first**. Always a merge: never rebase, amend or force-push a branch
+   that's already pushed.
+3. If the merge conflicts, keep the base branch's version and re-apply the pull request's change
+   on top of it. If you can't tell what the pull request meant, stop and ask the user.
+4. Validate the merged tree, make your change, validate again, then commit and push.
+
+Do this **every** time, even if you updated a few minutes ago. The same goes for committing
+straight to the base branch: read the latest commit just before you write, and redo your change
+on top of it if it moved.
+
+| Route | Opening a pull request | Adding to a pull request |
+|---|---|---|
+| `git` | `git fetch origin` then `git switch -c quest/<name> origin/<base>` | `git fetch origin`, `git switch <pr-branch>`, `git pull`, `git merge origin/<base>`, then validate |
+| Your GitHub integration | Read the base branch's head sha just before, and create the branch from it | Use its "update branch" action (GitHub's *Update branch* button, `PUT /pulls/<n>/update-branch`, or a GitHub MCP `update_pull_request_branch` tool) with a merge, then re-read the files from the pull request branch |
+| `quest.py` | `pull`, edit, `push --pr TITLE`: it branches from the latest base and validates your change on top of it | `pull --branch <pr-branch>`, edit, `push`: it merges the base into the branch first and stops on a conflict |
+| REST API | §6.3 | §6.4 |
+
+## Parallel changes: add, don't rewrite
+
+Several pull requests (from you, other assistants and the app) are often open at once. The data
+is laid out so that **adding** things rarely clashes, as long as you follow these rules.
+
+**Add new things as new files.** A new project, world or level is a new file, and nothing else
+has to change:
+
+- A new world's `world.json` or a new level's `<level-id>.json` does **not** need adding to
+  `worldOrder` / `levelOrder`. Worlds and levels left out of those lists go after the listed ones,
+  sorted by id, and the app writes them into the list next time it saves.
+- Only edit `worldOrder` / `levelOrder` when the order matters (several new levels that must be
+  played in sequence in an existing world, or the user asks to reorder). That edits a shared
+  file, so two pull requests doing it at once will conflict.
+- Planning a **new** world or project is always conflict-free: its own `world.json` lists its
+  own levels.
+
+**Patch the latest copy; never replace a file from memory.** When you change an existing file
+(adding an item to a level, ticking a criterion, capturing an idea in `data/inbox.json`):
+
+- Read that file from the latest base branch (or pull request branch) **immediately** before you
+  write it, not from earlier in the chat.
+- Change only the keys and array entries you mean to: append an item, set one `status`. Keep
+  everything else byte-for-byte, including other people's items.
+- Never write a whole file from your memory of it, from an example, or from an earlier snapshot.
+  That's how other people's work gets deleted without anyone noticing.
+
+**Never remove anything the user didn't ask you to remove.** Before you commit, compare your
+tree with the branch you're committing on:
+
+```bash
+python3 scripts/quest.py changes --git origin/main .     # a git checkout, against the base branch
+python3 scripts/quest.py changes BASE_DIR DIR             # two folders that each contain data/
+```
+
+It lists every project, goal, world, level, criterion, item, step and inbox idea that is
+**added**, **changed** or **removed**, by key (`level:p/w/l`, `item:p/w/l/i`, `inbox:i`, …). Read
+the list. Every removal must be one the user asked for (deleting a level, cutting an item,
+placing an inbox idea). If something else is removed, your copy was stale: update from the base
+branch and redo only your change. `changes` exits 5 if anything is removed that you didn't name
+with `--allow-delete KEY` (a world or level also covers what's inside it). `quest.py push` runs
+the same check against the branch it commits to and refuses unnamed removals.
+
+**Some edits still touch the same lines,** so two pull requests can conflict: both adding items
+to the same level, both capturing inbox ideas, or both editing the same item. When you resolve
+such a conflict (see "Branches and pull requests"), **keep both sides**: every item, idea and
+list entry from both, then validate. Only drop something if the user asked for that.
 
 ## 1. Concepts
 
@@ -81,6 +281,16 @@ must-do item and waits there.
 A level is **cleared** when every success criterion marked `"mvp": true` is `"done": true`.
 Nothing else gates it. The whole point is "good enough, then move on": keep MVP criteria to the
 1–3 checks that truly matter, and put polish into non-MVP criteria or `stretch` items.
+
+**Money is optional, and off unless the project turns it on** with `"budgets": {}` in
+`project.json` (optionally `currency`, `alerts`, `alertAt`). Without it the app shows no money at
+all, so only add costs to projects that have it, and add it when the user asks to track spending.
+Items and dependency steps can carry a cash `budget` (what it should cost)
+and `spent` (what it has cost so far). Levels and worlds can have a `budget` of their own; without
+one, theirs is the sum of what's inside. Amounts are plain numbers in the project's currency
+(`budgets.currency`, GBP when unset). The app alerts as costs are logged: a heads-up at `alertAt`%
+of a budget (90 by default) and an alert when it goes over. The app banks **savings** (budget minus spent) when an item is done or dropped,
+a level clears, or a world's levels are all cleared. Dropping a budgeted item banks all of it.
 
 ## 2. Folder layout
 
@@ -112,8 +322,10 @@ Rules:
 - Every id is lowercase kebab-case: `^[a-z0-9]+(-[a-z0-9]+)*$`, max 64 chars. Derive ids from names
   (`"Kitchen cabinets"` → `kitchen-cabinets`). Never rename an existing id.
 - Folder/file names **equal** the `id` inside the file.
-- `project.json` → `worldOrder` lists **exactly** the world folders in that project.
-- `world.json` → `levelOrder` lists **exactly** the level files in that folder.
+- `project.json` → `worldOrder` sets the map order. Every id in it must have a world folder;
+  worlds left out go last, by id.
+- `world.json` → `levelOrder` sets the play order. Every id in it must have a level file;
+  levels left out go last, by id.
 - A level id may not be `world` (that name is the world file).
 - The only files directly in `data/` are the optional `settings.json` and `inbox.json`. No other `.json` files anywhere under `data/`.
 - Files are UTF-8 JSON, 2-space indent, trailing newline.
@@ -144,8 +356,9 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `id` | ✓ | id | = folder name |
 | `title` | ✓ | string ≤120 | |
 | `description` | | string ≤4000 | |
+| `budgets` | | `{currency?, alerts?, alertAt?}` | turns on cash budgets (off when missing; `{}` = on with defaults). `currency`: ISO 4217 code, default `GBP`. `alerts`: `false` turns off alerts. `alertAt`: 50–100, % of a budget spent that gives a heads-up, default 90. |
 | `goals` | ✓ | `{id, title, description?}[]` | 1–5 key outcomes |
-| `worldOrder` | ✓ | id[] | world folders, in map order |
+| `worldOrder` | ✓ | id[] | world folders, in map order. Only names existing worlds; ones left out go last. |
 
 ### World (`data/<project-id>/<world-id>/world.json`)
 
@@ -157,7 +370,8 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `theme` | ✓ | `grass` \| `desert` \| `water` \| `ice` \| `sky` \| `castle` | grass = general, desert = long slog/infra, water = research, ice = cleanup, sky = vision/design, castle = launch/high stakes |
 | `goalIds` | ✓ | id[] | goal ids from this project's `project.json` |
 | `unlocksAfter` | | id[] | other worlds in this project to finish first. Draws the map: each world branches from the worlds it unlocks after (visual only; never blocks editing). Worlds without it start the map. |
-| `levelOrder` | ✓ | id[] | level files, in play order |
+| `budget` | | number ≥0 | cash for the whole world. Omit to add up its levels' budgets. |
+| `levelOrder` | ✓ | id[] | level files, in play order. Only names existing levels; ones left out go last. |
 
 ### Level (`data/<project-id>/<world-id>/<level-id>.json`)
 
@@ -171,6 +385,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `startedAt` | | ISO date-time | see §5 |
 | `clearedAt` | | ISO date-time | see §5 |
 | `someday` | | boolean | `true` = parked on the someday shelf (see "weekly review" below). Omit otherwise. |
+| `budget` | | number ≥0 | cash for the whole level. Omit to add up its items' budgets. |
 | `successCriteria` | ✓ | Criterion[] (1–20) | at least one with `mvp: true` |
 | `items` | ✓ | Item[] (≤200) | may be empty |
 | `stats` | | object | **app-maintained; never write or change it** |
@@ -191,6 +406,8 @@ Item:
 | `dependsOn` | | ids of items **in the same level** that come first; no cycles |
 | `levelRef` | | dependency items only: `"<world-id>/<level-id>"` in the **same project**, not the item's own level |
 | `subtasks` | | dependency items only: the steps to get it (see below). Not together with `levelRef`. |
+| `budget` | | number ≥0: expected cost, e.g. `49.99`. On a dependency with steps it replaces the sum of theirs. |
+| `spent` | | number ≥0: cash spent on it so far. Fine to set after it's `done` (receipts come late). |
 | `link` | | URL to a ticket/doc/PR |
 | `notes` | | free text / markdown |
 
@@ -209,7 +426,7 @@ earns stars). `dropped` is a good status: cutting scope is encouraged.
 
 `subtasks` is an array of steps shaped like items: `id` (unique among that dependency's steps),
 `type` (any type **except** `dependency`; sub-levels don't nest), `title`, `status`, and optional
-`doneAt`, `mvp`, `dependsOn` (ids of **sibling steps**), `link`, `notes`. Keep it to the few steps that
+`doneAt`, `mvp`, `dependsOn` (ids of **sibling steps**), `budget`, `spent`, `link`, `notes`. Keep it to the few steps that
 matter. When every must-do step is `done` or `dropped`, the dependency itself is ready to mark
 `done`: do that in the same change when the user says it's sorted.
 
@@ -262,6 +479,7 @@ Repo-wide display settings; omit the file to use the defaults. Only change it wh
   "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
   "id": "desk-build",
   "title": "Standing desk build",
+  "budgets": { "currency": "GBP" },
   "goals": [
     { "id": "usable-desk", "title": "A sturdy desk I work at daily" }
   ],
@@ -294,7 +512,7 @@ Repo-wide display settings; omit the file to use the defaults. Only change it wh
     { "id": "rounded", "text": "Edges rounded over", "mvp": false, "done": false }
   ],
   "items": [
-    { "id": "buy-timber", "type": "task", "title": "Buy 70x70 timber", "status": "todo" },
+    { "id": "buy-timber", "type": "task", "title": "Buy 70x70 timber", "status": "todo", "budget": 45 },
     { "id": "saw-choice", "type": "decision", "title": "Hand saw or borrow mitre saw?", "status": "todo" },
     { "id": "cut", "type": "task", "title": "Cut four legs", "status": "todo", "dependsOn": ["buy-timber", "saw-choice"] },
     { "id": "wonky-cuts", "type": "risk", "title": "Uneven cuts", "status": "todo", "mvp": false },
@@ -305,28 +523,33 @@ Repo-wide display settings; omit the file to use the defaults. Only change it wh
 
 ## 5. Changing data correctly
 
-Always read the current files first, change the minimum, and keep the rest byte-for-byte.
+Always read the current files first (from the latest branch, just before writing), change the
+minimum, and keep the rest byte-for-byte. See "Parallel changes".
 
 | To… | Do this |
 |---|---|
 | Add a project | Create `data/<p>/project.json` with `worldOrder: []` and at least one goal. |
-| Add a world | Create `data/<p>/<w>/world.json` (`levelOrder: []`) **and** append `<w>` to `worldOrder` in `project.json`. |
-| Add a level | Create `data/<p>/<w>/<l>.json` **and** append `<l>` to `levelOrder` in `world.json`. |
+| Add a world | Create `data/<p>/<w>/world.json` (with its own levels in `levelOrder`). Leave `project.json` alone: it goes at the end of the map. Add it to `worldOrder` only to put it somewhere else. |
+| Add a level | Create `data/<p>/<w>/<l>.json`. Leave `world.json` alone: it goes after the listed levels, by id. Add it to `levelOrder` only when its position matters. |
 | Add an item | Append to `items` in the level file with a new unique id and `"status": "todo"`. |
 | Start work | Set item `status` to `doing`. If the level has no `startedAt`, set it to the current UTC time. |
 | Finish work | Set item `status` to `done` and `doneAt` to the current UTC time (or `status` `dropped` to cut it, no `doneAt`). |
 | Reopen work | Set `status` back to `todo`/`doing` and remove `doneAt`. |
 | Add a step to a dependency | Append to that item's `subtasks` (create the array if missing) with a new id unique among its steps. Never on an item with `levelRef`. |
 | Finish a step | Set the step's `status` inside `subtasks` (and `doneAt` when it's `done`, as for items). The dependency's own `status` is separate. |
+| Track money in a project | Add `"budgets": {}` to `project.json` (with `"currency": "EUR"` etc. if not GBP). Remove it to hide money again; leave the costs in place. |
+| Set a budget | Set `budget` (a plain number, no currency symbol) on the item, step, level or world, in a project with `budgets`. Remove the key to go back to adding up what's inside. |
+| Log a cost | Set (or raise) `spent` on the item or step it was for. Don't change `status` or `doneAt`. |
 | Park a level (someday) | Set `"someday": true` and remove `startedAt`. Never on a cleared level. Bring it back by removing `someday` (and set `startedAt` to now if work is starting). |
 | Tick a criterion | Set `done: true`. If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
-| Delete a level | Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. |
+| Delete a level | Only when asked. Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. Name it with `--allow-delete level:<p>/<w>/<l>`. |
 | Delete a step | Remove it from `subtasks` and from its siblings' `dependsOn`; drop the `subtasks` key if it's now empty. |
-| Delete a world | Delete the folder's files **and** remove it from `worldOrder` and from other worlds' `unlocksAfter`. |
+| Delete a world | Only when asked. Delete the folder's files **and** remove it from `worldOrder` and from other worlds' `unlocksAfter`. Name it with `--allow-delete world:<p>/<w>`. |
 | Capture an idea (inbox) | Append `{ id, type, title, notes?, link?, addedAt }` to `items` in `data/inbox.json` (create the file with its `$schema` if missing). `id` unique within the inbox; `addedAt` = now (UTC). |
-| Place an inbox idea | Add it to the target level's `items` as a normal item (`"status": "todo"`, fresh id unique in that level, keep `type`, `title`, `notes`, `link`) **and** remove it from `data/inbox.json`, in the **same commit**. Delete `data/inbox.json` if `items` is now empty. |
+| Place an inbox idea | Add it to the target level's `items` as a normal item (`"status": "todo"`, fresh id unique in that level, keep `type`, `title`, `notes`, `link`) **and** remove it from `data/inbox.json`, in the **same commit** (`--allow-delete inbox:<id>`). Delete `data/inbox.json` if `items` is now empty. |
 
-Never write `stats`. Never touch other projects when working on one.
+Never write `stats`. Never touch other projects when working on one. Never delete or drop
+anything the user didn't ask you to.
 
 ### When it's not clear where something goes: use the inbox
 
@@ -406,21 +629,34 @@ validate.** Use its `pull`/`push` only when you have no GitHub integration of yo
 reach GitHub"); it's better than hand-written API calls.
 
 ```bash
-python3 scripts/quest.py validate DIR                 # DIR contains data/; exit 1 lists every issue
+python3 scripts/quest.py update-check                 # 0 = up to date, 3 = newer skill published (§0), 4 = couldn't check
+python3 scripts/quest.py validate --refresh DIR       # DIR contains data/; exit 1 lists every issue
+python3 scripts/quest.py changes --git origin/main .  # added / changed / removed by id; exit 5 = unnamed removals
 python3 scripts/quest.py info --repo OWNER/REPO       # default branch, can_push
 python3 scripts/quest.py pull --repo OWNER/REPO [--branch B] --dir quest-data
 python3 scripts/quest.py status --dir quest-data      # what changed since pull
 python3 scripts/quest.py push --dir quest-data -m "quest: done: Fit units (kitchen/fit/units)"
 python3 scripts/quest.py push --dir quest-data -m "..." --pr "Plan the garden project"   # PR instead
+python3 scripts/quest.py push --dir quest-data -m "quest: delete level ..." --allow-delete level:p/w/l
 ```
 
 With your own integration: get the files however your integration does (a clone, a checkout, or
-writing them into a folder as `DIR/data/...`), then `validate DIR` before you commit.
+writing **all** of `data/` into a folder as `DIR/data/...`), then `validate --refresh DIR` before
+you commit.
 
-Without one: `pull` → edit the JSON files under `quest-data/data/` → `validate quest-data` →
-`push`. `push` validates first and refuses invalid data. It makes **one** commit with only the
-files you changed. If the branch moved since your pull it still commits on top, unless someone
-changed the same files; then it stops and tells you to `pull --force` and re-apply your edits.
+Without one: `update-check` → `pull` → edit the JSON files under `quest-data/data/` →
+`validate --refresh quest-data` → `push`. `push` makes **one** commit with only the files you
+changed, and:
+
+- validates your copy first and refuses invalid data (there is no way to skip this);
+- refuses to remove anything that's on the branch unless you name it with `--allow-delete KEY`;
+- if the branch has an **open pull request**, merges its base branch into it before committing,
+  and stops if they conflict;
+- if the branch moved since your pull, validates your changes **combined with** the latest
+  files, then commits on top and brings your folder up to date. If someone changed the same files
+  it stops and tells you to `pull --force` and re-apply your edits;
+- with `--pr`, branches from the base branch's latest commit, not the one you pulled.
+
 The token comes from `GITHUB_TOKEN` (or `GH_TOKEN`); the script never prints it.
 
 Schemas load from the bundled `schemas/` folder, else the cached download, else the manifest
@@ -430,10 +666,10 @@ Where you are running matters:
 
 | Environment | What to do |
 |---|---|
-| Claude Code, Codex, a terminal with `git`/`gh` | Clone or use the checkout, edit, `validate`, commit and push (or open a PR) with git. `quest.py pull`/`push` also works if there's no clone. |
-| An agent with a GitHub connector/integration (ChatGPT, Claude) | Read and commit through the integration. Run `validate` in code execution on the files you're about to commit. |
-| Claude.ai / Claude apps with code execution, no integration | `validate` always. `pull`/`push` only if the sandbox can reach `api.github.com`; if you get a network error, validate and output the files (§6.5). |
-| ChatGPT code interpreter, no integration | No internet: unzip the skill, run `validate` on the files you wrote, then output them (§6.5). |
+| Claude Code, Codex, a terminal with `git`/`gh` | `update-check`, then clone or use the checkout, `git fetch` and update from the base branch, edit, `validate --refresh`, commit and push (or open a PR) with git. `quest.py pull`/`push` also works if there's no clone. |
+| An agent with a GitHub connector/integration (ChatGPT, Claude) | Check `version.json` (§0). Read the latest data and commit through the integration. Run `validate` in code execution on the whole data tree you're about to commit. |
+| Claude.ai / Claude apps with code execution, no integration | `update-check` and `validate` always. `pull`/`push` only if the sandbox can reach `api.github.com`; if you get a network error, validate and output the files (§6.6). |
+| ChatGPT code interpreter, no integration | No internet in the interpreter: check `version.json` by browsing if you can (§0), unzip the skill, run `validate` on the files you wrote, then output them (§6.6). |
 
 ## 6. Talking to GitHub without an integration
 
@@ -450,7 +686,7 @@ from "Where the data lives", not necessarily the Quest Log app repo), with:
 Handle it as a secret: keep it in an environment variable such as `GITHUB_TOKEN`, send it only in
 the `Authorization` header to `https://api.github.com`, never print it, log it, put it in a URL,
 commit it, or send it anywhere else. If you have no way to make HTTP requests, don't ask for the
-token: output the files instead (§6.5).
+token: output the files instead (§6.6).
 
 All requests below use:
 
@@ -477,7 +713,9 @@ data repo. Every step below works the same for any repo the token can access.
 
 ### 6.2 Write: one atomic commit (preferred)
 
-Commit all changed files at once so the data is never half-updated.
+Commit all changed files at once so the data is never half-updated. Send only the files you
+changed (`base_tree` keeps the rest), and build each one from the copy you read at **HEAD** in
+6.1, just before this, with only your edit applied.
 
 1. `GET R/git/commits/<HEAD>` → `tree.sha` = **BASE_TREE**.
 2. `POST R/git/trees`
@@ -505,11 +743,32 @@ Commit messages: `quest: <verb> <thing> (<project>/<world>/<level>)`, e.g.
 Use this when the user wants to review before it lands. Open PRs that touch `data/` appear in
 the app's **Warp Zone**, where they can be explored, validated and merged.
 
-1. `POST R/git/refs` `{ "ref": "refs/heads/quest/<short-name>", "sha": "<HEAD>" }`.
-2. Do 6.2 against branch `quest/<short-name>` (parent = HEAD from step 1).
-3. `POST R/pulls` `{ "title": "...", "head": "quest/<short-name>", "base": "<default branch>", "body": "What changed and why" }`.
+1. **Update first:** `GET R/git/ref/heads/<base>` → **HEAD**, fetched now, just before branching.
+   If it differs from the commit you read the data at, read the changed files again (6.1) and
+   redo your change on top of them.
+2. Validate the whole tree as it will be on the new branch ("Schema validation").
+3. `POST R/git/refs` `{ "ref": "refs/heads/quest/<short-name>", "sha": "<HEAD>" }`.
+4. Do 6.2 against branch `quest/<short-name>` (parent = HEAD from step 1).
+5. `POST R/pulls` `{ "title": "...", "head": "quest/<short-name>", "base": "<base>", "body": "What changed and why" }`.
 
-### 6.4 curl example
+### 6.4 Add commits to an existing pull request
+
+Always bring the base branch in first.
+
+1. `GET R/pulls/<number>` → `head.ref` (the pull request branch) and `base.ref` (the base).
+2. `GET R/compare/<head.ref>...<base.ref>` → if `ahead_by` is more than 0, the base has commits
+   the pull request branch doesn't. Then:
+   `POST R/merges` `{ "base": "<head.ref>", "head": "<base.ref>", "commit_message": "Merge <base.ref> into <head.ref>" }`.
+   - **201**: merged. **204**: already up to date.
+   - **409**: conflict. Read both versions of the conflicting files (6.1 on each branch), keep
+     the base's version with the pull request's change re-applied on top, validate, and commit
+     that as a merge with 6.2: `base_tree` = the base branch's tree, `parents` = `[<PR head>,
+     <base head>]`, ref = the pull request branch. If you can't tell what the pull request
+     meant, stop and ask the user.
+3. Read the data from the pull request branch again (6.1), make your change, validate the whole
+   tree, and commit with 6.2 to `<head.ref>`. Never force-push.
+
+### 6.5 curl example
 
 ```bash
 R=https://api.github.com/repos/OWNER/REPO   # the user's data repo
@@ -524,19 +783,33 @@ COMMIT=$(jq -n --arg t "$TREE" --arg p "$HEAD" '{message:"quest: update cut-legs
 curl -s "${H[@]}" -X PATCH "$R/git/refs/heads/main" -d "{\"sha\":\"$COMMIT\",\"force\":false}"
 ```
 
-### 6.5 No API access
+### 6.6 No API access
 
-If you can run Python, first run `python3 scripts/quest.py validate DIR` on the files you wrote
-and fix every issue. Then output each file as its own fenced `json` block preceded by its path, e.g.
+If you can run Python, first run `python3 scripts/quest.py validate --refresh DIR` on the whole
+data tree with your changes and fix every issue; otherwise check by hand (§7) and say so. Then output each file as its own fenced `json` block preceded by its path, e.g.
 `data/desk-build/frame/cut-legs.json`, containing the **complete** file. Also list files to
 delete. The user can commit them or paste them into a pull request.
 
 ## 7. Before you commit: checklist
 
-`python3 scripts/quest.py validate DIR` checks all of this for you. Without Python, check by hand:
+Every time, whatever the route:
+
+- [ ] You checked for a newer skill at the start (§0), and are following the latest one.
+- [ ] You updated from the base branch just before: a new pull request branches from its latest
+      commit, and an existing pull request has the base branch merged in ("Branches and pull
+      requests").
+- [ ] `python3 scripts/quest.py validate --refresh DIR` passed (`✓ … valid`, exit 0) on the
+      **whole** data tree as it will be after your commit, and you told the user.
+- [ ] Every value the schema limits (enums, patterns, ranges) was checked against the current
+      schema, not remembered.
+- [ ] Your change removes nothing the user didn't ask to remove (`quest.py changes`), and you
+      added new worlds and levels as new files without rewriting shared ones.
+
+`validate` checks all of the following for you. Without Python, check every box by hand against
+https://tasks.patrick-mckinley.com/schema/quest.schema.json, and tell the user you did:
 
 - [ ] Every file is under `data/<project>/…` with the right name, and its `id` matches.
-- [ ] `worldOrder` / `levelOrder` list exactly the worlds / levels that exist.
+- [ ] `worldOrder` / `levelOrder` only name worlds / levels that exist (leaving new ones out is fine).
 - [ ] Every file has the correct `$schema` and no fields beyond the tables above.
 - [ ] Ids are kebab-case and unique in scope (items and criteria within a level).
 - [ ] Every level has ≥1 criterion with `"mvp": true`.
@@ -544,6 +817,7 @@ delete. The user can commit them or paste them into a pull request.
 - [ ] `levelRef` and `goalIds` / `unlocksAfter` point at things in the same project.
 - [ ] `subtasks` only on dependencies without `levelRef`; no dependency steps; step `dependsOn` names sibling steps.
 - [ ] Inbox ideas have only `id`, `type`, `title`, `notes`, `link`, `addedAt`, with unique ids; a placed idea is removed from `data/inbox.json` in the same commit.
+- [ ] `budget` / `spent` are plain non-negative numbers (`49.99`, not `"£49.99"`); costs only in projects with `budgets`, whose `currency` is a 3-letter code like `EUR`.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).
 
 ## 8. Optional: CI in the user's own repo
@@ -560,7 +834,13 @@ jobs:
       - uses: actions/checkout@v4
       - run: curl -sfo quest.py https://tasks.patrick-mckinley.com/skills/quest-log/scripts/quest.py
       - run: python3 quest.py validate .
+      - name: What this pull request removes
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          python3 quest.py changes --git "origin/${{ github.base_ref }}" . --warn
 ```
 
 It downloads the schemas through the manifest and runs the same schema, folder and
-cross-reference checks as the app.
+cross-reference checks as the app. On pull requests it also lists everything the change adds,
+changes and removes, so a reviewer can spot an accidental deletion.

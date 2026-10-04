@@ -135,7 +135,7 @@ export function semanticIssues(projectId: string, state: GameState): Issue[] {
 
 /**
  * Full validation of a data tree: JSON syntax, schema per file type, folder
- * structure (ids match paths, order lists match files), then semantic rules.
+ * structure (ids match paths, order lists name existing files), then semantic rules.
  */
 export function validateFiles(files: Record<string, string>): Issue[] {
   const issues: Issue[] = [];
@@ -178,7 +178,9 @@ export function validateFiles(files: Record<string, string>): Issue[] {
     }
   }
 
-  // Structure: every file hangs off a parent, and order lists match what exists.
+  // Structure: every file hangs off a parent, and order lists only name what exists.
+  // Worlds and levels missing from an order list are fine (they go at the end), so a
+  // pull request can add one with a new file alone and never conflict with another.
   for (const [pid, ws] of worlds)
     if (!projects.has(pid))
       for (const wid of ws) issues.push({ file: worldPath(pid, wid), path: '/', message: `no ${projectPath(pid)} for this world` });
@@ -194,8 +196,6 @@ export function validateFiles(files: Record<string, string>): Issue[] {
     order.forEach((wid, i) => {
       if (!present.has(wid)) issues.push({ file: projectPath(pid), path: `/worldOrder/${i}`, message: `no ${worldPath(pid, wid)}` });
     });
-    for (const wid of present)
-      if (!order.includes(wid)) issues.push({ file: projectPath(pid), path: '/worldOrder', message: `world "${wid}" missing from worldOrder` });
     for (const wid of present) {
       const w = parsed[worldPath(pid, wid)] as { levelOrder?: unknown };
       const lorder = Array.isArray(w?.levelOrder) ? (w.levelOrder as string[]) : [];
@@ -203,8 +203,6 @@ export function validateFiles(files: Record<string, string>): Issue[] {
       lorder.forEach((lid, i) => {
         if (!lpresent.has(lid)) issues.push({ file: worldPath(pid, wid), path: `/levelOrder/${i}`, message: `no ${levelPath(pid, wid, lid)}` });
       });
-      for (const lid of lpresent)
-        if (!lorder.includes(lid)) issues.push({ file: worldPath(pid, wid), path: '/levelOrder', message: `level "${lid}" missing from levelOrder` });
     }
   }
 

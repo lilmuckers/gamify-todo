@@ -86,10 +86,12 @@ per-file schemas (`project`, `world`, `level`, `settings`, `inbox`) `$ref` it, a
 
 **Id:** `^[a-z0-9]+(-[a-z0-9]+)*$`, max 64 characters, derived from names and never renamed.
 
-**Project:** `id`, `title` (≤120), `description?` (≤4000, markdown), `goals[]` (`{id, title,
-description?}`, 1–5), `worldOrder[]`.
+**Project:** `id`, `title` (≤120), `description?` (≤4000, markdown), `budgets?` (`{currency?,
+alerts?, alertAt?}`: turns cash budgets on), `goals[]` (`{id, title, description?}`, 1–5),
+`worldOrder[]`.
 
-**World:** `id`, `name`, `description?`, `theme`, `goalIds[]`, `unlocksAfter?[]`, `levelOrder[]`.
+**World:** `id`, `name`, `description?`, `theme`, `goalIds[]`, `unlocksAfter?[]`, `budget?`,
+`levelOrder[]`.
 
 | Theme | Look | Use for |
 |---|---|---|
@@ -103,15 +105,15 @@ description?}`, 1–5), `worldOrder[]`.
 `unlocksAfter` draws the map's branches. It is purely visual: a locked world is still editable.
 
 **Level:** `id`, `name`, `deliverable` (≤280, one sentence), `description?`, `timeboxDays`
-(1–90), `startedAt?`, `clearedAt?`, `someday?`, `successCriteria[]` (1–20, at least one with
-`mvp: true`), `items[]` (≤200), `stats?` (app-maintained).
+(1–90), `startedAt?`, `clearedAt?`, `someday?`, `budget?`, `successCriteria[]` (1–20, at least one
+with `mvp: true`), `items[]` (≤200), `stats?` (app-maintained).
 
 **Criterion:** `{id, text (≤280), mvp, done}`, all required.
 
 **Item:** `id`, `type`, `title`, `status`, `doneAt?`, `mvp?` (default true; ignored for
 stretch), `dependsOn?[]` (same level; shown in the UI as **"Waits for"**), `levelRef?`
 (dependency only: `"<world>/<level>"` in the same project), `subtasks?[]` (dependency only;
-never together with `levelRef`), `link?`, `notes?`.
+never together with `levelRef`), `budget?`, `spent?`, `link?`, `notes?`.
 
 | Type | Sprite | Behaviour |
 |---|---|---|
@@ -126,7 +128,10 @@ never together with `levelRef`), `link?`, `notes?`.
 **Status:** `todo` | `doing` | `done` | `dropped`.
 
 **Subtask:** like an item, except the type can't be `dependency` (no nesting), and `dependsOn`
-stays among sibling steps.
+stays among sibling steps. Steps can have `budget?` and `spent?` too.
+
+**Money** (`Money` in the schema): a plain number, 0 to 1,000,000,000, in the project's currency,
+in whole units with up to 2 decimals. All of it is optional; see §4.1 for how it rolls up.
 
 **LevelStats** (app-maintained; tools must not write it): `editsAfterClear`,
 `itemsAddedAfterClear`, `itemEdits{ itemId | "dep/step": n }`, `timeboxExtendedDays`.
@@ -141,7 +146,9 @@ addedAt}`.
 These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, CI and `quest.py`:
 
 - Folder and file names equal ids, and `world` is a reserved level id.
-- `worldOrder` and `levelOrder` list exactly the folders/files that exist.
+- `worldOrder` and `levelOrder` only name folders/files that exist. Ones left out go after the
+  listed ones, sorted by id, and are written into the list on the next save. This keeps adding a
+  world or level to a single new file, so parallel pull requests that add them never conflict.
 - No other `.json` files under `data/` except `settings.json` and `inbox.json` at the root.
 - Ids are unique in scope. `dependsOn` stays within its level (or within a dependency's steps),
   with no cycles.
@@ -186,6 +193,34 @@ Defined in `shared/src/scoring.ts`.
   cleared) or locked. Locks are soft, and locked levels stay enterable.
 - **Suggest next:** finish started (non-someday) levels first, then the first uncleared level in
   an unlocked world.
+
+### 4.1 Budgets and savings
+
+Defined in `shared/src/budget.ts`. Each item, level, world and project has a `Cost`:
+
+- **Budget:** its own `budget` if set, otherwise the sum of the budgets below it (a dependency's
+  steps, a level's items, a world's levels, a project's worlds). An own budget smaller than the
+  parts below it gets a warning ("The parts below plan…").
+- **Spent:** its own `spent` (items and steps only) plus everything spent below it.
+- **Left:** budget − spent. Going negative shows "Over budget by…" in the panel.
+- **Saved:** banked when a thing **settles**: an item done or dropped, a level cleared, a world
+  with every level cleared. Then it's budget − spent (negative if over). Until then it's the sum
+  of what its settled children banked. Dropping a budgeted item banks all of it that wasn't
+  spent, so scope cuts save money too. A cleared level banks its leftover allowance.
+- **Not polish:** an `updateItem` or `updateLevel` that only changes `budget`/`spent` never
+  counts towards the polish penalty, even after clearing, because receipts often arrive after the
+  work is done. Values are compared, so a full-form save that only changed the cost is still free.
+- Amounts are rounded to pennies and shown with `Intl.NumberFormat` ("£1,200", "£49.99").
+- **Opt-in:** all of this is off unless the project has `budgets` (`budgetPrefs()`). Off, the
+  panels, bubble and forms show no money, and form saves leave any cost data in the files alone,
+  so turning it back on brings it back. `currency` defaults to GBP.
+- **Alerts** (`budgetAlerts()`): after an `addItem`, `updateItem`, `updateLevel` or `updateWorld`
+  in a project with `budgets.alerts` not `false`, the app compares the project before and after.
+  Anything (item, step, level, world) that got worse shows in one toast: a **heads-up** once
+  `alertAt`% (50–100, default 90) of its budget is spent while it's still open, and **over
+  budget** once spent passes the budget. Things already at that level don't alert again, and
+  undo never alerts. The money box turns gold past the heads-up point and red when over, with a
+  matching note.
 
 ---
 
@@ -260,6 +295,11 @@ mobile strip all share.
   **TICK! / UNTICK** bubble, and the hero hops onto it. Ticking the last must-do step sends him
   leaping onto the pole at his current height; he slides down as the flag rises and runs into
   the castle.
+- **Money:** the level panel shows a 💰 box (spent of budget, a bar, what's left and saved) under
+  the timer, and item rows carry a cost tag. The bubble adds a line such as "£35 OF £40 · £5 SAVED".
+  World, project map and project list panels show the same roll-up. Budgets are set in the item,
+  level and world forms. The project form's *Track cash budgets* tick turns them on, with the
+  currency, alerts and heads-up percentage.
 - **Item bubbles:** clicking an item opens a speech bubble with its details and actions:
   **DONE!**, **START**, **EDIT** and, for dependencies, **WARP IN** (warp pipe) / **HOP ON**
   (cloud) / **GOT IT!** (close) / **JUMP OVER** (skip) / **ADD STEPS** (turn a plain one into a
@@ -267,7 +307,11 @@ mobile strip all share.
 - **Warp pipe sub-level:** an underground level holding the dependency's steps, with an exit
   pipe. **GOT IT! WARP UP** (once the steps are clear) brings the hero back up with the
   dependency done. **WARP UP** just leaves.
-- **Cloud:** the hero rides it to the referenced level.
+- **Cloud:** the hero rides it to the referenced level. The cloud parks before that level's
+  first item, labelled **BACK TO** the level he came from: **RIDE BACK** (or the panel's "Ride
+  the cloud back" link, or down on it in play mode) floats him home on the dependency's own
+  cloud, with its bubble open. It waits while you stay in that level (sub-levels included) and
+  is gone once you go anywhere else, or reload.
 - **Side panel (desktop):** level details, timer, score, nudges, items and criteria lists,
   quick-add (keeps focus so you can add item after item), and forms for items, criteria, the
   level, the world, goals and the project. The "Waits for" picker shows each candidate's status
@@ -518,11 +562,28 @@ Security:
   2. `quest.py pull/push`;
   3. the raw REST API;
   4. output the files for the user to commit.
+- Three rules come first, on every route: check for a newer skill before touching data, validate
+  the whole data tree against the schema before anything is committed or handed over, and update
+  from the base branch first (a new PR branches from the latest base; the base is merged into an
+  existing PR before adding commits, never rebased or force-pushed).
 - Further rules: never assume the repo (ask), and put requests with no clear home into
   `data/inbox.json` rather than guessing. "What should I do next?" mirrors Today.
-- `skills/quest-log/scripts/quest.py` is standard-library Python. Commands: `validate`, `info`,
-  `pull`, `status`, `push [--pr]`, `schemas`. It applies the same rules as the TS validator
-  (parity tests).
+- **Skill version.** SKILL.md carries a `**Skill version: N**` line and quest.py a matching
+  `SKILL_VERSION`. `skills/quest-log/version.json` publishes the latest `version` (plus the skill,
+  script and schema URLs). An assistant whose copy is older must load the published SKILL.md and
+  quest.py and tell the user to reinstall. `npm run skill:version` bumps all three and records a
+  fingerprint of SKILL.md + quest.py; `npm run skill:check` (CI and a test) fails if either file
+  changed without a bump.
+- `skills/quest-log/scripts/quest.py` is standard-library Python. Commands: `update-check`,
+  `validate [--refresh]`, `changes`, `info`, `pull`, `status`, `push [--pr] [--allow-delete KEY]`,
+  `schemas`. It applies the same
+  rules as the TS validator (parity tests). `push` always validates (no opt-out); if the branch
+  moved it validates the combined result and syncs the folder; if the branch has an open PR it
+  merges the PR's base into it first (`POST /merges`) and stops on a conflict; `--pr` branches
+  from the latest base. `changes` lists what a tree adds, changes and removes by id key
+  (`level:p/w/l`, `item:p/w/l/i`, `inbox:i`…) against another tree or a git ref, and exits 5 on
+  removals not named with `--allow-delete`; `push` applies the same guard against the branch it
+  commits to, so a stale or hand-rewritten file can't silently delete other people's work.
 - The in-app **AI SKILL** button explains this and downloads a zip of the skill, the script and
   the schemas (`app/src/ui/zip.ts`).
 - The skill and schemas are published at `https://tasks.patrick-mckinley.com/skills/...` and
@@ -558,6 +619,13 @@ Security:
 - `vite-plugin-pwa` (auto-update) provides the manifest, icons, Android share target and
   standalone display. Workbox precaches the app shell, and data/schema JSON is `NetworkFirst`
   with a 4 s timeout.
+- The cached app expires after 3 hours while online (`app/src/pwa.ts`). `main.ts` registers the
+  service worker and asks for a new build at boot, on focus, on reconnect and every 15 minutes
+  once that age has passed. A new build reloads the page only when nobody would notice: during
+  boot, or the next time the tab is hidden. Offline, the cached app keeps working as long as it
+  needs to.
+- A tab left open and visible re-pulls its data once its last sync is 3 hours old (the store
+  already re-pulls on focus and reconnect).
 - The boot splash is inline in `index.html`, so it paints before any script. It uses CSS-only
   animation (transform-based shine) and fades once the store has something to show.
 - Performance work so far:
@@ -584,7 +652,7 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 
 ## 15. Quality gates
 
-- `npm run typecheck`, `npm test` (34 files, 330 tests at time of writing) and
+- `npm run typecheck`, `npm test` (35 files, 364 tests at time of writing) and
   `npm run validate` (90 example files) must pass.
 - CI (`validate.yml`) on every PR and push to main runs:
   - data validation;
@@ -595,7 +663,7 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   - the Playwright end-to-end suite (`npm run e2e`).
 - `pages.yml` validates, builds and deploys `main`.
 - Test coverage includes:
-  - the shared model: ops, undo, structural sharing, scoring, layout, worldmap, Today, review,
+  - the shared model: ops, undo, structural sharing, scoring, budgets, layout, worldmap, Today, review,
     diff, serialize, validation, the GitHub client, and skill/script parity;
   - the store's sync;
   - the server;
@@ -605,8 +673,8 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   flows:
   - the read-only site, from the project floor to an item's bubble and its deep link;
   - the local editor against a fresh git repo: completing an item commits it, steps under a
-    warp pipe send the hero back up with the dependency done, and the hero picker writes
-    `data/settings.json`;
+    warp pipe send the hero back up with the dependency done, the hero picker writes
+    `data/settings.json`, and logging a done item's cost commits it with no polish;
   - offline edits surviving a reload and committing once back online;
   - the phone layout;
   - the demo keeping nothing;

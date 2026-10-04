@@ -25,6 +25,8 @@ jobs:
         run: npm run format:data:check || echo "::warning::Data files are not in canonical format; run npm run format:data"
       - name: Generated schema code is current
         run: npm run schema:check
+      - name: Skill version bumped with SKILL.md / quest.py
+        run: npm run skill:check
 
   code:
     name: Typecheck & test
