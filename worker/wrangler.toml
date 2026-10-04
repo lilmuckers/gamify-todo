@@ -1,0 +1,29 @@
+# Quest Log token exchange Worker. Deploy guide: worker/README.md.
+name = "quest-log-auth"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Custom domain (needs the zone on Cloudflare). Uncomment, then set workers_dev = false.
+# routes = [{ pattern = "auth.patrick-mckinley.com", custom_domain = true }]
+
+# Stores nothing, logs nothing: keep Workers Logs off.
+[observability]
+enabled = false
+
+[vars]
+# The GitHub App's Client ID (public). The secret goes in with:
+#   npx wrangler@4 secret put GITHUB_CLIENT_SECRET
+GITHUB_CLIENT_ID = ""
+ALLOWED_ORIGINS = "https://tasks.patrick-mckinley.com"
+
+# Local and dev testing: npx wrangler@4 dev --env dev
+[env.dev]
+name = "quest-log-auth-dev"
+
+[env.dev.observability]
+enabled = false
+
+[env.dev.vars]
+GITHUB_CLIENT_ID = ""
+ALLOWED_ORIGINS = "https://tasks.patrick-mckinley.com,http://localhost:5173"
