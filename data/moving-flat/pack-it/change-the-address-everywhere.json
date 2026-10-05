@@ -49,7 +49,9 @@
       "title": "Royal Mail redirect",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-03-27T07:02:00Z"
+      "doneAt": "2025-03-27T07:02:00Z",
+      "budget": 60,
+      "spent": 66
     },
     {
       "id": "gp-and-dentist",

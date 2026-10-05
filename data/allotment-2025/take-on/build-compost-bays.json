@@ -28,14 +28,17 @@
       "title": "Four pallets from the builders’ merchant",
       "type": "dependency",
       "status": "done",
-      "doneAt": "2024-12-08T12:03:00Z"
+      "doneAt": "2024-12-08T12:03:00Z",
+      "budget": 20
     },
     {
       "id": "wire-the-pallets-together",
       "title": "Wire the pallets together",
       "type": "task",
       "status": "done",
-      "doneAt": "2024-12-10T08:38:00Z"
+      "doneAt": "2024-12-10T08:38:00Z",
+      "budget": 5,
+      "spent": 6
     },
     {
       "id": "fill-bay-one-with-the-bramble-chippings",
@@ -56,7 +59,8 @@
       "id": "lid-from-old-carpet",
       "title": "Lid from old carpet",
       "type": "task",
-      "status": "dropped"
+      "status": "dropped",
+      "budget": 10
     }
   ]
 }

@@ -1,5 +1,6 @@
 import type { HistoryEvent } from './history';
 import type { ItemType, Workspace } from './model';
+import { moneyStats, type MoneyStats } from './money';
 import { changesAsHistory, type ChangeEvent } from './scan';
 import { isCleared, POLISH_XP_COST, polishPoints, scoreLevel } from './scoring';
 import {
@@ -93,6 +94,8 @@ export interface DetailedStats {
   events: ProgressEvent[];
   /** The deep scan contributed (scope, polish and reopen counts are complete). */
   scanned: boolean;
+  /** Money over time, when any project tracks it. */
+  money?: MoneyStats;
 }
 
 /** Quick (commit message) and deep (diff) history describe the same commits: count each once. */
@@ -243,6 +246,7 @@ export function detailedStats(ws: Workspace, opts: { now?: number; quick?: Histo
     recent: sorted.slice(0, 12).map(line),
     events: sorted,
     scanned: deep.length > 0,
+    money: moneyStats(ws, { now, deep }),
   };
 }
 

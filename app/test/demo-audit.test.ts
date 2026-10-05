@@ -82,7 +82,8 @@ describe('the demo history', () => {
       const end = Number.isNaN(t(level.clearedAt)) ? horizon : t(level.clearedAt);
       for (const e of byLevel(key)) {
         const at = t(e.at);
-        const afterClear = !!e.afterClear;
+        // Receipts can arrive after the clear (the app treats costs as bookkeeping).
+        const afterClear = !!e.afterClear || e.kind === 'spent';
         if (at < start - 60_000 || (!afterClear && at > end + 60_000)) bad.push(`${key}: ${e.kind} ${e.subject} at ${e.at}`);
         if (e.kind === 'added') {
           const firstDone = byLevel(key).find((x) => x.kind === 'done' && x.subject === e.subject);
@@ -126,6 +127,28 @@ describe('the demo history', () => {
       for (const e of ext) if (t(e.at) < original) bad.push(`${key}: extended before the time-box ran out`);
     }
     expect(bad).toEqual([]);
+  });
+
+  it('logs every cost the data records, adding up exactly, inside the level and before the data ends', () => {
+    const bad: string[] = [];
+    for (const { level, key } of located) {
+      const spends = byLevel(key).filter((e) => e.kind === 'spent');
+      const start = t(level.startedAt);
+      for (const e of spends) if (t(e.at) < start - 60_000 || t(e.at) > horizon + 60_000) bad.push(`${key}: ${e.subject} paid at ${e.at}`);
+      const items = level.items.flatMap((i) => [{ subject: i.title, spent: i.spent ?? 0 }, ...(i.subtasks ?? []).map((s) => ({ subject: `${s.title} (in ${i.title})`, spent: s.spent ?? 0 }))]);
+      for (const { subject, spent } of items) {
+        const logged = Math.round(spends.filter((e) => e.subject === subject).reduce((n, e) => n + (e.amount ?? 0), 0) * 100) / 100;
+        if (logged !== spent) bad.push(`${key}: ${subject} logged ${logged}, data ${spent}`);
+      }
+    }
+    expect(bad).toEqual([]);
+    // And the money page agrees with the data, dated from the history.
+    const quick = historyEvents(demoHistory(ws));
+    const m = detailedStats(ws, { now: horizon + 60_000, quick, deep }).money!;
+    expect(m.fromHistory).toBe(true);
+    expect(m.months.at(-1)!.total).toBe(m.spent);
+    // It goes back to the first money spent, two years ago.
+    expect(m.months[0].month < '2025-01').toBe(true);
   });
 
   it('adds up to the data on the detailed page', () => {

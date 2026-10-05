@@ -66,7 +66,8 @@
       "title": "Fit gutter guards",
       "type": "stretch",
       "status": "dropped",
-      "notes": "Not worth it: only two trees nearby."
+      "notes": "Not worth it: only two trees nearby.",
+      "budget": 45
     }
   ]
 }

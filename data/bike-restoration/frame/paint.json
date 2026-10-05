@@ -41,7 +41,9 @@
       "type": "task",
       "status": "done",
       "doneAt": "2026-09-15T14:32:00Z",
-      "notes": "Ordered from a decal specialist; arrived in a week."
+      "notes": "Ordered from a decal specialist; arrived in a week.",
+      "budget": 35,
+      "spent": 38
     },
     {
       "id": "drop-the-frame-at-the-powder-coater",
@@ -103,7 +105,9 @@
             "chase-week-two"
           ]
         }
-      ]
+      ],
+      "budget": 120,
+      "spent": 60
     },
     {
       "id": "apply-the-decals",
@@ -132,7 +136,8 @@
       "id": "pick-out-the-lugs-in-black",
       "title": "Pick out the lugs in black",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 40
     }
   ]
 }

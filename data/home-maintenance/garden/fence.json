@@ -53,7 +53,9 @@
       "doneAt": "2026-08-27T11:25:00Z",
       "dependsOn": [
         "dig"
-      ]
+      ],
+      "budget": 45,
+      "spent": 52
     },
     {
       "id": "rehang-the-two-loose-panels",
@@ -68,7 +70,9 @@
       "type": "task",
       "status": "done",
       "doneAt": "2026-08-25T18:11:00Z",
-      "notes": "One coat was enough; second coat skipped."
+      "notes": "One coat was enough; second coat skipped.",
+      "budget": 40,
+      "spent": 34
     }
   ]
 }

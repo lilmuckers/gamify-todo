@@ -70,7 +70,9 @@
       "title": "Manure from the stables",
       "type": "dependency",
       "status": "done",
-      "doneAt": "2025-01-28T07:04:00Z"
+      "doneAt": "2025-01-28T07:04:00Z",
+      "budget": 30,
+      "spent": 20
     },
     {
       "id": "edge-with-boards",
@@ -78,14 +80,18 @@
       "type": "task",
       "status": "done",
       "doneAt": "2025-02-01T11:40:00Z",
-      "mvp": false
+      "mvp": false,
+      "budget": 60,
+      "spent": 75
     },
     {
       "id": "woodchip-paths",
       "title": "Woodchip paths",
       "type": "stretch",
       "status": "done",
-      "doneAt": "2025-02-04T18:27:00Z"
+      "doneAt": "2025-02-04T18:27:00Z",
+      "budget": 40,
+      "spent": 40
     }
   ],
   "stats": {

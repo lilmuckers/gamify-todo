@@ -39,7 +39,9 @@
       "type": "task",
       "status": "done",
       "doneAt": "2026-09-21T09:44:00Z",
-      "notes": "Fine wire wool and metal polish; looks new."
+      "notes": "Fine wire wool and metal polish; looks new.",
+      "budget": 8,
+      "spent": 11
     },
     {
       "id": "fit-the-cranks",
@@ -58,13 +60,15 @@
       "id": "chain",
       "title": "New chain and freewheel",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 25
     },
     {
       "id": "fit-new-cables-and-housing",
       "title": "Fit new cables and housing",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 30
     },
     {
       "id": "index-the-gears",

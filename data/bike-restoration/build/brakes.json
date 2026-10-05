@@ -43,7 +43,8 @@
       "id": "fit-new-brake-pads-and-cables",
       "title": "Fit new brake pads and cables",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 35
     },
     {
       "id": "fit-the-stem-and-bars",
@@ -62,7 +63,8 @@
       "id": "cork-bar-tape",
       "title": "Cork bar tape",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 25
     }
   ]
 }

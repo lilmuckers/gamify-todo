@@ -1,4 +1,4 @@
-import { calibration, dayLog, DETAILED_WEEKS, HERO_IDS, type DetailedStats, type HeroId, type ItemType, type LogLine } from '@quest/shared';
+import { calibration, dayLog, DETAILED_WEEKS, formatMoney, HERO_IDS, type DetailedStats, type HeroId, type ItemType, type LogLine, type MoneyStats } from '@quest/shared';
 import type { App } from '../app';
 import { heroKey } from '../sprites/heroes';
 import { href } from '../router';
@@ -400,8 +400,122 @@ function page(app: App, s: DetailedStats | undefined, picked: string | undefined
     h('p', { class: 'ss-note' }, streakHint(s.streak)),
     calendar,
     h('div', { class: 'ds-grid3' }, rhythm, mix, scope),
+    s.money && moneyCard(s.money, colour, card),
     h('div', { class: 'ds-grid2' }, scatter, table),
     h('div', { class: 'ds-grid2' }, polish, h('div', null, xp, lately)),
+  );
+}
+
+/**
+ * Money over the year, for projects that track it: where it stands,
+ * spending week by week against what the finished things were budgeted at,
+ * and what ran over or came in under.
+ */
+function moneyCard(
+  m: MoneyStats,
+  colour: (project: string) => string,
+  card: (title: string, cls: string, ...kids: (Node | Node[] | string | null | false | undefined)[]) => HTMLElement,
+): HTMLElement {
+  const money = (n: number) => formatMoney(n, m.currency);
+  const W = 300;
+  const H = 90;
+  const step = W / m.months.length;
+  const top = Math.max(1, ...m.months.map((w) => Math.max(w.total, w.planned)));
+  const bar = Math.max(1, ...m.months.map((w) => w.spent));
+  const y = (v: number) => H - 4 - (v / top) * (H - 10);
+  const label = (month: string, opts: Intl.DateTimeFormatOptions) => date(`${month}-15`, opts);
+  const tip = (w: MoneyStats['months'][number]) => `${label(w.month, { month: 'long', year: 'numeric' })}: ${money(w.spent)} spent (${money(w.total)} in all)`;
+  const chart = svg(
+    'svg',
+    { viewBox: `0 0 ${W} ${H}`, class: 'ds-money-chart', role: 'img', 'aria-label': `${money(m.spent)} spent of ${money(m.budget)} budgeted` },
+    ...m.months.map((w, i) => {
+      const bh = (w.spent / bar) * (H * 0.45);
+      return svg('rect', { class: 'spend', x: i * step + step * 0.12, y: H - bh, width: step * 0.76, height: bh }, svg('title', {}, document.createTextNode(tip(w))));
+    }),
+    svg('line', { class: 'base', x1: 0, y1: H - 0.5, x2: W, y2: H - 0.5 }),
+    svg('polyline', { class: 'planned', points: m.months.map((w, i) => `${(i + 0.5) * step},${y(w.planned)}`).join(' ') }),
+    svg('polyline', { class: 'total', points: m.months.map((w, i) => `${(i + 0.5) * step},${y(w.total)}`).join(' ') }),
+  );
+  // Label the first month, each January, and this month.
+  const ticks = h(
+    'div',
+    { class: 'ds-money-ticks', 'aria-hidden': 'true', style: `--months:${m.months.length}` },
+    m.months.map((w, i) => h('span', null, i === 0 || i === m.months.length - 1 || w.month.endsWith('-01') ? label(w.month, { month: 'short', year: '2-digit' }) : '')),
+  );
+  const over = m.spent > m.budget;
+  const row = (label: string, value: string, cls = '') => h('div', null, h('b', { class: cls }, value), h('span', null, label));
+  const lineItem = (l: MoneyStats['overruns'][number] | MoneyStats['savings'][number], amount: string) =>
+    h('li', null, h('b', null, amount), ` ${l.title} `, l.title !== l.levelName ? h('em', null, l.levelName) : null, ' ', h('i', { class: 'ds-dot', style: `background:${colour(l.project)}`, 'aria-hidden': 'true' }));
+  const rate = m.settled ? Math.round((m.onBudget / m.settled) * 100) : undefined;
+  return card(
+    'MONEY',
+    'ds-money',
+    h(
+      'div',
+      { class: 'ds-row4' },
+      row('BUDGETED', money(m.budget)),
+      row('SPENT', money(m.spent), over ? 'down-bad' : ''),
+      row(m.left < 0 ? 'OVER' : 'LEFT', money(Math.abs(m.left)), m.left < 0 ? 'down-bad' : ''),
+      row(m.saved < 0 ? 'OVERSPENT SO FAR' : 'SAVED SO FAR', money(Math.abs(m.saved)), m.saved < 0 ? 'down-bad' : 'up-good'),
+    ),
+    h(
+      'div',
+      { class: 'ds-money-grid' },
+      h(
+        'div',
+        null,
+        chart,
+        ticks,
+        h(
+          'ul',
+          { class: 'ds-money-key' },
+          h('li', null, h('span', { class: 'ds-key total' }), 'spent in all'),
+          h('li', null, h('span', { class: 'ds-key planned' }), 'what the finished things were budgeted at'),
+          h('li', null, h('span', { class: 'ds-key spend' }), 'spent each month'),
+          m.fromHistory ? null : h('li', null, h('em', { class: 'ds-from' }, 'dated by when things were done')),
+        ),
+        rate !== undefined &&
+          h(
+            'p',
+            { class: `ss-note${rate < 50 ? ' late' : ''}` },
+            `${m.onBudget} of ${m.settled} finished things with a budget came in on or under it (${rate}%)`,
+            m.medianRatio === undefined
+              ? '.'
+              : Math.abs(m.medianRatio - 1) < 0.005
+                ? '; typically right on budget.'
+                : `; typically ${m.medianRatio < 1 ? `${Math.round((1 - m.medianRatio) * 100)}% under` : `${Math.round((m.medianRatio - 1) * 100)}% over`}.`,
+          ),
+        m.otherCurrencies.length > 0 && h('p', { class: 'ss-note' }, `Projects in ${m.otherCurrencies.join(', ')} aren't counted here.`),
+      ),
+      h(
+        'div',
+        null,
+        h('h4', null, 'RAN OVER'),
+        m.overruns.length ? h('ul', { class: 'ds-list' }, m.overruns.map((l) => lineItem(l, `+${money(l.over)}`))) : h('p', { class: 'ss-note' }, 'Nothing ran over. Lovely.'),
+        h('h4', null, 'CAME IN UNDER'),
+        m.savings.length ? h('ul', { class: 'ds-list' }, m.savings.map((l) => lineItem(l, `−${money(l.saved)}${l.dropped ? ' (cut)' : ''}`))) : h('p', { class: 'ss-note' }, 'Nothing settled under budget yet.'),
+      ),
+    ),
+    h(
+      'table',
+      { class: 'ds-money-table' },
+      h('thead', null, h('tr', null, ['', 'BUDGET', 'SPENT', 'LEFT', 'SAVED'].map((t) => h('th', { scope: 'col' }, t)))),
+      h(
+        'tbody',
+        null,
+        m.projects.map((p) =>
+          h(
+            'tr',
+            null,
+            h('th', { scope: 'row' }, h('i', { class: 'ds-dot', style: `background:${colour(p.id)}`, 'aria-hidden': 'true' }), p.title, p.finished ? h('span', { class: 'ds-won' }, '★ FINISHED') : null),
+            h('td', null, money(p.budget)),
+            h('td', { class: p.spent > p.budget ? 'down-bad' : '' }, money(p.spent)),
+            h('td', { class: p.left < 0 ? 'down-bad' : '' }, money(p.left)),
+            h('td', { class: p.saved < 0 ? 'down-bad' : p.saved > 0 ? 'up-good' : '' }, money(p.saved)),
+          ),
+        ),
+      ),
+    ),
   );
 }
 

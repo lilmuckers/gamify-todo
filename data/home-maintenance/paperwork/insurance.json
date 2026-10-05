@@ -56,7 +56,8 @@
       "status": "todo",
       "dependsOn": [
         "compare"
-      ]
+      ],
+      "budget": 420
     }
   ]
 }

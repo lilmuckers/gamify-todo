@@ -35,7 +35,9 @@
       "title": "Chit the seed potatoes",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-03-30T09:19:00Z"
+      "doneAt": "2025-03-30T09:19:00Z",
+      "budget": 12,
+      "spent": 14
     },
     {
       "id": "plant-earlies",

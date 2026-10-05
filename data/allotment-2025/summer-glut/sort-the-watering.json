@@ -35,14 +35,18 @@
       "title": "Connect the shed gutter to a butt",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-05-27T08:47:00Z"
+      "doneAt": "2025-05-27T08:47:00Z",
+      "budget": 15,
+      "spent": 9
     },
     {
       "id": "second-water-butt",
       "title": "Second water butt",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-05-28T21:16:00Z"
+      "doneAt": "2025-05-28T21:16:00Z",
+      "budget": 45,
+      "spent": 52
     },
     {
       "id": "drip-hose-or-cans",

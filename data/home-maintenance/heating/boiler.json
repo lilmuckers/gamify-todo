@@ -43,7 +43,9 @@
       "type": "task",
       "status": "done",
       "doneAt": "2026-09-20T16:18:00Z",
-      "notes": "Flue fine, pressure was low at 0.8 bar."
+      "notes": "Flue fine, pressure was low at 0.8 bar.",
+      "budget": 95,
+      "spent": 95
     },
     {
       "id": "gas-safety-record",
@@ -72,7 +74,9 @@
       "title": "Fit thermostatic valves in the bedrooms",
       "type": "stretch",
       "status": "done",
-      "doneAt": "2026-09-24T18:26:00Z"
+      "doneAt": "2026-09-24T18:26:00Z",
+      "budget": 60,
+      "spent": 84
     }
   ]
 }

@@ -35,7 +35,9 @@
       "title": "Patch the roof felt",
       "type": "task",
       "status": "done",
-      "doneAt": "2024-11-10T13:47:00Z"
+      "doneAt": "2024-11-10T13:47:00Z",
+      "budget": 30,
+      "spent": 36
     },
     {
       "id": "repair-or-replace-the-door",
@@ -43,28 +45,36 @@
       "type": "decision",
       "status": "done",
       "doneAt": "2024-11-12T08:43:00Z",
-      "notes": "Repaired: £12 of hinges."
+      "notes": "Repaired: £12 of hinges.",
+      "budget": 80,
+      "spent": 12
     },
     {
       "id": "fit-a-padlock",
       "title": "Fit a padlock",
       "type": "task",
       "status": "done",
-      "doneAt": "2024-11-13T19:25:00Z"
+      "doneAt": "2024-11-13T19:25:00Z",
+      "budget": 15,
+      "spent": 15
     },
     {
       "id": "put-up-shelves",
       "title": "Put up shelves",
       "type": "task",
       "status": "done",
-      "doneAt": "2024-11-14T18:59:00Z"
+      "doneAt": "2024-11-14T18:59:00Z",
+      "budget": 20,
+      "spent": 26
     },
     {
       "id": "paint-it-green",
       "title": "Paint it green",
       "type": "stretch",
       "status": "done",
-      "doneAt": "2024-11-16T15:26:00Z"
+      "doneAt": "2024-11-16T15:26:00Z",
+      "budget": 25,
+      "spent": 25
     }
   ]
 }

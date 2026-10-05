@@ -36,13 +36,15 @@
       "title": "Replace the hallway alarm",
       "type": "task",
       "status": "doing",
-      "notes": "Ten years old; the date on the back says 2016."
+      "notes": "Ten years old; the date on the back says 2016.",
+      "budget": 25
     },
     {
       "id": "buy-co",
       "title": "Buy a CO alarm",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 30
     },
     {
       "id": "fit-the-co-alarm-by-the-boiler",
@@ -63,7 +65,8 @@
       "id": "interlinked-alarms",
       "title": "Interlinked alarms",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 120
     }
   ]
 }

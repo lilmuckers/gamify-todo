@@ -80,7 +80,8 @@
       "id": "book",
       "title": "Book the EICR",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 180
     },
     {
       "id": "report",
@@ -98,7 +99,8 @@
       "status": "todo",
       "dependsOn": [
         "report"
-      ]
+      ],
+      "budget": 300
     },
     {
       "id": "old-fuse-board-needs-replacing",

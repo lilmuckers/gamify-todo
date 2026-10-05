@@ -50,14 +50,19 @@
       "title": "Book the van",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-03-19T18:22:00Z"
+      "doneAt": "2025-03-19T18:22:00Z",
+      "budget": 180,
+      "spent": 165
     },
     {
       "id": "ask-sam-and-priya",
       "title": "Ask Sam and Priya",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-03-21T21:03:00Z"
+      "doneAt": "2025-03-21T21:03:00Z",
+      "budget": 40,
+      "spent": 48
     }
-  ]
+  ],
+  "budget": 400
 }

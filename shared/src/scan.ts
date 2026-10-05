@@ -1,5 +1,6 @@
 import type { HistoryEvent } from './history';
 import type { Criterion, Item, ItemType, Level } from './model';
+import { roundMoney } from './budget';
 import { isCleared } from './scoring';
 import { classifyPath } from './serialize';
 
@@ -51,7 +52,9 @@ export type ChangeKind =
   | 'started'
   | 'cleared'
   | 'uncleared'
-  | 'extended';
+  | 'extended'
+  | 'spent'
+  | 'budgeted';
 
 /**
  * Something a commit changed in a level, worked out by comparing the file
@@ -74,6 +77,8 @@ export interface ChangeEvent {
   afterClear?: boolean;
   /** Days added, for 'extended'. */
   days?: number;
+  /** Money added (or, if negative, taken off) for 'spent' and 'budgeted': an item's, or the level's own budget when the subject is ''. */
+  amount?: number;
 }
 
 function parse(text: string | undefined): Level | undefined {
@@ -121,12 +126,19 @@ export function changesFromCommit(c: CommitChanges): ChangeEvent[] {
 
     if (!before.startedAt && after.startedAt) ev('started', '');
     if (after.timeboxDays > before.timeboxDays && before.startedAt) ev('extended', '', { days: after.timeboxDays - before.timeboxDays });
+    const levelBudget = roundMoney((after.budget ?? 0) - (before.budget ?? 0));
+    if (levelBudget) ev('budgeted', '', { amount: levelBudget });
 
     const was = flatItems(before);
     const now = flatItems(after);
     for (const [id, { item, subject }] of now) {
       const prev = was.get(id)?.item;
       const type = item.type;
+      // Money: what was budgeted or spent, and when. Logging a cost is bookkeeping, never an edit.
+      const budgeted = roundMoney((item.budget ?? 0) - (prev?.budget ?? 0));
+      const spent = roundMoney((item.spent ?? 0) - (prev?.spent ?? 0));
+      if (budgeted) ev('budgeted', subject, { itemType: type, amount: budgeted });
+      if (spent) ev('spent', subject, { itemType: type, amount: spent });
       if (!prev) {
         ev('added', subject, { itemType: type, afterStart: started, afterClear: wasCleared });
         continue;
@@ -138,7 +150,7 @@ export function changesFromCommit(c: CommitChanges): ChangeEvent[] {
           ev('done', subject, { itemType: type }, stamp);
         } else if (item.status === 'dropped') ev('dropped', subject, { itemType: type, afterStart: started });
         else if (prev.status === 'done') ev('reopened', subject, { itemType: type });
-      } else if (!SAME_IGNORING(prev, item, ['doneAt', 'subtasks'])) ev('edited', subject, { itemType: type, afterClear: wasCleared });
+      } else if (!SAME_IGNORING(prev, item, ['doneAt', 'subtasks', 'budget', 'spent'])) ev('edited', subject, { itemType: type, afterClear: wasCleared });
     }
     for (const [id, { item, subject }] of was) if (!now.has(id)) ev('removed', subject, { itemType: item.type, afterStart: started });
 

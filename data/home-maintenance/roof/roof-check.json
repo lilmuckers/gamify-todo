@@ -111,7 +111,9 @@
       "doneAt": "2026-09-29T10:15:00Z",
       "dependsOn": [
         "visit"
-      ]
+      ],
+      "budget": 250,
+      "spent": 180
     },
     {
       "id": "re-point-the-chimney-flashing",
@@ -119,7 +121,9 @@
       "type": "task",
       "status": "done",
       "doneAt": "2026-09-24T13:29:00Z",
-      "mvp": false
+      "mvp": false,
+      "budget": 200,
+      "spent": 310
     },
     {
       "id": "rain-keeps-cancelling-the-visit",

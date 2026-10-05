@@ -56,7 +56,9 @@
       "title": "Broadband engineer visit",
       "type": "dependency",
       "status": "done",
-      "doneAt": "2025-04-17T19:40:00Z"
+      "doneAt": "2025-04-17T19:40:00Z",
+      "budget": 60,
+      "spent": 60
     },
     {
       "id": "council-tax",

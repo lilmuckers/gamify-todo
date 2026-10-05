@@ -21,5 +21,8 @@
     "find-it",
     "pack-it",
     "move-it"
-  ]
+  ],
+  "budgets": {
+    "currency": "GBP"
+  }
 }

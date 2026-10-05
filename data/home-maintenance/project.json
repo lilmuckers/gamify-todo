@@ -24,5 +24,8 @@
     "heating",
     "garden",
     "paperwork"
-  ]
+  ],
+  "budgets": {
+    "currency": "GBP"
+  }
 }
