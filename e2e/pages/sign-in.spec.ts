@@ -111,7 +111,9 @@ test('an expired sign-in keeps the edits and syncs them after signing in again',
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByText('Your GitHub sign-in has expired. 1 edit(s) are kept')).toBeVisible();
-  await page.getByRole('button', { name: 'Sign in again' }).click();
+  // Signed in again in the window, the app reloads onto the repo. Wait for that reload, or the
+  // old level scene passes inScene and the check after it runs mid-reload.
+  await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: 'Sign in again' }).click()]);
 
   // Back on the same screen and repo, and the queued edit goes out with the new token.
   await inScene(page, 'level');
