@@ -16,6 +16,7 @@ import {
 import type { App } from '../app';
 import { bucket, track } from '../analytics';
 import { href } from '../router';
+import { play as sfx } from '../audio';
 import { h, stars } from './dom';
 import { confirmDialog } from './modal';
 import { toast } from './toast';
@@ -105,6 +106,7 @@ export function reviewSheet(app: App): (Node | null | false | undefined)[] {
       if (!level) return false;
       const ops = dropOptionalOps(r, level);
       const ok = app.dispatchBatch(ops, { source: 'review' });
+      if (ok) sfx('win');
       if (ok) toast(`Dropped ${plural(ops.length, 'optional item')} from ${r.levelName}. Scope cut: no penalty.`, 'win');
       return ok;
     });
@@ -117,6 +119,7 @@ export function reviewSheet(app: App): (Node | null | false | undefined)[] {
   const someday = (r: LevelRef) =>
     cut('someday', () => {
       const ok = app.dispatchBatch([{ kind: 'setSomeday', projectId: r.projectId, worldId: r.worldId, levelId: r.levelId, someday: true }], { source: 'review' });
+      if (ok) sfx('win');
       if (ok) toast(`${r.levelName} is on the someday shelf. Start any item to bring it back.`, 'win');
       return ok;
     });
@@ -129,6 +132,7 @@ export function reviewSheet(app: App): (Node | null | false | undefined)[] {
       );
       if (!yes) return false;
       const ok = app.dispatchBatch([{ kind: 'deleteLevel', projectId: r.projectId, worldId: r.worldId, levelId: r.levelId }], { source: 'review' });
+      if (ok) sfx('scratch');
       if (ok) toast(`Dropped ${r.levelName}. Less is more.`, 'win');
       return ok;
     });
@@ -235,6 +239,7 @@ export function reviewSheet(app: App): (Node | null | false | undefined)[] {
       overdue: review.overdue.length,
       stale: review.stale.length,
     });
+    sfx('stamp');
     toast(focus.length ? `Review done. Focus: ${plural(focus.length, 'level')} this week.` : 'Review done. Have a good week!', 'win');
   };
 

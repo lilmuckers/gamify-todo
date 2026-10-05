@@ -1,4 +1,5 @@
-import { scoreLevel, totals } from '@quest/shared';
+import { scoreLevel, totals, type TimerPhase } from '@quest/shared';
+import { play as sfx } from '../audio';
 import type { App } from '../app';
 import { href, togglePad } from '../router';
 import { fmtDuration, h, icon, mount, stars } from './dom';
@@ -52,6 +53,9 @@ export function repaintSyncStatus(app: App, hud: HTMLElement, panel: HTMLElement
 }
 
 /** Top bar: where you are, how you're doing, sync state, settings. */
+/** The time-box phase last shown, so tipping into hurry or overdue while you watch sounds once. */
+let lastPhase: { key: string; phase: TimerPhase } | undefined;
+
 export function renderHud(app: App, el: HTMLElement) {
   const s = app.store;
   const st = app.state;
@@ -64,6 +68,9 @@ export function renderHud(app: App, el: HTMLElement) {
   if (cur && r.view === 'level' && !cur.sub) {
     const sc = scoreLevel(cur.level);
     const tm = sc.timer;
+    const key = `${cur.projectId}/${cur.world.id}/${cur.level.id}`;
+    if (lastPhase?.key === key && lastPhase.phase !== tm.phase && (tm.phase === 'hurry' || tm.phase === 'overdue')) sfx('hurry');
+    lastPhase = { key, phase: tm.phase };
     middle = h(
       'div',
       { class: `hud-level ${tm.phase}` },

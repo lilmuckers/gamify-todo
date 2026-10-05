@@ -37,6 +37,10 @@ describe('sanitize', () => {
   it('sends only the result of a sign-in', () => {
     expect(sanitize(EVENT_PARAMS.sign_in, { result: 'ok', login: 'octocat', repo: 'me/quests', token: 'ghu_x' } as Record<string, string>)).toEqual({ result: 'ok' });
   });
+
+  it('sends only whether sound was turned on', () => {
+    expect(sanitize(EVENT_PARAMS.sound_toggle, { on: true, hero: 'goth' })).toEqual({ on: true });
+  });
 });
 
 describe('routeType', () => {

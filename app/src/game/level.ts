@@ -25,6 +25,8 @@ import { isTyping, truncate } from '../ui/dom';
 import { toast } from '../ui/toast';
 import { itemForm, STATUS_LABEL, TYPE_INFO } from '../ui/forms';
 import { bucket, track } from '../analytics';
+import { play as sfx } from '../audio';
+import { STEP_SCALE } from '../sfx';
 import { itemAddr, type App } from '../app';
 import { go } from '../router';
 import { GROUND_Y, heroWalk, QuestScene, tex, WORLD_H } from './common';
@@ -322,7 +324,7 @@ export class LevelScene extends QuestScene {
         // Up into the block's underside: it bounces and a coin pops out.
         await this.jump(Math.max(22, e.y * TILE - this.hero.height + 4));
         if (v.top) this.tweens.add({ targets: v.top, y: v.top.y - 4, yoyo: true, duration: 90 });
-        this.popCoin(e.x * TILE + (e.w * TILE) / 2, GROUND_Y - (e.y + e.h) * TILE);
+        this.popCoin(e.x * TILE + (e.w * TILE) / 2, GROUND_Y - (e.y + e.h) * TILE, 0, false);
         await this.wait(500);
       }),
     );
@@ -705,7 +707,9 @@ export class LevelScene extends QuestScene {
     this.unlit.delete(criterionId);
     if (!v) return;
     for (const b of v.blocks) b.setTexture(this.stepTex(v.step, on)).setAlpha(!v.step.mvp && !on ? 0.5 : 1);
-    if (on) this.poof((v.step.x + v.step.w / 2) * TILE, GROUND_Y - v.step.h * TILE - 4);
+    if (!on) return;
+    this.poof((v.step.x + v.step.w / 2) * TILE, GROUND_Y - v.step.h * TILE - 4);
+    sfx('blip', { semis: STEP_SCALE[Math.min(this.stepIndex(criterionId) ?? 0, STEP_SCALE.length - 1)] });
   }
 
   /**
@@ -1436,8 +1440,9 @@ export class LevelScene extends QuestScene {
   }
 
   private onPlayEvent(e: Exclude<PlayEvent, { kind: 'flag' }>) {
-    if (e.kind === 'jump') return;
+    if (e.kind === 'jump') return sfx('jump');
     if (e.kind === 'hurt') {
+      sfx('hurt');
       this.cameras.main.shake(120, 0.003);
       return;
     }
@@ -1476,6 +1481,7 @@ export class LevelScene extends QuestScene {
     const { entity: en } = v;
     const topY = GROUND_Y - (en.y + en.h) * TILE;
     if (e.kind === 'bump') {
+      sfx('bump');
       if (v.top) {
         this.tweens.killTweensOf(v.top);
         (v.top as Phaser.GameObjects.Image).setTexture('used').setY(0);
@@ -1484,6 +1490,7 @@ export class LevelScene extends QuestScene {
       this.popCoin(en.x * TILE + TILE / 2, topY);
     } else if (e.kind === 'stomp') {
       v.root.setVisible(false);
+      sfx('stomp');
       this.poof(en.x * TILE + TILE / 2, GROUND_Y - 8);
     } else {
       v.root.setVisible(false);
@@ -1517,6 +1524,7 @@ export class LevelScene extends QuestScene {
    */
   private whack(left: number) {
     track('play_complete', { how: 'whack' });
+    sfx('bonk');
     this.hero.setTint(0xf6757a);
     this.time.delayedCall(180, () => this.hero.clearTint());
     this.say(poleQuip(left, this.lastPoleQuip));
@@ -1624,18 +1632,31 @@ export class LevelScene extends QuestScene {
       if (item.status === 'done') {
         if (e.kind === 'qblock') {
           if (!this.playing && Math.abs(this.hero.x - e.x * TILE) < TILE * 2) await this.jump();
-          if (v.top) this.tweens.add({ targets: v.top, y: -4, yoyo: true, duration: 90 });
+          if (v.top) {
+            sfx('bump');
+            this.tweens.add({ targets: v.top, y: -4, yoyo: true, duration: 90 });
+          }
           this.popCoin(cx, topY);
         } else if (e.kind === 'wall') this.crumble(e);
-        else if (e.kind === 'critter') this.poof(cx, GROUND_Y - 8);
-        else if (e.kind === 'pipe' || e.kind === 'warp' || e.kind === 'cloud') this.poof(cx, topY - 8);
-        else if (e.kind === 'checkpoint' && v.flag) {
+        else if (e.kind === 'critter') {
+          sfx('stomp');
+          this.poof(cx, GROUND_Y - 8);
+        } else if (e.kind === 'pipe' || e.kind === 'warp' || e.kind === 'cloud') {
+          sfx('poof');
+          this.poof(cx, topY - 8);
+        } else if (e.kind === 'checkpoint' && v.flag) {
+          sfx('checkpoint');
           const y = v.flag.y;
           v.flag.y = (e.h - 1) * TILE - 4;
           this.tweens.add({ targets: v.flag, y, duration: 500, ease: 'Quad.out' });
-        } else if (e.kind === 'sign' && v.top) this.tweens.add({ targets: v.top, scaleX: 0, yoyo: true, duration: 120 });
-        else if (e.kind === 'coins') for (let i = 0; i < 3; i++) this.popCoin(e.x * TILE + i * TILE + 8, topY, i * 80);
-      } else if (item.status === 'dropped') this.poof(cx, topY + (e.h * TILE) / 2);
+        } else if (e.kind === 'sign' && v.top) {
+          sfx('flip');
+          this.tweens.add({ targets: v.top, scaleX: 0, yoyo: true, duration: 120 });
+        } else if (e.kind === 'coins') for (let i = 0; i < 3; i++) this.popCoin(e.x * TILE + i * TILE + 8, topY, i * 80);
+      } else if (item.status === 'dropped') {
+        sfx('poof');
+        this.poof(cx, topY + (e.h * TILE) / 2);
+      }
     }
 
     const sub = this.current()?.sub;
@@ -1662,6 +1683,7 @@ export class LevelScene extends QuestScene {
       await this.finale(level);
     } else {
       if (!cleared && this.wasCleared) {
+        sfx('unclear');
         this.hero.setVisible(true).setPosition(this.layout.castleX * TILE, GROUND_Y);
         this.perch = undefined;
       }
@@ -1739,7 +1761,9 @@ export class LevelScene extends QuestScene {
 
   /** Step `k` was unticked: if the hero's on it, down to the next ticked step below, or the ground. */
   private async stepOff(k: number | undefined) {
-    if (k === undefined || this.perch !== k) return;
+    if (k === undefined) return;
+    sfx('unblip');
+    if (this.perch !== k) return;
     let below: number | undefined;
     for (let i = k - 1; i >= 0; i--) if (this.ticked(i)) (below = i), (i = -1);
     if (below === undefined) return this.toGround();
@@ -1855,6 +1879,7 @@ export class LevelScene extends QuestScene {
     await this.getOnto(e.x * TILE - TILE, e.x * TILE + TILE, cloudTop);
     this.cameras.main.stopFollow();
     this.following = false;
+    sfx('whoosh');
     await this.tween({
       targets: [v.root, this.hero],
       x: `+=${this.viewWidth}`,
@@ -1880,6 +1905,7 @@ export class LevelScene extends QuestScene {
     this.cameras.main.stopFollow();
     this.following = false;
     // Back the way he came: up and off to the left.
+    sfx('whoosh');
     await this.tween({ targets: [home.cloud, this.hero], x: `-=${this.viewWidth}`, y: `-=${GROUND_Y}`, duration: 1100, ease: 'Quad.in' });
     const to = this.app.rideHome();
     if (to) go(to);
@@ -1902,6 +1928,7 @@ export class LevelScene extends QuestScene {
 
   /** Slides the hero down behind the scenery (into a pipe), then fades out. */
   private sink(depth: number): Promise<void> {
+    sfx('pipe');
     return new Promise((resolve) => {
       this.hero.setDepth(-1);
       this.tweens.add({ targets: this.hero, y: this.hero.y + depth, duration: 500, ease: 'Linear' });
@@ -1935,6 +1962,7 @@ export class LevelScene extends QuestScene {
       this.hero.setDepth(-1).setPosition(e.x * TILE + (e.w * TILE - this.hero.width) / 2, mouth + 2 * TILE);
       cam.stopFollow();
       cam.centerOn(this.hero.x + TILE, WORLD_H / 2);
+      sfx('pipeUp', { delay: 0.2 });
       await this.tween({ targets: this.hero, y: mouth, duration: 600, delay: 200, ease: 'Linear' });
       this.hero.setDepth(40);
       this.idle();
@@ -1968,6 +1996,7 @@ export class LevelScene extends QuestScene {
     this.hero.setPosition(cloud.x + ox + TILE, cloud.y + oy + (own ? 6 : 2)).setFlipX(false);
     cam.stopFollow();
     cam.centerOn(landX, WORLD_H / 2);
+    sfx('whoosh');
     await this.tween({
       targets: [cloud, this.hero],
       x: `+=${landX - cloud.x - ox}`,
@@ -1992,7 +2021,8 @@ export class LevelScene extends QuestScene {
     this.hero.setVisible(false).setAlpha(1);
   }
 
-  private popCoin(x: number, y: number, delay = 0) {
+  private popCoin(x: number, y: number, delay = 0, sound = true) {
+    if (sound) sfx('coin', { delay: delay / 1000 });
     const c = this.add.image(x, y, 'coin').setOrigin(0.5, 1);
     this.fx.add(c);
     this.tweens.add({ targets: c, y: y - 28, alpha: 0, duration: 600, delay, ease: 'Quad.out', onComplete: () => c.destroy() });
@@ -2002,6 +2032,7 @@ export class LevelScene extends QuestScene {
   }
 
   private crumble(e: LayoutEntity) {
+    sfx('crumble');
     for (let i = 0; i < 8; i++) {
       const b = this.add.image(e.x * TILE + 8, GROUND_Y - (1 + (i % 3)) * TILE, 'brick').setScale(0.35);
       this.fx.add(b);
@@ -2053,6 +2084,7 @@ export class LevelScene extends QuestScene {
     this.hero.anims.stop();
     this.hero.setFlipX(false).setTexture(this.heroTex('jump'));
     const slide = Math.max(250, (GROUND_Y - this.hero.y) * 6);
+    sfx('flagpole');
     if (pending?.img.active) this.tweens.add({ targets: pending.img, y: pending.y, duration: slide, ease: 'Quad.out' });
     await this.tween({ targets: this.hero, y: GROUND_Y, duration: slide, ease: 'Quad.in' });
     this.idle();
@@ -2066,9 +2098,11 @@ export class LevelScene extends QuestScene {
 
   private fireworks(level: Level) {
     const L = this.layout;
+    sfx('clear');
     if (!reducedMotion())
       for (let i = 0; i < 5; i++)
         this.time.delayedCall(200 + i * 250, () => {
+          sfx('firework', { semis: (i % 3) * 2 });
           const x = L.castleX * TILE + Phaser.Math.Between(0, 80);
           const y = Phaser.Math.Between(40, 100);
           for (let k = 0; k < 10; k++) {

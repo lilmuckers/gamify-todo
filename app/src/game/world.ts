@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { levelNodeState, scoreLevel, suggestNext, type Level, type LevelDiff, type World } from '@quest/shared';
 import { pullLookup } from '../data/source';
+import { play as sfx } from '../audio';
 import { go } from '../router';
 import { DIFF_COLOR, NODE_SPRITE, THEMES } from '../sprites/pixels';
 import { TILE, type ThemeKey } from '../sprites/render';
@@ -158,7 +159,10 @@ export class WorldScene extends QuestScene {
     nodes.forEach((n, i) => {
       const { x, y } = pos[i];
       const img = this.add.image(x, y, n.sprite).setScale(1.5);
-      this.clickable(img, n.onClick);
+      this.clickable(img, () => {
+        sfx('select');
+        n.onClick();
+      });
       img.on('pointerover', () => img.setScale(1.8));
       img.on('pointerout', () => img.setScale(1.5));
       layer.add(img);

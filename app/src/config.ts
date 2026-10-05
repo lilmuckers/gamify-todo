@@ -189,6 +189,8 @@ export interface UiPrefs {
   setup?: { step: string; repo?: string };
   /** Project last opened, whose cartridge waits beside the console on the title screen. */
   lastProject?: string;
+  /** Sound effects; undefined = off. */
+  sound?: boolean;
 }
 
 export function uiPrefs(): UiPrefs {

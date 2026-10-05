@@ -36,6 +36,7 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   hero_select: ['hero', 'saved_to_repo'],
   nav_shortcut: ['key'],
   play_mode: ['on'],
+  sound_toggle: ['on'],
   play_complete: ['how'],
   play_commit: ['kept', 'skipped', 'why'],
   skill_help_open: [],

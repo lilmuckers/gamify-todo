@@ -416,7 +416,8 @@ canvas give ▲ up, ◀ ▶ prev/next and Play.
   fine-grained token, with a read-only/editable status line. With sign-in available it folds
   into "Use a token instead".
 - **New here?:** reopen the welcome screen, tour or set-up guide.
-- **Display:** layout auto (by screen size) / full game view / compact.
+- **Display:** layout auto (by screen size) / full game view / compact; sound effects on/off
+  (off by default, see §5.12).
 - **Weekly review:** Fri / Mon / Sun / off.
 - **Privacy:** analytics toggle.
 - **Sync:** source, status, last synced, pending ops, conflicts (skipped queued edits),
@@ -451,6 +452,31 @@ Precedence: in read-only views the viewer's own choice wins over the repo defaul
 to add a hero: the art, the voice and every line they need.
 
 ---
+
+### 5.12 Sound effects (#20)
+
+- Off by default; a checkbox in Settings → Display, stored in `uiPrefs().sound`. Turning it on
+  plays a coin as a preview. With reduced motion set, the hint says they stay off unless chosen.
+- Made at play time by a tiny WebAudio synth (`app/src/audio.ts`): pulse, triangle, sawtooth and
+  filtered-noise notes with an envelope. Every sound is a short note table in `app/src/sfx.ts`.
+  No audio files, so no new CSP sources and nothing extra in the offline cache.
+- The AudioContext is only made from a user gesture with sound on. Nothing plays while the tab is
+  hidden or while the game catches up after one (`isCatchingUp()`), and the same sound within
+  40 ms is dropped.
+- The level scene plays item and goal sounds in time with their animations: coin + bump (task,
+  stretch), crumble (blocker), stomp (risk), checkpoint (deliverable), flip (decision), poof
+  (dropped, dependency done), a rising blip per stair step, flagpole slide, clear jingle with
+  firework pops, and a sad pair when a level un-clears. Travel: pipe down/up, cloud whoosh.
+  Play mode: jump, hurt, bonk (flagpole whack); play on/off chimes.
+- Bedroom: cartridge slot clunk, power-on hum, QUEST-16 boot jingle, PRESS START, junk TV static
+  and switch-off, and a sound per junk sound word. Typewriter dialogue ticks, pitched per hero.
+  Picking an island or a level node blips.
+- DOM: edit rejected (buzz), perfectionism penalty (wah-wah), budget alerts, undo, pad page
+  flicks, pen stroke on a Today tick, inbox jot/scratch, the weekly review stamp, the time-box
+  tipping into hurry or overdue while watched, and a chime for other good news.
+- Edits that no level scene is showing (compact view, or ticking from the pad over another
+  screen) play the matching item sound from `soundForOp` (`app/src/sound-events.ts`), so a tick
+  never sounds twice.
 
 ## 6. Onboarding (#61)
 
@@ -753,7 +779,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #24 Hero idle/victory animations.
 - #23 A livelier world map.
 - #22 Faster long walks.
-- #20 Sound effects (off by default).
 
 **Productivity:**
 - #19 Search/filter (`/`)

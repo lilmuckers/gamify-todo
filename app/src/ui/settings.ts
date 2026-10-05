@@ -1,6 +1,7 @@
 import { describeOp, GitHubClient, HERO_IDS, parseRepo, REVIEW_SLOTS, type HeroId, type ReviewDay } from '@quest/shared';
 import { analyticsAllowed, analyticsAvailable, setAnalyticsAllowed, track } from '../analytics';
 import type { App } from '../app';
+import { setSoundOn, soundOn } from '../audio';
 import { needsSignIn } from '../auth/session';
 import { REVOKE_URL, signInAvailable, signOut } from '../auth/signin';
 import { chosenBranch, heroStore, reloadWithMode, repoRef, savedRepo, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
@@ -50,7 +51,27 @@ export function settingsDialog(app: App) {
       ['on', 'Compact mobile view'],
     ].map(([v, l]) => h('option', { value: v, selected: (uiPrefs().mobile ?? 'auto') === v }, l)),
   );
-  body.append(h('h3', null, 'Display'), h('label', { class: 'field' }, h('span', null, 'Layout'), mode));
+  const sound = h('input', {
+    id: 'sound-toggle',
+    type: 'checkbox',
+    checked: soundOn(),
+    onchange: (e: Event) => {
+      const on = (e.target as HTMLInputElement).checked;
+      setSoundOn(on);
+      track('sound_toggle', { on });
+    },
+  });
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  body.append(
+    h('h3', null, 'Display'),
+    h('label', { class: 'field' }, h('span', null, 'Layout'), mode),
+    h('label', { class: 'check' }, sound, 'Sound effects'),
+    h(
+      'small',
+      { class: 'muted' },
+      `Short retro blips, made in the browser. Off by default.${calm ? ' Your system asks for reduced motion, so they stay off unless you turn them on.' : ''}`,
+    ),
+  );
 
   const reviewDay = h(
     'select',

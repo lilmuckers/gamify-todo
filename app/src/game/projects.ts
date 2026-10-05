@@ -3,6 +3,7 @@ import { orderedProjects, orderedWorlds, suggestNextLevel, totals, type GameStat
 import { go } from '../router';
 import { uiPrefs, urlMode } from '../config';
 import { track } from '../analytics';
+import { playWord, play as sfx } from '../audio';
 import { quip, type Thing } from './quips';
 import { JUNK_KINDS, junkLine, type JunkKind } from './junk-lines';
 import { activePad } from './play/input';
@@ -389,7 +390,10 @@ export class ProjectsScene extends QuestScene {
       });
       img.on('pointerup', () => {
         if (this.busy) return;
-        if (!cart.insert) return cart.onPick();
+        if (!cart.insert) {
+          sfx('select');
+          return cart.onPick();
+        }
         void this.play(img, shadow, consoleImg, cart);
       });
     });
@@ -500,9 +504,11 @@ export class ProjectsScene extends QuestScene {
     // inserted cartridge is just its top edge poking out of the slot.
     await this.tween({ targets: img, x: c.x + slot.x + lift.x, y: c.y + slot.y + lift.y, angle: c.angle, scale: 1.1, duration: 320, ease: 'Quad.out' });
     await this.tween({ targets: img, x: c.x + slot.x, y: c.y + slot.y, scaleX: SLOT.w / CART_W, scaleY: 0.2, duration: 200, ease: 'Quad.in' });
+    sfx('slot');
     this.cameras.main.shake(90, 0.004);
     if (!this.textures.exists('console-on')) this.textures.addCanvas('console-on', consoleTop(true));
     consoleImg.setTexture('console-on');
+    sfx('powerOn', { delay: 0.1 });
     await this.wait(250);
 
     // Look up at the TV.
@@ -543,6 +549,7 @@ export class ProjectsScene extends QuestScene {
     );
     stripes.setAlpha(0);
     screen.add([logo, stripes]);
+    sfx('bootJingle');
     await this.tween({ targets: logo, y: cy - 4, duration: 320, ease: 'Bounce.out' });
     await this.tween({ targets: stripes, alpha: 1, duration: 120 });
     await this.wait(280);
@@ -565,6 +572,7 @@ export class ProjectsScene extends QuestScene {
     screen.add(lines);
     await this.tween({ targets: art, alpha: 1, x: sx + 32, duration: 200 });
     await this.wait(520);
+    sfx('start');
     this.cameras.main.flash(160, 255, 255, 255);
     await this.wait(120);
   }
@@ -853,6 +861,7 @@ export class ProjectsScene extends QuestScene {
 
   /** A sound word that pops up beside the action and floats away. Cleared with the drips. */
   private pop(egg: Egg, word: string, p: { x: number; y: number }, color = '#ffffff') {
+    playWord(word);
     const t = this.text(p.x, p.y, word, 6, color).setOrigin(0.5).setDepth(400).setAlpha(0);
     egg.drips.push(t);
     this.tweens.add({ targets: t, alpha: 1, duration: 80 });
@@ -930,6 +939,7 @@ export class ProjectsScene extends QuestScene {
     screen.add(beam);
     await this.tween({ targets: beam, scaleY: 1, alpha: 0.2, duration: 120 });
     beam.destroy();
+    sfx('static');
     const fuzz = this.add.image(0, 0, this.staticKey(0)).setScale(JUNK_SCALE);
     screen.add(fuzz);
     for (let i = 1; i < 5; i++) {
@@ -964,6 +974,7 @@ export class ProjectsScene extends QuestScene {
     const cam = this.cameras.main;
     const screen = egg.screen;
     if (screen && !calm) {
+      sfx('tvOff');
       await this.tween({ targets: screen, scaleY: 0.02, duration: 140, ease: 'Quad.in' });
       await this.tween({ targets: screen, scaleX: 0.02, duration: 120, ease: 'Quad.in' });
       await this.tween({ targets: screen, alpha: 0, duration: 120 });
