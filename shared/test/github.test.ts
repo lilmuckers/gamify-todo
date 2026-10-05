@@ -83,6 +83,21 @@ describe('GitHubClient', () => {
     await expect(gh.hasCommits()).rejects.toThrow(/500/);
   });
 
+  it('pages through commits that touched data/', async () => {
+    const commit = (i: number) => ({ sha: `s${i}`, commit: { message: `quest: done: T${i} (p/w/l)`, author: { date: `2026-10-0${1 + (i % 5)}T10:00:00Z` } } });
+    const { fn, calls } = fakeFetch((url) => {
+      if (!url.includes('/commits?')) return;
+      const page = Number(new URL(url).searchParams.get('page'));
+      return { json: page === 1 ? Array.from({ length: 100 }, (_, i) => commit(i)) : [commit(100)] };
+    });
+    const commits = await new GitHubClient('tok', repo, fn).dataCommits('2026-09-01T00:00:00Z');
+    expect(commits).toHaveLength(101);
+    expect(commits[0]).toEqual({ sha: 's0', date: '2026-10-01T10:00:00Z', message: 'quest: done: T0 (p/w/l)' });
+    const q = new URL(calls[0].url).searchParams;
+    expect([q.get('sha'), q.get('path'), q.get('since'), q.get('per_page')]).toEqual(['main', 'data', '2026-09-01T00:00:00Z', '100']);
+    expect(calls).toHaveLength(2);
+  });
+
   it('lists only PRs touching data files', async () => {
     const pr = (n: number) => ({ number: n, title: `PR ${n}`, user: { login: 'u' }, html_url: '', draft: false, updated_at: '', head: { sha: 's', ref: 'b', repo: { full_name: 'o/r' } }, base: { ref: 'main' } });
     const { fn } = fakeFetch((url) => {

@@ -401,9 +401,29 @@ live in this browser's `localStorage`, not in the repo.
 - **XP over time:** weekly XP (each cleared level's XP in the week it cleared) as bars, with the
   running total as a line. XP from before the window, or with no `clearedAt`, is the baseline.
 
-It is derived from the data, not commit history: no network, no cache of its own, and it works in
-read-only views and offline (the workspace is already cached). Reopening something removes its
-stamp, so undone work drops out. Older data without stamps shows only its clears.
+Two sources are merged (`progressEvents`):
+- **Done stamps** in the data: exact click times, available everywhere (read-only site, demo,
+  offline). Reopening something removes its stamp.
+- **Commit history** (`shared/src/history.ts`): the app's own commit messages (`quest: done: <title>
+  (<p>/<w>/<l>)`, `tick criterion <id> (…)`, and each bullet of `quest: N updates`) read back as
+  dated events. This keeps work that was **done and later reopened, un-ticked or dropped**: it still
+  counts, and the page says how many were ("3 reopened later: still counted", and per day in the
+  calendar's tooltips). Commits made by hand or by other tools say nothing parseable, so their
+  changes count through the stamps alone.
+- **Matching:** a commit completion that a stamp already shows (same thing, same level, committed
+  within 3 days after the stamp, allowing an hour of clock skew) is dropped, since the stamp has the
+  exact time. Steps are named "Step (in Dependency)" on both sides. Level clears come from stamps.
+- **Reading it:** GitHub mode lists commits touching `data/` on the branch
+  (`GitHubClient.dataCommits`, 100 a page, up to 30 pages on the first read). The Docker editor asks
+  `GET /api/history` (`git log -- data`). The read-only site and the demo have no history and use
+  stamps alone.
+- **Cache:** `ProgressHistory` (`app/src/data/history.ts`) keeps parsed events in IndexedDB per
+  source and branch, and later reads only fetch commits since the newest one seen. It reads on load,
+  at most every 10 minutes after that, and at most once a minute while Stats is open. Offline it
+  uses the cache. The page notes which sources it used and when history was last checked.
+
+**Layout trial:** `?stats=screen` shows the same numbers as a full arcade "RECORDS" screen (stat
+tiles, a big calendar, time-boxes beside XP) instead of the pad page, to choose between the two.
 
 ### 5.7 HUD
 
@@ -591,6 +611,7 @@ Fastify (`server/src/app.ts`), with the repo mounted at `/repo`.
 | `GET /api/game` | All `data/**/*.json` + content-hash version |
 | `POST /api/commit` | `{changes, message, baseVersion}`. Data paths only. 409 if disk changed, 400 if invalid. Writes, then commits only those paths |
 | `GET /api/status` | Branch, ahead/behind, remote, last commit, `canReviewPRs` |
+| `GET /api/history?since=` | Commits touching `data/` (sha, ISO date, full message), newest first, for Stats |
 | `POST /api/publish` | Fetch, pull `--rebase --autostash` if behind, push |
 | `GET /api/prs`, `GET /api/prs/:n` | Data PRs; detail + base/head workspaces (needs `GITHUB_TOKEN`) |
 | `POST /api/prs/:n/merge`, `/review` | Merge (then pull locally), review |

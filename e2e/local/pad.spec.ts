@@ -29,6 +29,8 @@ test('t, i, w and s hold up Today, the Inbox, the weekly review and stats', asyn
   await expect(pad).toHaveAttribute('aria-label', 'Stats: streaks and history');
   await expect(pad.locator('.stats-heat .heat')).toHaveCount(140);
   await expect(pad.getByRole('heading', { name: 'TIME-BOXES' })).toBeVisible();
+  // The Docker editor has a commit log, so the history counts too.
+  await expect(pad.locator('.stats-source')).toContainText('commit history');
   await page.locator('.hud-streak').click();
   await expect(page).toHaveURL(/#\/p\/kitchen-renovation\/fit\/tiling$/);
   await page.keyboard.press('s');
@@ -66,4 +68,13 @@ test('n captures an idea, which can then be placed into the open level', async (
     .poll(() => repoJson<{ items: { title: string }[] }>('data/kitchen-renovation/fit/tiling.json').items.map((i) => i.title), { timeout: 15_000 })
     .toContain(idea);
   expect(repoJson<{ items: { title: string }[] }>('data/inbox.json').items.map((i) => i.title)).not.toContain(idea);
+});
+
+test('?stats=screen shows stats as a full screen instead', async ({ page }) => {
+  await page.goto('./?stats=screen#/stats');
+  const screen = page.getByRole('region', { name: 'Stats: streaks and history' });
+  await expect(screen.getByRole('heading', { name: 'RECORDS' })).toBeVisible();
+  await expect(screen.locator('.stats-heat .heat')).toHaveCount(140);
+  await screen.getByRole('button', { name: /CLOSE/ }).click();
+  await expect(page).toHaveURL(/#\/$/);
 });

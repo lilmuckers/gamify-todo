@@ -47,13 +47,15 @@
       "id": "dry-the-potatoes-for-a-day-before-baggin",
       "title": "Dry the potatoes for a day before bagging",
       "type": "task",
-      "status": "doing"
+      "status": "done",
+      "doneAt": "2026-10-05T08:30:00Z"
     },
     {
       "id": "plait-the-onions",
       "title": "Plait the onions",
       "type": "task",
-      "status": "doing"
+      "status": "done",
+      "doneAt": "2026-10-04T10:20:00Z"
     },
     {
       "id": "store-squash-in-the-spare-room",

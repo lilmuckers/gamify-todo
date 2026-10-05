@@ -32,6 +32,8 @@ import { play as sfx } from './audio';
 import { heroStore, patchUiPrefs, reviewStore, uiPrefs, type ReviewPrefs } from './config';
 import { pullLookup, type PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
+import { ProgressHistory } from './data/history';
+import { browserKV } from './data/kv';
 import { currentRoute, href, routeProject, type Route } from './router';
 import { sceneShows, soundForOp } from './sound-events';
 import { playSummary } from './ui/play-summary';
@@ -153,8 +155,13 @@ export class App {
   /** What the last store emit showed, to tell data changes from sync-status ones. */
   private seen: { state?: Workspace; caps: string } = { caps: '' };
 
+  /** What the commit history adds to the stats: work done and later undone. */
+  progress: ProgressHistory;
+
   constructor(public store: Store) {
     store.subscribe(() => this.emit(this.storeChange()));
+    this.progress = new ProgressHistory(store.source, browserKV(), () => this.emit());
+    void this.progress.init();
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
@@ -369,6 +376,8 @@ export class App {
   private onRoute() {
     const r = this.route;
     if (r.view === 'prs') void this.loadPulls();
+    // Looking at stats: catch up with commits made elsewhere, at most once a minute.
+    if (r.pad === 'stats') void this.progress.refresh(60_000);
     if (r.view === 'pr' || r.view === 'pr-level') void this.loadPull(r.pr);
     // Not PR review: that's someone else's change, not where you were playing.
     if ((r.view === 'overworld' || r.view === 'world' || r.view === 'level') && uiPrefs().lastProject !== r.projectId)

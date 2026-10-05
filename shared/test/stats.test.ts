@@ -11,6 +11,7 @@ import {
   inverseOp,
   lastActivity,
   makeOp,
+  progressEvents,
   progressStats,
   stringify,
   streaks,
@@ -79,10 +80,10 @@ describe('activityByDay', () => {
       }),
       cleared({ id: 'c', startedAt: iso(9, 30), clearedAt: iso(10, 3, 15) }, iso(10, 3, 15)),
     );
-    const days = activityByDay(data);
+    const days = activityByDay(progressEvents(data));
     expect([...days.keys()].sort()).toEqual(['2026-10-02', '2026-10-03']);
-    expect(days.get('2026-10-02')).toEqual({ day: '2026-10-02', done: 2, ticked: 1, cleared: 0, total: 3 });
-    expect(days.get('2026-10-03')).toEqual({ day: '2026-10-03', done: 1, ticked: 1, cleared: 1, total: 3 });
+    expect(days.get('2026-10-02')).toEqual({ day: '2026-10-02', done: 2, ticked: 1, cleared: 0, total: 3, undone: 0 });
+    expect(days.get('2026-10-03')).toEqual({ day: '2026-10-03', done: 1, ticked: 1, cleared: 1, total: 3, undone: 0 });
   });
 });
 
@@ -117,9 +118,9 @@ describe('streaks', () => {
 
 describe('heatmap', () => {
   it('draws whole weeks, Monday first, up to this week', () => {
-    const activity = activityByDay(
+    const activity = activityByDay(progressEvents(
       ws(level({ items: Array.from({ length: 5 }, (_, i) => ({ id: `i${i}`, type: 'task' as const, title: 'I', status: 'done' as const, doneAt: iso(10, 1) })) })),
-    );
+    ));
     const cols = heatmap(activity, NOW, 3);
     expect(cols).toHaveLength(3);
     expect(cols.every((c) => c.length === 7)).toBe(true);

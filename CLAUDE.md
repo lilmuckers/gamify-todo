@@ -59,6 +59,7 @@ shared/   Pure TS domain, used by app and server (no DOM, no Phaser)
   src/layout.ts     level layout in tiles (items by dependsOn rank, stairs, flag): shared by scene, play physics, mobile strip
   src/worldmap.ts   project map layout from unlocksAfter
   src/today.ts      Today list;  src/review.ts weekly review selectors + schedule
+  src/stats.ts      streaks, calendar, time-box accuracy, XP by week;  src/history.ts commit messages → events
   src/serialize.ts  files <-> Workspace, changedFiles, path rules;  src/validate.ts schema + semantic rules, revalidate
   src/diff.ts       PR diffs (Warp Zone);  src/github.ts GitHubClient (Git Data API, PRs, checks)
   src/oauth.ts      GitHub App code/refresh-token exchange (server-side only: Worker, Docker server)

@@ -115,6 +115,20 @@ describe('server', () => {
     expect(rebind.statusCode).toBe(403);
   });
 
+  it('lists data commits for the stats history', async () => {
+    const all = await app.inject({ method: 'GET', url: '/api/history', headers: { host: 'localhost' } });
+    expect(all.statusCode).toBe(200);
+    const commits = all.json() as { sha: string; date: string; message: string }[];
+    expect(commits.map((c) => c.message)).toContain('quest: rename');
+    expect(commits.at(-1)?.message).toBe('seed');
+    expect(commits[0].sha).toMatch(/^[0-9a-f]{40}$/);
+    expect(Number.isNaN(Date.parse(commits[0].date))).toBe(false);
+    const none = await app.inject({ method: 'GET', url: '/api/history?since=2099-01-01T00:00:00Z', headers: { host: 'localhost' } });
+    expect(none.json()).toEqual([]);
+    const bad = await app.inject({ method: 'GET', url: '/api/history?since=yesterday-ish', headers: { host: 'localhost' } });
+    expect(bad.statusCode).toBe(400);
+  });
+
   it('reports PR review unavailable without a token', async () => {
     const r = await app.inject({ method: 'GET', url: '/api/prs', headers: { host: 'localhost' } });
     expect(r.statusCode).toBe(501);

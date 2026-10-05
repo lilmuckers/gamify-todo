@@ -6,7 +6,7 @@ import { href, withPad, type PadPage } from '../router';
 import { play as sfx } from '../audio';
 import { inboxCount, inboxSheet } from './inbox';
 import { reviewSheet } from './weekly';
-import { statsSheet } from './stats';
+import { statsAsScreen, statsScreen, statsSheet } from './stats';
 import { fmtDuration, h, keepFields } from './dom';
 
 const DAY_MS = 86_400_000;
@@ -242,6 +242,18 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
     if (!page) {
       open = undefined;
       host.replaceChildren();
+      return;
+    }
+    // Layout trial: stats as a full screen rather than a pad page.
+    const screen = page === 'stats' && statsAsScreen();
+    host.classList.toggle('as-screen', screen);
+    if (screen) {
+      const was = host.querySelector('.stats-screen');
+      if (!was) sfx('page');
+      const scrolled = was?.scrollTop ?? 0;
+      host.replaceChildren(statsScreen(app, close));
+      host.querySelector('.stats-screen')!.scrollTop = scrolled;
+      open = undefined;
       return;
     }
     // Keep the reader's place, and whatever they're typing, across updates.

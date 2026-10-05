@@ -32,7 +32,8 @@
       "id": "compare",
       "title": "Compare three alternatives",
       "type": "task",
-      "status": "doing"
+      "status": "done",
+      "doneAt": "2026-10-04T16:45:00Z"
     },
     {
       "id": "raise-the-excess-to-500",

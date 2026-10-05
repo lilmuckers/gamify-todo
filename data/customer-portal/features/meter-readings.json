@@ -79,7 +79,8 @@
           "id": "present-at-metering-weekly",
           "title": "Present at the metering team weekly",
           "type": "task",
-          "status": "doing",
+          "status": "done",
+          "doneAt": "2026-10-05T09:15:00Z",
           "dependsOn": [
             "write-the-proposal"
           ]

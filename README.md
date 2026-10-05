@@ -54,8 +54,11 @@ graph paper:
   taken against the box, with a nudge if your boxes run short or long.
 - **XP over time**: XP per week and the running total.
 
-It's all worked out from the done stamps in your data (`doneAt` on items, steps and criteria;
-`clearedAt` on levels), so it needs no extra files and works offline.
+It's worked out from the done stamps in your data (`doneAt` on items, steps and criteria;
+`clearedAt` on levels) plus the app's own commit history, so something you finished and later
+reopened still counts towards your streak. The history is cached in your browser, so Stats works
+offline too. The read-only site and the demo use the stamps alone. Try `?stats=screen` for the
+same numbers as a full arcade-style screen.
 
 Most edits show an **UNDO** toast for a few seconds (Ctrl/Cmd+Z works too); edits that haven't
 synced yet are simply taken back, with no commit.

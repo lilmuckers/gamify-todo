@@ -1,3 +1,4 @@
+import type { HistoryEvent } from './history';
 import type { Workspace } from './model';
 import { isCleared, scoreLevel } from './scoring';
 import { levelsOf } from './today';
@@ -17,6 +18,21 @@ export interface DayActivity {
   /** Levels cleared. */
   cleared: number;
   total: number;
+  /** Of those, how many were reopened or un-ticked later (they still count). */
+  undone: number;
+}
+
+/** One bit of progress at a moment: from a done stamp in the data, or from commit history. */
+export interface ProgressEvent {
+  /** ms. */
+  at: number;
+  kind: 'done' | 'ticked' | 'cleared';
+  /** "project/world/level". */
+  level: string;
+  /** Item title ("Step (in Dependency)" for steps), criterion id, or '' for a clear. */
+  subject: string;
+  /** Only in the commit history: the stamp has gone because it was reopened or un-ticked later. */
+  undone?: boolean;
 }
 
 export interface Streak {
@@ -34,6 +50,8 @@ export interface HeatCell {
   heat: 0 | 1 | 2 | 3 | 4;
   /** Levels cleared that day. */
   cleared: number;
+  /** Things done that day and reopened later (from the commit history). */
+  undone: number;
   /** After today: drawn blank. */
   future: boolean;
 }
@@ -79,6 +97,8 @@ export interface ProgressStats {
   xp: { weeks: XpWeek[]; before: number; total: number };
   /** Everything ever done, ticked or cleared (that has a date). */
   total: number;
+  /** Of those, the ones reopened or un-ticked later. */
+  undone: number;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -107,30 +127,92 @@ export function weekStart(day: string): string {
 }
 
 /**
- * Progress per local day, from the done stamps in the data: items and steps
- * (`doneAt`), criteria (`doneAt`) and level clears (`clearedAt`). Things
- * reopened since have lost their stamp, so they don't count.
+ * Progress from the done stamps in the data: items and steps (`doneAt`),
+ * criteria (`doneAt`) and level clears (`clearedAt`). Reopening something
+ * removes its stamp, so this only sees what is still done.
  */
-export function activityByDay(ws: Workspace): Map<string, DayActivity> {
-  const days = new Map<string, DayActivity>();
-  const add = (at: string | undefined, kind: 'done' | 'ticked' | 'cleared') => {
-    const t = at ? Date.parse(at) : NaN;
-    if (Number.isNaN(t)) return;
-    const day = dayKey(t);
-    let a = days.get(day);
-    if (!a) days.set(day, (a = { day, done: 0, ticked: 0, cleared: 0, total: 0 }));
-    a[kind] += 1;
-    a.total += 1;
-  };
-  for (const { level } of levelsOf(ws)) {
+export function stampEvents(ws: Workspace): ProgressEvent[] {
+  const out: ProgressEvent[] = [];
+  for (const { level, ref } of levelsOf(ws)) {
+    const key = `${ref.projectId}/${ref.worldId}/${ref.levelId}`;
+    const add = (at: string | undefined, kind: ProgressEvent['kind'], subject: string) => {
+      const t = at ? Date.parse(at) : NaN;
+      if (!Number.isNaN(t)) out.push({ at: t, kind, level: key, subject });
+    };
     for (const item of level.items) {
-      if (item.status === 'done') add(item.doneAt, 'done');
-      for (const step of item.subtasks ?? []) if (step.status === 'done') add(step.doneAt, 'done');
+      if (item.status === 'done') add(item.doneAt, 'done', item.title);
+      for (const step of item.subtasks ?? [])
+        if (step.status === 'done') add(step.doneAt, 'done', `${step.title} (in ${item.title})`);
     }
-    for (const c of level.successCriteria) if (c.done) add(c.doneAt, 'ticked');
-    if (isCleared(level)) add(level.clearedAt, 'cleared');
+    for (const c of level.successCriteria) if (c.done) add(c.doneAt, 'ticked', c.id);
+    if (isCleared(level)) add(level.clearedAt, 'cleared', '');
+  }
+  return out;
+}
+
+/** How far a commit can trail the click it records (offline edits sync later). */
+const SYNC_LAG_MS = 3 * DAY_MS;
+/** Clocks differ: a commit can carry a time a little before the click's stamp. */
+const SKEW_MS = 60 * 60 * 1000;
+
+/**
+ * Stamps plus what only the commit history knows: work done and then
+ * reopened, un-ticked or dropped (its stamp is gone, the commit isn't).
+ * A commit that records something a stamp already shows is left out, since
+ * the stamp has the exact time. Commits made by hand or by other tools say
+ * nothing parseable, so their changes count through the stamps alone.
+ */
+export function mergeHistory(stamps: ProgressEvent[], history: HistoryEvent[]): ProgressEvent[] {
+  const out = [...stamps];
+  if (!history.length) return out;
+  const key = (kind: string, level: string, subject: string) => `${kind}|${level}|${subject}`;
+  const unmatched = new Map<string, number[]>();
+  for (const e of stamps) {
+    if (e.kind === 'cleared') continue;
+    const k = key(e.kind, e.level, e.subject);
+    unmatched.set(k, [...(unmatched.get(k) ?? []), e.at]);
+  }
+  const events = [...history].sort((a, b) => a.at.localeCompare(b.at));
+  events.forEach((h, i) => {
+    if (h.kind !== 'done' && h.kind !== 'tick') return;
+    const kind = h.kind === 'done' ? 'done' : 'ticked';
+    const at = Date.parse(h.at);
+    if (Number.isNaN(at)) return;
+    const k = key(kind, h.level, h.subject);
+    const stamps = unmatched.get(k) ?? [];
+    const match = stamps.findIndex((t) => at >= t - SKEW_MS && at - t <= SYNC_LAG_MS);
+    if (match >= 0) {
+      stamps.splice(match, 1);
+      return;
+    }
+    // Undone if the next change to the same thing takes it back.
+    const undoes = (n: HistoryEvent) =>
+      kind === 'done' ? n.kind === 'todo' || n.kind === 'doing' || n.kind === 'dropped' : n.kind === 'untick';
+    const same = (n: HistoryEvent) =>
+      n.level === h.level && n.subject === h.subject && (kind === 'done' ? n.kind !== 'tick' && n.kind !== 'untick' : n.kind === 'tick' || n.kind === 'untick');
+    const next = events.slice(i + 1).find(same);
+    out.push({ at, kind, level: h.level, subject: h.subject, ...(next && undoes(next) ? { undone: true } : {}) });
+  });
+  return out;
+}
+
+/** Progress per local day. */
+export function activityByDay(events: ProgressEvent[]): Map<string, DayActivity> {
+  const days = new Map<string, DayActivity>();
+  for (const e of events) {
+    const day = dayKey(e.at);
+    let a = days.get(day);
+    if (!a) days.set(day, (a = { day, done: 0, ticked: 0, cleared: 0, total: 0, undone: 0 }));
+    a[e.kind] += 1;
+    a.total += 1;
+    if (e.undone) a.undone += 1;
   }
   return days;
+}
+
+/** Progress events for a workspace, with the commit history when there is one. */
+export function progressEvents(ws: Workspace, history: HistoryEvent[] = []): ProgressEvent[] {
+  return mergeHistory(stampEvents(ws), history);
 }
 
 /** The current and longest runs of days with progress, as of `now`. */
@@ -174,7 +256,7 @@ export function heatmap(activity: Map<string, DayActivity>, now = Date.now(), we
       const future = day > today;
       const a = future ? undefined : activity.get(day);
       const count = a?.total ?? 0;
-      col.push({ day, count, heat: heatOf(count), cleared: a?.cleared ?? 0, future });
+      col.push({ day, count, heat: heatOf(count), cleared: a?.cleared ?? 0, undone: a?.undone ?? 0, future });
     }
     cols.push(col);
   }
@@ -260,8 +342,8 @@ export function xpOverTime(ws: Workspace, now = Date.now(), weeks = HISTORY_WEEK
 }
 
 /** Everything the stats page shows, as of `now`. */
-export function progressStats(ws: Workspace, now = Date.now(), weeks = HISTORY_WEEKS): ProgressStats {
-  const activity = activityByDay(ws);
+export function progressStats(ws: Workspace, now = Date.now(), weeks = HISTORY_WEEKS, history: HistoryEvent[] = []): ProgressStats {
+  const activity = activityByDay(progressEvents(ws, history));
   const days = [...activity.values()].sort((a, b) => a.day.localeCompare(b.day));
   return {
     days,
@@ -270,17 +352,19 @@ export function progressStats(ws: Workspace, now = Date.now(), weeks = HISTORY_W
     timebox: timeboxStats(ws, now),
     xp: xpOverTime(ws, now, weeks),
     total: days.reduce((sum, d) => sum + d.total, 0),
+    undone: days.reduce((sum, d) => sum + d.undone, 0),
   };
 }
 
-const streakCache = new WeakMap<Workspace, { day: string; streak: Streak }>();
+const streakCache = new WeakMap<Workspace, { day: string; history: HistoryEvent[]; streak: Streak }>();
+const NO_HISTORY: HistoryEvent[] = [];
 
-/** The streak alone, for the HUD: cached per workspace and day, since the HUD redraws often. */
-export function currentStreak(ws: Workspace, now = Date.now()): Streak {
+/** The streak alone, for the HUD: cached per workspace, history and day, since the HUD redraws often. */
+export function currentStreak(ws: Workspace, now = Date.now(), history: HistoryEvent[] = NO_HISTORY): Streak {
   const day = dayKey(now);
   const hit = streakCache.get(ws);
-  if (hit?.day === day) return hit.streak;
-  const streak = streaks(activityByDay(ws).keys(), now);
-  streakCache.set(ws, { day, streak });
+  if (hit?.day === day && hit.history === history) return hit.streak;
+  const streak = streaks(activityByDay(progressEvents(ws, history)).keys(), now);
+  streakCache.set(ws, { day, history, streak });
   return streak;
 }

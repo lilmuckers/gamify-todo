@@ -56,7 +56,7 @@ export function repaintSyncStatus(app: App, hud: HTMLElement, panel: HTMLElement
 function streakChip(app: App) {
   const ws = app.workspace;
   if (!ws) return null;
-  const { current, today } = currentStreak(ws);
+  const { current, today } = currentStreak(ws, Date.now(), app.progress.events);
   const r = app.route;
   const title = current
     ? `${current}-day streak${today ? '' : ': do one thing today to keep it'}. Stats (S)`
