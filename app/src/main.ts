@@ -5,6 +5,7 @@ import './styles.css';
 import { GitHubError, HERO_IDS, type HeroId } from '@quest/shared';
 import { bucket, initAnalytics, setUserProps, track } from './analytics';
 import { App } from './app';
+import { initSound } from './audio';
 import { answerPopup, finishSignIn, sessionTokens, signInAvailable, takeCallback, takeOutcome, type SignInOutcome } from './auth/signin';
 import { chosenBranch, isFirstVisit, rememberBranch, repoRef, TARGET, tokenStore, uiPrefs, urlMode } from './config';
 import { DemoSource, memoryKV } from './data/demo';
@@ -82,6 +83,8 @@ async function main() {
   const store = new Store(source, source.id === 'demo' ? memoryKV() : browserKV());
   store.attachBrowserEvents();
   const app = new App(store);
+  app.compact = mobile;
+  initSound();
   // A tour in progress: its guide walks the levels from the very first frame.
   const tour = uiPrefs();
   if (typeof tour.tourStep === 'number' && tour.tourStep >= 0 && HERO_IDS.includes(tour.tourGuide as HeroId)) app.heroOverride = tour.tourGuide as HeroId;

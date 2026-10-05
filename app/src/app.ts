@@ -28,10 +28,12 @@ import {
 } from '@quest/shared';
 import { pageView, track, type Params } from './analytics';
 import { eventsForOp } from './analytics-events';
+import { play as sfx } from './audio';
 import { heroStore, patchUiPrefs, reviewStore, uiPrefs, type ReviewPrefs } from './config';
 import { pullLookup, type PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { currentRoute, href, routeProject, type Route } from './router';
+import { sceneShows, soundForOp } from './sound-events';
 import { playSummary } from './ui/play-summary';
 
 /**
@@ -127,6 +129,8 @@ export type Selection = { kind: 'item'; id: string } | { kind: 'criteria' } | un
 /** Glue between the store, the URL and whichever UI (desktop or mobile) is mounted. */
 export class App {
   route: Route = currentRoute();
+  /** The compact mobile view: no level scene, so edits make their own sounds. */
+  compact = false;
   selection: Selection = selectionFrom(this.route);
   /** An item bubble is open in the level scene (Esc closes it before navigating). */
   bubbleOpen = false;
@@ -189,6 +193,7 @@ export class App {
       this.playing = true;
       this.store.hold(true);
     } else this.endPlay(why);
+    sfx(on ? 'playOn' : 'playOff');
     this.emit();
   }
 
@@ -287,9 +292,16 @@ export class App {
     if (r.ok && r.op && before && !meta?.undo && UNDOABLE.has(r.op.kind)) this.offerUndo(r.op, before);
     if (!r.ok) track('edit_rejected', { reason: rejectReason(r.error) });
     if (r.polish && r.polish > 0) track('polish_penalty', { points: r.polish });
-    if (!r.ok) toast(r.error ?? 'Edit rejected', 'alert', 5000);
-    else if (r.polish && r.polish > 0)
+    if (!r.ok) {
+      sfx('buzz');
+      toast(r.error ?? 'Edit rejected', 'alert', 5000);
+    } else if (r.polish && r.polish > 0) {
+      sfx('polish');
       toast('Perfectionism detected 🐢 — this level is already clear. Move on!', 'warn', 5000);
+    } else if (!meta?.undo && (this.compact || !sceneShows(this.route, body))) {
+      const sound = soundForOp(body, before, this.store.state);
+      if (sound) sfx(sound);
+    }
     if (r.ok && before && !meta?.undo) this.alertBudgets(body, before);
     return r;
   }
@@ -305,6 +317,7 @@ export class App {
     if (!alerts.length) return;
     // The most specific few: the thing itself, then what it tipped over.
     const lines = alerts.slice(0, 3).map((a) => alertText(a, prefs.currency));
+    sfx('budget');
     toast(`💰 ${lines.join(' ')}`, alerts.some((a) => a.level === 2) ? 'alert' : 'warn', 7000);
   }
 
@@ -317,6 +330,7 @@ export class App {
     const r = this.store.dispatchBatch(bodies);
     if (!r.ok) {
       track('edit_rejected', { reason: rejectReason(r.error) });
+      sfx('buzz');
       toast(r.error ?? 'Edit rejected', 'alert', 5000);
       return false;
     }
@@ -345,6 +359,7 @@ export class App {
     const inverse = inverseOp(op, before);
     if (!inverse) return;
     undoToast(undoLabel(op, before), () => {
+      sfx('undo');
       const retracted = this.store.retract(op.opId);
       if (!retracted) this.dispatch(inverse, { undo: true });
       track('undo', { kind: op.kind, mode: retracted ? 'retract' : 'inverse' });

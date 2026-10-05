@@ -18,12 +18,12 @@ export interface TrackedEvent {
 
 const DAY = 86_400_000;
 
-function levelOf(ws: Workspace | undefined, op: { projectId: string; worldId: string; levelId: string }): Level | undefined {
+export function levelOf(ws: Workspace | undefined, op: { projectId: string; worldId: string; levelId: string }): Level | undefined {
   const state = ws?.projects[op.projectId];
   return state ? findLevel(state, op.worldId, op.levelId) : undefined;
 }
 
-function itemOf(level: Level | undefined, itemId: string, parentId?: string): Item | undefined {
+export function itemOf(level: Level | undefined, itemId: string, parentId?: string): Item | undefined {
   if (!level) return;
   if (!parentId) return level.items.find((i) => i.id === itemId);
   return level.items.find((i) => i.id === parentId)?.subtasks?.find((s) => s.id === itemId) as Item | undefined;

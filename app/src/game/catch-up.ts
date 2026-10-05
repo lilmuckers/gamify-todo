@@ -46,6 +46,11 @@ export function sceneTimeline(scene: Phaser.Scene): Timeline {
 
 const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+let catchingUp = false;
+
+/** True while a catch-up is running animations to their end: sounds stay quiet. */
+export const isCatchingUp = () => catchingUp;
+
 /**
  * Runs every one-off animation to its end, round by round, so promise chains
  * built on them (walks, warps, fades) get to schedule their next step and
@@ -70,11 +75,10 @@ export async function fastForward(timelines: () => Timeline[], settle: () => Pro
  * otherwise carry on from where it paused (issue #21).
  */
 export function catchUpOnResume(game: Phaser.Game) {
-  let running = false;
   const timelines = () => game.scene.getScenes(true).filter((s) => s.scene.key !== 'boot').map(sceneTimeline);
   game.events.on('resume', () => {
-    if (running || document.hidden) return;
-    running = true;
-    void fastForward(timelines).finally(() => (running = false));
+    if (catchingUp || document.hidden) return;
+    catchingUp = true;
+    void fastForward(timelines).finally(() => (catchingUp = false));
   });
 }

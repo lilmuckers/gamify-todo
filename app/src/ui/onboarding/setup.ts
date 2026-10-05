@@ -15,6 +15,7 @@ import { repoChoice } from '../repo-picker';
 import { beginSignIn } from '../sign-in';
 import { heroPicker } from '../settings';
 import { skillHelpDialog } from '../skill-help';
+import { play as sfx } from '../../audio';
 import { toast } from '../toast';
 import { testToken, type TokenReport } from './token-check';
 
@@ -374,6 +375,7 @@ async function copyExamples(app: App) {
 function finish(w: Wizard, where?: { projectId: string; worldId: string; levelId: string }) {
   patchUiPrefs({ setup: undefined });
   w.close();
+  sfx('win');
   toast("WORLD 1-1, GO!", 'win');
   if (where) go({ view: 'level', ...where });
   else location.hash = '#/';

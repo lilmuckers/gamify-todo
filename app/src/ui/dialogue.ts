@@ -1,5 +1,6 @@
 import type { HeroId } from '@quest/shared';
 import { emoteCanvas, portraitCanvas, type Face, type Mood } from '../sprites/portraits';
+import { play as sfx } from '../audio';
 import { h } from './dom';
 
 /** A line someone says in the box: shared by the console easter egg and the tour. */
@@ -124,7 +125,17 @@ export function showDialogue(o: DialogueOptions): Dialogue {
     advance();
   });
   render(shown);
-  if (shown < line.text.length) timer = setInterval(() => (++shown >= line.text.length ? finish() : render(shown)), o.speed ?? 32);
+  // A blip every other letter, pitched a little per hero, wobbling per letter.
+  const voice = [...o.hero].reduce((a, c) => a + c.charCodeAt(0), 0) % 7 - 3;
+  const tick = () => {
+    if (shown % 2 === 0 && /\S/.test(line.text[shown - 1] ?? '')) sfx('talk', { semis: voice + [0, 2, 0, -2, 3][(shown / 2) % 5] });
+  };
+  if (shown < line.text.length)
+    timer = setInterval(() => {
+      if (++shown >= line.text.length) return finish();
+      render(shown);
+      tick();
+    }, o.speed ?? 32);
   o.host.append(box);
   return { advance, close, closed };
 }

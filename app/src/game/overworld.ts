@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { isWorldCleared, isWorldLocked, layoutWorldMap, orderedWorlds, suggestNext, worldTotals, type MapLayout } from '@quest/shared';
+import { play as sfx } from '../audio';
 import { go } from '../router';
 import { TILE, type ThemeKey } from '../sprites/render';
 import { islandTexture, QuestScene } from './common';
@@ -128,7 +129,10 @@ abstract class IslandScene extends QuestScene {
     for (const isl of islands) {
       const { x, y } = at.get(isl.key)!;
       const img = this.add.image(x, y, islandTexture(this, isl.theme, isl.locked));
-      this.clickable(img, isl.onClick);
+      this.clickable(img, () => {
+        sfx('select');
+        isl.onClick();
+      });
       img.on('pointerover', () => img.setScale(1.08));
       img.on('pointerout', () => img.setScale(1));
       layer.add(img);

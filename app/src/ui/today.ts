@@ -3,6 +3,7 @@ import { HEROES } from '../sprites/heroes';
 import { PALETTE } from '../sprites/pixels';
 import type { App } from '../app';
 import { href, withPad, type PadPage } from '../router';
+import { play as sfx } from '../audio';
 import { inboxCount, inboxSheet } from './inbox';
 import { reviewSheet } from './weekly';
 import { fmtDuration, h, keepFields } from './dom';
@@ -59,6 +60,7 @@ function todaySheet(app: App) {
         },
         { source: 'today' },
       );
+    if (status === 'done') sfx('pen');
     if (status !== 'done' || matchMedia('(prefers-reduced-motion: reduce)').matches) return run();
     // Pen stroke through the line, then let the list re-render without it.
     line.classList.add('struck');
@@ -224,6 +226,7 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
   const close = () => {
     const pad = host.querySelector('.legal-pad');
     const done = () => (location.hash = href(withPad(app.route, undefined)));
+    sfx('page');
     if (!pad || matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
     pad.classList.add('leaving');
     host.classList.add('leaving');
@@ -244,6 +247,7 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
     const scroll = open === page ? (host.querySelector('.pad-sheet')?.scrollTop ?? 0) : 0;
     const kept = keepFields(host);
     const pad = legalPad(app, page, { enter: !open, flip: !!open && open !== page, onClose: close });
+    if (open !== page) sfx('page');
     const skin = HEROES[app.heroId]?.colors?.['3'] ?? PALETTE.s;
     pad.style.setProperty('--skin', skin);
     const held = open ? host.querySelector<HTMLElement>('.legal-pad') : null;

@@ -66,6 +66,10 @@ Pick your **hero** from eighteen characters in **⚙ Settings**. The choice is k
 (next to the token). When the data is editable it is also saved to `data/settings.json` as the
 default for everyone; in read-only views your own choice wins over that default.
 
+**Sound effects** are off by default. Turn them on in **⚙ Settings → Display**: short retro blips
+for coins, crumbling walls, pipes, the flagpole and the level-clear jingle, made in the browser
+with no audio files.
+
 The game is built to beat perfectionism:
 
 - **Flagpole = MVP.** A level clears when its MVP success criteria (the must-do steps) are ticked. Nothing else gates it,

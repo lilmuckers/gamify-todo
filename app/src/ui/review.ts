@@ -4,6 +4,7 @@ import type { App } from '../app';
 import { go } from '../router';
 import { h } from './dom';
 import { openModal } from './modal';
+import { play as sfx } from '../audio';
 import { toast } from './toast';
 
 export function reviewDialog(app: App, pr: PullDetail) {
@@ -58,6 +59,7 @@ export function mergeDialog(app: App, pr: PullDetail) {
           toast((err as Error).message, 'alert', 6000);
           return false;
         }
+        sfx('win');
         toast(`Merged #${pr.number}! Warp complete.`, 'win');
         app.forgetPull(pr.number);
         await app.store.refresh();
