@@ -35,7 +35,7 @@
       "title": "List everything we want",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-03T15:40:00Z",
+      "doneAt": "2026-07-31T15:35:00Z",
       "notes": "Wish list first, cut later. Ended with 31 lines; cut to 22."
     },
     {
@@ -43,7 +43,7 @@
       "title": "Price units at three suppliers",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-07-31T15:35:00Z",
+      "doneAt": "2026-07-31T17:25:00Z",
       "notes": "Wren, a trade counter via the fitter, and a local joiner. Trade counter won on price."
     },
     {
@@ -59,7 +59,7 @@
       "title": "Add a 10% contingency line",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-07-31T17:25:00Z",
+      "doneAt": "2026-08-03T15:40:00Z",
       "dependsOn": [
         "price-units-at-three-suppliers"
       ]

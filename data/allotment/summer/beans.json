@@ -28,7 +28,7 @@
       "title": "Build bean wigwams",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-10T08:20:00Z",
+      "doneAt": "2026-05-17T09:10:00Z",
       "notes": "Eight hazel poles per wigwam."
     },
     {
@@ -36,14 +36,14 @@
       "title": "Plant out bean seedlings",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-05-31T16:14:00Z"
+      "doneAt": "2026-05-23T14:55:00Z"
     },
     {
       "id": "slug-patrol-for-the-first-two-weeks",
       "title": "Slug patrol for the first two weeks",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-05-17T09:10:00Z"
+      "doneAt": "2026-05-31T16:14:00Z"
     },
     {
       "id": "pick-every-three-days",
@@ -57,7 +57,7 @@
       "title": "Freeze the glut",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-05-23T14:55:00Z",
+      "doneAt": "2026-06-10T08:20:00Z",
       "notes": "Blanched and frozen: 14 bags."
     },
     {

@@ -557,13 +557,22 @@ the quick history by commit.
   history-only numbers "needs history".
 
 **The demo** has no repo, so `app/src/data/demo-history.ts` makes one up from the example data,
-seeded from ids so it's the same every visit: about 670 commits over two years. Every done stamp
-gets the commit that would have recorded it, and around them it adds work done then reopened (about
-one in sixteen items), scope added mid-level, drops, extensions and polish after clearing. Each
-commit carries a real `quest:` message and tiny before/after level snapshots, so the quick history
-and the deep scan read it exactly as they read a repo. Only in demo mode, the scan pretends for
-about 1.2 seconds with real-looking progress. Demo history caches live in memory, like the rest of
-the demo.
+seeded from ids so it's the same every visit: about 670 commits over two years. It never contradicts
+the data (`app/test/demo-audit.test.ts` checks):
+- Every done stamp, tick and start gets the commit that recorded it; the last MVP tick is the clear.
+- A done item is reopened or edited exactly as often as its level's `stats.itemEdits` says (what the
+  app counts): items not done now were finished and reopened that many times; done ones were
+  reopened once and finished again, plus edits while done.
+- Polish after clearing matches `stats.editsAfterClear`, counted as the app does (any change to a
+  cleared level but adds and cuts). An uncleared level with polish was cleared once and un-ticked.
+- Extensions add up to `stats.timeboxExtendedDays` and come once the original box had run out.
+- Dropped items get their drop; about one item in six arrives after its level started (the data
+  doesn't record adds), always before it's first finished.
+- Nothing happens outside its level's start and clear, or after the data's last moment.
+Each commit carries a real `quest:` message and tiny before/after level snapshots, so the quick
+history and the deep scan read it exactly as they read a repo. Only in demo mode, the scan pretends
+for about 1.2 seconds. Demo history caches live in memory, like the rest of the demo. The example
+data's own stamps follow dependency order.
 
 ## 6. Onboarding (#61)
 

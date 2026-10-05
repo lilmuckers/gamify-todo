@@ -12,7 +12,7 @@
       "mvp": true,
       "text": "Old flat empty",
       "done": true,
-      "doneAt": "2025-04-13T16:39:00Z"
+      "doneAt": "2025-04-13T11:03:00Z"
     },
     {
       "id": "everything-inside-the-new-one",
@@ -56,7 +56,7 @@
       "title": "Sofa through the stairwell",
       "type": "risk",
       "status": "done",
-      "doneAt": "2025-04-13T11:38:00Z",
+      "doneAt": "2025-04-13T10:25:00Z",
       "notes": "It fitted. Just."
     },
     {
@@ -71,7 +71,7 @@
       "title": "Moved in",
       "type": "deliverable",
       "status": "done",
-      "doneAt": "2025-04-13T10:25:00Z"
+      "doneAt": "2025-04-13T11:38:00Z"
     }
   ]
 }

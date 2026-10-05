@@ -35,28 +35,28 @@
       "title": "Clear the weedy corner by the gate",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-13T13:15:00Z"
+      "doneAt": "2026-09-10T12:29:00Z"
     },
     {
       "id": "tidy-the-compost-bays",
       "title": "Tidy the compost bays",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-15T14:41:00Z"
+      "doneAt": "2026-09-12T11:08:00Z"
     },
     {
       "id": "remove-the-broken-cloche",
       "title": "Remove the broken cloche",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-12T11:08:00Z"
+      "doneAt": "2026-09-13T13:15:00Z"
     },
     {
       "id": "inspection-pass-letter",
       "title": "Inspection pass letter",
       "type": "deliverable",
       "status": "done",
-      "doneAt": "2026-09-10T12:29:00Z",
+      "doneAt": "2026-09-15T14:41:00Z",
       "notes": "Comment: \"much improved since last year\"."
     }
   ]

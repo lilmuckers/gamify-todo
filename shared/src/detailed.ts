@@ -21,6 +21,9 @@ import {
 } from './stats';
 import { levelsOf } from './today';
 
+/** Changes that count as polish on a cleared level (adds have their own count; cuts are free). */
+const POLISH_KINDS = new Set<ChangeEvent['kind']>(['edited', 'reopened', 'done', 'ticked', 'unticked', 'extended']);
+
 /** Weeks the detailed page looks back over. */
 export const DETAILED_WEEKS = 52;
 
@@ -204,8 +207,9 @@ export function detailedStats(ws: Workspace, opts: { now?: number; quick?: Histo
     }
     if (e.kind === 'extended') extendedDays += e.days ?? 0;
     if (e.kind === 'reopened' || e.kind === 'unticked') reopened += 1;
-    if (e.kind === 'edited' && e.afterClear) editsAfterClear += 1;
-    if (e.kind === 'reopened' || (e.kind === 'edited' && e.afterClear)) {
+    // As the app counts polish: any change to a cleared level except adding or cutting scope.
+    if (e.afterClear && POLISH_KINDS.has(e.kind)) editsAfterClear += 1;
+    if (e.kind === 'reopened' || e.kind === 'edited') {
       const k = `${e.level}|${e.subject}`;
       const f = fiddles.get(k) ?? fiddles.set(k, { title: e.subject, levelName: names.get(e.level)?.levelName ?? e.level, times: 0 }).get(k)!;
       f.times += 1;

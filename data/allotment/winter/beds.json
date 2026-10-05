@@ -36,7 +36,7 @@
       "title": "Order scaffold boards",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-12-15T15:37:00Z",
+      "doneAt": "2025-12-08T17:27:00Z",
       "notes": "Reclaimed from a builder, £4 a board."
     },
     {
@@ -44,7 +44,7 @@
       "title": "Build the frames",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-12-16T12:35:00Z",
+      "doneAt": "2025-12-18T12:02:00Z",
       "dependsOn": [
         "boards"
       ]
@@ -54,7 +54,7 @@
       "title": "Fill with compost and topsoil",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-12-18T11:17:00Z",
+      "doneAt": "2025-12-15T15:37:00Z",
       "notes": "3 tonnes of soil improver from the council scheme."
     },
     {
@@ -62,14 +62,14 @@
       "title": "Cover with cardboard for winter",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-12-18T12:02:00Z"
+      "doneAt": "2025-12-16T12:35:00Z"
     },
     {
       "id": "boards-treated-with-creosote",
       "title": "Boards treated with creosote",
       "type": "risk",
       "status": "done",
-      "doneAt": "2025-12-08T17:27:00Z",
+      "doneAt": "2025-12-18T11:17:00Z",
       "notes": "Checked: untreated, safe for veg."
     },
     {

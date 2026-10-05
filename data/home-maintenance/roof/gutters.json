@@ -28,14 +28,14 @@
       "title": "Borrow the long ladder from Sam",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-02T08:32:00Z"
+      "doneAt": "2026-09-01T13:13:00Z"
     },
     {
       "id": "clear-the-front-gutters",
       "title": "Clear the front gutters",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-02T08:55:00Z",
+      "doneAt": "2026-09-01T14:09:00Z",
       "notes": "Mostly moss off the roof, two full buckets."
     },
     {
@@ -50,7 +50,7 @@
       "title": "Flush the downpipes with a hose",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-01T14:09:00Z",
+      "doneAt": "2026-09-02T08:32:00Z",
       "notes": "Back-left downpipe was blocked at the shoe; cleared with a rod."
     },
     {
@@ -58,7 +58,7 @@
       "title": "Ladder slipping on the uneven patio",
       "type": "risk",
       "status": "done",
-      "doneAt": "2026-09-01T13:13:00Z",
+      "doneAt": "2026-09-02T08:55:00Z",
       "notes": "Used a ladder stabiliser and had someone footing it."
     },
     {

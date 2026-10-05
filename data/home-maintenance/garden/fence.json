@@ -28,7 +28,7 @@
       "title": "Repair or replace the fence",
       "type": "decision",
       "status": "done",
-      "doneAt": "2026-08-23T08:55:00Z",
+      "doneAt": "2026-08-22T09:05:00Z",
       "notes": "Repair: only one post had rotted."
     },
     {
@@ -43,14 +43,14 @@
       "title": "Dig out the rotten post",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-25T14:30:00Z"
+      "doneAt": "2026-08-23T08:55:00Z"
     },
     {
       "id": "concrete-in-a-new-post",
       "title": "Concrete in a new post",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-22T09:05:00Z",
+      "doneAt": "2026-08-27T11:25:00Z",
       "dependsOn": [
         "dig"
       ]
@@ -60,7 +60,7 @@
       "title": "Rehang the two loose panels",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-27T11:25:00Z"
+      "doneAt": "2026-08-25T14:30:00Z"
     },
     {
       "id": "treat-the-panels",

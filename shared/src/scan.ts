@@ -59,7 +59,7 @@ export interface ChangeEvent {
   itemType?: ItemType;
   /** The level had already started (scope added or cut mid-flight). */
   afterStart?: boolean;
-  /** The level was already cleared (polish). */
+  /** The level was already cleared: the app counts this as polish (`stats.editsAfterClear`) unless it's a cut. */
   afterClear?: boolean;
   /** Days added, for 'extended'. */
   days?: number;
@@ -103,7 +103,7 @@ export function changesFromCommit(c: CommitChanges): ChangeEvent[] {
     const started = !!before?.startedAt;
     const wasCleared = !!before && isCleared(before);
     const ev = (kind: ChangeKind, subject: string, extra: Partial<ChangeEvent> = {}, at = c.date) =>
-      out.push({ at, sha: c.sha, kind, level: key, subject, ...extra });
+      out.push({ at, sha: c.sha, kind, level: key, subject, ...(wasCleared && kind !== 'uncleared' ? { afterClear: true } : {}), ...extra });
 
     // A brand-new level file is planning, not progress or scope creep.
     if (!before) continue;

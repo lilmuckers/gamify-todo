@@ -35,14 +35,14 @@
       "title": "Instrument the old portal for baseline task completion",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-18T15:53:00Z"
+      "doneAt": "2026-06-18T10:57:00Z"
     },
     {
       "id": "launch-metrics-dashboard",
       "title": "Launch metrics dashboard",
       "type": "deliverable",
       "status": "done",
-      "doneAt": "2026-06-21T17:50:00Z",
+      "doneAt": "2026-06-18T15:53:00Z",
       "link": "https://github.com/acme-utilities/portal/issues/19"
     },
     {
@@ -50,7 +50,7 @@
       "title": "Analytics tool",
       "type": "decision",
       "status": "done",
-      "doneAt": "2026-06-18T10:57:00Z",
+      "doneAt": "2026-06-21T12:32:00Z",
       "notes": "Stick with the existing tool; no new cookie consent work."
     },
     {
@@ -58,7 +58,7 @@
       "title": "Agree targets with the product owner",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-21T12:32:00Z"
+      "doneAt": "2026-06-21T17:50:00Z"
     },
     {
       "id": "weekly-metrics-email",
