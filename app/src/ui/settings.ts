@@ -343,7 +343,7 @@ export function heroPicker(app: App) {
     show();
   };
   const arrow = (label: string, d: number) =>
-    h('button', { class: 'btn sm ghost', type: 'button', 'aria-label': label, onclick: () => move(d) }, d < 0 ? '◀' : '▶');
+    h('button', { class: 'btn sm', type: 'button', 'aria-label': label, onclick: () => move(d) }, d < 0 ? '◀' : '▶');
   const stage = h(
     'div',
     {
