@@ -60,6 +60,7 @@ shared/   Pure TS domain, used by app and server (no DOM, no Phaser)
   src/worldmap.ts   project map layout from unlocksAfter
   src/today.ts      Today list;  src/review.ts weekly review selectors + schedule
   src/stats.ts      streaks, calendar, time-box accuracy, XP by week;  src/history.ts commit messages → events
+  src/scan.ts       commit diffs → change events;  src/detailed.ts the detailed stats page's numbers
   src/serialize.ts  files <-> Workspace, changedFiles, path rules;  src/validate.ts schema + semantic rules, revalidate
   src/diff.ts       PR diffs (Warp Zone);  src/github.ts GitHubClient (Git Data API, PRs, checks)
   src/oauth.ts      GitHub App code/refresh-token exchange (server-side only: Worker, Docker server)
@@ -68,7 +69,9 @@ app/      Vite + Phaser 3 + plain DOM (no framework)
   src/main.ts       picks the DataSource, desktop vs mobile, boot splash dismissal
   src/app.ts        App: central state, routing, dispatch, undo, play-mode holding
   src/auth/         Sign in with GitHub: PKCE + callback (oauth), refreshing token provider (session), repo discovery, signin glue
-  src/data/         DataSource impls (static, github, local, demo), Store (outbox, sync, offline), kv (IndexedDB)
+  src/data/         DataSource impls (static, github, local, demo), Store (outbox, sync, offline), kv (IndexedDB),
+                    history (stats' commit-message cache), history-builder + history-work + history.worker
+                    (detailed stats built in the background, off the main thread), demo-history (made-up commits)
   src/game/         Phaser scenes: projects (bedroom/console), overworld, world, level (~2k lines), play/ (physics, input)
   src/sprites/      all art drawn in code: pixels palette, heroes, portraits, cartridge, bedroom, junk-tv, strip
   src/ui/           DOM: hud, panels, forms, today/inbox/weekly (legal pad), settings, toast, modal, dialogue, onboarding/
@@ -76,7 +79,8 @@ app/      Vite + Phaser 3 + plain DOM (no framework)
 server/   Fastify API for the Docker editor: reads/writes data/, commits, publishes, proxies PRs
 worker/   Cloudflare Worker for Sign in with GitHub: swaps a code/refresh token for a user token (not a workspace)
 e2e/      Playwright end-to-end tests: pages/, mobile/, local/ specs; helpers wait on game state, not sleeps
-data/     five example projects (customer-portal, home-maintenance, bike-restoration, allotment, kitchen-renovation)
+data/     eight example projects: five in play (customer-portal, home-maintenance, bike-restoration, allotment,
+          kitchen-renovation) and three finished games (allotment-2025, moving-flat, sourdough)
 ```
 
 ## Architecture rules that matter

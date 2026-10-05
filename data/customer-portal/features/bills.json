@@ -38,7 +38,7 @@
       "title": "Bill history list",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-14T11:53:00Z",
+      "doneAt": "2026-09-04T14:51:00Z",
       "link": "https://github.com/acme-utilities/portal/issues/71"
     },
     {
@@ -46,7 +46,7 @@
       "title": "Bill detail page",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-04T14:51:00Z"
+      "doneAt": "2026-09-14T11:53:00Z"
     },
     {
       "id": "pdf",

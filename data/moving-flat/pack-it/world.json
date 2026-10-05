@@ -1,0 +1,19 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "pack-it",
+  "name": "Pack It",
+  "description": "Less stuff, more boxes.",
+  "theme": "castle",
+  "goalIds": [
+    "move-by-the-end-of-april",
+    "spend-under-2-500-on-the-move"
+  ],
+  "unlocksAfter": [
+    "find-it"
+  ],
+  "levelOrder": [
+    "declutter",
+    "book-the-move",
+    "change-the-address-everywhere"
+  ]
+}

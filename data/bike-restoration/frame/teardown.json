@@ -35,7 +35,7 @@
       "title": "Photograph each assembly before taking it apart",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-09T18:22:00Z",
+      "doneAt": "2026-06-05T08:03:00Z",
       "notes": "Phone album \"PX10 teardown\", 140 photos."
     },
     {
@@ -43,14 +43,14 @@
       "title": "Remove wheels, chain and derailleurs",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-06T08:49:00Z"
+      "doneAt": "2026-06-05T18:21:00Z"
     },
     {
       "id": "remove-the-cranks",
       "title": "Remove the cranks",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-05T18:21:00Z",
+      "doneAt": "2026-06-06T08:49:00Z",
       "notes": "Needed a Stronglight crank puller; borrowed from the bike co-op."
     },
     {
@@ -58,7 +58,7 @@
       "title": "Seized bottom bracket",
       "type": "blocker",
       "status": "done",
-      "doneAt": "2026-06-09T12:45:00Z",
+      "doneAt": "2026-06-09T12:09:00Z",
       "notes": "French thread. Soaked in penetrating oil for a week; came out with a breaker bar."
     },
     {
@@ -66,14 +66,14 @@
       "title": "Remove the headset and fork",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-09T12:09:00Z"
+      "doneAt": "2026-06-09T12:45:00Z"
     },
     {
       "id": "bag-and-label-every-part",
       "title": "Bag and label every part",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-05T08:03:00Z"
+      "doneAt": "2026-06-09T18:22:00Z"
     },
     {
       "id": "weigh-every-part-for-a-spreadsheet",

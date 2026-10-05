@@ -34,7 +34,7 @@
       "title": "Plant out in the polytunnel",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-05-19T18:52:00Z"
+      "doneAt": "2026-05-12T10:28:00Z"
     },
     {
       "id": "tie-in-to-canes-weekly",
@@ -48,14 +48,14 @@
       "title": "Pinch out side shoots",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-02T08:47:00Z"
+      "doneAt": "2026-05-19T18:52:00Z"
     },
     {
       "id": "feed-weekly-once-flowering",
       "title": "Feed weekly once flowering",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-05-12T10:28:00Z",
+      "doneAt": "2026-05-20T14:16:00Z",
       "notes": "Comfrey feed from the plot comfrey patch."
     },
     {
@@ -63,7 +63,7 @@
       "title": "Blight in August",
       "type": "risk",
       "status": "done",
-      "doneAt": "2026-05-20T14:16:00Z",
+      "doneAt": "2026-06-02T08:47:00Z",
       "notes": "Hit the outdoor plants; polytunnel ones were fine. Removed affected plants fast."
     },
     {

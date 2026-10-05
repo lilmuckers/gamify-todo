@@ -1,0 +1,79 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "declutter",
+  "name": "Declutter",
+  "deliverable": "One car-load to the charity shop, one to the tip",
+  "timeboxDays": 14,
+  "startedAt": "2025-03-01T14:58:00Z",
+  "clearedAt": "2025-03-13T19:41:00Z",
+  "successCriteria": [
+    {
+      "id": "charity-run-done",
+      "mvp": true,
+      "text": "Charity run done",
+      "done": true,
+      "doneAt": "2025-03-11T07:43:00Z"
+    },
+    {
+      "id": "tip-run-done",
+      "mvp": true,
+      "text": "Tip run done",
+      "done": true,
+      "doneAt": "2025-03-13T19:41:00Z"
+    },
+    {
+      "id": "sold-the-old-sofa",
+      "mvp": false,
+      "text": "Sold the old sofa",
+      "done": true,
+      "doneAt": "2025-03-12T08:18:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "clothes",
+      "title": "Clothes",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-02T12:46:00Z"
+    },
+    {
+      "id": "books",
+      "title": "Books",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-04T18:08:00Z"
+    },
+    {
+      "id": "kitchen-cupboards",
+      "title": "Kitchen cupboards",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-07T20:16:00Z"
+    },
+    {
+      "id": "under-the-bed",
+      "title": "Under the bed",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-09T10:32:00Z"
+    },
+    {
+      "id": "keep-the-old-sofa",
+      "title": "Keep the old sofa?",
+      "type": "decision",
+      "status": "done",
+      "doneAt": "2025-03-11T18:33:00Z",
+      "notes": "Sold: £60."
+    },
+    {
+      "id": "sell-the-bike-rollers",
+      "title": "Sell the bike rollers",
+      "type": "stretch",
+      "status": "dropped"
+    }
+  ],
+  "stats": {
+    "editsAfterClear": 1
+  }
+}

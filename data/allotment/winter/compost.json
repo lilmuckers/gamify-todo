@@ -28,7 +28,7 @@
       "title": "Build bays from pallets",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-01-04T11:07:00Z",
+      "doneAt": "2025-12-28T10:50:00Z",
       "notes": "Four pallets per bay, cable-tied."
     },
     {
@@ -36,7 +36,7 @@
       "title": "Line with old carpet",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-12-28T10:50:00Z",
+      "doneAt": "2025-12-28T12:00:00Z",
       "notes": "Keeps the heat in; checked it is wool, not synthetic."
     },
     {
@@ -51,7 +51,7 @@
       "title": "Turn the first bay",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-12-28T12:00:00Z"
+      "doneAt": "2026-01-04T11:07:00Z"
     },
     {
       "id": "third-bay-for-leaf-mould",

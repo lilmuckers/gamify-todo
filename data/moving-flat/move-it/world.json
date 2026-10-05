@@ -1,0 +1,19 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "move-it",
+  "name": "Move It",
+  "description": "Van day, then make it home.",
+  "theme": "grass",
+  "goalIds": [
+    "move-by-the-end-of-april",
+    "unpacked-within-two-weeks"
+  ],
+  "unlocksAfter": [
+    "pack-it"
+  ],
+  "levelOrder": [
+    "van-day",
+    "sort-the-utilities",
+    "unpack"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "get-the-flat",
+  "name": "Get the flat",
+  "deliverable": "Signed tenancy and deposit paid",
+  "timeboxDays": 10,
+  "startedAt": "2025-02-15T09:37:00Z",
+  "clearedAt": "2025-02-24T07:41:00Z",
+  "successCriteria": [
+    {
+      "id": "offer-accepted",
+      "mvp": true,
+      "text": "Offer accepted",
+      "done": true,
+      "doneAt": "2025-02-22T13:46:00Z"
+    },
+    {
+      "id": "tenancy-signed",
+      "mvp": true,
+      "text": "Tenancy signed",
+      "done": true,
+      "doneAt": "2025-02-22T10:01:00Z"
+    },
+    {
+      "id": "deposit-protected",
+      "mvp": true,
+      "text": "Deposit protected",
+      "done": true,
+      "doneAt": "2025-02-24T07:41:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "make-the-offer",
+      "title": "Make the offer",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-16T15:59:00Z"
+    },
+    {
+      "id": "references-and-credit-check",
+      "title": "References and credit check",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-17T07:02:00Z"
+    },
+    {
+      "id": "guarantor-form-stuck",
+      "title": "Guarantor form stuck",
+      "type": "blocker",
+      "status": "done",
+      "doneAt": "2025-02-20T07:29:00Z",
+      "notes": "Chased twice; it came."
+    },
+    {
+      "id": "sign-the-tenancy",
+      "title": "Sign the tenancy",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-20T21:15:00Z"
+    },
+    {
+      "id": "check-the-deposit-scheme",
+      "title": "Check the deposit scheme",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-23T13:12:00Z"
+    }
+  ]
+}

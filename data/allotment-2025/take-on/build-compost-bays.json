@@ -1,0 +1,62 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "build-compost-bays",
+  "name": "Build compost bays",
+  "deliverable": "Two pallet bays, one filling and one rotting",
+  "timeboxDays": 7,
+  "startedAt": "2024-12-07T13:44:00Z",
+  "clearedAt": "2024-12-16T07:41:00Z",
+  "successCriteria": [
+    {
+      "id": "two-bays-standing",
+      "mvp": true,
+      "text": "Two bays standing",
+      "done": true,
+      "doneAt": "2024-12-14T12:49:00Z"
+    },
+    {
+      "id": "first-bay-half-full",
+      "mvp": true,
+      "text": "First bay half full",
+      "done": true,
+      "doneAt": "2024-12-16T07:41:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "four-pallets-from-the-builders-merchant",
+      "title": "Four pallets from the builders’ merchant",
+      "type": "dependency",
+      "status": "done",
+      "doneAt": "2024-12-08T12:03:00Z"
+    },
+    {
+      "id": "wire-the-pallets-together",
+      "title": "Wire the pallets together",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-12-10T08:38:00Z"
+    },
+    {
+      "id": "fill-bay-one-with-the-bramble-chippings",
+      "title": "Fill bay one with the bramble chippings",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-12-13T21:30:00Z"
+    },
+    {
+      "id": "frozen-ground",
+      "title": "Frozen ground",
+      "type": "blocker",
+      "status": "done",
+      "doneAt": "2024-12-14T13:05:00Z",
+      "notes": "Waited a week for the thaw."
+    },
+    {
+      "id": "lid-from-old-carpet",
+      "title": "Lid from old carpet",
+      "type": "task",
+      "status": "dropped"
+    }
+  ]
+}

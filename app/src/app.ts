@@ -33,7 +33,10 @@ import { heroStore, patchUiPrefs, reviewStore, uiPrefs, type ReviewPrefs } from 
 import { pullLookup, type PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { ProgressHistory } from './data/history';
+import { browserEnv, HistoryBuilder } from './data/history-builder';
+import { workClient } from './data/history-work';
 import { browserKV } from './data/kv';
+import { memoryKV } from './data/demo';
 import { currentRoute, href, routeProject, type Route } from './router';
 import { sceneShows, soundForOp } from './sound-events';
 import { playSummary } from './ui/play-summary';
@@ -43,7 +46,8 @@ import { playSummary } from './ui/play-summary';
  * pill and the panel's sync footer). Views that show no sync status can
  * ignore 'sync'.
  */
-export type Change = 'all' | 'sync';
+/** What an emit changed: everything, sync status only, or the detailed stats' background history only. */
+export type Change = 'all' | 'sync' | 'history';
 
 /** Why a play session ended: shapes the summary's wording. */
 export type PlayEnd = 'stopped' | 'idle' | 'cleared' | 'left' | 'resumed';
@@ -157,11 +161,28 @@ export class App {
 
   /** What the commit history adds to the stats: work done and later undone. */
   progress: ProgressHistory;
+  /** The detailed stats' history, built a page at a time in the background from the first visit. */
+  history: HistoryBuilder;
 
   constructor(public store: Store) {
     store.subscribe(() => this.emit(this.storeChange()));
-    this.progress = new ProgressHistory(store.source, browserKV(), () => this.emit());
+    // The demo saves nothing, its history caches included.
+    const kv = store.source.id === 'demo' ? memoryKV() : browserKV();
+    this.progress = new ProgressHistory(store.source, kv, () => this.emit());
     void this.progress.init();
+    // Busy: playing, or the store loading or saving. The builder waits until it isn't.
+    const busy = () => this.playing || ['loading', 'syncing', 'pending'].includes(this.store.status);
+    this.history = new HistoryBuilder(store.source, kv, workClient(), browserEnv(busy), () => this.emit('history'));
+    // Start-up gets the CPU first; then build quietly, whether or not the page is ever opened.
+    this.history.start(this.route.view === 'records' ? 0 : 8_000);
+    // A new commit of ours: read it into the history next time things are idle.
+    let synced = store.lastSyncedAt;
+    store.subscribe(() => {
+      if (store.status === 'synced' && store.lastSyncedAt !== synced) {
+        synced = store.lastSyncedAt;
+        this.history.refresh();
+      }
+    });
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
@@ -378,6 +399,7 @@ export class App {
     if (r.view === 'prs') void this.loadPulls();
     // Looking at stats: catch up with commits made elsewhere, at most once a minute.
     if (r.pad === 'stats') void this.progress.refresh(60_000);
+    this.history.setWatched(r.view === 'records');
     if (r.view === 'pr' || r.view === 'pr-level') void this.loadPull(r.pr);
     // Not PR review: that's someone else's change, not where you were playing.
     if ((r.view === 'overworld' || r.view === 'world' || r.view === 'level') && uiPrefs().lastProject !== r.projectId)

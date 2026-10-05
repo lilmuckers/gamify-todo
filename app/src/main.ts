@@ -98,7 +98,8 @@ async function main() {
   initAnalytics(app.route, userProps());
   // Hero and edit mode settle once data loads.
   let lastProps = JSON.stringify(userProps());
-  app.subscribe(() => {
+  app.subscribe((change) => {
+    if (change !== 'all') return;
     const props = userProps();
     const sig = JSON.stringify(props);
     if (sig !== lastProps) setUserProps(props);

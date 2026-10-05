@@ -1,0 +1,70 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "fix-the-shed",
+  "name": "Fix the shed",
+  "deliverable": "A dry, lockable shed for tools",
+  "timeboxDays": 10,
+  "startedAt": "2024-11-09T10:06:00Z",
+  "clearedAt": "2024-11-17T10:46:00Z",
+  "successCriteria": [
+    {
+      "id": "roof-does-not-leak",
+      "mvp": true,
+      "text": "Roof does not leak",
+      "done": true,
+      "doneAt": "2024-11-16T13:24:00Z"
+    },
+    {
+      "id": "door-locks",
+      "mvp": true,
+      "text": "Door locks",
+      "done": true,
+      "doneAt": "2024-11-17T10:46:00Z"
+    },
+    {
+      "id": "shelves-up",
+      "mvp": false,
+      "text": "Shelves up",
+      "done": true,
+      "doneAt": "2024-11-16T14:19:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "patch-the-roof-felt",
+      "title": "Patch the roof felt",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-11-10T13:47:00Z"
+    },
+    {
+      "id": "repair-or-replace-the-door",
+      "title": "Repair or replace the door?",
+      "type": "decision",
+      "status": "done",
+      "doneAt": "2024-11-12T08:43:00Z",
+      "notes": "Repaired: £12 of hinges."
+    },
+    {
+      "id": "fit-a-padlock",
+      "title": "Fit a padlock",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-11-13T19:25:00Z"
+    },
+    {
+      "id": "put-up-shelves",
+      "title": "Put up shelves",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-11-14T18:59:00Z"
+    },
+    {
+      "id": "paint-it-green",
+      "title": "Paint it green",
+      "type": "stretch",
+      "status": "done",
+      "doneAt": "2024-11-16T15:26:00Z"
+    }
+  ]
+}

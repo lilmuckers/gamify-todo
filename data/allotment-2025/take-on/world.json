@@ -1,0 +1,15 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "take-on",
+  "name": "Take On the Plot",
+  "description": "From brambles to beds before the ground warms up.",
+  "theme": "ice",
+  "goalIds": [
+    "get-the-plot-workable-before-spring"
+  ],
+  "levelOrder": [
+    "clear-the-brambles",
+    "fix-the-shed",
+    "build-compost-bays"
+  ]
+}

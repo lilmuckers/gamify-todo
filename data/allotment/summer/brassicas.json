@@ -25,14 +25,14 @@
       "title": "Plant out kale and broccoli",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-09T08:41:00Z"
+      "doneAt": "2026-07-28T11:36:00Z"
     },
     {
       "id": "pigeon-netting",
       "title": "Pigeon netting from the society shop",
       "type": "dependency",
       "status": "done",
-      "doneAt": "2026-07-28T11:36:00Z",
+      "doneAt": "2026-08-09T08:41:00Z",
       "notes": "Shop opens Sunday mornings only.",
       "subtasks": [
         {
@@ -40,7 +40,7 @@
           "title": "Measure the brassica bed",
           "type": "task",
           "status": "done",
-          "doneAt": "2026-08-06T14:13:00Z",
+          "doneAt": "2026-07-20T18:05:00Z",
           "notes": "1.2 x 4m, hoops 60cm high."
         },
         {
@@ -48,7 +48,7 @@
           "title": "Ask if the shop has fine mesh in stock",
           "type": "task",
           "status": "done",
-          "doneAt": "2026-09-07T12:20:00Z",
+          "doneAt": "2026-07-25T16:05:00Z",
           "dependsOn": [
             "measure-the-bed"
           ]
@@ -58,7 +58,7 @@
           "title": "Sunday-morning trip to the shop",
           "type": "task",
           "status": "done",
-          "doneAt": "2026-07-25T16:05:00Z",
+          "doneAt": "2026-08-06T14:13:00Z",
           "dependsOn": [
             "check-society-stock"
           ]
@@ -68,7 +68,7 @@
           "title": "Cut to size with a bit spare",
           "type": "task",
           "status": "done",
-          "doneAt": "2026-07-20T18:05:00Z",
+          "doneAt": "2026-09-07T12:20:00Z",
           "dependsOn": [
             "sunday-trip"
           ]

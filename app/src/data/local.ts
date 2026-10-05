@@ -2,12 +2,13 @@ import {
   ConflictError,
   fromFiles,
   type HistoryCommit,
+  type HistoryPage,
   type MergeMethod,
   type PullDetail,
   type PullSummary,
   type ReviewEvent,
 } from '@quest/shared';
-import type { DataSource, Loaded, LocalStatus, PullData } from './source';
+import type { DataSource, HistoryRange, Loaded, LocalStatus, PullData } from './source';
 
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -58,6 +59,13 @@ export class LocalApiSource implements DataSource {
 
   history(since?: string) {
     return api<HistoryCommit[]>('GET', `/history${since ? `?since=${encodeURIComponent(since)}` : ''}`);
+  }
+
+  changesPage(range: HistoryRange) {
+    const q = new URLSearchParams({ limit: String(range.limit) });
+    if (range.since) q.set('since', range.since);
+    if (range.until) q.set('until', range.until);
+    return api<HistoryPage>('GET', `/history/changes?${q}`);
   }
 
   pulls = {

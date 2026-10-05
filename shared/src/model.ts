@@ -32,8 +32,17 @@ export const HERO_IDS: HeroId[] = [
   'bi-bomber', 'drag-glam', 'nb-beanie', 'hijab-skater', 'silver-locs', 'flannel',
 ];
 
+/** Every level cleared (every MVP criterion done): a finished game. */
+export function isProjectFinished(state: GameState): boolean {
+  const levels = Object.values(state.worlds).flatMap((w) => w.levels);
+  return levels.length > 0 && levels.every((l) => l.successCriteria.some((c) => c.mvp) && l.successCriteria.every((c) => !c.mvp || c.done));
+}
+
+/** Projects by title, with finished games after the ones still being played. */
 export function orderedProjects(ws: Workspace): GameState[] {
-  return Object.values(ws.projects).sort((a, b) => a.overworld.title.localeCompare(b.overworld.title));
+  return Object.values(ws.projects).sort(
+    (a, b) => Number(isProjectFinished(a)) - Number(isProjectFinished(b)) || a.overworld.title.localeCompare(b.overworld.title),
+  );
 }
 
 export const ITEM_TYPES: ItemType[] = [

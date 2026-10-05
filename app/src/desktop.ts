@@ -8,6 +8,7 @@ import { canvasUrl } from './sprites/render';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { mountPadOverlay } from './ui/today';
+import { mountRecords } from './ui/records';
 
 export function mountDesktop(app: App, root: HTMLElement) {
   const hud = h('header', { class: 'hud' });
@@ -16,13 +17,16 @@ export function mountDesktop(app: App, root: HTMLElement) {
   const panel = h('aside', { class: 'panel' });
   // Today's plan, held up over whatever is on screen.
   const today = h('div');
-  root.append(hud, h('main', { class: 'desktop' }, h('div', { class: 'game-wrap' }, game, nav), panel, today));
+  // Detailed stats: a page over the game and panel (the pad can still go over it).
+  const records = h('div');
+  root.append(hud, h('main', { class: 'desktop' }, h('div', { class: 'game-wrap' }, game, nav), panel, records, today));
   scheduler(app, panel, () => {
     renderHud(app, hud);
     renderGameNav(app, nav);
     return renderPanel(app);
   }, () => repaintSyncStatus(app, hud, panel));
   mountPadOverlay(app, today);
+  mountRecords(app, records);
   // Before the game starts, so Esc reaches us before Phaser's own key handling.
   bindNavKeys(app);
   startGame(app, game);

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "clear-the-brambles",
+  "name": "Clear the brambles",
+  "deliverable": "The whole plot cut back and the roots dug out",
+  "timeboxDays": 17,
+  "startedAt": "2024-10-12T12:19:00Z",
+  "clearedAt": "2024-10-31T21:46:00Z",
+  "successCriteria": [
+    {
+      "id": "every-bramble-cut-to-the-ground",
+      "mvp": true,
+      "text": "Every bramble cut to the ground",
+      "done": true,
+      "doneAt": "2024-10-29T19:37:00Z"
+    },
+    {
+      "id": "roots-out-of-the-top-half",
+      "mvp": true,
+      "text": "Roots out of the top half",
+      "done": true,
+      "doneAt": "2024-10-31T21:46:00Z"
+    },
+    {
+      "id": "rubbish-taken-to-the-tip",
+      "mvp": false,
+      "text": "Rubbish taken to the tip",
+      "done": true,
+      "doneAt": "2024-10-29T20:00:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "borrow-a-brushcutter-from-plot-9",
+      "title": "Borrow a brushcutter from plot 9",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-10-14T21:15:00Z"
+    },
+    {
+      "id": "cut-back-the-brambles",
+      "title": "Cut back the brambles",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-10-16T19:24:00Z"
+    },
+    {
+      "id": "dig-out-roots-top-half",
+      "title": "Dig out roots, top half",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-10-18T18:17:00Z"
+    },
+    {
+      "id": "dig-out-roots-bottom-half",
+      "title": "Dig out roots, bottom half",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-10-21T18:37:00Z"
+    },
+    {
+      "id": "hidden-glass-and-wire",
+      "title": "Hidden glass and wire",
+      "type": "risk",
+      "status": "done",
+      "doneAt": "2024-10-25T21:44:00Z",
+      "notes": "Gloves and a bucket for the finds."
+    },
+    {
+      "id": "tip-run-with-the-car",
+      "title": "Tip run with the car",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2024-10-27T16:31:00Z"
+    },
+    {
+      "id": "save-the-blackberry-by-the-fence",
+      "title": "Save the blackberry by the fence",
+      "type": "stretch",
+      "status": "done",
+      "doneAt": "2024-10-29T18:50:00Z"
+    }
+  ],
+  "stats": {
+    "timeboxExtendedDays": 3
+  }
+}

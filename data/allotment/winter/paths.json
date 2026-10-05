@@ -28,14 +28,14 @@
       "title": "Lay weed membrane on the paths",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-01-15T10:28:00Z"
+      "doneAt": "2026-01-13T09:02:00Z"
     },
     {
       "id": "spread-bark-chippings",
       "title": "Spread bark chippings",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-01-13T09:02:00Z",
+      "doneAt": "2026-01-14T17:58:00Z",
       "notes": "Free from the tree surgeon down the road."
     },
     {
@@ -43,21 +43,21 @@
       "title": "Re-felt the shed roof",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-01-20T11:08:00Z"
+      "doneAt": "2026-01-15T10:28:00Z"
     },
     {
       "id": "put-up-tool-hooks-in-the-shed",
       "title": "Put up tool hooks in the shed",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-01-17T13:14:00Z"
+      "doneAt": "2026-01-17T09:26:00Z"
     },
     {
       "id": "committee-permission-for-the-shed-repair",
       "title": "Committee permission for the shed repair",
       "type": "dependency",
       "status": "done",
-      "doneAt": "2026-01-17T09:26:00Z",
+      "doneAt": "2026-01-17T13:14:00Z",
       "notes": "Granted the same day."
     },
     {
@@ -65,7 +65,7 @@
       "title": "Water butt from the shed gutter",
       "type": "stretch",
       "status": "done",
-      "doneAt": "2026-01-14T17:58:00Z"
+      "doneAt": "2026-01-20T11:08:00Z"
     }
   ]
 }

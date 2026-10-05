@@ -11,13 +11,16 @@ import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { settingsDialog } from './ui/settings';
 import { mountPadOverlay } from './ui/today';
+import { mountRecords } from './ui/records';
 
 /** Compact, touch-first layout for phones: DOM screens plus a static level strip. */
 export function mountMobile(app: App, root: HTMLElement) {
   const hud = h('header', { class: 'hud' });
   const body = h('main', { class: 'mobile-body' });
   const nav = h('nav', { class: 'tabbar' });
-  root.append(hud, body, nav);
+  // Detailed stats takes the body's place while it's open.
+  const records = h('div', { class: 'mobile' });
+  root.append(hud, body, records, nav);
 
   const today = h('div', { class: 'mobile' });
   root.append(today);
@@ -32,6 +35,7 @@ export function mountMobile(app: App, root: HTMLElement) {
   }, () => repaintSyncStatus(app, hud, body));
   window.addEventListener('hashchange', () => (stripScroll = undefined));
   mountPadOverlay(app, today);
+  mountRecords(app, records, { onShow: (shown) => (body.hidden = shown) });
 }
 
 function renderVisual(app: App, scroll?: number): HTMLElement | null {

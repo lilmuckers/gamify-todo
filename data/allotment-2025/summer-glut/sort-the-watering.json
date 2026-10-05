@@ -1,0 +1,56 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "sort-the-watering",
+  "name": "Sort the watering",
+  "deliverable": "A rota so nothing dies in a heatwave",
+  "timeboxDays": 7,
+  "startedAt": "2025-05-24T11:22:00Z",
+  "clearedAt": "2025-05-30T19:56:00Z",
+  "successCriteria": [
+    {
+      "id": "rota-agreed-with-plot-15",
+      "mvp": true,
+      "text": "Rota agreed with plot 15",
+      "done": true,
+      "doneAt": "2025-05-29T18:05:00Z"
+    },
+    {
+      "id": "water-butts-filled",
+      "mvp": true,
+      "text": "Water butts filled",
+      "done": true,
+      "doneAt": "2025-05-30T19:56:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "swap-rota-days-with-plot-15",
+      "title": "Swap rota days with plot 15",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-05-25T10:11:00Z"
+    },
+    {
+      "id": "connect-the-shed-gutter-to-a-butt",
+      "title": "Connect the shed gutter to a butt",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-05-27T08:47:00Z"
+    },
+    {
+      "id": "second-water-butt",
+      "title": "Second water butt",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-05-28T21:16:00Z"
+    },
+    {
+      "id": "drip-hose-or-cans",
+      "title": "Drip hose or cans?",
+      "type": "decision",
+      "status": "done",
+      "doneAt": "2025-05-29T19:01:00Z",
+      "notes": "Cans. Cheaper, and we notice problems."
+    }
+  ]
+}

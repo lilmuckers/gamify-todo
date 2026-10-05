@@ -1,0 +1,63 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "book-the-move",
+  "name": "Book the move",
+  "deliverable": "Van, help and a date that works",
+  "timeboxDays": 5,
+  "startedAt": "2025-03-15T13:27:00Z",
+  "clearedAt": "2025-03-22T13:47:00Z",
+  "successCriteria": [
+    {
+      "id": "van-booked",
+      "mvp": true,
+      "text": "Van booked",
+      "done": true,
+      "doneAt": "2025-03-22T12:59:00Z"
+    },
+    {
+      "id": "two-friends-confirmed",
+      "mvp": true,
+      "text": "Two friends confirmed",
+      "done": true,
+      "doneAt": "2025-03-21T08:58:00Z"
+    },
+    {
+      "id": "date-in-the-calendar",
+      "mvp": true,
+      "text": "Date in the calendar",
+      "done": true,
+      "doneAt": "2025-03-22T13:47:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "three-van-quotes",
+      "title": "Three van quotes",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-16T11:27:00Z"
+    },
+    {
+      "id": "man-and-van-or-self-drive",
+      "title": "Man and van or self-drive?",
+      "type": "decision",
+      "status": "done",
+      "doneAt": "2025-03-17T18:34:00Z",
+      "notes": "Self-drive, two friends, pizza."
+    },
+    {
+      "id": "book-the-van",
+      "title": "Book the van",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-19T18:22:00Z"
+    },
+    {
+      "id": "ask-sam-and-priya",
+      "title": "Ask Sam and Priya",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-21T21:03:00Z"
+    }
+  ]
+}

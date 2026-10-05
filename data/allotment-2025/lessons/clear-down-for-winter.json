@@ -1,0 +1,69 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "clear-down-for-winter",
+  "name": "Clear down for winter",
+  "deliverable": "Beds cleared, covered and the shed tidy",
+  "timeboxDays": 14,
+  "startedAt": "2025-09-20T14:54:00Z",
+  "clearedAt": "2025-10-05T09:06:00Z",
+  "successCriteria": [
+    {
+      "id": "beds-cleared",
+      "mvp": true,
+      "text": "Beds cleared",
+      "done": true,
+      "doneAt": "2025-10-01T18:44:00Z"
+    },
+    {
+      "id": "two-beds-under-cardboard",
+      "mvp": true,
+      "text": "Two beds under cardboard",
+      "done": true,
+      "doneAt": "2025-10-05T09:06:00Z"
+    },
+    {
+      "id": "garlic-in",
+      "mvp": false,
+      "text": "Garlic in",
+      "done": true,
+      "doneAt": "2025-10-03T19:42:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "pull-the-spent-plants",
+      "title": "Pull the spent plants",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-09-21T10:11:00Z"
+    },
+    {
+      "id": "cardboard-on-beds-3-and-4",
+      "title": "Cardboard on beds 3 and 4",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-09-24T19:33:00Z"
+    },
+    {
+      "id": "plant-garlic",
+      "title": "Plant garlic",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-09-27T11:12:00Z"
+    },
+    {
+      "id": "sharpen-and-oil-the-tools",
+      "title": "Sharpen and oil the tools",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-09-30T20:16:00Z"
+    },
+    {
+      "id": "september-inspection-passed",
+      "title": "September inspection passed",
+      "type": "deliverable",
+      "status": "done",
+      "doneAt": "2025-10-03T21:21:00Z"
+    }
+  ]
+}

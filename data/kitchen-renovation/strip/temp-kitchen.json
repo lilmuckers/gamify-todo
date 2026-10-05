@@ -27,21 +27,21 @@
       "title": "Move the fridge to the dining room",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-04T08:03:00Z"
+      "doneAt": "2026-09-03T08:14:00Z"
     },
     {
       "id": "set-up-microwave-kettle-and-toaster",
       "title": "Set up microwave, kettle and toaster",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-03T13:14:00Z"
+      "doneAt": "2026-09-03T08:58:00Z"
     },
     {
       "id": "buy-a-camping-washing-up-bowl",
       "title": "Buy a camping washing-up bowl",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-03T08:14:00Z",
+      "doneAt": "2026-09-03T13:14:00Z",
       "budget": 15,
       "spent": 8
     },
@@ -50,7 +50,7 @@
       "title": "Box up crockery",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-03T08:58:00Z",
+      "doneAt": "2026-09-04T08:03:00Z",
       "notes": "Labelled boxes: daily, occasional, rare. Daily box stays in the dining room."
     },
     {

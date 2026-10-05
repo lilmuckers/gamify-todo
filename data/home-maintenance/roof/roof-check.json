@@ -36,7 +36,7 @@
       "title": "Photograph the roof from the street with a zoom lens",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-27T13:11:00Z",
+      "doneAt": "2026-09-12T09:39:00Z",
       "notes": "Spotted three slipped slates above the back bedroom."
     },
     {
@@ -51,7 +51,7 @@
       "title": "Choose the roofer",
       "type": "decision",
       "status": "done",
-      "doneAt": "2026-09-12T09:39:00Z",
+      "doneAt": "2026-09-23T10:12:00Z",
       "notes": "Hughes & Son: cheaper, and they can reach the slates from a roof ladder without scaffolding."
     },
     {
@@ -59,7 +59,7 @@
       "title": "Roofer visit",
       "type": "dependency",
       "status": "done",
-      "doneAt": "2026-09-23T10:12:00Z",
+      "doneAt": "2026-09-23T16:21:00Z",
       "notes": "Booked twice, cancelled twice for rain. Next slot: Monday.",
       "subtasks": [
         {
@@ -118,7 +118,7 @@
       "title": "Re-point the chimney flashing",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-23T16:21:00Z",
+      "doneAt": "2026-09-24T13:29:00Z",
       "mvp": false
     },
     {
@@ -133,7 +133,7 @@
       "title": "Check the loft for daylight through the roof",
       "type": "stretch",
       "status": "done",
-      "doneAt": "2026-09-24T13:29:00Z"
+      "doneAt": "2026-09-27T13:11:00Z"
     }
   ]
 }
