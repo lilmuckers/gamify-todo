@@ -20,7 +20,7 @@ export interface NavModel {
 }
 
 const link = (label: string, route: Route): NavLink => ({ label, href: href(route) });
-const PAD_CRUMB: Record<PadPage, string> = { today: 'Today', inbox: 'Inbox', review: 'Weekly review' };
+const PAD_CRUMB: Record<PadPage, string> = { today: 'Today', inbox: 'Inbox', review: 'Weekly review', stats: 'Stats' };
 
 export function navFor(app: App): NavModel {
   const r = app.route;
@@ -120,7 +120,7 @@ function screenNav(app: App, r: Route): NavModel {
 /**
  * Keyboard: Esc goes up a screen (unless a popup or item bubble is open) or
  * puts today's plan away, [ and ] step to the previous / next level or world,
- * t / i / w hold up the Today / Inbox / Weekly review page of the pad (or put it away), n opens
+ * t / i / w / s hold up the Today / Inbox / Weekly review / Stats page of the pad (or put it away), n opens
  * the inbox ready to write on, p starts or stops play mode.
  */
 export function bindNavKeys(app: App) {
@@ -149,6 +149,7 @@ export function bindNavKeys(app: App) {
     const today = { label: 'Today', href: href(togglePad(r, 'today')) };
     const inbox = { label: 'Inbox', href: href(togglePad(r, 'inbox')) };
     const review = { label: 'Weekly review', href: href(togglePad(r, 'review')) };
+    const stats = { label: 'Stats', href: href(togglePad(r, 'stats')) };
     // n: jot something down (the inbox page, ready to write on).
     const capture = { label: 'Inbox', href: href(withPad(r, 'inbox')) };
     const target =
@@ -167,9 +168,11 @@ export function bindNavKeys(app: App) {
                 ? inbox
                 : e.key === 'w'
                   ? review
-                  : e.key === 'n'
-                    ? capture
-                    : undefined;
+                  : e.key === 's'
+                    ? stats
+                    : e.key === 'n'
+                      ? capture
+                      : undefined;
     if (!target) return;
     e.preventDefault();
     if (e.key === 'n') app.focusCapture = true;

@@ -11,19 +11,22 @@
       "id": "frame-bare",
       "mvp": true,
       "text": "Frame bare",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-08T12:47:00Z"
     },
     {
       "id": "every-part-bagged-and-labelled",
       "mvp": true,
       "text": "Every part bagged and labelled",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-11T09:00:00Z"
     },
     {
       "id": "photo-of-every-assembly-before-r",
       "mvp": false,
       "text": "Photo of every assembly before removal",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-07T09:33:00Z"
     }
   ],
   "items": [
@@ -32,19 +35,22 @@
       "title": "Photograph each assembly before taking it apart",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-06-09T18:22:00Z",
       "notes": "Phone album \"PX10 teardown\", 140 photos."
     },
     {
       "id": "remove-wheels-chain-and-derailleurs",
       "title": "Remove wheels, chain and derailleurs",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-06T08:49:00Z"
     },
     {
       "id": "remove-the-cranks",
       "title": "Remove the cranks",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-06-05T18:21:00Z",
       "notes": "Needed a Stronglight crank puller; borrowed from the bike co-op."
     },
     {
@@ -52,19 +58,22 @@
       "title": "Seized bottom bracket",
       "type": "blocker",
       "status": "done",
+      "doneAt": "2026-06-09T12:45:00Z",
       "notes": "French thread. Soaked in penetrating oil for a week; came out with a breaker bar."
     },
     {
       "id": "remove-the-headset-and-fork",
       "title": "Remove the headset and fork",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-09T12:09:00Z"
     },
     {
       "id": "bag-and-label-every-part",
       "title": "Bag and label every part",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-05T08:03:00Z"
     },
     {
       "id": "weigh-every-part-for-a-spreadsheet",

@@ -31,6 +31,7 @@
       "title": "Reading form for single and dual-rate meters",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-21T14:45:00Z",
       "link": "https://github.com/acme-utilities/portal/issues/84"
     },
     {
@@ -71,6 +72,7 @@
           "title": "Write up the photo-reading proposal",
           "type": "task",
           "status": "done",
+          "doneAt": "2026-09-24T14:36:00Z",
           "notes": "Two pages: why, how we validate, what changes for the metering team."
         },
         {

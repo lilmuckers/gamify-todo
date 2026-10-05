@@ -11,13 +11,15 @@
       "id": "fence-stands-upright-in-wind",
       "mvp": true,
       "text": "Fence stands upright in wind",
-      "done": true
+      "done": true,
+      "doneAt": "2026-08-29T09:00:00Z"
     },
     {
       "id": "panels-treated",
       "mvp": false,
       "text": "Panels treated",
-      "done": true
+      "done": true,
+      "doneAt": "2026-08-26T14:01:00Z"
     }
   ],
   "items": [
@@ -26,25 +28,29 @@
       "title": "Repair or replace the fence",
       "type": "decision",
       "status": "done",
+      "doneAt": "2026-08-23T08:55:00Z",
       "notes": "Repair: only one post had rotted."
     },
     {
       "id": "neighbour-ok-with-access-from-their-side",
       "title": "Neighbour OK with access from their side",
       "type": "dependency",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-22T17:46:00Z"
     },
     {
       "id": "dig",
       "title": "Dig out the rotten post",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-25T14:30:00Z"
     },
     {
       "id": "concrete-in-a-new-post",
       "title": "Concrete in a new post",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-08-22T09:05:00Z",
       "dependsOn": [
         "dig"
       ]
@@ -53,13 +59,15 @@
       "id": "rehang-the-two-loose-panels",
       "title": "Rehang the two loose panels",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-27T11:25:00Z"
     },
     {
       "id": "treat-the-panels",
       "title": "Treat the panels",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-08-25T18:11:00Z",
       "notes": "One coat was enough; second coat skipped."
     }
   ]

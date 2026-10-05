@@ -4,7 +4,7 @@ import { repoJson } from '../repo';
 
 test.beforeEach(({ page }) => skipWelcome(page));
 
-test('t, i and w hold up Today, the Inbox and the weekly review', async ({ page }) => {
+test('t, i, w and s hold up Today, the Inbox, the weekly review and stats', async ({ page }) => {
   await page.goto('./#/p/kitchen-renovation/fit/tiling');
   await inScene(page, 'level');
   const pad = page.locator('.legal-pad');
@@ -22,6 +22,18 @@ test('t, i and w hold up Today, the Inbox and the weekly review', async ({ page 
   await page.keyboard.press('w');
   await expect(page).toHaveURL(/\/~review$/);
   await expect(pad).toHaveAttribute('aria-label', 'Weekly review');
+
+  // Stats: 20 weeks of calendar, and the HUD flame puts it away again.
+  await page.keyboard.press('s');
+  await expect(page).toHaveURL(/\/~stats$/);
+  await expect(pad).toHaveAttribute('aria-label', 'Stats: streaks and history');
+  await expect(pad.locator('.stats-heat .heat')).toHaveCount(140);
+  await expect(pad.getByRole('heading', { name: 'TIME-BOXES' })).toBeVisible();
+  await page.locator('.hud-streak').click();
+  await expect(page).toHaveURL(/#\/p\/kitchen-renovation\/fit\/tiling$/);
+  await page.keyboard.press('s');
+  await expect(page).toHaveURL(/\/~stats$/);
+  await expect(pad).toHaveAttribute('aria-label', 'Stats: streaks and history');
 
   // Esc puts the pad away, back on the level.
   await page.keyboard.press('Escape');

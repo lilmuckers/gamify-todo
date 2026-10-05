@@ -9,5 +9,6 @@ export * from './github';
 export * from './worldmap';
 export * from './today';
 export * from './review';
+export * from './stats';
 export * from './oauth';
 export * from './budget';

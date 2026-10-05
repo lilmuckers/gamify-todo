@@ -11,13 +11,15 @@
       "id": "a-bag-of-leaves-most-weeks",
       "mvp": true,
       "text": "A bag of leaves most weeks",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-11T09:00:00Z"
     },
     {
       "id": "successional-sowing-every-three",
       "mvp": false,
       "text": "Successional sowing every three weeks",
-      "done": true
+      "done": true,
+      "doneAt": "2026-08-21T12:52:00Z"
     }
   ],
   "items": [
@@ -26,32 +28,37 @@
       "title": "Sow a row every three weeks",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-08-20T17:04:00Z",
       "notes": "Calendar reminder, every third Saturday."
     },
     {
       "id": "shade-netting-in-july-heat",
       "title": "Shade netting in July heat",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-23T09:38:00Z"
     },
     {
       "id": "pick-outer-leaves-only",
       "title": "Pick outer leaves only",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-20T17:57:00Z"
     },
     {
       "id": "bolting-in-the-heatwave",
       "title": "Bolting in the heatwave",
       "type": "risk",
       "status": "done",
+      "doneAt": "2026-07-30T17:13:00Z",
       "notes": "Expected; resowed in partial shade."
     },
     {
       "id": "swap-surplus-with-the-next-door-plot",
       "title": "Swap surplus with the next-door plot",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-24T12:13:00Z"
     }
   ]
 }

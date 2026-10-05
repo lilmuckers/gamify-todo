@@ -11,19 +11,22 @@
       "id": "top-5-tasks-ranked-with-evidence",
       "mvp": true,
       "text": "Top 5 tasks ranked with evidence",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-10T17:02:00Z"
     },
     {
       "id": "findings-shared-with-the-team",
       "mvp": true,
       "text": "Findings shared with the team",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-15T09:00:00Z"
     },
     {
       "id": "contact-centre-agents-interviewe",
       "mvp": false,
       "text": "Contact-centre agents interviewed",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-12T12:45:00Z"
     }
   ],
   "items": [
@@ -32,6 +35,7 @@
       "title": "Pull six months of contact-centre call reasons",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-06-11T11:48:00Z",
       "link": "https://github.com/acme-utilities/portal/issues/12"
     },
     {
@@ -39,25 +43,29 @@
       "title": "Analyse old-portal analytics",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-06-11T18:57:00Z",
       "notes": "Bills 41%, meter readings 23%, moving home 9%, everything else under 5%."
     },
     {
       "id": "interviews",
       "title": "Interview eight customers",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-05T11:53:00Z"
     },
     {
       "id": "shadow-two-contact-centre-agents",
       "title": "Shadow two contact-centre agents",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-08T08:09:00Z"
     },
     {
       "id": "top-tasks-report",
       "title": "Top-tasks report",
       "type": "deliverable",
       "status": "done",
+      "doneAt": "2026-06-04T18:49:00Z",
       "dependsOn": [
         "interviews"
       ]
@@ -66,13 +74,15 @@
       "id": "playback-session-with-stakeholders",
       "title": "Playback session with stakeholders",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-09T16:06:00Z"
     },
     {
       "id": "recruiting-older-customers-for-interview",
       "title": "Recruiting older customers for interviews",
       "type": "risk",
       "status": "done",
+      "doneAt": "2026-06-12T13:23:00Z",
       "notes": "Recruited via the priority services register, with consent."
     },
     {

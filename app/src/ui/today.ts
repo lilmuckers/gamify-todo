@@ -6,6 +6,7 @@ import { href, withPad, type PadPage } from '../router';
 import { play as sfx } from '../audio';
 import { inboxCount, inboxSheet } from './inbox';
 import { reviewSheet } from './weekly';
+import { statsSheet } from './stats';
 import { fmtDuration, h, keepFields } from './dom';
 
 const DAY_MS = 86_400_000;
@@ -156,9 +157,9 @@ function todaySheet(app: App) {
   ];
 }
 
-const PAGE_LABEL: Record<PadPage, string> = { today: 'TODAY', inbox: 'INBOX', review: 'REVIEW' };
-const PAGE_ARIA: Record<PadPage, string> = { today: "Today's plan", inbox: 'Inbox', review: 'Weekly review' };
-const SHEETS: Record<PadPage, (app: App) => (Node | null | false | undefined)[]> = { today: todaySheet, inbox: inboxSheet, review: reviewSheet };
+const PAGE_LABEL: Record<PadPage, string> = { today: 'TODAY', inbox: 'INBOX', review: 'REVIEW', stats: 'STATS' };
+const PAGE_ARIA: Record<PadPage, string> = { today: "Today's plan", inbox: 'Inbox', review: 'Weekly review', stats: 'Stats: streaks and history' };
+const SHEETS: Record<PadPage, (app: App) => (Node | null | false | undefined)[]> = { today: todaySheet, inbox: inboxSheet, review: reviewSheet, stats: statsSheet };
 
 /**
  * The legal pad: page tabs along the top (Today, Inbox), a cross to put it
@@ -166,7 +167,7 @@ const SHEETS: Record<PadPage, (app: App) => (Node | null | false | undefined)[]>
  */
 function legalPad(app: App, page: PadPage, opts: { enter?: boolean; flip?: boolean; onClose?: () => void }): HTMLElement {
   const tilt = -1.2 - seeded(new Date().toDateString())() * 2.6;
-  const counts: Record<PadPage, number | string> = { today: todayCount(app), inbox: inboxCount(app), review: app.reviewDue ? '!' : 0 };
+  const counts: Record<PadPage, number | string> = { today: todayCount(app), inbox: inboxCount(app), review: app.reviewDue ? '!' : 0, stats: 0 };
   return h(
     'div',
     {

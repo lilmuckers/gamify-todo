@@ -11,19 +11,22 @@
       "id": "first-earlies-planted",
       "mvp": true,
       "text": "First earlies planted",
-      "done": true
+      "done": true,
+      "doneAt": "2026-04-17T14:33:00Z"
     },
     {
       "id": "maincrop-planted",
       "mvp": true,
       "text": "Maincrop planted",
-      "done": true
+      "done": true,
+      "doneAt": "2026-04-24T09:00:00Z"
     },
     {
       "id": "earthed-up-twice",
       "mvp": false,
       "text": "Earthed up twice",
-      "done": true
+      "done": true,
+      "doneAt": "2026-04-24T07:26:00Z"
     }
   ],
   "items": [
@@ -32,6 +35,7 @@
       "title": "Chit the seed potatoes",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-04-07T13:09:00Z",
       "notes": "Egg boxes on the spare-room windowsill."
     },
     {
@@ -39,6 +43,7 @@
       "title": "Plant first earlies",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-04-16T16:33:00Z",
       "notes": "Charlotte, end of March."
     },
     {
@@ -46,25 +51,29 @@
       "title": "Plant maincrop",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-03-27T15:36:00Z",
       "notes": "Sarpo Mira for blight resistance."
     },
     {
       "id": "earth-up-after-the-first-shoots",
       "title": "Earth up after the first shoots",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-04-15T16:58:00Z"
     },
     {
       "id": "earth-up-again",
       "title": "Earth up again",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-04-07T16:18:00Z"
     },
     {
       "id": "late-frost-on-the-shoots",
       "title": "Late frost on the shoots",
       "type": "risk",
       "status": "done",
+      "doneAt": "2026-03-25T09:05:00Z",
       "notes": "Fleece on the two frosty nights in April."
     }
   ]

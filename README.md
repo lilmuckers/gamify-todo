@@ -43,6 +43,20 @@ pad's third page:
 levels are kept in your browser. Items record when they were finished (`doneAt`), so the review
 works offline and in read-only views too.
 
+The pad's fourth page is **Stats** (`s`, `#/stats`, or the streak flame in the top bar), on blue
+graph paper:
+
+- **Streak**: days in a row with progress (anything done, a criterion ticked or a level cleared),
+  and your best run. Today still counts until midnight, so the flame only goes out after a day
+  with nothing done.
+- **Last 20 weeks**: a calendar, darker for busier days, with a red ring on days a level cleared.
+- **Time-boxes**: levels cleared, average stars, the share cleared in time, and the typical days
+  taken against the box, with a nudge if your boxes run short or long.
+- **XP over time**: XP per week and the running total.
+
+It's all worked out from the done stamps in your data (`doneAt` on items, steps and criteria;
+`clearedAt` on levels), so it needs no extra files and works offline.
+
 Most edits show an **UNDO** toast for a few seconds (Ctrl/Cmd+Z works too); edits that haven't
 synced yet are simply taken back, with no commit.
 
@@ -246,7 +260,7 @@ Every screen has a shareable URL, and a level link can open an item's bubble dir
 #/p/<project>/<world>                    world map
 #/p/<project>/<world>/<level>/<item>     level, with that item's bubble open
 #/prs, #/pr/<n>/<project>/<world>/<level>/<item>   pull request review
-#/review (or …/~review after any link)   weekly review; …/~today and …/~inbox likewise
+#/review (or …/~review after any link)   weekly review; …/~today, …/~inbox and …/~stats likewise
 ```
 
 ## Reviewing pull requests: the Warp Zone

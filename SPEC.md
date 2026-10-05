@@ -108,7 +108,7 @@ alerts?, alertAt?}`: turns cash budgets on), `goals[]` (`{id, title, description
 (1–90), `startedAt?`, `clearedAt?`, `someday?`, `budget?`, `successCriteria[]` (1–20, at least one
 with `mvp: true`), `items[]` (≤200), `stats?` (app-maintained).
 
-**Criterion:** `{id, text (≤280), mvp, done}`, all required.
+**Criterion:** `{id, text (≤280), mvp, done, doneAt?}`; all but `doneAt` required.
 
 **Item:** `id`, `type`, `title`, `status`, `doneAt?`, `mvp?` (default true; ignored for
 stretch), `dependsOn?[]` (same level; shown in the UI as **"Waits for"**), `levelRef?`
@@ -156,8 +156,8 @@ These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, 
   `levelRef` itself.
 - `subtasks` only appear on dependencies, never together with `levelRef`.
 - Each level has at least one MVP criterion.
-- `doneAt` is present only on done items and steps. Tools set it when marking something done and
-  remove it on reopen.
+- `doneAt` is present only on done items and steps and on ticked criteria. Tools set it when
+  marking something done (or ticking it) and remove it on reopen.
 - `someday: true` means no `startedAt`, and is never set on a cleared level.
 - Files are UTF-8, 2-space indent, with a trailing newline. The canonical format is
   `npm run format:data`.
@@ -240,8 +240,8 @@ touch screens, and can be overridden in Settings or with `?mobile=on|off`.
 #/p/<project>/<world>/<level>/@<dep>[/<step>]   dependency sub-level
 #/prs                                     Warp Zone (PR list)
 #/pr/<n>[/<project>/<world>/<level>[/@<dep>][/<item>]]   PR review
-…/~today  …/~inbox  …/~review             legal pad page held up over any screen
-#/today, #/review                         short forms
+…/~today  …/~inbox  …/~review  …/~stats   legal pad page held up over any screen
+#/today, #/review, #/stats                short forms
 ```
 
 Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`, `?jam` (for testing: one of every
@@ -344,7 +344,7 @@ standard mapping) instead of letting him auto-walk.
 - Pipe arrivals finish their animation before play takes over (#74).
 - In read-only views play mode animates but saves nothing.
 
-### 5.6 The legal pad: Today, Inbox, Weekly review
+### 5.6 The legal pad: Today, Inbox, Weekly review, Stats
 
 The hero holds up a yellow legal pad over whatever screen you're on. It is written in a
 handwriting font (Caveat), and its pages are Post-it index flags on the right edge. On phones it
@@ -388,9 +388,27 @@ evening or off in Settings. The review has four sections:
 **Review done** stamps it until the next slot. The schedule, last review time and focus levels
 live in this browser's `localStorage`, not in the repo.
 
+**Stats** (`s`, the HUD streak flame; #28). Built by `shared/src/stats.ts`, on blue graph paper:
+- **Streak:** consecutive local days with progress, and the longest run. A day counts if anything
+  was done (items and steps by `doneAt`), ticked (criteria by `doneAt`) or cleared (`clearedAt`).
+  The current streak counts back from today, or from yesterday while today has nothing yet.
+- **Last 20 weeks:** a calendar heatmap, Monday at the top, shaded by count (1, 2–3, 4–6, 7+),
+  with a red ring on days a level cleared.
+- **Time-boxes:** levels cleared, mean stars, % cleared in time (of levels with both
+  `startedAt` and `clearedAt`), and the median days taken against the median original time-box.
+  The median of days ÷ box gives the advice: under 0.6 "finish early, tighten", over 1.1 "smaller
+  deliverables or bigger boxes", otherwise "about right".
+- **XP over time:** weekly XP (each cleared level's XP in the week it cleared) as bars, with the
+  running total as a line. XP from before the window, or with no `clearedAt`, is the baseline.
+
+It is derived from the data, not commit history: no network, no cache of its own, and it works in
+read-only views and offline (the workspace is already cached). Reopening something removes its
+stamp, so undone work drops out. Older data without stamps shows only its clears.
+
 ### 5.7 HUD
 
-The HUD shows the QUEST LOG title, XP/coins/stars totals, the sync status pill, **TODAY**,
+The HUD shows the QUEST LOG title, XP/coins/stars totals, the streak flame (grey when out; opens
+Stats, and stays visible on phones), the sync status pill, **TODAY**,
 **INBOX** (count), **REVIEW** (when due), **AI SKILL**, ⚙ Settings, ⇪ Publish (Docker editor
 only) and a "DEMO · NOT SAVED" badge in the demo. On desktop, floating game-nav buttons over the
 canvas give ▲ up, ◀ ▶ prev/next and Play.
@@ -784,7 +802,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #19 Search/filter (`/`)
 - #26 A "good enough" moment
 - #27 WIP-limit warning
-- #28 Streaks and history
 - #29 World-level time-box
 - #31 Better conflict resolution
 - #32 Archive finished projects

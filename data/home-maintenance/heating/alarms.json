@@ -11,13 +11,15 @@
       "id": "all-smoke-alarms-tested",
       "mvp": true,
       "text": "All smoke alarms tested",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-30T11:48:00Z"
     },
     {
       "id": "co-alarm-fitted-next-to-the-boil",
       "mvp": true,
       "text": "CO alarm fitted next to the boiler",
-      "done": true
+      "done": true,
+      "doneAt": "2026-10-01T00:37:19.426Z"
     }
   ],
   "items": [
@@ -26,6 +28,7 @@
       "title": "Test every smoke alarm",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-28T17:44:00Z",
       "notes": "Three of four fine."
     },
     {

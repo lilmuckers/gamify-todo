@@ -11,7 +11,8 @@
       "id": "can-make-a-hot-meal-without-the",
       "mvp": true,
       "text": "Can make a hot meal without the old kitchen",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-04T09:00:00Z"
     },
     {
       "id": "washing-up-without-using-the-bat",
@@ -25,19 +26,22 @@
       "id": "move-the-fridge-to-the-dining-room",
       "title": "Move the fridge to the dining room",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-04T08:03:00Z"
     },
     {
       "id": "set-up-microwave-kettle-and-toaster",
       "title": "Set up microwave, kettle and toaster",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-03T13:14:00Z"
     },
     {
       "id": "buy-a-camping-washing-up-bowl",
       "title": "Buy a camping washing-up bowl",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-03T08:14:00Z",
       "budget": 15,
       "spent": 8
     },
@@ -46,6 +50,7 @@
       "title": "Box up crockery",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-03T08:58:00Z",
       "notes": "Labelled boxes: daily, occasional, rare. Daily box stays in the dining room."
     },
     {
@@ -53,6 +58,7 @@
       "title": "Extension leads overload one socket",
       "type": "risk",
       "status": "done",
+      "doneAt": "2026-09-04T08:51:00Z",
       "notes": "Spread across two circuits; electrician checked it."
     },
     {

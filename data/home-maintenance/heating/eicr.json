@@ -38,7 +38,8 @@
           "id": "get-names",
           "title": "Get two names from the neighbours",
           "type": "task",
-          "status": "done"
+          "status": "done",
+          "doneAt": "2026-10-02T10:29:00Z"
         },
         {
           "id": "check-registration",
@@ -69,6 +70,7 @@
           "title": "Power off for half a day",
           "type": "risk",
           "status": "done",
+          "doneAt": "2026-10-02T10:45:00Z",
           "mvp": false,
           "notes": "Freezer fine for 4 hours if left shut."
         }

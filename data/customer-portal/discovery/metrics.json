@@ -11,13 +11,15 @@
       "id": "metrics-agreed-with-the-product",
       "mvp": true,
       "text": "Metrics agreed with the product owner",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-20T15:33:00Z"
     },
     {
       "id": "baseline-dashboard-live",
       "mvp": true,
       "text": "Baseline dashboard live",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-24T09:00:00Z"
     }
   ],
   "items": [
@@ -25,19 +27,22 @@
       "id": "define-where-is-my-bill-call-rate",
       "title": "Define 'where is my bill' call rate",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-18T10:36:00Z"
     },
     {
       "id": "instrument-the-old-portal-for-baseline-t",
       "title": "Instrument the old portal for baseline task completion",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-18T15:53:00Z"
     },
     {
       "id": "launch-metrics-dashboard",
       "title": "Launch metrics dashboard",
       "type": "deliverable",
       "status": "done",
+      "doneAt": "2026-06-21T17:50:00Z",
       "link": "https://github.com/acme-utilities/portal/issues/19"
     },
     {
@@ -45,13 +50,15 @@
       "title": "Analytics tool",
       "type": "decision",
       "status": "done",
+      "doneAt": "2026-06-18T10:57:00Z",
       "notes": "Stick with the existing tool; no new cookie consent work."
     },
     {
       "id": "agree-targets-with-the-product-owner",
       "title": "Agree targets with the product owner",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-21T12:32:00Z"
     },
     {
       "id": "weekly-metrics-email",

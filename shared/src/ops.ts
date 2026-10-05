@@ -40,7 +40,13 @@ type ProjectOpBody =
     } & ItemAddr)
   | ({ kind: 'updateItem'; itemId: string; patch: ItemPatch } & ItemAddr)
   | ({ kind: 'deleteItem'; itemId: string } & ItemAddr)
-  | ({ kind: 'setCriterion'; criterionId: string; done: boolean } & LevelAddr)
+  | ({
+      kind: 'setCriterion';
+      criterionId: string;
+      done: boolean;
+      /** Undo only: the tick stamp to put back (null = none), instead of stamping now. */
+      doneAt?: string | null;
+    } & LevelAddr)
   | ({ kind: 'addCriterion'; criterion: Criterion } & LevelAddr)
   | ({ kind: 'updateCriterion'; criterionId: string; patch: CriterionPatch } & LevelAddr)
   | ({ kind: 'deleteCriterion'; criterionId: string } & LevelAddr)
@@ -125,6 +131,12 @@ function onlyCosts(target: object | undefined, patch: object): boolean {
 function stampDone(item: Pick<Item, 'status' | 'doneAt'>, wasDone: boolean, at: string) {
   if (item.status !== 'done') delete item.doneAt;
   else if (!wasDone || !item.doneAt) item.doneAt = at;
+}
+
+/** The same for a criterion's tick, which the stats calendar counts. */
+function stampTicked(c: Criterion, wasDone: boolean, at: string) {
+  if (!c.done) delete c.doneAt;
+  else if (!wasDone || !c.doneAt) c.doneAt = at;
 }
 
 /** Real progress on a parked level takes it off the someday shelf. */
@@ -225,17 +237,29 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
         for (const k of Object.keys(level.stats.itemEdits)) if (k.startsWith(`${op.itemId}/`)) delete level.stats.itemEdits[k];
       break;
     }
-    case 'setCriterion':
-      findCriterion(op.criterionId).done = op.done;
+    case 'setCriterion': {
+      const c = findCriterion(op.criterionId);
+      const wasDone = c.done;
+      c.done = op.done;
+      stampTicked(c, wasDone, op.at);
+      if (op.done && op.doneAt !== undefined) {
+        if (op.doneAt) c.doneAt = op.doneAt;
+        else delete c.doneAt;
+      }
       break;
+    }
     case 'addCriterion':
       if (level.successCriteria.some((c) => c.id === op.criterion.id))
         throw new OpConflict(`criterion id "${op.criterion.id}" already taken`, op);
       level.successCriteria.push(clone(op.criterion));
       break;
-    case 'updateCriterion':
-      Object.assign(findCriterion(op.criterionId), clone(op.patch));
+    case 'updateCriterion': {
+      const c = findCriterion(op.criterionId);
+      const wasDone = c.done;
+      Object.assign(c, clone(op.patch));
+      if (op.patch.done !== undefined) stampTicked(c, wasDone, op.at);
       break;
+    }
     case 'deleteCriterion':
       findCriterion(op.criterionId);
       level.successCriteria = level.successCriteria.filter((c) => c.id !== op.criterionId);
@@ -503,7 +527,8 @@ export function inverseOp(op: OpBody, before: Workspace): OpBody | undefined {
     }
     case 'setCriterion': {
       const prev = level.successCriteria.find((c) => c.id === op.criterionId);
-      return prev && { kind: 'setCriterion', ...at, criterionId: op.criterionId, done: prev.done };
+      // Un-ticking and undoing it keeps the original tick stamp.
+      return prev && { kind: 'setCriterion', ...at, criterionId: op.criterionId, done: prev.done, ...(prev.done ? { doneAt: prev.doneAt ?? null } : {}) };
     }
     case 'updateItem': {
       const prev = list.find((i) => i.id === op.itemId) as Record<string, unknown> | undefined;

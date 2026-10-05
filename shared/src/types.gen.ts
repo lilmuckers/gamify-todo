@@ -189,6 +189,10 @@ export interface Criterion {
    * Whether the criterion is currently met.
    */
   done: boolean;
+  /**
+   * When this criterion was last ticked. Set automatically when done becomes true and removed when it is un-ticked. Feeds the stats page's progress calendar and streaks. Optional: older data won't have it.
+   */
+  doneAt?: string;
 }
 /**
  * A project item placed in a level.

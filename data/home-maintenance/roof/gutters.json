@@ -11,13 +11,15 @@
       "id": "front-and-back-gutters-clear",
       "mvp": true,
       "text": "Front and back gutters clear",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-02T08:37:00Z"
     },
     {
       "id": "every-downpipe-flows-freely",
       "mvp": true,
       "text": "Every downpipe flows freely",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-02T09:00:00Z"
     }
   ],
   "items": [
@@ -25,26 +27,30 @@
       "id": "borrow-the-long-ladder-from-sam",
       "title": "Borrow the long ladder from Sam",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-02T08:32:00Z"
     },
     {
       "id": "clear-the-front-gutters",
       "title": "Clear the front gutters",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-02T08:55:00Z",
       "notes": "Mostly moss off the roof, two full buckets."
     },
     {
       "id": "clear-the-back-gutters",
       "title": "Clear the back gutters",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-01T15:33:00Z"
     },
     {
       "id": "flush-the-downpipes-with-a-hose",
       "title": "Flush the downpipes with a hose",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-01T14:09:00Z",
       "notes": "Back-left downpipe was blocked at the shoe; cleared with a rod."
     },
     {
@@ -52,6 +58,7 @@
       "title": "Ladder slipping on the uneven patio",
       "type": "risk",
       "status": "done",
+      "doneAt": "2026-09-01T13:13:00Z",
       "notes": "Used a ladder stabiliser and had someone footing it."
     },
     {

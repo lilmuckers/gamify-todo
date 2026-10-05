@@ -11,13 +11,15 @@
       "id": "beans-cropping",
       "mvp": true,
       "text": "Beans cropping",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-21T13:34:00Z"
     },
     {
       "id": "picked-often-enough-to-keep-crop",
       "mvp": true,
       "text": "Picked often enough to keep cropping",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-28T09:00:00Z"
     }
   ],
   "items": [
@@ -26,31 +28,36 @@
       "title": "Build bean wigwams",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-06-10T08:20:00Z",
       "notes": "Eight hazel poles per wigwam."
     },
     {
       "id": "plant-out-bean-seedlings",
       "title": "Plant out bean seedlings",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-05-31T16:14:00Z"
     },
     {
       "id": "slug-patrol-for-the-first-two-weeks",
       "title": "Slug patrol for the first two weeks",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-05-17T09:10:00Z"
     },
     {
       "id": "pick-every-three-days",
       "title": "Pick every three days",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-08T18:49:00Z"
     },
     {
       "id": "freeze-the-glut",
       "title": "Freeze the glut",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-05-23T14:55:00Z",
       "notes": "Blanched and frozen: 14 bags."
     },
     {

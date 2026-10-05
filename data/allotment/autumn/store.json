@@ -22,7 +22,8 @@
       "id": "squash-stored-somewhere-cool",
       "mvp": false,
       "text": "Squash stored somewhere cool",
-      "done": true
+      "done": true,
+      "doneAt": "2026-10-02T09:26:00Z"
     }
   ],
   "items": [
@@ -31,6 +32,7 @@
       "title": "Lift the maincrop potatoes",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-26T15:06:00Z",
       "notes": "22kg."
     },
     {
@@ -57,7 +59,8 @@
       "id": "store-squash-in-the-spare-room",
       "title": "Store squash in the spare room",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-26T13:20:00Z"
     },
     {
       "id": "check-stores-monthly-for-rot",

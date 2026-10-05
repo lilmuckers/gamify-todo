@@ -69,7 +69,7 @@ export function optionalLeft(level: Level): Item[] {
   return level.items.filter((i) => !isMvpItem(i) && !isResolved(i));
 }
 
-/** Latest sign of life in a level: started, cleared, or an item or step done (ms). */
+/** Latest sign of life in a level: started, cleared, an item or step done, or a criterion ticked (ms). */
 export function lastActivity(level: Level): number | undefined {
   let last: number | undefined;
   const see = (at: string | undefined) => {
@@ -82,6 +82,7 @@ export function lastActivity(level: Level): number | undefined {
     see(item.doneAt);
     for (const step of item.subtasks ?? []) see(step.doneAt);
   }
+  for (const c of level.successCriteria) see(c.doneAt);
   return last;
 }
 
