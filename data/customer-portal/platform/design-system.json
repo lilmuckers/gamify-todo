@@ -11,13 +11,15 @@
       "id": "core-components-built-and-docume",
       "mvp": true,
       "text": "Core components built and documented",
-      "done": true
+      "done": true,
+      "doneAt": "2026-07-25T10:00:00Z"
     },
     {
       "id": "each-component-passes-axe-checks",
       "mvp": true,
       "text": "Each component passes axe checks",
-      "done": true
+      "done": true,
+      "doneAt": "2026-07-27T09:00:00Z"
     }
   ],
   "items": [
@@ -26,43 +28,50 @@
       "title": "Audit the brand guidelines for colour contrast",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-07-14T13:53:00Z",
       "notes": "Brand teal fails on white; darkened by 10%, agreed with brand."
     },
     {
       "id": "buttons-links-and-form-fields",
       "title": "Buttons, links and form fields",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-07-18T12:54:00Z"
     },
     {
       "id": "error-summary-and-inline-errors",
       "title": "Error summary and inline errors",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-07-14T08:11:00Z"
     },
     {
       "id": "tables-for-bill-history",
       "title": "Tables for bill history",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-07-18T08:25:00Z"
     },
     {
       "id": "component-docs-site",
       "title": "Component docs site",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-07-16T18:57:00Z"
     },
     {
       "id": "automated-axe-checks-in-ci",
       "title": "Automated axe checks in CI",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-07-20T12:44:00Z"
     },
     {
       "id": "dark-mode",
       "title": "Dark mode",
       "type": "stretch",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-07-20T12:49:00Z"
     }
   ]
 }

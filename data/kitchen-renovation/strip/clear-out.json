@@ -11,13 +11,15 @@
       "id": "skip-collected",
       "mvp": true,
       "text": "Skip collected",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-14T18:00:00Z"
     },
     {
       "id": "nothing-left-in-the-hallway",
       "mvp": true,
       "text": "Nothing left in the hallway",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-15T09:00:00Z"
     }
   ],
   "items": [
@@ -26,6 +28,7 @@
       "title": "Sell the old oven online",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-12T11:16:00Z",
       "notes": "Went for £60."
     },
     {
@@ -33,6 +36,7 @@
       "title": "Donate the cabinet doors",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-14T09:05:00Z",
       "notes": "Local scrap store took them for craft projects."
     },
     {
@@ -40,6 +44,7 @@
       "title": "Tip run for the rest",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-12T16:36:00Z",
       "budget": 50,
       "spent": 38
     },
@@ -48,6 +53,7 @@
       "title": "Book skip collection",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-14T18:56:00Z",
       "budget": 80,
       "spent": 80
     },
@@ -56,6 +62,7 @@
       "title": "Deep-clean the dust from the hallway",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-14T16:17:00Z",
       "budget": 30,
       "spent": 22
     }

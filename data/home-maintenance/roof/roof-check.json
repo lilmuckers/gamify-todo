@@ -12,19 +12,22 @@
       "id": "roofer-has-inspected-the-roof",
       "mvp": true,
       "text": "Roofer has inspected the roof",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-24T13:14:00Z"
     },
     {
       "id": "slipped-slates-replaced",
       "mvp": true,
       "text": "Slipped slates replaced",
-      "done": true
+      "done": true,
+      "doneAt": "2026-10-01T20:33:22.836Z"
     },
     {
       "id": "photos-of-the-roof-saved",
       "mvp": false,
       "text": "Photos of the roof saved",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-27T09:50:00Z"
     }
   ],
   "items": [
@@ -33,19 +36,22 @@
       "title": "Photograph the roof from the street with a zoom lens",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-27T13:11:00Z",
       "notes": "Spotted three slipped slates above the back bedroom."
     },
     {
       "id": "get-two-roofer-quotes",
       "title": "Get two roofer quotes",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-14T08:44:00Z"
     },
     {
       "id": "choose-the-roofer",
       "title": "Choose the roofer",
       "type": "decision",
       "status": "done",
+      "doneAt": "2026-09-12T09:39:00Z",
       "notes": "Hughes & Son: cheaper, and they can reach the slates from a roof ladder without scaffolding."
     },
     {
@@ -53,19 +59,22 @@
       "title": "Roofer visit",
       "type": "dependency",
       "status": "done",
+      "doneAt": "2026-09-23T10:12:00Z",
       "notes": "Booked twice, cancelled twice for rain. Next slot: Monday.",
       "subtasks": [
         {
           "id": "three-quotes",
           "title": "Get three roofer quotes",
           "type": "task",
-          "status": "done"
+          "status": "done",
+          "doneAt": "2026-09-13T13:16:00Z"
         },
         {
           "id": "check-insurance",
           "title": "Check reviews and public liability insurance",
           "type": "task",
           "status": "done",
+          "doneAt": "2026-09-16T12:12:00Z",
           "dependsOn": [
             "three-quotes"
           ]
@@ -99,6 +108,7 @@
       "title": "Replace the three slipped slates",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-29T10:15:00Z",
       "dependsOn": [
         "visit"
       ]
@@ -108,6 +118,7 @@
       "title": "Re-point the chimney flashing",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-23T16:21:00Z",
       "mvp": false
     },
     {
@@ -121,7 +132,8 @@
       "id": "check-the-loft-for-daylight-through-the",
       "title": "Check the loft for daylight through the roof",
       "type": "stretch",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-24T13:29:00Z"
     }
   ]
 }

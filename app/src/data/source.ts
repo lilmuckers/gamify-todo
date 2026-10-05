@@ -2,6 +2,7 @@ import {
   findLevelAt,
   type LevelAt,
   type Workspace,
+  type HistoryCommit,
   type MergeMethod,
   type PullDetail,
   type PullSummary,
@@ -66,5 +67,7 @@ export interface DataSource {
   commit?(changes: Record<string, string | null>, message: string, baseVersion: string): Promise<string>;
   pulls?: PullProvider;
   publish?(): Promise<string>;
+  /** Commits that touched data/, newest first; only newer than `since` (ISO) when given. */
+  history?(since?: string): Promise<HistoryCommit[]>;
   status?(): Promise<LocalStatus>;
 }

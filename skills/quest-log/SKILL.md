@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 2**
+**Skill version: 3**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -391,7 +391,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `stats` | | object | **app-maintained; never write or change it** |
 
 Criterion: `{ "id", "text" (≤280, observable/testable), "mvp": boolean, "done": boolean }` — all
-four required.
+four required — plus optional `"doneAt"` (ISO date-time: when it was ticked; only on done criteria).
 
 Item:
 
@@ -541,7 +541,7 @@ minimum, and keep the rest byte-for-byte. See "Parallel changes".
 | Set a budget | Set `budget` (a plain number, no currency symbol) on the item, step, level or world, in a project with `budgets`. Remove the key to go back to adding up what's inside. |
 | Log a cost | Set (or raise) `spent` on the item or step it was for. Don't change `status` or `doneAt`. |
 | Park a level (someday) | Set `"someday": true` and remove `startedAt`. Never on a cleared level. Bring it back by removing `someday` (and set `startedAt` to now if work is starting). |
-| Tick a criterion | Set `done: true`. If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
+| Tick a criterion | Set `done: true` and `doneAt` to the current UTC time (un-ticking removes `doneAt`). If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
 | Delete a level | Only when asked. Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. Name it with `--allow-delete level:<p>/<w>/<l>`. |
 | Delete a step | Remove it from `subtasks` and from its siblings' `dependsOn`; drop the `subtasks` key if it's now empty. |
 | Delete a world | Only when asked. Delete the folder's files **and** remove it from `worldOrder` and from other worlds' `unlocksAfter`. Name it with `--allow-delete world:<p>/<w>`. |

@@ -77,9 +77,12 @@ function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined);
+    // A criterion reads id, mvp, text, done, then when it was ticked.
+    const criterion = 'text' in value && 'done' in value;
+    const order = (k: string) => (criterion && k === 'doneAt' ? rank.get('done')! + 0.5 : (rank.get(k) ?? Infinity));
     entries.sort(([a], [b]) => {
-      const ra = rank.get(a) ?? Infinity;
-      const rb = rank.get(b) ?? Infinity;
+      const ra = order(a);
+      const rb = order(b);
       return ra !== rb ? ra - rb : a < b ? -1 : a > b ? 1 : 0;
     });
     return Object.fromEntries(entries.map(([k, v]) => [k, canonical(v)]));

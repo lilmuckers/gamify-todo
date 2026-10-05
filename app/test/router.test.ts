@@ -40,6 +40,9 @@ describe('router deep links', () => {
     expect(parseRoute('#/today')).toEqual({ view: 'projects', pad: 'today' });
     expect(parseRoute('#/review')).toEqual({ view: 'projects', pad: 'review' });
     expect(parseRoute('#/p/p/~review')).toEqual({ view: 'overworld', projectId: 'p', pad: 'review' });
+    expect(parseRoute('#/stats')).toEqual({ view: 'projects', pad: 'stats' });
+    expect(parseRoute('#/p/p/w/~stats')).toEqual({ view: 'world', projectId: 'p', worldId: 'w', pad: 'stats' });
+    expect(href({ view: 'prs', pad: 'stats' })).toBe('#/prs/~stats');
     expect(withPad({ view: 'prs', pad: 'today' }, undefined)).toEqual({ view: 'prs' });
     expect(togglePad({ view: 'prs', pad: 'inbox' }, 'inbox')).toEqual({ view: 'prs' });
     expect(togglePad({ view: 'prs', pad: 'today' }, 'inbox')).toEqual({ view: 'prs', pad: 'inbox' });

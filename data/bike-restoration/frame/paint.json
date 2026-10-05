@@ -32,6 +32,7 @@
       "title": "Powder coat or wet paint",
       "type": "decision",
       "status": "done",
+      "doneAt": "2026-09-27T18:31:00Z",
       "notes": "Powder coat: tougher, and the local shop does frames for £120."
     },
     {
@@ -39,13 +40,15 @@
       "title": "Order replica decals",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-15T14:32:00Z",
       "notes": "Ordered from a decal specialist; arrived in a week."
     },
     {
       "id": "drop-the-frame-at-the-powder-coater",
       "title": "Drop the frame at the powder coater",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-03T10:11:00Z"
     },
     {
       "id": "coater",
@@ -58,13 +61,15 @@
           "id": "strip-old-paint",
           "title": "Strip the old paint",
           "type": "task",
-          "status": "done"
+          "status": "done",
+          "doneAt": "2026-09-27T08:57:00Z"
         },
         {
           "id": "mask-threads",
           "title": "Mask threads and bearing seats",
           "type": "task",
           "status": "done",
+          "doneAt": "2026-09-14T10:26:00Z",
           "dependsOn": [
             "strip-old-paint"
           ]
@@ -74,6 +79,7 @@
           "title": "Drop the frame at the coater",
           "type": "task",
           "status": "done",
+          "doneAt": "2026-09-17T10:40:00Z",
           "dependsOn": [
             "mask-threads"
           ]
@@ -83,6 +89,7 @@
           "title": "Chase at the end of week two",
           "type": "task",
           "status": "done",
+          "doneAt": "2026-09-20T12:21:00Z",
           "dependsOn": [
             "drop-off"
           ]

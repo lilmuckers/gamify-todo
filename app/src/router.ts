@@ -8,8 +8,8 @@ type Screen =
   | { view: 'pr-level'; pr: number; projectId: string; worldId: string; levelId: string; subId?: string; itemId?: string };
 
 /** A page of the legal pad that can be held up over any screen. */
-export type PadPage = 'today' | 'inbox' | 'review';
-export const PAD_PAGES: PadPage[] = ['today', 'inbox', 'review'];
+export type PadPage = 'today' | 'inbox' | 'review' | 'stats';
+export const PAD_PAGES: PadPage[] = ['today', 'inbox', 'review', 'stats'];
 
 /** A screen, optionally with a page of the legal pad held up over it. */
 export type Route = Screen & { pad?: PadPage };
@@ -22,17 +22,17 @@ export type Route = Screen & { pad?: PadPage };
  *   #/p/<project>/<world>/<level>[/<item>]   level, optionally with an item's bubble open
  *   #/p/<project>/<world>/<level>/@<dependency>[/<step>]   a dependency's sub-level
  *   #/prs, #/pr/<n>[/<project>/<world>/<level>[/@<dependency>][/<item>]]   PR review
- * Any of them can end in /~today, /~inbox or /~review to hold that page of
- * the legal pad up over the screen (e.g. #/~today, #/p/house/kitchen/~inbox).
- * #/today and #/review are short for #/~today and #/~review.
+ * Any of them can end in /~today, /~inbox, /~review or /~stats to hold that
+ * page of the legal pad up over the screen (e.g. #/~today, #/p/house/kitchen/~inbox).
+ * #/today, #/review and #/stats are short for #/~today, #/~review and #/~stats.
  */
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
-  // "~" can't start an id; #/today and #/review open that page over the project list.
+  // "~" can't start an id; #/today, #/review and #/stats open that page over the project list.
   let pad: PadPage | undefined;
   const last = parts.at(-1);
   if (last?.startsWith('~') && PAD_PAGES.includes(last.slice(1) as PadPage)) pad = parts.pop()!.slice(1) as PadPage;
-  else if (parts.length === 1 && (parts[0] === 'today' || parts[0] === 'review')) pad = parts.pop() as PadPage;
+  else if (parts.length === 1 && ['today', 'review', 'stats'].includes(parts[0])) pad = parts.pop() as PadPage;
   const screen = parseScreen(parts);
   return pad ? { ...screen, pad } : screen;
 }

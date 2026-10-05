@@ -11,13 +11,15 @@
       "id": "service-done-with-a-gas-safe-rec",
       "mvp": true,
       "text": "Service done with a Gas Safe record",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-26T09:00:00Z"
     },
     {
       "id": "all-radiators-bled",
       "mvp": false,
       "text": "All radiators bled",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-23T15:04:00Z"
     }
   ],
   "items": [
@@ -25,45 +27,52 @@
       "id": "book-a-gas-safe-engineer",
       "title": "Book a Gas Safe engineer",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-20T12:49:00Z"
     },
     {
       "id": "clear-access-to-the-boiler-cupboard",
       "title": "Clear access to the boiler cupboard",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-23T11:57:00Z"
     },
     {
       "id": "service-visit",
       "title": "Service visit",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-24T18:26:00Z",
       "notes": "Flue fine, pressure was low at 0.8 bar."
     },
     {
       "id": "gas-safety-record",
       "title": "Gas safety record",
       "type": "deliverable",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-20T16:18:00Z"
     },
     {
       "id": "bleed-the-radiators",
       "title": "Bleed the radiators",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-20T11:33:00Z",
       "notes": "Upstairs bathroom radiator was half full of air."
     },
     {
       "id": "top-up-the-pressure-to-1-5-bar",
       "title": "Top up the pressure to 1.5 bar",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-24T08:42:00Z"
     },
     {
       "id": "fit-thermostatic-valves-in-the-bedrooms",
       "title": "Fit thermostatic valves in the bedrooms",
       "type": "stretch",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-23T13:32:00Z"
     }
   ]
 }

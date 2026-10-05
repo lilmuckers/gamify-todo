@@ -11,13 +11,15 @@
       "id": "six-beds-built-and-filled",
       "mvp": true,
       "text": "Six beds built and filled",
-      "done": true
+      "done": true,
+      "doneAt": "2025-12-14T17:18:00Z"
     },
     {
       "id": "paths-between-beds-wide-enough-f",
       "mvp": true,
       "text": "Paths between beds wide enough for a wheelbarrow",
-      "done": true
+      "done": true,
+      "doneAt": "2025-12-20T09:00:00Z"
     }
   ],
   "items": [
@@ -26,6 +28,7 @@
       "title": "Bed size",
       "type": "decision",
       "status": "done",
+      "doneAt": "2025-12-06T13:23:00Z",
       "notes": "1.2m wide so we can reach the middle without stepping on the soil."
     },
     {
@@ -33,6 +36,7 @@
       "title": "Order scaffold boards",
       "type": "task",
       "status": "done",
+      "doneAt": "2025-12-15T15:37:00Z",
       "notes": "Reclaimed from a builder, £4 a board."
     },
     {
@@ -40,6 +44,7 @@
       "title": "Build the frames",
       "type": "task",
       "status": "done",
+      "doneAt": "2025-12-16T12:35:00Z",
       "dependsOn": [
         "boards"
       ]
@@ -49,19 +54,22 @@
       "title": "Fill with compost and topsoil",
       "type": "task",
       "status": "done",
+      "doneAt": "2025-12-18T11:17:00Z",
       "notes": "3 tonnes of soil improver from the council scheme."
     },
     {
       "id": "cover-with-cardboard-for-winter",
       "title": "Cover with cardboard for winter",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2025-12-18T12:02:00Z"
     },
     {
       "id": "boards-treated-with-creosote",
       "title": "Boards treated with creosote",
       "type": "risk",
       "status": "done",
+      "doneAt": "2025-12-08T17:27:00Z",
       "notes": "Checked: untreated, safe for veg."
     },
     {

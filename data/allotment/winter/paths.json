@@ -11,13 +11,15 @@
       "id": "paths-laid-between-every-bed",
       "mvp": true,
       "text": "Paths laid between every bed",
-      "done": true
+      "done": true,
+      "doneAt": "2026-01-22T07:42:00Z"
     },
     {
       "id": "shed-roof-watertight",
       "mvp": true,
       "text": "Shed roof watertight",
-      "done": true
+      "done": true,
+      "doneAt": "2026-01-22T09:00:00Z"
     }
   ],
   "items": [
@@ -25,39 +27,45 @@
       "id": "lay-weed-membrane-on-the-paths",
       "title": "Lay weed membrane on the paths",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-01-15T10:28:00Z"
     },
     {
       "id": "spread-bark-chippings",
       "title": "Spread bark chippings",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-01-13T09:02:00Z",
       "notes": "Free from the tree surgeon down the road."
     },
     {
       "id": "re-felt-the-shed-roof",
       "title": "Re-felt the shed roof",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-01-20T11:08:00Z"
     },
     {
       "id": "put-up-tool-hooks-in-the-shed",
       "title": "Put up tool hooks in the shed",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-01-17T13:14:00Z"
     },
     {
       "id": "committee-permission-for-the-shed-repair",
       "title": "Committee permission for the shed repair",
       "type": "dependency",
       "status": "done",
+      "doneAt": "2026-01-17T09:26:00Z",
       "notes": "Granted the same day."
     },
     {
       "id": "water-butt-from-the-shed-gutter",
       "title": "Water butt from the shed gutter",
       "type": "stretch",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-01-14T17:58:00Z"
     }
   ]
 }

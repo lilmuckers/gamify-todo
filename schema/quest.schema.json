@@ -373,6 +373,10 @@
         "done": {
           "type": "boolean",
           "description": "Whether the criterion is currently met."
+        },
+        "doneAt": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "When this criterion was last ticked. Set automatically when done becomes true and removed when it is un-ticked. Feeds the stats page's progress calendar and streaks. Optional: older data won't have it."
         }
       }
     },

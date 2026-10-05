@@ -38,13 +38,15 @@
       "title": "Bill history list",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-14T11:53:00Z",
       "link": "https://github.com/acme-utilities/portal/issues/71"
     },
     {
       "id": "bill-detail-page",
       "title": "Bill detail page",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-04T14:51:00Z"
     },
     {
       "id": "pdf",
@@ -64,7 +66,8 @@
       "id": "copy-reviewed-by-the-plain-english-team",
       "title": "Copy reviewed by the plain-English team",
       "type": "dependency",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-17T12:05:00Z"
     },
     {
       "id": "empty-states-for-new-customers",
@@ -99,6 +102,7 @@
       "title": "Show estimated or only actual bills",
       "type": "decision",
       "status": "done",
+      "doneAt": "2026-09-21T11:41:00Z",
       "notes": "Both, clearly labelled. Estimates cause the most calls."
     },
     {

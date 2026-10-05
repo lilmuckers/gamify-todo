@@ -21,6 +21,9 @@ export interface ServerOptions {
   logger?: boolean;
 }
 
+/** Most commits /api/history returns in one go. */
+const HISTORY_MAX = 5000;
+
 /** Tiny async mutex so concurrent saves can't interleave file writes and commits. */
 function mutex() {
   let last = Promise.resolve();
@@ -110,6 +113,20 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
       lastCommit: last ? { sha: last.hash, message: last.message, date: last.date } : undefined,
       canReviewPRs: !!(await github()),
     };
+  });
+
+  // Commits that touched data/, newest first, for the stats page's history.
+  // `since` (ISO) limits it to newer ones; it's read-only, so a plain GET.
+  app.get<{ Querystring: { since?: string } }>('/api/history', async (req, reply) => {
+    const since = req.query.since;
+    if (since !== undefined && Number.isNaN(Date.parse(since))) return reply.code(400).send({ error: 'since must be a date' });
+    const log = await repo.git
+      .log({ file: 'data', maxCount: HISTORY_MAX, ...(since ? { '--since': since } : {}) })
+      .catch(() => undefined);
+    const from = since ? Date.parse(since) : -Infinity;
+    return (log?.all ?? [])
+      .map((c) => ({ sha: c.hash, date: new Date(c.date).toISOString(), message: c.body ? `${c.message}\n\n${c.body}` : c.message }))
+      .filter((c) => Date.parse(c.date) >= from);
   });
 
   app.post('/api/publish', async () =>

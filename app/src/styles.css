@@ -141,6 +141,20 @@ h3 {
   gap: 2px;
 }
 
+/* Streak flame: a link to the stats page. Grey once the streak has gone out. */
+.hud-streak {
+  color: inherit;
+  text-decoration: none;
+}
+.hud-streak.out {
+  opacity: 0.6;
+}
+.hud-streak.on,
+.hud-streak:hover,
+.hud-streak:focus-visible {
+  color: var(--gold-hi);
+}
+
 .hud-warp {
   position: relative;
   display: flex;
@@ -914,6 +928,10 @@ a:focus-visible {
 .is-mobile .hud .hud-warp,
 .is-mobile .hud .btn.ghost {
   display: none;
+}
+
+.is-mobile .hud .hud-streak {
+  display: flex;
 }
 
 .is-mobile .hud-home span {
@@ -2059,6 +2077,295 @@ a:focus-visible {
 }
 .review-done .pad-do {
   white-space: nowrap;
+}
+
+/* ---------- Stats: blue graph paper on the same pad ---------- */
+.pad-tab.tab-stats {
+  --flag: #e3eefb;
+  --tip: rgba(60, 120, 210, 0.75);
+  --lean: -1deg;
+}
+.legal-pad.page-stats .pad-sheet {
+  background-color: #eef5fd;
+  background-image:
+    linear-gradient(90deg, transparent 46px, #e39a9a 46px 47px, transparent 47px 50px, #e39a9a 50px 51px, transparent 51px),
+    repeating-linear-gradient(to bottom, transparent 0 14px, rgba(120, 160, 215, 0.35) 14px 15px),
+    repeating-linear-gradient(to right, transparent 0 14px, rgba(120, 160, 215, 0.35) 14px 15px);
+}
+.stats-streak {
+  position: relative;
+  padding-left: 46px;
+  min-height: 60px;
+}
+.stats-flame {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 40px;
+  height: 40px;
+}
+.stats-big {
+  font-size: 24px;
+  line-height: 1.2;
+}
+.stats-big b {
+  font-size: 40px;
+  color: var(--pen-red);
+}
+.stats-hint {
+  display: block;
+  margin: 0;
+  white-space: normal;
+}
+.stats-hint.late {
+  color: var(--pen-red);
+  opacity: 1;
+}
+.stats-months,
+.stats-heat {
+  display: grid;
+  grid-template-columns: 16px repeat(var(--weeks), 1fr);
+  gap: 3px;
+  max-width: 400px;
+}
+.stats-months {
+  font-size: 15px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.stats-heat {
+  grid-template-rows: repeat(7, auto);
+  grid-auto-flow: column;
+  margin-bottom: 6px;
+}
+.stats-day {
+  font-size: 13px;
+  line-height: 1;
+  align-self: center;
+}
+.heat {
+  display: inline-block;
+  aspect-ratio: 1;
+  min-width: 8px;
+  border: 1.5px solid rgba(31, 58, 147, 0.35);
+  border-radius: 2px;
+  background: transparent;
+}
+.heat.h1 {
+  background: rgba(31, 58, 147, 0.25);
+}
+.heat.h2 {
+  background: rgba(31, 58, 147, 0.45);
+}
+.heat.h3 {
+  background: rgba(31, 58, 147, 0.7);
+}
+.heat.h4 {
+  background: var(--ink-blue);
+}
+.heat.future {
+  border-color: transparent;
+}
+/* A level cleared that day: a red pen ring. */
+.heat.clear {
+  border-color: var(--pen-red);
+  box-shadow: 0 0 0 1px var(--pen-red);
+}
+.legal-pad .stats-legend {
+  font-size: 17px;
+  opacity: 0.7;
+}
+.stats-source {
+  font-size: 15px;
+}
+.stats-legend .heat {
+  width: 12px;
+  vertical-align: middle;
+  margin: 0 1px;
+}
+.stats-timebox .pad-line b {
+  color: var(--pen-red);
+}
+.stats-xp {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+}
+.stats-xp .xp-bar {
+  fill: rgba(31, 58, 147, 0.18);
+  stroke: rgba(31, 58, 147, 0.45);
+  stroke-width: 0.75;
+}
+.stats-xp .xp-base {
+  stroke: var(--ink-blue);
+  stroke-width: 1;
+}
+.stats-xp .xp-line {
+  fill: none;
+  stroke: var(--ink-blue);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* ---------- Stats as a full screen (layout trial, ?stats=screen) ---------- */
+.today-overlay.as-screen {
+  align-items: stretch;
+  padding: 12px;
+  background: rgba(10, 12, 24, 0.82);
+}
+.stats-screen {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  overflow: auto;
+  padding: 14px 18px 18px;
+  background: var(--panel);
+  border: 3px solid var(--gold);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    6px 6px 0 rgba(0, 0, 0, 0.5);
+  color: var(--paper);
+}
+.ss-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.ss-head h2 {
+  margin: 0;
+  font: 16px var(--pixel);
+  color: var(--gold-hi);
+  letter-spacing: 2px;
+}
+.ss-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.ss-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--ink);
+  border: 2px solid var(--line);
+}
+.ss-tile b {
+  font: 22px var(--pixel);
+  color: var(--gold-hi);
+}
+.ss-tile span {
+  font: 8px var(--pixel);
+  color: var(--muted);
+}
+.ss-flame {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 32px;
+  height: 32px;
+}
+.ss-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+.ss-note.late {
+  color: var(--red);
+}
+.ss-box {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--ink);
+  border: 2px solid var(--line);
+}
+.ss-box h3 {
+  margin: 0 0 10px;
+  font: 10px var(--pixel);
+  color: var(--gold);
+}
+.ss-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+.ss-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  line-height: 2;
+}
+.ss-list b {
+  font: 12px var(--pixel);
+  color: var(--gold-hi);
+}
+.ss-list em {
+  color: var(--muted);
+  font-style: normal;
+}
+.stats-screen .stats-months,
+.stats-screen .stats-heat {
+  max-width: none;
+  grid-template-columns: 16px repeat(var(--weeks), minmax(0, 24px));
+}
+.stats-screen .stats-months,
+.stats-screen .stats-day {
+  font: 7px var(--pixel);
+  color: var(--muted);
+}
+.stats-screen .stats-legend {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.stats-screen .heat {
+  border: 1px solid var(--panel-2);
+  border-radius: 0;
+}
+.stats-screen .heat.h1 {
+  background: #265c42;
+}
+.stats-screen .heat.h2 {
+  background: #3e8948;
+}
+.stats-screen .heat.h3 {
+  background: #63c74d;
+}
+.stats-screen .heat.h4 {
+  background: var(--gold-hi);
+}
+.stats-screen .heat.future {
+  border-color: transparent;
+}
+.stats-screen .heat.clear {
+  border-color: var(--red);
+  box-shadow: 0 0 0 1px var(--red);
+}
+.stats-screen .stats-xp {
+  max-width: none;
+}
+.stats-screen .xp-bar {
+  fill: rgba(254, 174, 52, 0.25);
+  stroke: rgba(254, 174, 52, 0.6);
+}
+.stats-screen .xp-base {
+  stroke: var(--line);
+}
+.stats-screen .xp-line {
+  stroke: var(--gold-hi);
+}
+.ss-source {
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .ss-tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ss-cols {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- Dialogue box (SNES-style layout, Quest Log colours) ---------- */

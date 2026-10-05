@@ -108,7 +108,7 @@ alerts?, alertAt?}`: turns cash budgets on), `goals[]` (`{id, title, description
 (1–90), `startedAt?`, `clearedAt?`, `someday?`, `budget?`, `successCriteria[]` (1–20, at least one
 with `mvp: true`), `items[]` (≤200), `stats?` (app-maintained).
 
-**Criterion:** `{id, text (≤280), mvp, done}`, all required.
+**Criterion:** `{id, text (≤280), mvp, done, doneAt?}`; all but `doneAt` required.
 
 **Item:** `id`, `type`, `title`, `status`, `doneAt?`, `mvp?` (default true; ignored for
 stretch), `dependsOn?[]` (same level; shown in the UI as **"Waits for"**), `levelRef?`
@@ -156,8 +156,8 @@ These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, 
   `levelRef` itself.
 - `subtasks` only appear on dependencies, never together with `levelRef`.
 - Each level has at least one MVP criterion.
-- `doneAt` is present only on done items and steps. Tools set it when marking something done and
-  remove it on reopen.
+- `doneAt` is present only on done items and steps and on ticked criteria. Tools set it when
+  marking something done (or ticking it) and remove it on reopen.
 - `someday: true` means no `startedAt`, and is never set on a cleared level.
 - Files are UTF-8, 2-space indent, with a trailing newline. The canonical format is
   `npm run format:data`.
@@ -240,8 +240,8 @@ touch screens, and can be overridden in Settings or with `?mobile=on|off`.
 #/p/<project>/<world>/<level>/@<dep>[/<step>]   dependency sub-level
 #/prs                                     Warp Zone (PR list)
 #/pr/<n>[/<project>/<world>/<level>[/@<dep>][/<item>]]   PR review
-…/~today  …/~inbox  …/~review             legal pad page held up over any screen
-#/today, #/review                         short forms
+…/~today  …/~inbox  …/~review  …/~stats   legal pad page held up over any screen
+#/today, #/review, #/stats                short forms
 ```
 
 Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`, `?jam` (for testing: one of every
@@ -344,7 +344,7 @@ standard mapping) instead of letting him auto-walk.
 - Pipe arrivals finish their animation before play takes over (#74).
 - In read-only views play mode animates but saves nothing.
 
-### 5.6 The legal pad: Today, Inbox, Weekly review
+### 5.6 The legal pad: Today, Inbox, Weekly review, Stats
 
 The hero holds up a yellow legal pad over whatever screen you're on. It is written in a
 handwriting font (Caveat), and its pages are Post-it index flags on the right edge. On phones it
@@ -388,9 +388,47 @@ evening or off in Settings. The review has four sections:
 **Review done** stamps it until the next slot. The schedule, last review time and focus levels
 live in this browser's `localStorage`, not in the repo.
 
+**Stats** (`s`, the HUD streak flame; #28). Built by `shared/src/stats.ts`, on blue graph paper:
+- **Streak:** consecutive local days with progress, and the longest run. A day counts if anything
+  was done (items and steps by `doneAt`), ticked (criteria by `doneAt`) or cleared (`clearedAt`).
+  The current streak counts back from today, or from yesterday while today has nothing yet.
+- **Last 20 weeks:** a calendar heatmap, Monday at the top, shaded by count (1, 2–3, 4–6, 7+),
+  with a red ring on days a level cleared.
+- **Time-boxes:** levels cleared, mean stars, % cleared in time (of levels with both
+  `startedAt` and `clearedAt`), and the median days taken against the median original time-box.
+  The median of days ÷ box gives the advice: under 0.6 "finish early, tighten", over 1.1 "smaller
+  deliverables or bigger boxes", otherwise "about right".
+- **XP over time:** weekly XP (each cleared level's XP in the week it cleared) as bars, with the
+  running total as a line. XP from before the window, or with no `clearedAt`, is the baseline.
+
+Two sources are merged (`progressEvents`):
+- **Done stamps** in the data: exact click times, available everywhere (read-only site, demo,
+  offline). Reopening something removes its stamp.
+- **Commit history** (`shared/src/history.ts`): the app's own commit messages (`quest: done: <title>
+  (<p>/<w>/<l>)`, `tick criterion <id> (…)`, and each bullet of `quest: N updates`) read back as
+  dated events. This keeps work that was **done and later reopened, un-ticked or dropped**: it still
+  counts, and the page says how many were ("3 reopened later: still counted", and per day in the
+  calendar's tooltips). Commits made by hand or by other tools say nothing parseable, so their
+  changes count through the stamps alone.
+- **Matching:** a commit completion that a stamp already shows (same thing, same level, committed
+  within 3 days after the stamp, allowing an hour of clock skew) is dropped, since the stamp has the
+  exact time. Steps are named "Step (in Dependency)" on both sides. Level clears come from stamps.
+- **Reading it:** GitHub mode lists commits touching `data/` on the branch
+  (`GitHubClient.dataCommits`, 100 a page, up to 30 pages on the first read). The Docker editor asks
+  `GET /api/history` (`git log -- data`). The read-only site and the demo have no history and use
+  stamps alone.
+- **Cache:** `ProgressHistory` (`app/src/data/history.ts`) keeps parsed events in IndexedDB per
+  source and branch, and later reads only fetch commits since the newest one seen. It reads on load,
+  at most every 10 minutes after that, and at most once a minute while Stats is open. Offline it
+  uses the cache. The page notes which sources it used and when history was last checked.
+
+**Layout trial:** `?stats=screen` shows the same numbers as a full arcade "RECORDS" screen (stat
+tiles, a big calendar, time-boxes beside XP) instead of the pad page, to choose between the two.
+
 ### 5.7 HUD
 
-The HUD shows the QUEST LOG title, XP/coins/stars totals, the sync status pill, **TODAY**,
+The HUD shows the QUEST LOG title, XP/coins/stars totals, the streak flame (grey when out; opens
+Stats, and stays visible on phones), the sync status pill, **TODAY**,
 **INBOX** (count), **REVIEW** (when due), **AI SKILL**, ⚙ Settings, ⇪ Publish (Docker editor
 only) and a "DEMO · NOT SAVED" badge in the demo. On desktop, floating game-nav buttons over the
 canvas give ▲ up, ◀ ▶ prev/next and Play.
@@ -573,6 +611,7 @@ Fastify (`server/src/app.ts`), with the repo mounted at `/repo`.
 | `GET /api/game` | All `data/**/*.json` + content-hash version |
 | `POST /api/commit` | `{changes, message, baseVersion}`. Data paths only. 409 if disk changed, 400 if invalid. Writes, then commits only those paths |
 | `GET /api/status` | Branch, ahead/behind, remote, last commit, `canReviewPRs` |
+| `GET /api/history?since=` | Commits touching `data/` (sha, ISO date, full message), newest first, for Stats |
 | `POST /api/publish` | Fetch, pull `--rebase --autostash` if behind, push |
 | `GET /api/prs`, `GET /api/prs/:n` | Data PRs; detail + base/head workspaces (needs `GITHUB_TOKEN`) |
 | `POST /api/prs/:n/merge`, `/review` | Merge (then pull locally), review |
@@ -784,7 +823,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #19 Search/filter (`/`)
 - #26 A "good enough" moment
 - #27 WIP-limit warning
-- #28 Streaks and history
 - #29 World-level time-box
 - #31 Better conflict resolution
 - #32 Archive finished projects

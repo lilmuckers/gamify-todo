@@ -1,3 +1,4 @@
+import type { HistoryCommit } from './history';
 import { isDataPath } from './serialize';
 
 export interface RepoRef {
@@ -175,6 +176,29 @@ export class GitHubClient {
   async compare(base: string, head: string): Promise<string> {
     const res = await this.request<{ status: string }>('GET', `/compare/${base}...${head}`);
     return res.status;
+  }
+
+  /**
+   * Commits on the branch that touched data/, newest first, for the stats
+   * history. `since` (ISO) limits it to newer ones; `maxPages` of 100 caps a
+   * first read of a long history.
+   */
+  async dataCommits(since?: string, maxPages = 30): Promise<HistoryCommit[]> {
+    const out: HistoryCommit[] = [];
+    for (let page = 1; page <= maxPages; page++) {
+      const q = new URLSearchParams({ sha: this.repo.branch, path: 'data', per_page: '100', page: String(page) });
+      if (since) q.set('since', since);
+      const batch = await this.request<{ sha: string; commit: { message: string; author?: { date?: string }; committer?: { date?: string } } }[]>(
+        'GET',
+        `/commits?${q}`,
+      );
+      for (const c of batch) {
+        const date = c.commit.author?.date ?? c.commit.committer?.date;
+        if (date) out.push({ sha: c.sha, date, message: c.commit.message });
+      }
+      if (batch.length < 100) break;
+    }
+    return out;
   }
 
   /** All data files at a commit. `repoFullName` lets PR heads live in forks. */

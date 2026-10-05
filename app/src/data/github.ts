@@ -62,6 +62,10 @@ export class GitHubSource implements DataSource {
     return this.client.commitFiles(changes, message, baseVersion);
   }
 
+  history(since?: string) {
+    return this.client.dataCommits(since);
+  }
+
   pulls = {
     list: () => this.client.listDataPulls(),
     load: async (n: number): Promise<PullData> => {

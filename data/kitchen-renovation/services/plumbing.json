@@ -31,6 +31,7 @@
       "title": "Move the sink supply 1.2m left",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-10-03T13:14:00Z",
       "budget": 250,
       "spent": 220
     },
@@ -61,6 +62,7 @@
           "title": "Find a Gas Safe registered engineer",
           "type": "task",
           "status": "done",
+          "doneAt": "2026-09-29T15:36:00Z",
           "link": "https://www.gassaferegister.co.uk/"
         },
         {
@@ -68,6 +70,7 @@
           "title": "Get two quotes",
           "type": "task",
           "status": "done",
+          "doneAt": "2026-09-28T17:16:00Z",
           "dependsOn": [
             "find-an-engineer"
           ]
@@ -77,6 +80,7 @@
           "title": "Book the visit",
           "type": "task",
           "status": "done",
+          "doneAt": "2026-10-03T11:45:00Z",
           "dependsOn": [
             "two-quotes"
           ],

@@ -32,6 +32,7 @@
       "title": "Chase the walls for cables",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-29T09:12:00Z",
       "budget": 400,
       "spent": 360
     },
@@ -40,6 +41,7 @@
       "title": "Run the cooker circuit from the consumer unit",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-23T15:46:00Z",
       "budget": 300,
       "spent": 345
     },
@@ -48,6 +50,7 @@
       "title": "Cable sockets per the plan",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-28T09:12:00Z",
       "notes": "18 doubles plus three appliance spurs. 11 done.",
       "budget": 450,
       "spent": 410
@@ -65,6 +68,7 @@
       "title": "Six or eight downlights",
       "type": "decision",
       "status": "done",
+      "doneAt": "2026-09-29T14:52:00Z",
       "notes": "Eight, on two switched zones."
     },
     {

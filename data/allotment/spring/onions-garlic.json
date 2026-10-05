@@ -11,13 +11,15 @@
       "id": "onions-and-garlic-in-the-ground",
       "mvp": true,
       "text": "Onions and garlic in the ground",
-      "done": true
+      "done": true,
+      "doneAt": "2026-04-12T09:00:00Z"
     },
     {
       "id": "bed-weed-free-for-a-month",
       "mvp": false,
       "text": "Bed weed-free for a month",
-      "done": true
+      "done": true,
+      "doneAt": "2026-04-10T14:05:00Z"
     }
   ],
   "items": [
@@ -26,6 +28,7 @@
       "title": "Plant garlic",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-04-01T14:02:00Z",
       "notes": "Planted in November; overwintered."
     },
     {
@@ -33,19 +36,22 @@
       "title": "Plant onion sets",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-04-03T11:43:00Z",
       "notes": "Centurion, 40 sets."
     },
     {
       "id": "net-against-birds-pulling-the-sets",
       "title": "Net against birds pulling the sets",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-04-10T17:01:00Z"
     },
     {
       "id": "hoe-weekly-for-a-month",
       "title": "Hoe weekly for a month",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-04-04T15:37:00Z"
     },
     {
       "id": "shallots-too",

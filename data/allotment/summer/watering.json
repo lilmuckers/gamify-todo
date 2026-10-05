@@ -11,13 +11,15 @@
       "id": "under-20-minutes-a-visit",
       "mvp": true,
       "text": "Under 20 minutes a visit",
-      "done": true
+      "done": true,
+      "doneAt": "2026-06-26T08:06:00Z"
     },
     {
       "id": "no-crop-lost-to-drought",
       "mvp": true,
       "text": "No crop lost to drought",
-      "done": true
+      "done": true,
+      "doneAt": "2026-07-08T09:00:00Z"
     }
   ],
   "items": [
@@ -26,6 +28,7 @@
       "title": "Add two more water butts",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-06-21T12:06:00Z",
       "notes": "Connected to the shed gutter."
     },
     {
@@ -33,19 +36,22 @@
       "title": "Bury bottles next to the squash",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-07-04T11:57:00Z",
       "notes": "Water goes to the roots, not the leaves."
     },
     {
       "id": "mulch-everything-thirsty",
       "title": "Mulch everything thirsty",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-13T09:05:00Z"
     },
     {
       "id": "rota-with-the-next-door-plot-for-holiday",
       "title": "Rota with the next-door plot for holidays",
       "type": "dependency",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-17T08:48:00Z"
     },
     {
       "id": "drip-irrigation-kit",

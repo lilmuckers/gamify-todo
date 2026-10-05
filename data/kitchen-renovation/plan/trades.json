@@ -12,19 +12,22 @@
       "id": "all-four-trades-booked",
       "mvp": true,
       "text": "All four trades booked",
-      "done": true
+      "done": true,
+      "doneAt": "2026-08-31T12:02:00Z"
     },
     {
       "id": "dates-in-the-shared-calendar",
       "mvp": true,
       "text": "Dates in the shared calendar",
-      "done": true
+      "done": true,
+      "doneAt": "2026-09-01T09:00:00Z"
     },
     {
       "id": "written-quotes-saved-in-the-hous",
       "mvp": false,
       "text": "Written quotes saved in the house folder",
-      "done": true
+      "done": true,
+      "doneAt": "2026-08-26T17:23:00Z"
     }
   ],
   "items": [
@@ -32,32 +35,37 @@
       "id": "electrician",
       "title": "Get three electrician quotes",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-25T14:15:00Z"
     },
     {
       "id": "plumber",
       "title": "Get three plumber quotes",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-21T13:29:00Z"
     },
     {
       "id": "plasterer",
       "title": "Book the plasterer",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-08-23T10:09:00Z",
       "notes": "Same plasterer as the hallway job; reliable, books up fast."
     },
     {
       "id": "fitter",
       "title": "Book the kitchen fitter",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-24T14:57:00Z"
     },
     {
       "id": "first-choice-fitter-only-free-in-january",
       "title": "First-choice fitter only free in January",
       "type": "blocker",
       "status": "done",
+      "doneAt": "2026-08-27T12:36:00Z",
       "notes": "Swapped to a fitter the neighbours used. Starts 10 October."
     },
     {
@@ -65,6 +73,7 @@
       "title": "Shared trade calendar",
       "type": "deliverable",
       "status": "done",
+      "doneAt": "2026-08-26T10:07:00Z",
       "notes": "Google calendar shared with both phones; every trade has an entry."
     },
     {
@@ -72,6 +81,7 @@
       "title": "Pay deposits",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-08-27T08:16:00Z",
       "dependsOn": [
         "electrician",
         "plumber",

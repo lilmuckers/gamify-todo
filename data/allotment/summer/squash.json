@@ -11,13 +11,15 @@
       "id": "courgettes-harvested-regularly",
       "mvp": true,
       "text": "Courgettes harvested regularly",
-      "done": true
+      "done": true,
+      "doneAt": "2026-07-18T08:43:00Z"
     },
     {
       "id": "squash-ripened-for-storage",
       "mvp": true,
       "text": "Squash ripened for storage",
-      "done": true
+      "done": true,
+      "doneAt": "2026-08-22T09:00:00Z"
     }
   ],
   "items": [
@@ -25,25 +27,29 @@
       "id": "plant-out-on-the-compost-heap-bed",
       "title": "Plant out on the compost-heap bed",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-15T09:45:00Z"
     },
     {
       "id": "mulch-with-grass-clippings",
       "title": "Mulch with grass clippings",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-06-02T17:19:00Z"
     },
     {
       "id": "pick-courgettes-small-and-often",
       "title": "Pick courgettes small and often",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-08-12T15:13:00Z"
     },
     {
       "id": "cure-the-squash-in-the-sun",
       "title": "Cure the squash in the sun",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-07-14T14:14:00Z",
       "notes": "Two weeks on the shed roof."
     },
     {
@@ -51,6 +57,7 @@
       "title": "Powdery mildew",
       "type": "risk",
       "status": "done",
+      "doneAt": "2026-06-01T10:41:00Z",
       "notes": "Late August; did not matter by then."
     },
     {
@@ -58,6 +65,7 @@
       "title": "Two courgette plants or three",
       "type": "decision",
       "status": "done",
+      "doneAt": "2026-07-25T17:05:00Z",
       "notes": "Two. Last year three was a nightmare."
     }
   ]

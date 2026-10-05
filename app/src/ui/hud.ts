@@ -1,4 +1,4 @@
-import { scoreLevel, totals, type TimerPhase } from '@quest/shared';
+import { currentStreak, scoreLevel, totals, type TimerPhase } from '@quest/shared';
 import { play as sfx } from '../audio';
 import type { App } from '../app';
 import { href, togglePad } from '../router';
@@ -50,6 +50,23 @@ function syncPill(app: App) {
 export function repaintSyncStatus(app: App, hud: HTMLElement, panel: HTMLElement) {
   hud.querySelector('.sync-pill')?.replaceWith(syncPill(app));
   panel.querySelector('.sync-foot')?.replaceWith(syncFooter(app));
+}
+
+/** The streak flame: days in a row with progress. Opens the stats page (S). */
+function streakChip(app: App) {
+  const ws = app.workspace;
+  if (!ws) return null;
+  const { current, today } = currentStreak(ws, Date.now(), app.progress.events);
+  const r = app.route;
+  const title = current
+    ? `${current}-day streak${today ? '' : ': do one thing today to keep it'}. Stats (S)`
+    : 'No streak yet: finish something today. Stats (S)';
+  return h(
+    'a',
+    { class: `hud-stat hud-streak${current ? '' : ' out'}${r.pad === 'stats' ? ' on' : ''}`, href: href(togglePad(r, 'stats')), title, 'aria-label': title },
+    icon(current ? 'flame' : 'flame-out', 'grass', 'icon sm'),
+    String(current),
+  );
 }
 
 /** Top bar: where you are, how you're doing, sync state, settings. */
@@ -134,6 +151,7 @@ export function renderHud(app: App, el: HTMLElement) {
     h('span', { class: 'grow' }),
     t && h('span', { class: 'hud-stat', title: 'Experience' }, `${t.xp} XP`),
     t && h('span', { class: 'hud-stat', title: 'Coins' }, icon('coin', 'grass', 'icon sm'), `×${t.coins}`),
+    streakChip(app),
     app.caps.canReviewPRs &&
       h(
         'a',

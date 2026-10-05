@@ -11,13 +11,15 @@
       "id": "seedlings-strong-enough-to-plant",
       "mvp": true,
       "text": "Seedlings strong enough to plant out",
-      "done": true
+      "done": true,
+      "doneAt": "2026-04-12T15:06:00Z"
     },
     {
       "id": "hardened-off-for-a-week",
       "mvp": true,
       "text": "Hardened off for a week",
-      "done": true
+      "done": true,
+      "doneAt": "2026-04-14T09:00:00Z"
     }
   ],
   "items": [
@@ -26,6 +28,7 @@
       "title": "Pick varieties",
       "type": "decision",
       "status": "done",
+      "doneAt": "2026-03-22T17:23:00Z",
       "notes": "Gardener's Delight tomatoes, Crown Prince squash, Cobra climbing beans."
     },
     {
@@ -33,6 +36,7 @@
       "title": "Sow tomatoes on the windowsill",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-04-04T08:39:00Z",
       "notes": "Late February, heated propagator."
     },
     {
@@ -40,32 +44,37 @@
       "title": "Sow squash and beans",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-03-12T09:12:00Z",
       "notes": "Mid April."
     },
     {
       "id": "pot-on-the-tomatoes",
       "title": "Pot on the tomatoes",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-03-28T13:47:00Z"
     },
     {
       "id": "harden-off-in-the-cold-frame",
       "title": "Harden off in the cold frame",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-03-18T16:45:00Z"
     },
     {
       "id": "leggy-seedlings-from-low-light",
       "title": "Leggy seedlings from low light",
       "type": "risk",
       "status": "done",
+      "doneAt": "2026-03-26T10:12:00Z",
       "notes": "Turned trays daily; a clip-on grow light for the tomatoes."
     },
     {
       "id": "chillies-too",
       "title": "Chillies too",
       "type": "stretch",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-03-30T08:29:00Z"
     }
   ]
 }

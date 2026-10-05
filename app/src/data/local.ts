@@ -1,6 +1,7 @@
 import {
   ConflictError,
   fromFiles,
+  type HistoryCommit,
   type MergeMethod,
   type PullDetail,
   type PullSummary,
@@ -53,6 +54,10 @@ export class LocalApiSource implements DataSource {
 
   status() {
     return api<LocalStatus>('GET', '/status');
+  }
+
+  history(since?: string) {
+    return api<HistoryCommit[]>('GET', `/history${since ? `?since=${encodeURIComponent(since)}` : ''}`);
   }
 
   pulls = {

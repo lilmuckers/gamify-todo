@@ -38,13 +38,15 @@
       "title": "Clean and polish the cranks",
       "type": "task",
       "status": "done",
+      "doneAt": "2026-09-21T09:44:00Z",
       "notes": "Fine wire wool and metal polish; looks new."
     },
     {
       "id": "fit-the-cranks",
       "title": "Fit the cranks",
       "type": "task",
-      "status": "done"
+      "status": "done",
+      "doneAt": "2026-09-28T16:27:00Z"
     },
     {
       "id": "fit-the-derailleurs-and-shifters",

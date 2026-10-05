@@ -4,7 +4,7 @@ import { repoJson } from '../repo';
 
 test.beforeEach(({ page }) => skipWelcome(page));
 
-test('t, i and w hold up Today, the Inbox and the weekly review', async ({ page }) => {
+test('t, i, w and s hold up Today, the Inbox, the weekly review and stats', async ({ page }) => {
   await page.goto('./#/p/kitchen-renovation/fit/tiling');
   await inScene(page, 'level');
   const pad = page.locator('.legal-pad');
@@ -22,6 +22,20 @@ test('t, i and w hold up Today, the Inbox and the weekly review', async ({ page 
   await page.keyboard.press('w');
   await expect(page).toHaveURL(/\/~review$/);
   await expect(pad).toHaveAttribute('aria-label', 'Weekly review');
+
+  // Stats: 20 weeks of calendar, and the HUD flame puts it away again.
+  await page.keyboard.press('s');
+  await expect(page).toHaveURL(/\/~stats$/);
+  await expect(pad).toHaveAttribute('aria-label', 'Stats: streaks and history');
+  await expect(pad.locator('.stats-heat .heat')).toHaveCount(140);
+  await expect(pad.getByRole('heading', { name: 'TIME-BOXES' })).toBeVisible();
+  // The Docker editor has a commit log, so the history counts too.
+  await expect(pad.locator('.stats-source')).toContainText('commit history');
+  await page.locator('.hud-streak').click();
+  await expect(page).toHaveURL(/#\/p\/kitchen-renovation\/fit\/tiling$/);
+  await page.keyboard.press('s');
+  await expect(page).toHaveURL(/\/~stats$/);
+  await expect(pad).toHaveAttribute('aria-label', 'Stats: streaks and history');
 
   // Esc puts the pad away, back on the level.
   await page.keyboard.press('Escape');
@@ -54,4 +68,13 @@ test('n captures an idea, which can then be placed into the open level', async (
     .poll(() => repoJson<{ items: { title: string }[] }>('data/kitchen-renovation/fit/tiling.json').items.map((i) => i.title), { timeout: 15_000 })
     .toContain(idea);
   expect(repoJson<{ items: { title: string }[] }>('data/inbox.json').items.map((i) => i.title)).not.toContain(idea);
+});
+
+test('?stats=screen shows stats as a full screen instead', async ({ page }) => {
+  await page.goto('./?stats=screen#/stats');
+  const screen = page.getByRole('region', { name: 'Stats: streaks and history' });
+  await expect(screen.getByRole('heading', { name: 'RECORDS' })).toBeVisible();
+  await expect(screen.locator('.stats-heat .heat')).toHaveCount(140);
+  await screen.getByRole('button', { name: /CLOSE/ }).click();
+  await expect(page).toHaveURL(/#\/$/);
 });
