@@ -1,0 +1,49 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "set-the-budget",
+  "name": "Set the budget",
+  "deliverable": "A monthly rent ceiling and a moving fund",
+  "timeboxDays": 3,
+  "startedAt": "2025-01-18T09:33:00Z",
+  "clearedAt": "2025-01-20T07:50:00Z",
+  "successCriteria": [
+    {
+      "id": "rent-ceiling-agreed",
+      "mvp": true,
+      "text": "Rent ceiling agreed",
+      "done": true,
+      "doneAt": "2025-01-20T21:18:00Z"
+    },
+    {
+      "id": "moving-fund-opened",
+      "mvp": true,
+      "text": "Moving fund opened",
+      "done": true,
+      "doneAt": "2025-01-20T07:50:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "add-up-current-outgoings",
+      "title": "Add up current outgoings",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-18T15:16:00Z"
+    },
+    {
+      "id": "ceiling",
+      "title": "Ceiling?",
+      "type": "decision",
+      "status": "done",
+      "doneAt": "2025-01-19T10:12:00Z",
+      "notes": "£1,350 a month."
+    },
+    {
+      "id": "open-a-savings-pot",
+      "title": "Open a savings pot",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-20T07:30:00Z"
+    }
+  ]
+}

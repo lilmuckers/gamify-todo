@@ -1,0 +1,69 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "sort-the-utilities",
+  "name": "Sort the utilities",
+  "deliverable": "Power, water, broadband and council tax in our name",
+  "timeboxDays": 7,
+  "startedAt": "2025-04-13T11:55:00Z",
+  "clearedAt": "2025-04-19T09:05:00Z",
+  "successCriteria": [
+    {
+      "id": "meters-read-and-accounts-open",
+      "mvp": true,
+      "text": "Meters read and accounts open",
+      "done": true,
+      "doneAt": "2025-04-18T20:23:00Z"
+    },
+    {
+      "id": "broadband-live",
+      "mvp": true,
+      "text": "Broadband live",
+      "done": true,
+      "doneAt": "2025-04-18T07:31:00Z"
+    },
+    {
+      "id": "council-tax-set-up",
+      "mvp": true,
+      "text": "Council tax set up",
+      "done": true,
+      "doneAt": "2025-04-19T09:05:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "meter-readings-with-photos",
+      "title": "Meter readings with photos",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-13T12:05:00Z"
+    },
+    {
+      "id": "energy-account",
+      "title": "Energy account",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-15T21:21:00Z"
+    },
+    {
+      "id": "water-account",
+      "title": "Water account",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-16T20:21:00Z"
+    },
+    {
+      "id": "broadband-engineer-visit",
+      "title": "Broadband engineer visit",
+      "type": "dependency",
+      "status": "done",
+      "doneAt": "2025-04-17T19:40:00Z"
+    },
+    {
+      "id": "council-tax",
+      "title": "Council tax",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-18T21:02:00Z"
+    }
+  ]
+}

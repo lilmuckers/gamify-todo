@@ -1,0 +1,19 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "summer-glut",
+  "name": "Summer Glut",
+  "description": "Water, pick, give away courgettes.",
+  "theme": "desert",
+  "goalIds": [
+    "grow-ten-things-we-actually-eat",
+    "keep-the-plot-after-the-first-inspection"
+  ],
+  "unlocksAfter": [
+    "first-sowings"
+  ],
+  "levelOrder": [
+    "sort-the-watering",
+    "pass-the-june-inspection",
+    "harvest-every-week"
+  ]
+}

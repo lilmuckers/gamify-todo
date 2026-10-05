@@ -129,6 +129,38 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
       .filter((c) => Date.parse(c.date) >= from);
   });
 
+  // The level files each data commit changed, before and after, a page at a
+  // time so the detailed stats scan can show progress. Newest first.
+  app.get<{ Querystring: { since?: string; skip?: string; limit?: string } }>('/api/history/changes', async (req, reply) => {
+    const { since } = req.query;
+    if (since !== undefined && Number.isNaN(Date.parse(since))) return reply.code(400).send({ error: 'since must be a date' });
+    const skip = Math.max(0, Number(req.query.skip ?? 0) || 0);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 50) || 50));
+    const range = since ? [`--since=${since}`] : [];
+    const total = Number((await repo.git.raw(['rev-list', '--count', '--no-merges', ...range, 'HEAD', '--', 'data']).catch(() => '0')).trim()) || 0;
+    const log = await repo.git
+      .raw(['log', '--no-merges', ...range, `--skip=${skip}`, `-n${limit}`, '--format=%x1e%H%x1f%aI%x1f%P%x1f%B%x1f', '--name-only', '--', 'data'])
+      .catch(() => '');
+    const show = (rev: string, path: string) => repo.git.raw(['show', `${rev}:${path}`]).catch(() => undefined);
+    const commits = await Promise.all(
+      log
+        .split('\x1e')
+        .filter((chunk) => chunk.trim())
+        .map(async (chunk) => {
+          const [sha, date, parents, message, names = ''] = chunk.split('\x1f');
+          const parent = parents.trim().split(' ')[0] || undefined;
+          const paths = names.split('\n').map((p) => p.trim()).filter((p) => /^data\/[^/]+\/[^/]+\/[^/]+\.json$/.test(p) && !p.endsWith('/world.json'));
+          return {
+            sha: sha.trim(),
+            date: new Date(date).toISOString(),
+            message: message.trim(),
+            files: await Promise.all(paths.map(async (path) => ({ path, before: parent ? await show(parent, path) : undefined, after: await show(sha.trim(), path) }))),
+          };
+        }),
+    );
+    return { total, commits };
+  });
+
   app.post('/api/publish', async () =>
     exclusive(async () => {
       await repo.git.fetch();

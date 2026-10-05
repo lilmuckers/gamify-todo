@@ -43,13 +43,13 @@ pad's third page:
 levels are kept in your browser. Items record when they were finished (`doneAt`), so the review
 works offline and in read-only views too.
 
-The pad's fourth page is **Stats** (`s`, `#/stats`, or the streak flame in the top bar), on blue
-graph paper:
+**Stats** (`s`, `#/stats`, the streak flame in the top bar, or the link in the weekly review)
+holds an arcade records screen up over whatever you're looking at:
 
 - **Streak**: days in a row with progress (anything done, a criterion ticked or a level cleared),
   and your best run. Today still counts until midnight, so the flame only goes out after a day
   with nothing done.
-- **Last 20 weeks**: a calendar, darker for busier days, with a red ring on days a level cleared.
+- **Last 20 weeks**: a calendar, brighter for busier days, with a red ring on days a level cleared.
 - **Time-boxes**: levels cleared, average stars, the share cleared in time, and the typical days
   taken against the box, with a nudge if your boxes run short or long.
 - **XP over time**: XP per week and the running total.
@@ -57,8 +57,16 @@ graph paper:
 It's worked out from the done stamps in your data (`doneAt` on items, steps and criteria;
 `clearedAt` on levels) plus the app's own commit history, so something you finished and later
 reopened still counts towards your streak. The history is cached in your browser, so Stats works
-offline too. The read-only site and the demo use the stamps alone. Try `?stats=screen` for the
-same numbers as a full arcade-style screen.
+offline too.
+
+**DETAILED STATS ▶** (`#/records`) goes much further: a year-long calendar you can click into,
+your rhythm by weekday and hour, what kinds of things you finish, scope added against scope cut,
+every cleared level's days against its time-box, a table by project (finished games marked), a
+perfectionism watch and the latest activity. To get there it scans your repo's history commit by
+commit, comparing what each one changed, so it also sees edits made by hand or by an AI assistant.
+The first scan on GitHub can take a minute or two (heroes keep busy while the bar fills); after
+that only new commits are read. The demo comes with a made-up two-year history so you can see it
+all.
 
 Most edits show an **UNDO** toast for a few seconds (Ctrl/Cmd+Z works too); edits that haven't
 synced yet are simply taken back, with no commit.
@@ -264,6 +272,7 @@ Every screen has a shareable URL, and a level link can open an item's bubble dir
 #/p/<project>/<world>/<level>/<item>     level, with that item's bubble open
 #/prs, #/pr/<n>/<project>/<world>/<level>/<item>   pull request review
 #/review (or …/~review after any link)   weekly review; …/~today, …/~inbox and …/~stats likewise
+#/records                                detailed stats
 ```
 
 ## Reviewing pull requests: the Warp Zone
@@ -329,7 +338,7 @@ shared/   Generated types and Ajv validators, ops log + replay, scoring, level l
           PR diffing, GitHub client — used by app and server
 app/      Vite + Phaser 3 front end (desktop game view, mobile view, PWA)
 server/   Fastify API for the Docker editor (git commit/push, PR proxy)
-data/     The quests: one folder per project (ships with five example projects)
+data/     The quests: one folder per project (ships with eight example projects, three of them finished)
 ```
 
 Edits are **ops** (`setItemStatus`, `addItem`, …) rather than whole-file writes. That makes offline

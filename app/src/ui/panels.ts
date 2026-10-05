@@ -167,6 +167,8 @@ export function renderPanel(app: App): HTMLElement {
     return h('div', { class: 'panel-inner' }, h('p', null, 'Project not found. '), link('All projects', '#/'));
   switch (r.view) {
     case 'projects':
+    // Detailed stats covers the whole view; the project floor waits behind it.
+    case 'records':
       return projectsPanel(app);
     case 'overworld':
       return overworldPanel(app);

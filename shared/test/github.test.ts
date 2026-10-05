@@ -98,6 +98,32 @@ describe('GitHubClient', () => {
     expect(calls).toHaveLength(2);
   });
 
+  it('reads what each data commit changed, oldest first, skipping merges', async () => {
+    const { fn, calls } = fakeFetch((url) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith('/commits') && u.searchParams.get('path') === 'data')
+        return {
+          json: [
+            { sha: 'm', parents: [{ sha: 'b' }, { sha: 'x' }], commit: { message: 'Merge', author: { date: '2026-10-03T10:00:00Z' } } },
+            { sha: 'b', parents: [{ sha: 'a' }], commit: { message: 'quest: done: X (p/w/l)', author: { date: '2026-10-02T10:00:00Z' } } },
+            { sha: 'a', parents: [{ sha: 'z' }], commit: { message: 'add level', author: { date: '2026-10-01T10:00:00Z' } } },
+          ],
+        };
+      if (u.pathname.endsWith('/commits/b')) return { json: { files: [{ filename: 'data/p/w/l.json', status: 'modified', sha: 'blob-b' }, { filename: 'README.md', status: 'modified', sha: 'r' }] } };
+      if (u.pathname.endsWith('/commits/a')) return { json: { files: [{ filename: 'data/p/w/l.json', status: 'added', sha: 'blob-a' }] } };
+      if (u.pathname.endsWith('/contents/data/p/w/l.json') && u.searchParams.get('ref') === 'a') return { text: 'BEFORE' };
+      if (u.pathname.endsWith('/git/blobs/blob-b')) return { text: 'AFTER-B' };
+      if (u.pathname.endsWith('/git/blobs/blob-a')) return { text: 'AFTER-A' };
+    });
+    const seen: string[] = [];
+    const changes = await new GitHubClient('tok', repo, fn).dataChanges({ onProgress: (p) => seen.push(`${p.phase} ${p.done}/${p.total}`) });
+    expect(changes.map((c) => c.sha)).toEqual(['a', 'b']);
+    expect(changes[0].files).toEqual([{ path: 'data/p/w/l.json', before: undefined, after: 'AFTER-A' }]);
+    expect(changes[1].files).toEqual([{ path: 'data/p/w/l.json', before: 'BEFORE', after: 'AFTER-B' }]);
+    expect(seen).toEqual(['reading 3/500', 'comparing 1/2', 'comparing 2/2']);
+    expect(calls.some((c) => c.url.includes('/commits/m'))).toBe(false);
+  });
+
   it('lists only PRs touching data files', async () => {
     const pr = (n: number) => ({ number: n, title: `PR ${n}`, user: { login: 'u' }, html_url: '', draft: false, updated_at: '', head: { sha: 's', ref: 'b', repo: { full_name: 'o/r' } }, base: { ref: 'main' } });
     const { fn } = fakeFetch((url) => {

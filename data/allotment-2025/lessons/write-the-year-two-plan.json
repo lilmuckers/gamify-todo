@@ -1,0 +1,49 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "write-the-year-two-plan",
+  "name": "Write the year-two plan",
+  "deliverable": "A page of lessons and a smaller crop list",
+  "timeboxDays": 3,
+  "startedAt": "2025-10-11T16:33:00Z",
+  "clearedAt": "2025-10-13T20:01:00Z",
+  "successCriteria": [
+    {
+      "id": "lessons-written-down",
+      "mvp": true,
+      "text": "Lessons written down",
+      "done": true,
+      "doneAt": "2025-10-13T08:25:00Z"
+    },
+    {
+      "id": "year-two-list-under-12-crops",
+      "mvp": true,
+      "text": "Year-two list under 12 crops",
+      "done": true,
+      "doneAt": "2025-10-13T20:01:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "list-what-worked",
+      "title": "List what worked",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-10-12T13:43:00Z"
+    },
+    {
+      "id": "list-what-did-not",
+      "title": "List what did not",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-10-12T15:55:00Z"
+    },
+    {
+      "id": "cut-to-which-crops",
+      "title": "Cut to which crops?",
+      "type": "decision",
+      "status": "done",
+      "doneAt": "2025-10-13T19:41:00Z",
+      "notes": "Ten, grown properly."
+    }
+  ]
+}

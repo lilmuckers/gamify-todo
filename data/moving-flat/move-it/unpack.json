@@ -1,0 +1,76 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "unpack",
+  "name": "Unpack",
+  "deliverable": "No boxes left after two weeks",
+  "timeboxDays": 14,
+  "startedAt": "2025-04-13T14:45:00Z",
+  "clearedAt": "2025-04-25T07:42:00Z",
+  "successCriteria": [
+    {
+      "id": "kitchen-unpacked",
+      "mvp": true,
+      "text": "Kitchen unpacked",
+      "done": true,
+      "doneAt": "2025-04-22T20:17:00Z"
+    },
+    {
+      "id": "bedroom-unpacked",
+      "mvp": true,
+      "text": "Bedroom unpacked",
+      "done": true,
+      "doneAt": "2025-04-23T18:37:00Z"
+    },
+    {
+      "id": "last-box-flattened",
+      "mvp": true,
+      "text": "Last box flattened",
+      "done": true,
+      "doneAt": "2025-04-25T07:42:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "kitchen-first",
+      "title": "Kitchen first",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-14T19:05:00Z"
+    },
+    {
+      "id": "make-the-bed",
+      "title": "Make the bed",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-16T08:54:00Z"
+    },
+    {
+      "id": "books-on-shelves",
+      "title": "Books on shelves",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-18T19:27:00Z"
+    },
+    {
+      "id": "pictures-up",
+      "title": "Pictures up",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-20T16:13:00Z"
+    },
+    {
+      "id": "flatten-the-boxes",
+      "title": "Flatten the boxes",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-22T20:02:00Z"
+    },
+    {
+      "id": "housewarming",
+      "title": "Housewarming",
+      "type": "stretch",
+      "status": "done",
+      "doneAt": "2025-04-23T08:36:00Z"
+    }
+  ]
+}

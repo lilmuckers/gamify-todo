@@ -5,6 +5,20 @@ import { inScene, settled, skipWelcome } from '../helpers';
 const flagY = (page: Page) =>
   page.evaluate(() => (window.__questGame!.scene.getScene('level') as unknown as { pole?: { flag: { y: number } } }).pole?.flag.y);
 
+test('the demo shows detailed stats from a made-up history, after a short pretend scan', async ({ page }) => {
+  await skipWelcome(page);
+  await page.goto('./?demo#/records');
+  await expect(page.locator('.ds-load')).toContainText('SCANNING YOUR HISTORY');
+  const detailed = page.getByRole('region', { name: 'Detailed stats' });
+  await expect(detailed.getByRole('heading', { name: 'RECORDS · DETAILED' })).toBeVisible({ timeout: 10_000 });
+  await expect(detailed.locator('.ds-scan')).toContainText(/\d{3} commits scanned/);
+  // History-only numbers are there: reopened work and scope added mid-level.
+  await expect(detailed.locator('.ds-tile').filter({ hasText: 'REOPENED' }).locator('b')).not.toHaveText('–');
+  await expect(detailed.locator('.ds-scope b.up')).toHaveText(/^\+\d+/);
+  // The finished example games are marked.
+  await expect(detailed.locator('.ds-won')).toHaveCount(3);
+});
+
 test('the demo lets you tick a stair step, and keeps nothing after a reload', async ({ page }) => {
   await skipWelcome(page);
   await page.goto('./?demo#/p/allotment/summer/brassicas');

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "plant-potatoes",
+  "name": "Plant potatoes",
+  "deliverable": "Earlies and maincrop planted",
+  "timeboxDays": 14,
+  "startedAt": "2025-03-29T13:22:00Z",
+  "clearedAt": "2025-04-16T19:53:00Z",
+  "successCriteria": [
+    {
+      "id": "earlies-planted",
+      "mvp": true,
+      "text": "Earlies planted",
+      "done": true,
+      "doneAt": "2025-04-13T12:22:00Z"
+    },
+    {
+      "id": "maincrop-planted",
+      "mvp": true,
+      "text": "Maincrop planted",
+      "done": true,
+      "doneAt": "2025-04-16T19:53:00Z"
+    },
+    {
+      "id": "earthed-up",
+      "mvp": false,
+      "text": "Earthed up",
+      "done": true,
+      "doneAt": "2025-04-14T08:25:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "chit-the-seed-potatoes",
+      "title": "Chit the seed potatoes",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-30T09:19:00Z"
+    },
+    {
+      "id": "plant-earlies",
+      "title": "Plant earlies",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-03T18:42:00Z"
+    },
+    {
+      "id": "plant-maincrop",
+      "title": "Plant maincrop",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-06T09:33:00Z"
+    },
+    {
+      "id": "earth-up",
+      "title": "Earth up",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-11T21:05:00Z"
+    },
+    {
+      "id": "late-frost",
+      "title": "Late frost",
+      "type": "risk",
+      "status": "done",
+      "doneAt": "2025-04-13T11:23:00Z",
+      "notes": "Fleece twice in April."
+    }
+  ]
+}

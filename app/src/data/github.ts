@@ -1,4 +1,4 @@
-import { fromFiles, GitHubClient, GitHubError, type RepoRef, type TokenProvider } from '@quest/shared';
+import { fromFiles, GitHubClient, GitHubError, type RepoRef, type ScanProgress, type TokenProvider } from '@quest/shared';
 import type { DataSource, Loaded, PullData } from './source';
 
 /**
@@ -64,6 +64,10 @@ export class GitHubSource implements DataSource {
 
   history(since?: string) {
     return this.client.dataCommits(since);
+  }
+
+  changes(opts: { since?: string; onProgress?: (p: ScanProgress) => void }) {
+    return this.client.dataChanges({ ...opts, max: 500 });
   }
 
   pulls = {

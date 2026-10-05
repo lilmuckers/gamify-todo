@@ -6,7 +6,7 @@ import { href, withPad, type PadPage } from '../router';
 import { play as sfx } from '../audio';
 import { inboxCount, inboxSheet } from './inbox';
 import { reviewSheet } from './weekly';
-import { statsAsScreen, statsScreen, statsSheet } from './stats';
+import { statsScreen } from './stats';
 import { fmtDuration, h, keepFields } from './dom';
 
 const DAY_MS = 86_400_000;
@@ -157,17 +157,19 @@ function todaySheet(app: App) {
   ];
 }
 
-const PAGE_LABEL: Record<PadPage, string> = { today: 'TODAY', inbox: 'INBOX', review: 'REVIEW', stats: 'STATS' };
-const PAGE_ARIA: Record<PadPage, string> = { today: "Today's plan", inbox: 'Inbox', review: 'Weekly review', stats: 'Stats: streaks and history' };
-const SHEETS: Record<PadPage, (app: App) => (Node | null | false | undefined)[]> = { today: todaySheet, inbox: inboxSheet, review: reviewSheet, stats: statsSheet };
+/** The pad's own pages; stats is held up as a records screen instead. */
+type Sheet = Exclude<PadPage, 'stats'>;
+const PAGE_LABEL: Record<Sheet, string> = { today: 'TODAY', inbox: 'INBOX', review: 'REVIEW' };
+const PAGE_ARIA: Record<Sheet, string> = { today: "Today's plan", inbox: 'Inbox', review: 'Weekly review' };
+const SHEETS: Record<Sheet, (app: App) => (Node | null | false | undefined)[]> = { today: todaySheet, inbox: inboxSheet, review: reviewSheet };
 
 /**
  * The legal pad: page tabs along the top (Today, Inbox), a cross to put it
  * away, the hero's thumbs holding it, and the sheet for the current page.
  */
-function legalPad(app: App, page: PadPage, opts: { enter?: boolean; flip?: boolean; onClose?: () => void }): HTMLElement {
+function legalPad(app: App, page: Sheet, opts: { enter?: boolean; flip?: boolean; onClose?: () => void }): HTMLElement {
   const tilt = -1.2 - seeded(new Date().toDateString())() * 2.6;
-  const counts: Record<PadPage, number | string> = { today: todayCount(app), inbox: inboxCount(app), review: app.reviewDue ? '!' : 0, stats: 0 };
+  const counts: Record<Sheet, number | string> = { today: todayCount(app), inbox: inboxCount(app), review: app.reviewDue ? '!' : 0 };
   return h(
     'div',
     {
@@ -179,7 +181,7 @@ function legalPad(app: App, page: PadPage, opts: { enter?: boolean; flip?: boole
     h(
       'nav',
       { class: 'pad-tabs', 'aria-label': 'Pad pages' },
-      (Object.keys(PAGE_LABEL) as PadPage[]).map((p) =>
+      (Object.keys(PAGE_LABEL) as Sheet[]).map((p) =>
         h(
           'a',
           { class: `pad-tab tab-${p}${p === page ? ' on' : ''}`, href: href(withPad(app.route, p)), 'aria-current': p === page ? 'page' : undefined },
@@ -244,8 +246,8 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
       host.replaceChildren();
       return;
     }
-    // Layout trial: stats as a full screen rather than a pad page.
-    const screen = page === 'stats' && statsAsScreen();
+    // Stats is a records screen held up over the game, not a page of the pad.
+    const screen = page === 'stats';
     host.classList.toggle('as-screen', screen);
     if (screen) {
       const was = host.querySelector('.stats-screen');

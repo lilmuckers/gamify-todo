@@ -129,6 +129,29 @@ describe('server', () => {
     expect(bad.statusCode).toBe(400);
   });
 
+  it('pages through the level files each data commit changed', async () => {
+    // Tick a task in a level, via the API, so there's a before and an after.
+    const g = await game();
+    const path = 'data/kitchen-renovation/fit/tiling.json';
+    const lvl = JSON.parse(g.files[path]);
+    const todo = lvl.items.find((i: { status: string }) => i.status !== 'done');
+    todo.status = 'done';
+    const r = await app.inject({ method: 'POST', url: '/api/commit', headers: H, payload: { changes: { [path]: JSON.stringify(lvl, null, 2) + '\n' }, message: `quest: done: ${todo.title} (kitchen-renovation/fit/tiling)`, baseVersion: g.version } });
+    expect(r.statusCode).toBe(200);
+    const page = (q: string) => app.inject({ method: 'GET', url: `/api/history/changes${q}`, headers: { host: 'localhost' } }).then((x) => x.json() as { total: number; commits: { sha: string; message: string; files: { path: string; before?: string; after?: string }[] }[] });
+    const first = await page('?limit=1');
+    expect(first.total).toBeGreaterThanOrEqual(2);
+    expect(first.commits).toHaveLength(1);
+    expect(first.commits[0].message).toContain('quest: done:');
+    const f = first.commits[0].files.find((x) => x.path === path)!;
+    expect(JSON.parse(f.before!).items.find((i: { id: string }) => i.id === todo.id).status).not.toBe('done');
+    expect(JSON.parse(f.after!).items.find((i: { id: string }) => i.id === todo.id).status).toBe('done');
+    const rest = await page('?skip=1&limit=100');
+    expect(rest.commits.at(-1)?.message).toBe('seed');
+    // The seed commit adds files: nothing before.
+    expect(rest.commits.at(-1)?.files.every((x) => x.before === undefined)).toBe(true);
+  });
+
   it('reports PR review unavailable without a token', async () => {
     const r = await app.inject({ method: 'GET', url: '/api/prs', headers: { host: 'localhost' } });
     expect(r.statusCode).toBe(501);

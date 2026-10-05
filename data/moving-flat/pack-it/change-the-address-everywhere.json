@@ -1,0 +1,80 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "change-the-address-everywhere",
+  "name": "Change the address everywhere",
+  "deliverable": "Every account that matters updated",
+  "timeboxDays": 7,
+  "startedAt": "2025-03-22T09:25:00Z",
+  "clearedAt": "2025-04-01T18:55:00Z",
+  "successCriteria": [
+    {
+      "id": "bank-and-payslips-updated",
+      "mvp": true,
+      "text": "Bank and payslips updated",
+      "done": true,
+      "doneAt": "2025-03-31T20:36:00Z"
+    },
+    {
+      "id": "post-redirected",
+      "mvp": true,
+      "text": "Post redirected",
+      "done": true,
+      "doneAt": "2025-03-31T19:23:00Z"
+    },
+    {
+      "id": "doctor-and-dentist-told",
+      "mvp": true,
+      "text": "Doctor and dentist told",
+      "done": true,
+      "doneAt": "2025-04-01T18:55:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "bank",
+      "title": "Bank",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-23T12:48:00Z"
+    },
+    {
+      "id": "payroll",
+      "title": "Payroll",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-25T07:39:00Z"
+    },
+    {
+      "id": "royal-mail-redirect",
+      "title": "Royal Mail redirect",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-27T07:02:00Z"
+    },
+    {
+      "id": "gp-and-dentist",
+      "title": "GP and dentist",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-29T11:58:00Z"
+    },
+    {
+      "id": "car-insurance-and-dvla",
+      "title": "Car insurance and DVLA",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-30T09:51:00Z"
+    },
+    {
+      "id": "every-shop-account",
+      "title": "Every shop account",
+      "type": "task",
+      "status": "dropped"
+    }
+  ],
+  "stats": {
+    "itemEdits": {
+      "bank": 4
+    }
+  }
+}

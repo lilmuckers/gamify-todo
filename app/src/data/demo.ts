@@ -1,4 +1,5 @@
-import { fromFiles } from '@quest/shared';
+import { fromFiles, type ScanProgress } from '@quest/shared';
+import { demoHistory, fakeScan } from './demo-history';
 import { TARGET } from '../config';
 import type { DataSource, Loaded } from './source';
 import { StaticSource } from './static';
@@ -30,6 +31,18 @@ export class DemoSource implements DataSource {
   async load(): Promise<Loaded> {
     this.files ??= await this.seed.loadFiles();
     return { state: fromFiles(this.files), version: `demo-${this.version}` };
+  }
+
+  /** A made-up history (the demo has no repo), so stats show what a real one would. */
+  async history(since?: string) {
+    const all = demoHistory(fromFiles(this.files ?? (await this.seed.loadFiles())));
+    return since ? all.filter((c) => c.date >= since) : all;
+  }
+
+  /** The same history for the detailed stats, after a pretend scan of about a second. */
+  async changes(opts: { since?: string; onProgress?: (p: ScanProgress) => void }) {
+    const all = await fakeScan(fromFiles(this.files ?? (await this.seed.loadFiles())), opts.onProgress);
+    return opts.since ? all.filter((c) => c.date >= opts.since!) : all;
   }
 
   async commit(changes: Record<string, string | null>, _message: string, _base: string): Promise<string> {

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "first-sowings",
+  "name": "First Sowings",
+  "description": "Beds dug, a plan on paper, seeds in on time (mostly).",
+  "theme": "grass",
+  "goalIds": [
+    "grow-ten-things-we-actually-eat"
+  ],
+  "unlocksAfter": [
+    "take-on"
+  ],
+  "levelOrder": [
+    "dig-four-beds",
+    "make-a-sowing-plan",
+    "sow-the-first-seeds",
+    "plant-potatoes"
+  ]
+}

@@ -43,6 +43,8 @@ function screenNav(app: App, r: Route): NavModel {
       return { crumbs: [home] };
     case 'prs':
       return { crumbs: [home, link('Warp Zone', r)], up: link('All projects', { view: 'projects' }) };
+    case 'records':
+      return { crumbs: [home, link('Detailed stats', r)], up: link('Stats', { view: 'projects', pad: 'stats' }) };
     case 'overworld':
       return { crumbs: [home, link(projectTitle, r)], up: link('All projects', { view: 'projects' }) };
     case 'world': {

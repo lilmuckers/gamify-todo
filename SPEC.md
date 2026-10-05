@@ -164,9 +164,12 @@ These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, 
 
 ### 3.3 Example data
 
-`data/` ships five example projects (90 files): `customer-portal` (work launch),
-`home-maintenance`, `bike-restoration`, `allotment` and `kitchen-renovation`. They power the
-read-only Pages site, the demo and the tour.
+`data/` ships eight example projects (129 files): `customer-portal` (work launch),
+`home-maintenance`, `bike-restoration`, `allotment` and `kitchen-renovation`, still being played in
+2026, and three **finished games** from 2024–2025 with every level cleared: `allotment-2025`
+(year one of the allotment), `moving-flat` and `sourdough`. They power the read-only Pages site, the
+demo and the tour. Done items, steps and criteria carry `doneAt` stamps, so Stats has two years of
+history to show. Finished games sort after the others everywhere (`orderedProjects`).
 
 ---
 
@@ -240,8 +243,10 @@ touch screens, and can be overridden in Settings or with `?mobile=on|off`.
 #/p/<project>/<world>/<level>/@<dep>[/<step>]   dependency sub-level
 #/prs                                     Warp Zone (PR list)
 #/pr/<n>[/<project>/<world>/<level>[/@<dep>][/<item>]]   PR review
-…/~today  …/~inbox  …/~review  …/~stats   legal pad page held up over any screen
+…/~today  …/~inbox  …/~review             legal pad page held up over any screen
+…/~stats                                  the stats screen held up over any screen
 #/today, #/review, #/stats                short forms
+#/records                                 detailed stats
 ```
 
 Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`, `?jam` (for testing: one of every
@@ -344,7 +349,7 @@ standard mapping) instead of letting him auto-walk.
 - Pipe arrivals finish their animation before play takes over (#74).
 - In read-only views play mode animates but saves nothing.
 
-### 5.6 The legal pad: Today, Inbox, Weekly review, Stats
+### 5.6 The legal pad: Today, Inbox, Weekly review
 
 The hero holds up a yellow legal pad over whatever screen you're on. It is written in a
 handwriting font (Caveat), and its pages are Post-it index flags on the right edge. On phones it
@@ -386,49 +391,13 @@ evening or off in Settings. The review has four sections:
 - **Next week**: pick up to 3 focus levels, which lead Today.
 
 **Review done** stamps it until the next slot. The schedule, last review time and focus levels
-live in this browser's `localStorage`, not in the repo.
-
-**Stats** (`s`, the HUD streak flame; #28). Built by `shared/src/stats.ts`, on blue graph paper:
-- **Streak:** consecutive local days with progress, and the longest run. A day counts if anything
-  was done (items and steps by `doneAt`), ticked (criteria by `doneAt`) or cleared (`clearedAt`).
-  The current streak counts back from today, or from yesterday while today has nothing yet.
-- **Last 20 weeks:** a calendar heatmap, Monday at the top, shaded by count (1, 2–3, 4–6, 7+),
-  with a red ring on days a level cleared.
-- **Time-boxes:** levels cleared, mean stars, % cleared in time (of levels with both
-  `startedAt` and `clearedAt`), and the median days taken against the median original time-box.
-  The median of days ÷ box gives the advice: under 0.6 "finish early, tighten", over 1.1 "smaller
-  deliverables or bigger boxes", otherwise "about right".
-- **XP over time:** weekly XP (each cleared level's XP in the week it cleared) as bars, with the
-  running total as a line. XP from before the window, or with no `clearedAt`, is the baseline.
-
-Two sources are merged (`progressEvents`):
-- **Done stamps** in the data: exact click times, available everywhere (read-only site, demo,
-  offline). Reopening something removes its stamp.
-- **Commit history** (`shared/src/history.ts`): the app's own commit messages (`quest: done: <title>
-  (<p>/<w>/<l>)`, `tick criterion <id> (…)`, and each bullet of `quest: N updates`) read back as
-  dated events. This keeps work that was **done and later reopened, un-ticked or dropped**: it still
-  counts, and the page says how many were ("3 reopened later: still counted", and per day in the
-  calendar's tooltips). Commits made by hand or by other tools say nothing parseable, so their
-  changes count through the stamps alone.
-- **Matching:** a commit completion that a stamp already shows (same thing, same level, committed
-  within 3 days after the stamp, allowing an hour of clock skew) is dropped, since the stamp has the
-  exact time. Steps are named "Step (in Dependency)" on both sides. Level clears come from stamps.
-- **Reading it:** GitHub mode lists commits touching `data/` on the branch
-  (`GitHubClient.dataCommits`, 100 a page, up to 30 pages on the first read). The Docker editor asks
-  `GET /api/history` (`git log -- data`). The read-only site and the demo have no history and use
-  stamps alone.
-- **Cache:** `ProgressHistory` (`app/src/data/history.ts`) keeps parsed events in IndexedDB per
-  source and branch, and later reads only fetch commits since the newest one seen. It reads on load,
-  at most every 10 minutes after that, and at most once a minute while Stats is open. Offline it
-  uses the cache. The page notes which sources it used and when history was last checked.
-
-**Layout trial:** `?stats=screen` shows the same numbers as a full arcade "RECORDS" screen (stat
-tiles, a big calendar, time-boxes beside XP) instead of the pad page, to choose between the two.
+live in this browser's `localStorage`, not in the repo. A link under "Shipped this week" opens
+Stats (§5.13).
 
 ### 5.7 HUD
 
 The HUD shows the QUEST LOG title, XP/coins/stars totals, the streak flame (grey when out; opens
-Stats, and stays visible on phones), the sync status pill, **TODAY**,
+Stats (§5.13), and stays visible on phones), the sync status pill, **TODAY**,
 **INBOX** (count), **REVIEW** (when due), **AI SKILL**, ⚙ Settings, ⇪ Publish (Docker editor
 only) and a "DEMO · NOT SAVED" badge in the demo. On desktop, floating game-nav buttons over the
 canvas give ▲ up, ◀ ▶ prev/next and Play.
@@ -515,6 +484,86 @@ to add a hero: the art, the voice and every line they need.
 - Edits that no level scene is showing (compact view, or ticking from the pad over another
   screen) play the matching item sound from `soundForOp` (`app/src/sound-events.ts`), so a tick
   never sounds twice.
+
+### 5.13 Stats and detailed stats (#28)
+
+**Stats** (`s`, `#/stats`, the HUD streak flame, or the link in the weekly review) is an arcade
+"RECORDS" screen held up over whatever is showing (`…/~stats`), like a pad page but drawn in the
+game's own style. Built by `shared/src/stats.ts`:
+- **Streak:** consecutive local days with progress, and the longest run. A day counts if anything
+  was done (items and steps by `doneAt`), ticked (criteria by `doneAt`) or cleared (`clearedAt`).
+  The current streak counts back from today, or from yesterday while today has nothing yet.
+- **Last 20 weeks:** a calendar heatmap, Monday at the top, shaded by count (1, 2–3, 4–6, 7+),
+  with a red ring on days a level cleared.
+- **Time-boxes:** levels cleared, mean stars, % cleared in time (of levels with both
+  `startedAt` and `clearedAt`), and the median days taken against the median original time-box.
+  The median of days ÷ box gives the advice: under 0.6 "finish early, tighten", over 1.1 "smaller
+  deliverables or bigger boxes", otherwise "about right".
+- **XP over time:** weekly XP (each cleared level's XP in the week it cleared) as bars, with the
+  running total as a line. XP from before the window, or with no `clearedAt`, is the baseline.
+- **DETAILED STATS ▶** opens the detailed page.
+
+Two sources are merged (`progressEvents`):
+- **Done stamps** in the data: exact click times, available everywhere (read-only site, demo,
+  offline). Reopening something removes its stamp.
+- **Commit history** (`shared/src/history.ts`): the app's own commit messages (`quest: done: <title>
+  (<p>/<w>/<l>)`, `tick criterion <id> (…)`, and each bullet of `quest: N updates`) read back as
+  dated events. This keeps work that was **done and later reopened, un-ticked or dropped**: it still
+  counts, and the page says how many were. Commits made by hand or by other tools say nothing
+  parseable here; the detailed scan catches them.
+- **Matching:** a commit completion that a stamp already shows (same thing, same level, committed
+  within 3 days after the stamp, allowing an hour of clock skew) is dropped, since the stamp has the
+  exact time. Steps are named "Step (in Dependency)" on both sides. Level clears come from stamps.
+- **Reading it:** GitHub mode lists commits touching `data/` on the branch
+  (`GitHubClient.dataCommits`, 100 a page, up to 30 pages on the first read). The Docker editor asks
+  `GET /api/history` (`git log -- data`). The demo has a made-up history (below). The read-only
+  site has none and uses stamps alone.
+- **Cache:** `ProgressHistory` (`app/src/data/history.ts`) keeps parsed events in IndexedDB per
+  source and branch, and later reads only fetch commits since the newest one seen. It reads on load,
+  at most every 10 minutes after that, and at most once a minute while Stats is open.
+
+**Detailed stats** (`#/records`) is a full page over the game (and over the body on phones). Esc
+or ✕ goes back to Stats. Its sections (`shared/src/detailed.ts`):
+- **Tiles:** current streak (and best), best day, best week, things done, reopened, % in time.
+- **The last year:** a 52-week calendar; picking a day lists what happened (`dayLog`). On phones it
+  scrolls sideways, starting at the latest weeks.
+- **Rhythm:** progress by weekday and by hour.
+- **What you finished:** done items by type, with their sprites.
+- **Scope:** items added after a level started, items cut or dropped, time-box days added, and
+  added (up) against cut (down) per week.
+- **Time-boxes, level by level:** a scatter of days taken against the original box (square-root
+  axes), coloured by project, with the late zone shaded, and a note when short boxes run over.
+- **By project:** done, cleared, in time, average stars, XP and cuts; finished games are marked.
+- **Perfectionism watch:** reopened, edits after clearing, XP lost to polish, and the things most
+  often reopened or edited after clearing.
+- **XP over the year** and **Lately** (the newest progress).
+
+**The deep scan** (`shared/src/scan.ts`) compares every data commit's level files before and after
+(`changesFromCommit`), so it sees hand and AI edits too: done, reopened, dropped, added (flagged
+after start / after clear), removed, edited, ticked, unticked, started, cleared, uncleared and
+extended. Its completions also feed the streak merge (`changesAsHistory`), deduplicated against
+the quick history by commit.
+- **GitHub:** `GitHubClient.dataChanges` lists up to the newest **500** data commits, skips merges,
+  and fetches each commit's file list plus each changed level's text at the parent and the commit,
+  four commits at a time. The first scan can take a minute or two.
+- **Docker editor:** `GET /api/history/changes`, 50 commits a page (up to 5,000).
+- **Progress:** reading → comparing (commit n of N, and which level) → adding up, shown as a bar
+  under a little stage where three heroes work: yours bumps a ? block for coins, one carries
+  bricks, one stacks them. With reduced motion they stand still and the bar still fills.
+- **Cache:** `DeepHistory` (`app/src/data/deep-history.ts`) keeps the events and scanned commit
+  shas in IndexedDB per source and branch. A scan younger than 10 minutes is reused; otherwise only
+  newer commits are compared. **RESCAN** starts over. Offline, the cache is shown as it is.
+- **Read-only site:** no history to scan; the page shows what the stamps give and marks the
+  history-only numbers "needs history".
+
+**The demo** has no repo, so `app/src/data/demo-history.ts` makes one up from the example data,
+seeded from ids so it's the same every visit: about 670 commits over two years. Every done stamp
+gets the commit that would have recorded it, and around them it adds work done then reopened (about
+one in sixteen items), scope added mid-level, drops, extensions and polish after clearing. Each
+commit carries a real `quest:` message and tiny before/after level snapshots, so the quick history
+and the deep scan read it exactly as they read a repo. Only in demo mode, the scan pretends for
+about 1.2 seconds with real-looking progress. Demo history caches live in memory, like the rest of
+the demo.
 
 ## 6. Onboarding (#61)
 
@@ -612,6 +661,7 @@ Fastify (`server/src/app.ts`), with the repo mounted at `/repo`.
 | `POST /api/commit` | `{changes, message, baseVersion}`. Data paths only. 409 if disk changed, 400 if invalid. Writes, then commits only those paths |
 | `GET /api/status` | Branch, ahead/behind, remote, last commit, `canReviewPRs` |
 | `GET /api/history?since=` | Commits touching `data/` (sha, ISO date, full message), newest first, for Stats |
+| `GET /api/history/changes?skip=&limit=&since=` | A page (≤100) of non-merge data commits, newest first, each with its level files before and after, plus the total: for the detailed stats scan |
 | `POST /api/publish` | Fetch, pull `--rebase --autostash` if behind, push |
 | `GET /api/prs`, `GET /api/prs/:n` | Data PRs; detail + base/head workspaces (needs `GITHUB_TOKEN`) |
 | `POST /api/prs/:n/merge`, `/review` | Merge (then pull locally), review |

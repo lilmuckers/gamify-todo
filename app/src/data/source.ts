@@ -3,6 +3,8 @@ import {
   type LevelAt,
   type Workspace,
   type HistoryCommit,
+  type CommitChanges,
+  type ScanProgress,
   type MergeMethod,
   type PullDetail,
   type PullSummary,
@@ -69,5 +71,7 @@ export interface DataSource {
   publish?(): Promise<string>;
   /** Commits that touched data/, newest first; only newer than `since` (ISO) when given. */
   history?(since?: string): Promise<HistoryCommit[]>;
+  /** Level files each data commit changed, oldest first, for the detailed stats scan. */
+  changes?(opts: { since?: string; onProgress?: (p: ScanProgress) => void }): Promise<CommitChanges[]>;
   status?(): Promise<LocalStatus>;
 }

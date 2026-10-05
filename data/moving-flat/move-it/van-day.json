@@ -1,0 +1,77 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "van-day",
+  "name": "Van day",
+  "deliverable": "Everything out of Canal Street and into Elm Road in one day",
+  "timeboxDays": 1,
+  "startedAt": "2025-04-12T13:14:00Z",
+  "clearedAt": "2025-04-13T11:58:00Z",
+  "successCriteria": [
+    {
+      "id": "old-flat-empty",
+      "mvp": true,
+      "text": "Old flat empty",
+      "done": true,
+      "doneAt": "2025-04-13T16:39:00Z"
+    },
+    {
+      "id": "everything-inside-the-new-one",
+      "mvp": true,
+      "text": "Everything inside the new one",
+      "done": true,
+      "doneAt": "2025-04-13T11:58:00Z"
+    },
+    {
+      "id": "keys-handed-back",
+      "mvp": false,
+      "text": "Keys handed back",
+      "done": true,
+      "doneAt": "2025-04-13T09:29:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "pick-up-the-van",
+      "title": "Pick up the van",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-12T13:24:00Z"
+    },
+    {
+      "id": "load-it",
+      "title": "Load it",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-12T13:24:00Z"
+    },
+    {
+      "id": "unload-it",
+      "title": "Unload it",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-12T14:31:00Z"
+    },
+    {
+      "id": "sofa-through-the-stairwell",
+      "title": "Sofa through the stairwell",
+      "type": "risk",
+      "status": "done",
+      "doneAt": "2025-04-13T11:38:00Z",
+      "notes": "It fitted. Just."
+    },
+    {
+      "id": "return-the-van",
+      "title": "Return the van",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-04-13T11:38:00Z"
+    },
+    {
+      "id": "moved-in",
+      "title": "Moved in",
+      "type": "deliverable",
+      "status": "done",
+      "doneAt": "2025-04-13T10:25:00Z"
+    }
+  ]
+}

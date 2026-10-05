@@ -33,7 +33,9 @@ import { heroStore, patchUiPrefs, reviewStore, uiPrefs, type ReviewPrefs } from 
 import { pullLookup, type PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { ProgressHistory } from './data/history';
+import { DeepHistory } from './data/deep-history';
 import { browserKV } from './data/kv';
+import { memoryKV } from './data/demo';
 import { currentRoute, href, routeProject, type Route } from './router';
 import { sceneShows, soundForOp } from './sound-events';
 import { playSummary } from './ui/play-summary';
@@ -157,11 +159,16 @@ export class App {
 
   /** What the commit history adds to the stats: work done and later undone. */
   progress: ProgressHistory;
+  /** The detailed stats' scan of every data commit (run when the page opens). */
+  deep: DeepHistory;
 
   constructor(public store: Store) {
     store.subscribe(() => this.emit(this.storeChange()));
-    this.progress = new ProgressHistory(store.source, browserKV(), () => this.emit());
+    // The demo saves nothing, its history caches included.
+    const kv = store.source.id === 'demo' ? memoryKV() : browserKV();
+    this.progress = new ProgressHistory(store.source, kv, () => this.emit());
     void this.progress.init();
+    this.deep = new DeepHistory(store.source, kv, () => this.emit());
     window.addEventListener('hashchange', () => {
       this.route = currentRoute();
       this.selection = selectionFrom(this.route);
@@ -378,6 +385,7 @@ export class App {
     if (r.view === 'prs') void this.loadPulls();
     // Looking at stats: catch up with commits made elsewhere, at most once a minute.
     if (r.pad === 'stats') void this.progress.refresh(60_000);
+    if (r.view === 'records') void this.deep.scan();
     if (r.view === 'pr' || r.view === 'pr-level') void this.loadPull(r.pr);
     // Not PR review: that's someone else's change, not where you were playing.
     if ((r.view === 'overworld' || r.view === 'world' || r.view === 'level') && uiPrefs().lastProject !== r.projectId)
