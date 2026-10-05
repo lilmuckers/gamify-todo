@@ -1,0 +1,15 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "find-it",
+  "name": "Find It",
+  "description": "Budget, viewings, offer.",
+  "theme": "water",
+  "goalIds": [
+    "move-by-the-end-of-april"
+  ],
+  "levelOrder": [
+    "set-the-budget",
+    "do-the-viewings",
+    "get-the-flat"
+  ]
+}

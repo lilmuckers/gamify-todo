@@ -32,7 +32,7 @@
       "title": "Powder coat or wet paint",
       "type": "decision",
       "status": "done",
-      "doneAt": "2026-09-27T18:31:00Z",
+      "doneAt": "2026-09-03T10:11:00Z",
       "notes": "Powder coat: tougher, and the local shop does frames for £120."
     },
     {
@@ -48,7 +48,7 @@
       "title": "Drop the frame at the powder coater",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-03T10:11:00Z"
+      "doneAt": "2026-09-27T18:31:00Z"
     },
     {
       "id": "coater",
@@ -62,14 +62,14 @@
           "title": "Strip the old paint",
           "type": "task",
           "status": "done",
-          "doneAt": "2026-09-27T08:57:00Z"
+          "doneAt": "2026-09-14T10:26:00Z"
         },
         {
           "id": "mask-threads",
           "title": "Mask threads and bearing seats",
           "type": "task",
           "status": "done",
-          "doneAt": "2026-09-14T10:26:00Z",
+          "doneAt": "2026-09-17T10:40:00Z",
           "dependsOn": [
             "strip-old-paint"
           ]
@@ -79,7 +79,7 @@
           "title": "Drop the frame at the coater",
           "type": "task",
           "status": "done",
-          "doneAt": "2026-09-17T10:40:00Z",
+          "doneAt": "2026-09-20T12:21:00Z",
           "dependsOn": [
             "mask-threads"
           ]
@@ -89,7 +89,7 @@
           "title": "Chase at the end of week two",
           "type": "task",
           "status": "done",
-          "doneAt": "2026-09-20T12:21:00Z",
+          "doneAt": "2026-09-27T08:57:00Z",
           "dependsOn": [
             "drop-off"
           ]

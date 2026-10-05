@@ -253,6 +253,7 @@ export function reviewSheet(app: App): (Node | null | false | undefined)[] {
       'shipped',
       [...shipped.levels.map(shippedLevel), ...shipped.items.map(shippedItem)],
       'Nothing shipped yet this week. Small is fine: what’s the smallest thing you could finish?',
+      h('p', { class: 'pad-where review-stats' }, h('a', { class: 'pad-link', href: href({ ...app.route, pad: 'stats' }) }, 'See your streak and history →')),
     ),
     section(
       'OVERDUE!!',

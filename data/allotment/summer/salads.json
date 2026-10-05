@@ -28,7 +28,7 @@
       "title": "Sow a row every three weeks",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-20T17:04:00Z",
+      "doneAt": "2026-06-24T12:13:00Z",
       "notes": "Calendar reminder, every third Saturday."
     },
     {
@@ -36,21 +36,21 @@
       "title": "Shade netting in July heat",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-23T09:38:00Z"
+      "doneAt": "2026-07-30T17:13:00Z"
     },
     {
       "id": "pick-outer-leaves-only",
       "title": "Pick outer leaves only",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-20T17:57:00Z"
+      "doneAt": "2026-08-20T17:04:00Z"
     },
     {
       "id": "bolting-in-the-heatwave",
       "title": "Bolting in the heatwave",
       "type": "risk",
       "status": "done",
-      "doneAt": "2026-07-30T17:13:00Z",
+      "doneAt": "2026-08-20T17:57:00Z",
       "notes": "Expected; resowed in partial shade."
     },
     {
@@ -58,7 +58,7 @@
       "title": "Swap surplus with the next-door plot",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-24T12:13:00Z"
+      "doneAt": "2026-08-23T09:38:00Z"
     }
   ]
 }

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "do-the-viewings",
+  "name": "Do the viewings",
+  "deliverable": "A shortlist of two flats worth an offer",
+  "timeboxDays": 17,
+  "startedAt": "2025-01-25T14:13:00Z",
+  "clearedAt": "2025-02-11T20:07:00Z",
+  "successCriteria": [
+    {
+      "id": "seen-at-least-six-flats",
+      "mvp": true,
+      "text": "Seen at least six flats",
+      "done": true,
+      "doneAt": "2025-02-10T19:44:00Z"
+    },
+    {
+      "id": "shortlist-of-two",
+      "mvp": true,
+      "text": "Shortlist of two",
+      "done": true,
+      "doneAt": "2025-02-11T20:07:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "set-alerts-on-two-sites",
+      "title": "Set alerts on two sites",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-27T20:30:00Z"
+    },
+    {
+      "id": "view-elm-road",
+      "title": "View Elm Road",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-29T08:17:00Z"
+    },
+    {
+      "id": "view-mill-lane",
+      "title": "View Mill Lane",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-01T11:37:00Z"
+    },
+    {
+      "id": "view-four-more",
+      "title": "View four more",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-04T19:58:00Z"
+    },
+    {
+      "id": "flats-going-in-a-day",
+      "title": "Flats going in a day",
+      "type": "risk",
+      "status": "done",
+      "doneAt": "2025-02-06T07:25:00Z",
+      "notes": "Viewed same day, offer ready."
+    },
+    {
+      "id": "second-viewing-at-elm-road",
+      "title": "Second viewing at Elm Road",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-09T12:31:00Z"
+    }
+  ],
+  "stats": {
+    "timeboxExtendedDays": 3
+  }
+}

@@ -100,6 +100,8 @@ export function routeType(route: Route): string {
       return route.subId ? '/sub-level' : '/level';
     case 'prs':
       return '/warp-zone';
+    case 'records':
+      return '/records';
     case 'pr':
       return '/pr';
     case 'pr-level':

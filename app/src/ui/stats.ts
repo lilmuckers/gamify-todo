@@ -1,33 +1,20 @@
 import { calibration, HISTORY_WEEKS, progressStats, type HeatCell, type ProgressStats, type TimeboxStats } from '@quest/shared';
 import type { App } from '../app';
+import { href } from '../router';
 import { h, icon } from './dom';
 
 const SVG = 'http://www.w3.org/2000/svg';
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-const date = (day: string, opts: Intl.DateTimeFormatOptions) => new Date(`${day}T12:00:00`).toLocaleDateString('en-GB', opts);
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+export const date = (day: string, opts: Intl.DateTimeFormatOptions) =>
+  new Date(day.length === 10 ? `${day}T12:00:00` : day).toLocaleDateString('en-GB', opts);
 /** "12", "2.5": days without a long tail of decimals. */
-const days = (n: number) => String(Math.round(n * 10) / 10);
+export const days = (n: number) => String(Math.round(n * 10) / 10);
 
-function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number>, ...children: Node[]) {
+export function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number>, ...children: Node[]) {
   const el = document.createElementNS(SVG, tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
   el.append(...children);
   return el;
-}
-
-function streakBlock(s: ProgressStats, source: string) {
-  const { current, longest } = s.streak;
-  const hint = streakHint(s.streak);
-  return h(
-    'section',
-    { class: 'pad-section stats-streak' },
-    icon(current ? 'flame' : 'flame-out', 'grass', 'stats-flame'),
-    h('div', { class: 'stats-big' }, h('b', null, current), current === 1 ? ' day in a row' : ' days in a row'),
-    h('div', { class: 'pad-where' }, `best: ${plural(longest, 'day')} · ${plural(s.total, 'thing')} done in all`),
-    s.undone > 0 && h('div', { class: 'pad-where' }, `${s.undone} of them reopened later: still counted`),
-    h('p', { class: 'pad-where stats-hint' }, hint),
-    h('p', { class: 'pad-where stats-source' }, source),
-  );
 }
 
 function cellTitle(c: HeatCell) {
@@ -39,9 +26,12 @@ function cellTitle(c: HeatCell) {
   return `${when}: ${parts.join(', ')}`;
 }
 
-/** The progress calendar: one column per week, Monday at the top, darker for busier days. */
-function heatGrid(s: ProgressStats): HTMLElement[] {
-  const cols = s.heatmap;
+/**
+ * The progress calendar: one column per week, Monday at the top, brighter
+ * for busier days. With `onDay`, each day is a button that shows what
+ * happened on it.
+ */
+export function heatGrid(cols: HeatCell[][], opts: { label: string; onDay?: (day: string) => void; selected?: string }): HTMLElement[] {
   const active = cols.flat().filter((c) => c.count > 0).length;
   const starts = cols.map((col) => col.find((c) => c.day.endsWith('-01')));
   const months = cols.map((col, i) => {
@@ -50,20 +40,23 @@ function heatGrid(s: ProgressStats): HTMLElement[] {
     return h('span', null, first ? date(first.day, { month: 'short' }) : '');
   });
   const rows = ['M', '', 'W', '', 'F', '', ''].map((l) => h('span', { class: 'stats-day' }, l));
+  const cell = (c: HeatCell) => {
+    const cls = `heat h${c.heat}${c.future ? ' future' : ''}${c.cleared ? ' clear' : ''}${opts.selected === c.day ? ' picked' : ''}`;
+    if (!opts.onDay || c.future) return h('span', { class: cls, title: cellTitle(c) });
+    return h('button', { class: cls, type: 'button', title: cellTitle(c), 'aria-label': cellTitle(c), onclick: () => opts.onDay!(c.day) });
+  };
   return [
     h('div', { class: 'stats-months', 'aria-hidden': 'true', style: `--weeks:${cols.length}` }, h('span'), months),
     h(
       'div',
       {
         class: 'stats-heat',
-        role: 'img',
-        'aria-label': `${plural(active, 'day')} with progress in the last ${HISTORY_WEEKS} weeks`,
+        role: opts.onDay ? 'group' : 'img',
+        'aria-label': `${plural(active, 'day')} with progress ${opts.label}`,
         style: `--weeks:${cols.length}`,
       },
       rows,
-      cols.flat().map((c) =>
-        h('span', { class: `heat h${c.heat}${c.future ? ' future' : ''}${c.cleared ? ' clear' : ''}`, title: cellTitle(c) }),
-      ),
+      cols.flat().map(cell),
     ),
     h(
       'div',
@@ -73,12 +66,9 @@ function heatGrid(s: ProgressStats): HTMLElement[] {
       ' more · ',
       h('span', { class: 'heat h2 clear' }),
       ' level cleared',
+      opts.onDay ? ' · pick a day to see what happened' : '',
     ),
   ];
-}
-
-function heatBlock(s: ProgressStats) {
-  return h('section', { class: 'pad-section stats-cal' }, h('h3', null, `LAST ${HISTORY_WEEKS} WEEKS`), heatGrid(s));
 }
 
 const ADVICE: Record<NonNullable<ReturnType<typeof calibration>>, string> = {
@@ -87,12 +77,12 @@ const ADVICE: Record<NonNullable<ReturnType<typeof calibration>>, string> = {
   late: 'Levels usually take longer than planned. Pick smaller deliverables, or give them bigger boxes.',
 };
 
-const advice = (t: TimeboxStats) => {
+export const advice = (t: TimeboxStats) => {
   const verdict = calibration(t);
   return verdict ? ADVICE[verdict] : t.cleared ? 'Start and clear a level to see how your time-boxes hold up.' : 'Clear a level to see how your time-boxes hold up.';
 };
 
-const streakHint = ({ current, longest, today }: ProgressStats['streak']) =>
+export const streakHint = ({ current, longest, today }: ProgressStats['streak']) =>
   !longest
     ? 'Finish anything today to start a streak.'
     : !current
@@ -101,48 +91,11 @@ const streakHint = ({ current, longest, today }: ProgressStats['streak']) =>
         ? 'Safe for today. Nice.'
         : 'Tick one thing today to keep it going.';
 
-/** Stars and time-box accuracy over every cleared level, to calibrate the next estimate. */
-function timeboxBlock(t: TimeboxStats) {
-  const lines: (HTMLElement | false)[] = [];
-  const line = (...children: (Node | string)[]) => h('li', { class: 'pad-line' }, ...children);
-  if (t.cleared)
-    lines.push(
-      line(
-        h('b', null, plural(t.cleared, 'level')),
-        ' cleared',
-        h('span', { class: 'pad-where' }, `★ ${t.avgStars!.toFixed(1)} on average`),
-      ),
-    );
-  if (t.timed) {
-    lines.push(
-      line(h('b', null, `${Math.round(t.inTimeRate! * 100)}%`), ' cleared in time', h('span', { class: 'pad-where' }, `${t.inTime} of ${t.timed}`)),
-      line(
-        'typically ',
-        h('b', null, `${days(t.medianDays!)} days`),
-        ` against a ${days(t.medianTimebox!)}-day box`,
-        h('span', { class: 'pad-where' }, `×${t.medianRatio!.toFixed(2)}`),
-      ),
-    );
-  }
-  const verdict = calibration(t);
-  return h(
-    'section',
-    { class: 'pad-section stats-timebox' },
-    h('h3', null, 'TIME-BOXES'),
-    lines.length ? h('ul', null, lines) : null,
-    h(
-      'p',
-      { class: `pad-where stats-hint${verdict === 'late' ? ' late' : ''}` },
-      advice(t),
-    ),
-  );
-}
-
 /** Weekly XP as bars, with the running total drawn over them. */
-function xpChart(s: ProgressStats): SVGSVGElement | null {
-  const { weeks, total } = s.xp;
+export function xpChart(xp: ProgressStats['xp'], label = `${HISTORY_WEEKS} weeks`): SVGSVGElement | null {
+  const { weeks, total } = xp;
   if (!total) return null;
-  const gained = total - s.xp.before;
+  const gained = total - xp.before;
   const W = 200;
   const H = 64;
   const step = W / weeks.length;
@@ -150,30 +103,24 @@ function xpChart(s: ProgressStats): SVGSVGElement | null {
   const lo = weeks[0]?.total ?? 0;
   const span = Math.max(1, total - lo);
   const y = (v: number) => H - 4 - ((v - lo) / span) * (H - 10);
-  const label = (w: (typeof weeks)[number]) =>
-    `Week of ${date(w.week, { day: 'numeric', month: 'short' })}: +${w.gained} XP (${w.total} total)`;
-  const chart = svg(
+  const tip = (w: (typeof weeks)[number]) => `Week of ${date(w.week, { day: 'numeric', month: 'short' })}: +${w.gained} XP (${w.total} total)`;
+  return svg(
     'svg',
-    { viewBox: `0 0 ${W} ${H}`, class: 'stats-xp', role: 'img', 'aria-label': `${gained} XP earned in the last ${HISTORY_WEEKS} weeks, ${total} in all` },
+    { viewBox: `0 0 ${W} ${H}`, class: 'stats-xp', role: 'img', 'aria-label': `${gained} XP earned in the last ${label}, ${total} in all` },
     ...weeks.map((w, i) => {
       const bh = (w.gained / maxBar) * (H * 0.6);
-      return svg('rect', { class: 'xp-bar', x: i * step + 1.5, y: H - bh, width: step - 3, height: bh }, svg('title', {}, document.createTextNode(label(w))));
+      return svg('rect', { class: 'xp-bar', x: i * step + step * 0.08, y: H - bh, width: step * 0.84, height: bh }, svg('title', {}, document.createTextNode(tip(w))));
     }),
     svg('line', { class: 'xp-base', x1: 0, y1: H - 0.5, x2: W, y2: H - 0.5 }),
     svg('polyline', { class: 'xp-line', points: weeks.map((w, i) => `${(i + 0.5) * step},${y(w.total)}`).join(' ') }),
   );
-  return chart;
 }
 
 const xpNote = (s: ProgressStats) =>
   s.xp.total ? `+${s.xp.total - s.xp.before} XP in ${HISTORY_WEEKS} weeks · ${s.xp.total} XP in all` : 'XP comes from clearing levels. Your first one will show up here.';
 
-function xpBlock(s: ProgressStats) {
-  return h('section', { class: 'pad-section stats-xp-block' }, h('h3', null, 'XP OVER TIME'), xpChart(s), h('div', { class: 'pad-where' }, xpNote(s)));
-}
-
 /** Where the numbers come from: stamps alone, or with the commit history (and how fresh it is). */
-function sourceNote(app: App): string {
+export function sourceNote(app: App): string {
   const p = app.progress;
   if (!p.available) return 'From the done dates in your data.';
   if (p.status === 'loading') return 'From the done dates in your data. Reading the commit history…';
@@ -183,43 +130,23 @@ function sourceNote(app: App): string {
 }
 
 /**
- * The long view, on blue graph paper: the current streak, a calendar of
- * days with progress, how time-boxes have held up, and XP over time. It
- * comes from the done stamps in the data plus the cached commit history,
- * so it works offline.
+ * Stats as an arcade records screen held over whatever is showing: the
+ * streak and totals, the last 20 weeks, time-boxes beside XP, and the way
+ * into the detailed page. It comes from the done stamps in the data plus
+ * the cached commit history, so it works offline.
  */
-export function statsSheet(app: App): (Node | null | false | undefined)[] {
-  const ws = app.workspace;
-  if (!ws) return [h('h2', { class: 'pad-title' }, 'STATS'), h('p', { class: 'pad-empty' }, 'Loading…')];
-  const now = Date.now();
-  const s = progressStats(ws, now, HISTORY_WEEKS, app.progress.events);
-  return [
-    h('div', { class: 'pad-date' }, new Date(now).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })),
-    h('h2', { class: 'pad-title' }, 'STATS'),
-    h('div', { class: 'pad-sub' }, 'small steps add up'),
-    streakBlock(s, sourceNote(app)),
-    heatBlock(s),
-    timeboxBlock(s.timebox),
-    xpBlock(s),
-  ];
-}
-
-/**
- * Layout trial (#28): `?stats=screen` shows stats as a full screen in the
- * game's own arcade style instead of a pad page, to compare the two.
- */
-export function statsAsScreen(): boolean {
-  return new URLSearchParams(location.search).get('stats') === 'screen';
-}
-
-/** The same numbers as an arcade records screen: tiles, a big calendar, then time-boxes beside XP. */
 export function statsScreen(app: App, onClose: () => void): HTMLElement {
   const ws = app.workspace;
   const head = h(
     'header',
     { class: 'ss-head' },
     h('h2', null, 'RECORDS'),
-    h('button', { class: 'btn sm', type: 'button', title: 'Close (Esc)', onclick: onClose }, '✕ CLOSE'),
+    h(
+      'div',
+      { class: 'ss-head-acts' },
+      h('a', { class: 'btn sm ss-detailed', href: href({ view: 'records' }), title: 'Everything: the last year, rhythm, scope, every time-box' }, 'DETAILED STATS ▶'),
+      h('button', { class: 'btn sm', type: 'button', title: 'Close (Esc)', onclick: onClose }, '✕ CLOSE'),
+    ),
   );
   const region = { class: 'stats-screen', role: 'region', 'aria-label': 'Stats: streaks and history' };
   if (!ws) return h('div', region, head, h('p', null, 'Loading…'));
@@ -240,7 +167,7 @@ export function statsScreen(app: App, onClose: () => void): HTMLElement {
       tile(String(s.xp.total), 'XP'),
     ),
     h('p', { class: 'ss-note' }, streakHint(s.streak), s.undone ? ` ${s.undone} reopened later, still counted.` : ''),
-    h('section', { class: 'ss-box ss-cal' }, h('h3', null, `LAST ${HISTORY_WEEKS} WEEKS`), heatGrid(s)),
+    h('section', { class: 'ss-box ss-cal' }, h('h3', null, `LAST ${HISTORY_WEEKS} WEEKS`), heatGrid(s.heatmap, { label: `in the last ${HISTORY_WEEKS} weeks` })),
     h(
       'div',
       { class: 'ss-cols' },
@@ -257,7 +184,7 @@ export function statsScreen(app: App, onClose: () => void): HTMLElement {
         ),
         h('p', { class: `ss-note${calibration(t) === 'late' ? ' late' : ''}` }, advice(t)),
       ),
-      h('section', { class: 'ss-box' }, h('h3', null, 'XP OVER TIME'), xpChart(s), h('p', { class: 'ss-note' }, xpNote(s))),
+      h('section', { class: 'ss-box' }, h('h3', null, 'XP OVER TIME'), xpChart(s.xp), h('p', { class: 'ss-note' }, xpNote(s))),
     ),
     h('p', { class: 'ss-note ss-source' }, sourceNote(app)),
   );

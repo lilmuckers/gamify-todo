@@ -1,0 +1,61 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "make-a-sowing-plan",
+  "name": "Make a sowing plan",
+  "deliverable": "One page: what goes where, and when",
+  "timeboxDays": 5,
+  "startedAt": "2025-02-01T13:07:00Z",
+  "clearedAt": "2025-02-05T08:45:00Z",
+  "successCriteria": [
+    {
+      "id": "plan-fits-on-one-page",
+      "mvp": true,
+      "text": "Plan fits on one page",
+      "done": true,
+      "doneAt": "2025-02-04T18:31:00Z"
+    },
+    {
+      "id": "every-crop-has-a-sowing-month",
+      "mvp": true,
+      "text": "Every crop has a sowing month",
+      "done": true,
+      "doneAt": "2025-02-05T08:45:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "which-ten-crops",
+      "title": "Which ten crops?",
+      "type": "decision",
+      "status": "done",
+      "doneAt": "2025-02-02T12:09:00Z",
+      "notes": "The ones we buy every week."
+    },
+    {
+      "id": "draw-the-bed-map",
+      "title": "Draw the bed map",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-03T20:34:00Z"
+    },
+    {
+      "id": "order-seeds",
+      "title": "Order seeds",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-04T19:35:00Z"
+    },
+    {
+      "id": "grow-23-things-instead-of-ten",
+      "title": "Grow 23 things instead of ten",
+      "type": "task",
+      "status": "dropped"
+    }
+  ],
+  "stats": {
+    "editsAfterClear": 2,
+    "itemEdits": {
+      "draw-the-bed-map": 5
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/world.schema.json",
+  "id": "lessons",
+  "name": "Lessons",
+  "description": "Put it to bed and write down what we learned.",
+  "theme": "sky",
+  "goalIds": [
+    "keep-the-plot-after-the-first-inspection"
+  ],
+  "unlocksAfter": [
+    "summer-glut"
+  ],
+  "levelOrder": [
+    "clear-down-for-winter",
+    "write-the-year-two-plan"
+  ]
+}

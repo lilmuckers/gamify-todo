@@ -214,7 +214,7 @@ export abstract class QuestScene extends Phaser.Scene {
 
   /** Re-render on app changes until the scene shuts down (sync status alone shows nowhere in the game). */
   protected watch(fn: () => void) {
-    this.unsub = this.app.subscribe((change) => change !== 'sync' && fn());
+    this.unsub = this.app.subscribe((change) => change === 'all' && fn());
     this.events.once('shutdown', () => this.unsub?.());
   }
 

@@ -1,5 +1,5 @@
 import { fromFiles, GitHubClient, GitHubError, type RepoRef, type TokenProvider } from '@quest/shared';
-import type { DataSource, Loaded, PullData } from './source';
+import type { DataSource, HistoryRange, Loaded, PullData } from './source';
 
 /**
  * Browser-only GitHub mode: a token from localStorage (pasted, or a refreshing sign-in), reads and atomic commits
@@ -64,6 +64,10 @@ export class GitHubSource implements DataSource {
 
   history(since?: string) {
     return this.client.dataCommits(since);
+  }
+
+  changesPage(range: HistoryRange) {
+    return this.client.dataChangesPage(range);
   }
 
   pulls = {

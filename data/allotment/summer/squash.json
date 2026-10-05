@@ -28,7 +28,7 @@
       "title": "Plant out on the compost-heap bed",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-15T09:45:00Z"
+      "doneAt": "2026-06-01T10:41:00Z"
     },
     {
       "id": "mulch-with-grass-clippings",
@@ -42,7 +42,7 @@
       "title": "Pick courgettes small and often",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-12T15:13:00Z"
+      "doneAt": "2026-06-15T09:45:00Z"
     },
     {
       "id": "cure-the-squash-in-the-sun",
@@ -57,7 +57,7 @@
       "title": "Powdery mildew",
       "type": "risk",
       "status": "done",
-      "doneAt": "2026-06-01T10:41:00Z",
+      "doneAt": "2026-07-25T17:05:00Z",
       "notes": "Late August; did not matter by then."
     },
     {
@@ -65,7 +65,7 @@
       "title": "Two courgette plants or three",
       "type": "decision",
       "status": "done",
-      "doneAt": "2026-07-25T17:05:00Z",
+      "doneAt": "2026-08-12T15:13:00Z",
       "notes": "Two. Last year three was a nightmare."
     }
   ]

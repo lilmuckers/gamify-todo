@@ -1,0 +1,94 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "dig-four-beds",
+  "name": "Dig four beds",
+  "deliverable": "Four beds dug, edged and manured",
+  "timeboxDays": 26,
+  "startedAt": "2025-01-11T15:44:00Z",
+  "clearedAt": "2025-02-07T19:06:00Z",
+  "successCriteria": [
+    {
+      "id": "four-beds-dug-over",
+      "mvp": true,
+      "text": "Four beds dug over",
+      "done": true,
+      "doneAt": "2025-02-03T21:22:00Z"
+    },
+    {
+      "id": "manure-on-every-bed",
+      "mvp": true,
+      "text": "Manure on every bed",
+      "done": true,
+      "doneAt": "2025-02-07T19:06:00Z"
+    },
+    {
+      "id": "paths-between-them",
+      "mvp": false,
+      "text": "Paths between them",
+      "done": true,
+      "doneAt": "2025-02-05T19:37:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "mark-out-the-beds-with-string",
+      "title": "Mark out the beds with string",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-14T21:25:00Z"
+    },
+    {
+      "id": "dig-bed-1",
+      "title": "Dig bed 1",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-17T21:30:00Z"
+    },
+    {
+      "id": "dig-bed-2",
+      "title": "Dig bed 2",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-20T21:21:00Z"
+    },
+    {
+      "id": "dig-bed-3",
+      "title": "Dig bed 3",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-22T07:48:00Z"
+    },
+    {
+      "id": "dig-bed-4",
+      "title": "Dig bed 4",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-01-26T12:52:00Z"
+    },
+    {
+      "id": "manure-from-the-stables",
+      "title": "Manure from the stables",
+      "type": "dependency",
+      "status": "done",
+      "doneAt": "2025-01-28T07:04:00Z"
+    },
+    {
+      "id": "edge-with-boards",
+      "title": "Edge with boards",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-02-01T11:40:00Z",
+      "mvp": false
+    },
+    {
+      "id": "woodchip-paths",
+      "title": "Woodchip paths",
+      "type": "stretch",
+      "status": "done",
+      "doneAt": "2025-02-04T18:27:00Z"
+    }
+  ],
+  "stats": {
+    "timeboxExtendedDays": 5
+  }
+}

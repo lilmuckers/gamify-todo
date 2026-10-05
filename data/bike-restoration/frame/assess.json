@@ -28,7 +28,7 @@
       "title": "Check frame alignment with string",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-15T08:31:00Z",
+      "doneAt": "2026-06-14T15:53:00Z",
       "notes": "Rear triangle 2mm out; within tolerance."
     },
     {
@@ -36,7 +36,7 @@
       "title": "Inspect the lugs for cracks",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-15T17:04:00Z",
+      "doneAt": "2026-06-15T08:31:00Z",
       "notes": "Torch and magnifier. Clean."
     },
     {
@@ -44,7 +44,7 @@
       "title": "Check the inside of the tubes for rust",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-06-18T09:04:00Z",
+      "doneAt": "2026-06-15T17:04:00Z",
       "notes": "Surface rust only in the seat tube."
     },
     {
@@ -59,7 +59,7 @@
       "title": "Keep this frame or buy another",
       "type": "decision",
       "status": "done",
-      "doneAt": "2026-06-14T15:53:00Z",
+      "doneAt": "2026-06-17T17:16:00Z",
       "notes": "Keep it. It is the whole point."
     },
     {
@@ -67,7 +67,7 @@
       "title": "Bottom-bracket shell threads damaged",
       "type": "risk",
       "status": "done",
-      "doneAt": "2026-06-17T17:16:00Z",
+      "doneAt": "2026-06-18T09:04:00Z",
       "notes": "Threads are fine after cleaning."
     }
   ]

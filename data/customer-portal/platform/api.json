@@ -56,21 +56,21 @@
       "title": "Billing API adapter",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-08-10T16:50:00Z"
+      "doneAt": "2026-07-27T13:54:00Z"
     },
     {
       "id": "metering-api-adapter",
       "title": "Metering API adapter",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-07-27T13:54:00Z"
+      "doneAt": "2026-08-10T16:50:00Z"
     },
     {
       "id": "crm-api-adapter",
       "title": "CRM API adapter",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-23T17:21:00Z"
+      "doneAt": "2026-09-04T11:51:00Z"
     },
     {
       "id": "response-caching-for-bill-history",
@@ -84,7 +84,7 @@
       "title": "Contract tests in CI",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-25T13:07:00Z",
+      "doneAt": "2026-09-23T13:23:00Z",
       "notes": "Billing and metering done; CRM blocked on its test environment."
     },
     {
@@ -92,7 +92,7 @@
       "title": "CRM test environment unavailable",
       "type": "blocker",
       "status": "done",
-      "doneAt": "2026-09-24T09:23:00Z",
+      "doneAt": "2026-09-23T17:21:00Z",
       "link": "https://github.com/acme-utilities/portal/issues/57",
       "notes": "CRM team says next sprint."
     },
@@ -101,14 +101,14 @@
       "title": "Circuit breaker on the billing adapter",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-04T11:51:00Z"
+      "doneAt": "2026-09-24T09:23:00Z"
     },
     {
       "id": "billing-system-slow-at-month-end",
       "title": "Billing system slow at month end",
       "type": "risk",
       "status": "done",
-      "doneAt": "2026-09-23T13:23:00Z",
+      "doneAt": "2026-09-25T13:07:00Z",
       "notes": "Cached bill history; month-end load test showed p95 of 310ms."
     }
   ]

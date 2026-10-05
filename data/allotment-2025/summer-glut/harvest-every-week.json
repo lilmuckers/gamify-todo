@@ -1,0 +1,77 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "harvest-every-week",
+  "name": "Harvest every week",
+  "deliverable": "Something picked every week in July and August",
+  "timeboxDays": 63,
+  "startedAt": "2025-07-01T08:29:00Z",
+  "clearedAt": "2025-08-31T13:10:00Z",
+  "successCriteria": [
+    {
+      "id": "picked-something-8-weeks-running",
+      "mvp": true,
+      "text": "Picked something 8 weeks running",
+      "done": true,
+      "doneAt": "2025-08-19T08:30:00Z"
+    },
+    {
+      "id": "gave-away-the-courgettes",
+      "mvp": true,
+      "text": "Gave away the courgettes",
+      "done": true,
+      "doneAt": "2025-08-31T13:10:00Z"
+    },
+    {
+      "id": "made-chutney",
+      "mvp": false,
+      "text": "Made chutney",
+      "done": false
+    }
+  ],
+  "items": [
+    {
+      "id": "beans-every-few-days",
+      "title": "Beans every few days",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-07-10T08:41:00Z"
+    },
+    {
+      "id": "courgettes-before-they-turn-to-marrows",
+      "title": "Courgettes before they turn to marrows",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-07-22T21:31:00Z"
+    },
+    {
+      "id": "lift-the-earlies",
+      "title": "Lift the earlies",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-08-02T16:26:00Z"
+    },
+    {
+      "id": "freeze-the-beans",
+      "title": "Freeze the beans",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-08-07T18:45:00Z"
+    },
+    {
+      "id": "swap-glut-with-the-neighbours",
+      "title": "Swap glut with the neighbours",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-08-22T07:49:00Z"
+    },
+    {
+      "id": "chutney",
+      "title": "Chutney",
+      "type": "stretch",
+      "status": "dropped"
+    }
+  ],
+  "stats": {
+    "timeboxExtendedDays": 7
+  }
+}

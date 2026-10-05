@@ -1,0 +1,63 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "pass-the-june-inspection",
+  "name": "Pass the June inspection",
+  "deliverable": "Committee sign-off in June",
+  "timeboxDays": 14,
+  "startedAt": "2025-06-01T10:21:00Z",
+  "clearedAt": "2025-06-14T15:38:00Z",
+  "successCriteria": [
+    {
+      "id": "inspection-passed",
+      "mvp": true,
+      "text": "Inspection passed",
+      "done": true,
+      "doneAt": "2025-06-14T15:38:00Z"
+    },
+    {
+      "id": "no-weeds-over-knee-height",
+      "mvp": false,
+      "text": "No weeds over knee height",
+      "done": true,
+      "doneAt": "2025-06-13T21:59:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "strim-the-edges",
+      "title": "Strim the edges",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-06-03T20:34:00Z"
+    },
+    {
+      "id": "weed-every-bed",
+      "title": "Weed every bed",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-06-05T07:41:00Z"
+    },
+    {
+      "id": "tidy-the-shed-corner",
+      "title": "Tidy the shed corner",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-06-07T11:37:00Z"
+    },
+    {
+      "id": "inspection-day",
+      "title": "Inspection day",
+      "type": "deliverable",
+      "status": "done",
+      "doneAt": "2025-06-10T20:16:00Z"
+    },
+    {
+      "id": "bindweed-in-bed-3",
+      "title": "Bindweed in bed 3",
+      "type": "risk",
+      "status": "done",
+      "doneAt": "2025-06-12T19:44:00Z",
+      "notes": "Pulled weekly, not won."
+    }
+  ]
+}

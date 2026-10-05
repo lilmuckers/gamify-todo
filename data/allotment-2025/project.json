@@ -1,0 +1,26 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/project.schema.json",
+  "id": "allotment-2025",
+  "title": "Allotment 2025",
+  "description": "Year one on plot 14B at Elm Lane. We took on a bramble patch with a shed and grew 23 things, most of them badly. Finished, kept the plot, and wrote down what to do differently.",
+  "goals": [
+    {
+      "id": "get-the-plot-workable-before-spring",
+      "title": "Get the plot workable before spring"
+    },
+    {
+      "id": "grow-ten-things-we-actually-eat",
+      "title": "Grow ten things we actually eat"
+    },
+    {
+      "id": "keep-the-plot-after-the-first-inspection",
+      "title": "Keep the plot after the first inspection"
+    }
+  ],
+  "worldOrder": [
+    "take-on",
+    "first-sowings",
+    "summer-glut",
+    "lessons"
+  ]
+}

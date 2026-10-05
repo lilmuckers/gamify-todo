@@ -11,6 +11,8 @@ import { WorldScene } from './world';
 function sceneFor(route: Route): { key: string; params: object } {
   switch (route.view) {
     case 'projects':
+    // Detailed stats is a DOM page over the game: keep the bedroom behind it.
+    case 'records':
       return { key: 'projects', params: {} };
     case 'prs':
       // Its own scene: reusing the project floor left it faded out after the boot sequence.
@@ -74,7 +76,7 @@ export function startGame(app: App, parent: HTMLElement) {
   };
   game.events.once('booted', () => {
     sync();
-    app.subscribe((change) => change !== 'sync' && sync());
+    app.subscribe((change) => change === 'all' && sync());
   });
   return game;
 }

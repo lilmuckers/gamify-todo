@@ -9,6 +9,7 @@ import {
   heatmap,
   heatOf,
   inverseOp,
+  isCleared,
   lastActivity,
   makeOp,
   progressEvents,
@@ -250,8 +251,12 @@ describe('the example data', () => {
     expect(s.streak.current).toBeGreaterThan(1);
     expect(s.streak.longest).toBeGreaterThanOrEqual(s.streak.current);
     expect(s.heatmap.flat().filter((c) => c.count > 0).length).toBeGreaterThan(60);
-    expect(s.timebox.cleared).toBe(30);
-    expect(s.timebox.timed).toBe(30);
+    expect(s.timebox.cleared).toBe(56);
+    expect(s.timebox.timed).toBe(56);
+    // Three finished games from 2024–2025, every level cleared.
+    const ws = fromFiles(files);
+    for (const id of ['allotment-2025', 'moving-flat', 'sourdough'])
+      expect(Object.values(ws.projects[id].worlds).flatMap((w) => w.levels).every(isCleared)).toBe(true);
     expect(s.timebox.inTimeRate).toBeGreaterThan(0);
     expect(s.timebox.inTimeRate).toBeLessThan(1);
     expect(s.xp.weeks.at(-1)!.total).toBe(s.xp.total);

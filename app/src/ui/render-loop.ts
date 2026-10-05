@@ -46,6 +46,8 @@ export function scheduler(app: App, panel: HTMLElement, render: () => HTMLElemen
     lastSel = sel;
   };
   const schedule = (change: Change = 'all') => {
+    // The background history build never repaints the HUD or panel.
+    if (change === 'history') return;
     if (change === 'all') full = true;
     if (queued) return;
     queued = true;

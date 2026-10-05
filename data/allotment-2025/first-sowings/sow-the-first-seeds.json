@@ -1,0 +1,70 @@
+{
+  "$schema": "https://tasks.patrick-mckinley.com/schema/level.schema.json",
+  "id": "sow-the-first-seeds",
+  "name": "Sow the first seeds",
+  "deliverable": "Onions, broad beans and peas in the ground",
+  "timeboxDays": 14,
+  "startedAt": "2025-03-08T13:44:00Z",
+  "clearedAt": "2025-03-20T07:38:00Z",
+  "successCriteria": [
+    {
+      "id": "onion-sets-planted",
+      "mvp": true,
+      "text": "Onion sets planted",
+      "done": true,
+      "doneAt": "2025-03-19T21:35:00Z"
+    },
+    {
+      "id": "broad-beans-in",
+      "mvp": true,
+      "text": "Broad beans in",
+      "done": true,
+      "doneAt": "2025-03-18T21:40:00Z"
+    },
+    {
+      "id": "peas-sown-under-fleece",
+      "mvp": true,
+      "text": "Peas sown under fleece",
+      "done": true,
+      "doneAt": "2025-03-20T07:38:00Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "plant-onion-sets",
+      "title": "Plant onion sets",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-09T09:32:00Z"
+    },
+    {
+      "id": "sow-broad-beans",
+      "title": "Sow broad beans",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-12T19:56:00Z"
+    },
+    {
+      "id": "sow-peas",
+      "title": "Sow peas",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-14T21:22:00Z"
+    },
+    {
+      "id": "pigeons",
+      "title": "Pigeons",
+      "type": "risk",
+      "status": "done",
+      "doneAt": "2025-03-16T10:57:00Z",
+      "notes": "Netting over the peas."
+    },
+    {
+      "id": "label-every-row",
+      "title": "Label every row",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2025-03-18T20:12:00Z"
+    }
+  ]
+}

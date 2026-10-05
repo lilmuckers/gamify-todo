@@ -11,5 +11,7 @@ export * from './today';
 export * from './review';
 export * from './stats';
 export * from './history';
+export * from './scan';
+export * from './detailed';
 export * from './oauth';
 export * from './budget';

@@ -1,6 +1,7 @@
-import { fromFiles } from '@quest/shared';
+import { fromFiles, type CommitChanges } from '@quest/shared';
+import { demoCommits, demoHistory } from './demo-history';
 import { TARGET } from '../config';
-import type { DataSource, Loaded } from './source';
+import type { DataSource, HistoryRange, Loaded } from './source';
 import { StaticSource } from './static';
 import type { KV } from './store';
 
@@ -30,6 +31,23 @@ export class DemoSource implements DataSource {
   async load(): Promise<Loaded> {
     this.files ??= await this.seed.loadFiles();
     return { state: fromFiles(this.files), version: `demo-${this.version}` };
+  }
+
+  /** A made-up history (the demo has no repo), so stats show what a real one would. */
+  async history(since?: string) {
+    const all = demoHistory(fromFiles(this.files ?? (await this.seed.loadFiles())));
+    return since ? all.filter((c) => c.date >= since) : all;
+  }
+
+  private built?: { files: Record<string, string>; commits: CommitChanges[] };
+
+  /** The same history for the detailed stats, a page at a time like a real repo (newest first). */
+  async changesPage(range: HistoryRange) {
+    const files = this.files ?? (await this.seed.loadFiles());
+    if (this.built?.files !== files) this.built = { files, commits: demoCommits(fromFiles(files)).reverse() };
+    const inRange = this.built.commits.filter((c) => (!range.since || c.date > range.since) && (!range.until || c.date <= range.until));
+    const commits = inRange.slice(0, range.limit);
+    return { commits, more: inRange.length > range.limit, oldest: commits.at(-1)?.date };
   }
 
   async commit(changes: Record<string, string | null>, _message: string, _base: string): Promise<string> {
