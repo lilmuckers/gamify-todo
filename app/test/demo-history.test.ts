@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { detailedStats, fromFiles, historyEvents, progressStats, scanChanges, stampEvents } from '@quest/shared';
-import { demoCommits, demoHistory, fakeScan } from '../src/data/demo-history';
+import { demoCommits, demoHistory } from '../src/data/demo-history';
 
 const root = join(__dirname, '../..');
 const files: Record<string, string> = {};
@@ -51,15 +51,5 @@ describe('the demo history', () => {
     expect(s.streak.longest).toBeGreaterThan(14);
     expect(s.projects.filter((p) => p.finished)).toHaveLength(3);
     expect(s.heatmap.flat().filter((c) => c.count > 0).length).toBeGreaterThan(150);
-  });
-
-  it('pretends to scan, with progress', async () => {
-    const seen: string[] = [];
-    const t = Date.now();
-    const got = await fakeScan(ws, (p) => seen.push(p.phase), 120);
-    expect(got).toEqual(commits);
-    expect(Date.now() - t).toBeGreaterThanOrEqual(100);
-    expect(seen[0]).toBe('reading');
-    expect(seen.at(-1)).toBe('comparing');
   });
 });

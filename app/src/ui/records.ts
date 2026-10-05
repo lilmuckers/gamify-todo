@@ -1,4 +1,4 @@
-import { calibration, dayLog, DETAILED_WEEKS, detailedStats, HERO_IDS, type HeroId, type ItemType, type LogLine } from '@quest/shared';
+import { calibration, dayLog, DETAILED_WEEKS, HERO_IDS, type DetailedStats, type HeroId, type ItemType, type LogLine } from '@quest/shared';
 import type { App } from '../app';
 import { heroKey } from '../sprites/heroes';
 import { href } from '../router';
@@ -18,11 +18,14 @@ const TYPE: Record<ItemType, [sprite: string, label: string]> = {
 const VERB: Record<LogLine['kind'], string> = { done: 'Done', ticked: 'Ticked', cleared: 'Cleared' };
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** The demo's pretend build on first open, so visitors see the heroes at work. */
+const DEMO_BUILD_MS = 1200;
 
 /**
- * Detailed stats (#/records): a full page over the game. Opening it scans
- * the history (the first time can take a while on GitHub, so heroes work
- * on something while a progress bar fills); after that it's cached.
+ * Detailed stats (#/records): a full page over the game. It opens at once
+ * with whatever history has been built so far (the builder works in the
+ * background from the first visit); while older history is still filling
+ * in, a strip at the top shows heroes at work and how far back it's got.
  */
 export function mountRecords(app: App, host: HTMLElement, opts: { onShow?: (shown: boolean) => void } = {}) {
   host.classList.add('records-host');
@@ -30,6 +33,11 @@ export function mountRecords(app: App, host: HTMLElement, opts: { onShow?: (show
   let queued = false;
   let day: string | undefined;
   let frames: ReturnType<typeof setInterval> | undefined;
+  let shown: { stats?: DetailedStats; day?: string; ws?: unknown } = {};
+  let pretend: number | undefined;
+  let pretended = false;
+  const strip = buildStrip(app);
+  const body = h('div');
 
   const render = () => {
     queued = false;
@@ -38,29 +46,46 @@ export function mountRecords(app: App, host: HTMLElement, opts: { onShow?: (show
     host.hidden = !show;
     if (!show) {
       day = undefined;
+      shown = {};
       stopFrames();
       host.replaceChildren();
       return;
     }
-    const deep = app.deep;
-    const scanning = deep.status === 'scanning' || (deep.available && deep.status === 'idle');
-    const scroll = host.scrollTop;
-    if (scanning) {
-      const wasLoading = !!host.querySelector('.ds-load');
-      // Keep the stage (and its animations) and update the bar in place.
-      if (wasLoading) updateLoading(host, app);
-      else host.replaceChildren(loading(app));
-      startFrames();
+    if (!host.contains(body)) host.replaceChildren(h('div', { class: 'records-page' }, strip, body));
+    // The demo has its history ready-made; the first open pretends to build it for a moment.
+    if (app.store.source.id === 'demo' && !pretended) {
+      pretended = true;
+      pretend = Date.now();
+      const tick = () => {
+        schedule();
+        if (pretend && Date.now() - pretend < DEMO_BUILD_MS) setTimeout(tick, 60);
+        else pretend = undefined;
+      };
+      tick();
+    }
+    const building = updateStrip(strip, app, pretend);
+    if (building) startFrames();
+    else stopFrames();
+
+    const ws = app.workspace;
+    const stats = ws && app.history.statsFor(ws, app.progress.events);
+    // Only redraw the page itself when its numbers (or the picked day) change.
+    if (shown.stats === stats && shown.day === day && shown.ws === ws && body.childElementCount) {
+      const note = body.querySelector('.ds-scan-note');
+      if (note) note.textContent = scanNote(app);
       return;
     }
-    stopFrames();
-    const scrolled = host.querySelector('.ds-cal-scroll')?.scrollLeft;
-    host.replaceChildren(page(app, day, (d) => {
-      day = day === d ? undefined : d;
-      schedule();
-    }));
+    shown = { stats, day, ws };
+    const scroll = host.scrollTop;
+    const scrolled = body.querySelector('.ds-cal-scroll')?.scrollLeft;
+    body.replaceChildren(
+      page(app, stats, day, (d) => {
+        day = day === d ? undefined : d;
+        schedule();
+      }),
+    );
     host.scrollTop = scroll;
-    const cal = host.querySelector('.ds-cal-scroll');
+    const cal = body.querySelector('.ds-cal-scroll');
     if (cal) cal.scrollLeft = scrolled ?? cal.scrollWidth;
   };
 
@@ -69,7 +94,7 @@ export function mountRecords(app: App, host: HTMLElement, opts: { onShow?: (show
     let t = 0;
     frames = setInterval(() => {
       t++;
-      for (const img of host.querySelectorAll<HTMLImageElement>('.ds-hero')) {
+      for (const img of strip.querySelectorAll<HTMLImageElement>('.ds-hero')) {
         const bump = img.parentElement!.classList.contains('bump');
         const frame = bump ? (t % 4 < 2 ? 'jump' : 'stand') : t % 2 ? 'walk' : 'stand';
         img.src = icon(heroKey(img.dataset.hero as HeroId, frame)).src;
@@ -90,7 +115,7 @@ export function mountRecords(app: App, host: HTMLElement, opts: { onShow?: (show
   render();
 }
 
-// ---------- Scanning: heroes at work ----------
+// ---------- Building: heroes at work ----------
 
 /** Three heroes for the stage: yours, and two others picked by the day. */
 function crew(app: App): HeroId[] {
@@ -99,16 +124,14 @@ function crew(app: App): HeroId[] {
   return [app.heroId, all[seed % all.length], all[(seed * 7 + 3) % all.length]];
 }
 
-const PHASE: Record<string, string> = { reading: 'Reading commits', comparing: 'Comparing what each one changed', adding: 'Adding it all up' };
-
-function loading(app: App): HTMLElement {
+/** The strip at the top of the page while history is being built. Made once, updated in place. */
+function buildStrip(app: App): HTMLElement {
   const [a, b, c] = crew(app);
   const hero = (id: HeroId) => h('img', { class: 'ds-hero pixel', 'data-hero': id, src: icon(heroKey(id)).src, alt: '' });
   const prop = (name: string, cls: string) => h('img', { class: `${cls} pixel`, src: icon(name).src, alt: '' });
   return h(
-    'div',
-    { class: 'records-page ds-load', role: 'status', 'aria-live': 'polite' },
-    h('h1', null, 'SCANNING YOUR HISTORY'),
+    'section',
+    { class: 'ds-build', role: 'status', 'aria-live': 'polite', hidden: true },
     h(
       'div',
       { class: 'ds-stage', 'aria-hidden': 'true' },
@@ -117,36 +140,53 @@ function loading(app: App): HTMLElement {
       h('div', { class: 'ds-worker stack' }, h('div', { class: 'ds-pile' }, prop('brick', ''), prop('brick', ''), prop('brick', '')), hero(c)),
       h('div', { class: 'ds-ground' }),
     ),
-    h('div', { class: 'ds-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i')),
-    h('div', { class: 'ds-bar-note' }),
-    h('ol', { class: 'ds-steps' }, Object.keys(PHASE).map((p) => h('li', { 'data-phase': p }, PHASE[p]))),
-    h('p', { class: 'ds-hint' }, 'The first scan takes a little while. After this only new commits are read, and it works offline.'),
+    h(
+      'div',
+      { class: 'ds-build-text' },
+      h('h3', null, 'BUILDING YOUR HISTORY'),
+      h('div', { class: 'ds-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i')),
+      h('p', { class: 'ds-bar-note' }),
+      h('p', { class: 'ds-hint' }, 'It fills in a little at a time while you use Quest Log, and only when nothing else is happening. Everything it reads is kept in this browser.'),
+    ),
   );
 }
 
-function updateLoading(host: HTMLElement, app: App) {
-  const p = app.deep.progress ?? { phase: 'reading', done: 0, total: 0 };
-  const order = Object.keys(PHASE);
-  const at = order.indexOf(p.phase);
-  // Reading is a quick first tenth; comparing is the long middle.
-  const pct = p.phase === 'adding' ? 100 : p.phase === 'reading' ? Math.min(10, p.total ? (p.done / p.total) * 10 : 2) : 10 + (p.total ? (p.done / p.total) * 88 : 0);
-  const bar = host.querySelector<HTMLElement>('.ds-bar')!;
-  bar.setAttribute('aria-valuenow', String(Math.round(pct)));
-  (bar.firstChild as HTMLElement).style.width = `${pct}%`;
-  host.querySelector('.ds-bar-note')!.replaceChildren(
-    h('b', null, `${Math.round(pct)}%`),
-    p.phase === 'comparing' && p.total ? ` · commit ${p.done} of ${p.total}${p.detail ? ` · ${p.detail}` : ''}` : p.phase === 'reading' ? ' · reading the commit list' : ' · adding it up',
-  );
-  for (const li of host.querySelectorAll<HTMLElement>('.ds-steps li')) {
-    const i = order.indexOf(li.dataset.phase!);
-    li.className = i < at ? 'done' : i === at ? 'now' : '';
-    li.textContent = `${i < at ? '✓' : i === at ? '▸' : '·'} ${PHASE[li.dataset.phase!]}`;
+/** Shows or hides the strip and fills in its words. True while building. */
+function updateStrip(strip: HTMLElement, app: App, pretend?: number): boolean {
+  const b = app.history;
+  const bar = strip.querySelector<HTMLElement>('.ds-bar')!;
+  const fill = bar.firstChild as HTMLElement;
+  const note = strip.querySelector('.ds-bar-note')!;
+  if (pretend !== undefined) {
+    const pct = Math.min(100, ((Date.now() - pretend) / DEMO_BUILD_MS) * 100);
+    strip.hidden = false;
+    bar.classList.remove('going');
+    bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+    fill.style.width = `${pct}%`;
+    note.replaceChildren(h('b', null, `${Math.round(pct)}%`), ` · reading ${plural(Math.round((b.commits * pct) / 100), 'commit')}`);
+    return true;
   }
+  const building = b.available && !b.complete;
+  strip.hidden = !building;
+  if (!building) return false;
+  // How much is left is unknown until it reaches the first commit: the bar just keeps moving.
+  bar.classList.add('going');
+  bar.removeAttribute('aria-valuenow');
+  fill.style.width = '';
+  const back = b.oldest ? ` · back to ${date(b.oldest, { day: 'numeric', month: 'short', year: 'numeric' })}` : '';
+  const state =
+    b.status === 'offline'
+      ? ' · paused: can’t reach the history right now'
+      : b.status === 'waiting'
+        ? ' · taking a breather (GitHub limits how fast it can read)'
+        : '';
+  note.replaceChildren(h('b', null, plural(b.commits, 'commit')), ` read${back}${state}`);
+  return true;
 }
 
 // ---------- The page ----------
 
-function page(app: App, picked: string | undefined, onDay: (day: string) => void): HTMLElement {
+function page(app: App, s: DetailedStats | undefined, picked: string | undefined, onDay: (day: string) => void): HTMLElement {
   const ws = app.workspace;
   const head = h(
     'div',
@@ -155,14 +195,13 @@ function page(app: App, picked: string | undefined, onDay: (day: string) => void
     h(
       'span',
       { class: 'ds-scan' },
-      scanNote(app),
-      app.deep.available &&
-        h('button', { class: 'btn sm', type: 'button', title: 'Compare every commit again', onclick: () => void app.deep.scan({ full: true }) }, '⟳ RESCAN'),
+      h('span', { class: 'ds-scan-note' }, scanNote(app)),
+      app.history.available &&
+        h('button', { class: 'btn sm', type: 'button', title: 'Throw away the history kept in this browser and build it again', onclick: () => void app.history.rebuild() }, '⟳ REBUILD'),
       h('a', { class: 'btn sm', href: href({ view: 'projects', pad: 'stats' }), title: 'Back to stats (Esc)' }, '✕ CLOSE'),
     ),
   );
-  if (!ws) return h('div', { class: 'records-page' }, head, h('p', null, 'Loading…'));
-  const s = detailedStats(ws, { quick: app.progress.events, deep: app.deep.events });
+  if (!ws || !s) return h('div', null, head, h('p', { class: 'ss-note' }, 'Adding it up…'));
   const order = s.projects.map((p) => p.id);
   const colour = (id: string) => COLORS[Math.max(0, order.indexOf(id)) % COLORS.length];
   const card = (title: string, cls: string, ...kids: (Node | Node[] | string | null | false | undefined)[]) =>
@@ -346,7 +385,7 @@ function page(app: App, picked: string | undefined, onDay: (day: string) => void
 
   return h(
     'div',
-    { class: 'records-page', role: 'region', 'aria-label': 'Detailed stats' },
+    { role: 'region', 'aria-label': 'Detailed stats' },
     head,
     h(
       'div',
@@ -382,9 +421,9 @@ function logLine(l: LogLine, dot: (project: string) => Node) {
 }
 
 function scanNote(app: App): string {
-  const d = app.deep;
-  if (!d.available) return 'From the done dates in your data · this repo’s history can’t be read here · ';
-  if (d.status === 'offline') return `Couldn’t read the history${d.error ? ` (${d.error})` : ''} · `;
-  const ago = d.scannedAt ? Math.round((Date.now() - Date.parse(d.scannedAt)) / 60_000) : 0;
-  return `${plural(d.commits, 'commit')} scanned · ${ago < 1 ? 'just now' : ago < 120 ? `${ago} min ago` : `${Math.round(ago / 60)} h ago`}${d.error ? ' · couldn’t check for newer ones' : ''} · `;
+  const b = app.history;
+  if (!b.available) return 'From the done dates in your data · this repo’s history can’t be read here · ';
+  const ago = b.builtAt ? Math.round((Date.now() - Date.parse(b.builtAt)) / 60_000) : undefined;
+  const when = ago === undefined ? '' : ago < 1 ? ' · updated just now' : ago < 120 ? ` · updated ${ago} min ago` : ` · updated ${Math.round(ago / 60)} h ago`;
+  return `${plural(b.commits, 'commit')} read${b.complete ? ', all of it' : ' so far'}${when} · `;
 }

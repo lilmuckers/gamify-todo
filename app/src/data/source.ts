@@ -3,8 +3,7 @@ import {
   type LevelAt,
   type Workspace,
   type HistoryCommit,
-  type CommitChanges,
-  type ScanProgress,
+  type HistoryPage,
   type MergeMethod,
   type PullDetail,
   type PullSummary,
@@ -48,6 +47,13 @@ export interface PullProvider {
   review(number: number, event: ReviewEvent, body: string): Promise<void>;
 }
 
+/** A slice of history to read: commits after `since` and up to `until` (both ISO). */
+export interface HistoryRange {
+  since?: string;
+  until?: string;
+  limit: number;
+}
+
 export interface LocalStatus {
   branch: string;
   ahead: number;
@@ -71,7 +77,11 @@ export interface DataSource {
   publish?(): Promise<string>;
   /** Commits that touched data/, newest first; only newer than `since` (ISO) when given. */
   history?(since?: string): Promise<HistoryCommit[]>;
-  /** Level files each data commit changed, oldest first, for the detailed stats scan. */
-  changes?(opts: { since?: string; onProgress?: (p: ScanProgress) => void }): Promise<CommitChanges[]>;
+/**
+   * One page of history for the detailed stats, built up in the background:
+   * the newest `limit` data commits with since < date <= until, newest first,
+   * each with the level files it changed. `requests` counts API calls spent.
+   */
+  changesPage?(range: HistoryRange): Promise<HistoryPage & { requests?: number }>;
   status?(): Promise<LocalStatus>;
 }

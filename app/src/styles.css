@@ -2560,26 +2560,41 @@ button.heat:focus-visible,
   }
 }
 
-/* Scanning: heroes at work while the bar fills. */
-.ds-load {
-  max-width: 720px;
-  margin: 40px auto;
-  padding: 24px;
+/* Building: heroes at work while older history fills in. */
+.ds-build {
+  display: grid;
+  grid-template-columns: minmax(240px, 380px) 1fr;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 12px;
   background: var(--panel);
   border: 3px solid var(--gold);
-  box-shadow:
-    0 0 0 3px var(--ink),
-    6px 6px 0 rgba(0, 0, 0, 0.5);
-  text-align: center;
+  box-shadow: 0 0 0 3px var(--ink);
 }
-.ds-load h1 {
-  margin: 0 0 18px;
-  font: 14px var(--pixel);
+.ds-build[hidden] {
+  display: none;
+}
+.ds-build h3 {
+  margin: 0;
+  font: 11px var(--pixel);
   color: var(--gold-hi);
+}
+.ds-build .ds-bar {
+  margin-top: 10px;
+}
+.ds-bar.going i {
+  width: 100%;
+  opacity: 0.85;
+}
+@media (max-width: 760px) {
+  .ds-build {
+    grid-template-columns: 1fr;
+  }
 }
 .ds-stage {
   position: relative;
-  height: 150px;
+  height: 130px;
   overflow: hidden;
   background: linear-gradient(#5c94fc, #8fb4ff);
   border: 2px solid var(--ink);
@@ -2760,31 +2775,12 @@ button.heat:focus-visible,
   font: 10px var(--pixel);
   color: var(--gold-hi);
 }
-.ds-steps {
-  display: inline-block;
-  margin: 18px auto 0;
-  padding: 0;
-  list-style: none;
-  text-align: left;
-  font: 9px/2.2 var(--pixel);
-  color: var(--muted);
-}
-.ds-steps .done {
-  color: var(--green);
-}
-.ds-steps .now {
-  color: var(--gold-hi);
-}
 .ds-hint {
-  margin: 14px 0 0;
+  margin: 8px 0 0;
   color: var(--muted);
   font-size: 12px;
 }
 @media (max-width: 520px) {
-  .ds-load {
-    margin: 12px;
-    padding: 14px;
-  }
   .ds-worker.stack {
     display: none;
   }

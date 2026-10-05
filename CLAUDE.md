@@ -70,7 +70,8 @@ app/      Vite + Phaser 3 + plain DOM (no framework)
   src/app.ts        App: central state, routing, dispatch, undo, play-mode holding
   src/auth/         Sign in with GitHub: PKCE + callback (oauth), refreshing token provider (session), repo discovery, signin glue
   src/data/         DataSource impls (static, github, local, demo), Store (outbox, sync, offline), kv (IndexedDB),
-                    history + deep-history (stats caches), demo-history (the demo's made-up commits)
+                    history (stats' commit-message cache), history-builder + history-work + history.worker
+                    (detailed stats built in the background, off the main thread), demo-history (made-up commits)
   src/game/         Phaser scenes: projects (bedroom/console), overworld, world, level (~2k lines), play/ (physics, input)
   src/sprites/      all art drawn in code: pixels palette, heroes, portraits, cartridge, bedroom, junk-tv, strip
   src/ui/           DOM: hud, panels, forms, today/inbox/weekly (legal pad), settings, toast, modal, dialogue, onboarding/

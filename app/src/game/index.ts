@@ -76,7 +76,7 @@ export function startGame(app: App, parent: HTMLElement) {
   };
   game.events.once('booted', () => {
     sync();
-    app.subscribe((change) => change !== 'sync' && sync());
+    app.subscribe((change) => change === 'all' && sync());
   });
   return game;
 }

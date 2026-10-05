@@ -19,6 +19,17 @@ export interface CommitChanges {
   files: FileChange[];
 }
 
+/**
+ * One page of history, newest first. `more` means older commits remain in
+ * the range asked for; `oldest` is the commit date to page on from (it can
+ * be older than every commit returned, when merges were skipped).
+ */
+export interface HistoryPage {
+  commits: CommitChanges[];
+  more: boolean;
+  oldest?: string;
+}
+
 /** How far a history scan has got, for the progress bar. */
 export interface ScanProgress {
   phase: 'reading' | 'comparing' | 'adding';

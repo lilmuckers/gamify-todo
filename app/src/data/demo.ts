@@ -1,7 +1,7 @@
-import { fromFiles, type ScanProgress } from '@quest/shared';
-import { demoHistory, fakeScan } from './demo-history';
+import { fromFiles, type CommitChanges } from '@quest/shared';
+import { demoCommits, demoHistory } from './demo-history';
 import { TARGET } from '../config';
-import type { DataSource, Loaded } from './source';
+import type { DataSource, HistoryRange, Loaded } from './source';
 import { StaticSource } from './static';
 import type { KV } from './store';
 
@@ -39,10 +39,15 @@ export class DemoSource implements DataSource {
     return since ? all.filter((c) => c.date >= since) : all;
   }
 
-  /** The same history for the detailed stats, after a pretend scan of about a second. */
-  async changes(opts: { since?: string; onProgress?: (p: ScanProgress) => void }) {
-    const all = await fakeScan(fromFiles(this.files ?? (await this.seed.loadFiles())), opts.onProgress);
-    return opts.since ? all.filter((c) => c.date >= opts.since!) : all;
+  private built?: { files: Record<string, string>; commits: CommitChanges[] };
+
+  /** The same history for the detailed stats, a page at a time like a real repo (newest first). */
+  async changesPage(range: HistoryRange) {
+    const files = this.files ?? (await this.seed.loadFiles());
+    if (this.built?.files !== files) this.built = { files, commits: demoCommits(fromFiles(files)).reverse() };
+    const inRange = this.built.commits.filter((c) => (!range.since || c.date > range.since) && (!range.until || c.date <= range.until));
+    const commits = inRange.slice(0, range.limit);
+    return { commits, more: inRange.length > range.limit, oldest: commits.at(-1)?.date };
   }
 
   async commit(changes: Record<string, string | null>, _message: string, _base: string): Promise<string> {

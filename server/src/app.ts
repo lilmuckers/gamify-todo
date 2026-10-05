@@ -129,25 +129,28 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
       .filter((c) => Date.parse(c.date) >= from);
   });
 
-  // The level files each data commit changed, before and after, a page at a
-  // time so the detailed stats scan can show progress. Newest first.
-  app.get<{ Querystring: { since?: string; skip?: string; limit?: string } }>('/api/history/changes', async (req, reply) => {
-    const { since } = req.query;
-    if (since !== undefined && Number.isNaN(Date.parse(since))) return reply.code(400).send({ error: 'since must be a date' });
-    const skip = Math.max(0, Number(req.query.skip ?? 0) || 0);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 50) || 50));
-    const range = since ? [`--since=${since}`] : [];
-    const total = Number((await repo.git.raw(['rev-list', '--count', '--no-merges', ...range, 'HEAD', '--', 'data']).catch(() => '0')).trim()) || 0;
+  // One page of data commits for the detailed stats history: the newest
+  // `limit` in the range (since < commit date <= until), newest first, each
+  // with the level files it changed before and after. The app builds its
+  // history a page at a time in the background.
+  app.get<{ Querystring: { since?: string; until?: string; limit?: string } }>('/api/history/changes', async (req, reply) => {
+    const { since, until } = req.query;
+    for (const d of [since, until]) if (d !== undefined && Number.isNaN(Date.parse(d))) return reply.code(400).send({ error: 'since and until must be dates' });
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 20) || 20));
+    const range = [...(since ? [`--since=${since}`] : []), ...(until ? [`--until=${until}`] : [])];
     const log = await repo.git
-      .raw(['log', '--no-merges', ...range, `--skip=${skip}`, `-n${limit}`, '--format=%x1e%H%x1f%aI%x1f%P%x1f%B%x1f', '--name-only', '--', 'data'])
+      .raw(['log', '--no-merges', ...range, `-n${limit}`, '--format=%x1e%H%x1f%aI%x1f%cI%x1f%P%x1f%B%x1f', '--name-only', '--', 'data'])
       .catch(() => '');
     const show = (rev: string, path: string) => repo.git.raw(['show', `${rev}:${path}`]).catch(() => undefined);
+    let oldest: string | undefined;
     const commits = await Promise.all(
       log
         .split('\x1e')
         .filter((chunk) => chunk.trim())
         .map(async (chunk) => {
-          const [sha, date, parents, message, names = ''] = chunk.split('\x1f');
+          const [sha, date, committed, parents, message, names = ''] = chunk.split('\x1f');
+          const at = new Date(committed).toISOString();
+          if (!oldest || at < oldest) oldest = at;
           const parent = parents.trim().split(' ')[0] || undefined;
           const paths = names.split('\n').map((p) => p.trim()).filter((p) => /^data\/[^/]+\/[^/]+\/[^/]+\.json$/.test(p) && !p.endsWith('/world.json'));
           return {
@@ -158,7 +161,8 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
           };
         }),
     );
-    return { total, commits };
+    // Ranges are inclusive at both ends: the app skips commits it has already seen.
+    return { commits, more: commits.length >= limit, oldest };
   });
 
   app.post('/api/publish', async () =>

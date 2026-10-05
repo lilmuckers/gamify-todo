@@ -1,4 +1,4 @@
-import { levelsOf, type CommitChanges, type Criterion, type HistoryCommit, type Item, type Level, type ScanProgress, type Workspace } from '@quest/shared';
+import { levelsOf, type CommitChanges, type Criterion, type HistoryCommit, type Item, type Level, type Workspace } from '@quest/shared';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -151,21 +151,6 @@ export function demoHistory(ws: Workspace): HistoryCommit[] {
   return demoCommits(ws)
     .map(({ files: _, ...c }) => c)
     .reverse();
-}
-
-/** The demo has no repo to read, so its scan just pretends for a moment (about 1.2 s) with real-looking progress. */
-export async function fakeScan(ws: Workspace, onProgress?: (p: ScanProgress) => void, ms = 1200): Promise<CommitChanges[]> {
-  const commits = demoCommits(ws);
-  const steps = 15;
-  const sleep = (t: number) => new Promise((r) => setTimeout(r, t));
-  onProgress?.({ phase: 'reading', done: 0, total: commits.length });
-  await sleep(ms * 0.15);
-  for (let i = 1; i <= steps; i++) {
-    const done = Math.round((commits.length * i) / steps);
-    onProgress?.({ phase: 'comparing', done, total: commits.length, detail: commits[Math.max(0, done - 1)]?.files[0]?.path.replace(/^data\/|\.json$/g, '') });
-    await sleep((ms * 0.85) / steps);
-  }
-  return commits;
 }
 
 /** Items and dependency steps, with the dependency a step sits in. */

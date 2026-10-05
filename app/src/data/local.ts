@@ -2,14 +2,13 @@ import {
   ConflictError,
   fromFiles,
   type HistoryCommit,
-  type CommitChanges,
-  type ScanProgress,
+  type HistoryPage,
   type MergeMethod,
   type PullDetail,
   type PullSummary,
   type ReviewEvent,
 } from '@quest/shared';
-import type { DataSource, Loaded, LocalStatus, PullData } from './source';
+import type { DataSource, HistoryRange, Loaded, LocalStatus, PullData } from './source';
 
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -62,17 +61,11 @@ export class LocalApiSource implements DataSource {
     return api<HistoryCommit[]>('GET', `/history${since ? `?since=${encodeURIComponent(since)}` : ''}`);
   }
 
-  /** Pages through the server's git log so the scan can show progress (up to 5,000 commits). */
-  async changes(opts: { since?: string; onProgress?: (p: ScanProgress) => void }) {
-    const out: CommitChanges[] = [];
-    const q = (skip: number) => `/history/changes?skip=${skip}&limit=50${opts.since ? `&since=${encodeURIComponent(opts.since)}` : ''}`;
-    for (let skip = 0; skip < 5000; skip += 50) {
-      const page = await api<{ total: number; commits: CommitChanges[] }>('GET', q(skip));
-      out.push(...page.commits);
-      opts.onProgress?.({ phase: 'comparing', done: out.length, total: Math.min(page.total, 5000), detail: page.commits.at(-1)?.files[0]?.path.replace(/^data\/|\.json$/g, '') });
-      if (page.commits.length < 50) break;
-    }
-    return out.reverse();
+  changesPage(range: HistoryRange) {
+    const q = new URLSearchParams({ limit: String(range.limit) });
+    if (range.since) q.set('since', range.since);
+    if (range.until) q.set('until', range.until);
+    return api<HistoryPage>('GET', `/history/changes?${q}`);
   }
 
   pulls = {

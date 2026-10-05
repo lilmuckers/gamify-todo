@@ -543,16 +543,37 @@ or ✕ goes back to Stats. Its sections (`shared/src/detailed.ts`):
 after start / after clear), removed, edited, ticked, unticked, started, cleared, uncleared and
 extended. Its completions also feed the streak merge (`changesAsHistory`), deduplicated against
 the quick history by commit.
-- **GitHub:** `GitHubClient.dataChanges` lists up to the newest **500** data commits, skips merges,
-  and fetches each commit's file list plus each changed level's text at the parent and the commit,
-  four commits at a time. The first scan can take a minute or two.
-- **Docker editor:** `GET /api/history/changes`, 50 commits a page (up to 5,000).
-- **Progress:** reading → comparing (commit n of N, and which level) → adding up, shown as a bar
-  under a little stage where three heroes work: yours bumps a ? block for coins, one carries
-  bricks, one stacks them. With reduced motion they stand still and the bar still fills.
-- **Cache:** `DeepHistory` (`app/src/data/deep-history.ts`) keeps the events and scanned commit
-  shas in IndexedDB per source and branch. A scan younger than 10 minutes is reused; otherwise only
-  newer commits are compared. **RESCAN** starts over. Offline, the cache is shown as it is.
+It is **built a little at a time in the background**, never in one big scan
+(`HistoryBuilder`, `app/src/data/history-builder.ts`):
+- **From the first visit,** for every user, whether or not the page is ever opened: it starts 8 s
+  after the app loads (at once if the page is the first thing opened).
+- **Newest first,** so recent stats are useful straight away, then further back a page at a time
+  until it reaches the first commit. Its to-do list is a queue of commit ranges read newest-first by
+  date (`since` < date <= `until`); a commit seen twice at a page edge is counted once (by sha), and
+  an edge of only-seen commits is stepped past.
+- **Saved after every page** in IndexedDB (per repo and branch): events, the commit shas read, the
+  ranges still to read, and the last numbers worked out (so the page opens instantly). The next
+  visit carries on where it left off. Once caught up, it only reads new commits: after each sync of
+  ours, and every 10 minutes.
+- **Never in the way:** before each page it waits until the interface is idle: no key, pointer or
+  wheel input for 1.5 s, nothing loading or syncing, not playing, tab visible
+  (`navigator.scheduling.isInputPending` too, where there is one), then `requestIdleCallback`.
+  Parsing commits and adding up the stats run on a **Web Worker** (`history.worker.ts`, via
+  `history-work.ts`), or inline after a yield where workers aren't available. Its progress emits a
+  `'history'` change that only the detailed page listens to, so the HUD, panel and game never
+  repaint for it.
+- **Pace:** GitHub: 5 commits a page (one request per commit plus two per changed level), 8 s apart,
+  at most 300 requests an hour (1.5 s and 1,200 while the page is open). Docker editor: 25 a page,
+  1.5 s apart (0.3 s while open). Offline it backs off (30 s, doubling to 15 min) and keeps what it
+  has.
+- **Sources:** `GitHubClient.dataChangesPage` (commits list by date, then each commit's files and
+  each changed level's text at the parent and the commit; merges skipped) and the Docker editor's
+  `GET /api/history/changes?since=&until=&limit=`.
+- **The page** opens at once with whatever has been built. While older history is still being read,
+  a strip at the top shows three heroes at work (yours bumps a ? block for coins, one carries
+  bricks, one stacks them), a moving bar (the total isn't known until it reaches the start), and how
+  many commits it has read and how far back. With reduced motion they stand still. **REBUILD** throws
+  the built history away and starts again.
 - **Read-only site:** no history to scan; the page shows what the stamps give and marks the
   history-only numbers "needs history".
 
@@ -570,8 +591,9 @@ the data (`app/test/demo-audit.test.ts` checks):
   doesn't record adds), always before it's first finished.
 - Nothing happens outside its level's start and clear, or after the data's last moment.
 Each commit carries a real `quest:` message and tiny before/after level snapshots, so the quick
-history and the deep scan read it exactly as they read a repo. Only in demo mode, the scan pretends
-for about 1.2 seconds. Demo history caches live in memory, like the rest of the demo. The example
+history and the deep scan read it exactly as they read a repo. The demo takes it in one page, so
+it's ready at once; only in demo mode, the first open of the page pretends to build it for about
+1.2 seconds. Demo history caches live in memory, like the rest of the demo. The example
 data's own stamps follow dependency order.
 
 ## 6. Onboarding (#61)
@@ -670,7 +692,7 @@ Fastify (`server/src/app.ts`), with the repo mounted at `/repo`.
 | `POST /api/commit` | `{changes, message, baseVersion}`. Data paths only. 409 if disk changed, 400 if invalid. Writes, then commits only those paths |
 | `GET /api/status` | Branch, ahead/behind, remote, last commit, `canReviewPRs` |
 | `GET /api/history?since=` | Commits touching `data/` (sha, ISO date, full message), newest first, for Stats |
-| `GET /api/history/changes?skip=&limit=&since=` | A page (≤100) of non-merge data commits, newest first, each with its level files before and after, plus the total: for the detailed stats scan |
+| `GET /api/history/changes?since=&until=&limit=` | A page (≤100) of non-merge data commits in the date range, newest first, each with its level files before and after, plus `more` and `oldest` for paging on: for the detailed stats history |
 | `POST /api/publish` | Fetch, pull `--rebase --autostash` if behind, push |
 | `GET /api/prs`, `GET /api/prs/:n` | Data PRs; detail + base/head workspaces (needs `GITHUB_TOKEN`) |
 | `POST /api/prs/:n/merge`, `/review` | Merge (then pull locally), review |

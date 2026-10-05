@@ -144,6 +144,8 @@ export default defineConfig({
     // Keep the browser's Host so the server's same-origin check passes.
     proxy: target === 'local' ? { '/api': { target: 'http://localhost:8787', changeOrigin: false } } : undefined,
   },
+  // Detailed stats' history worker imports the shared ES modules.
+  worker: { format: 'es' },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 2000,

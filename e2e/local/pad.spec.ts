@@ -81,14 +81,16 @@ test('n captures an idea, which can then be placed into the open level', async (
   expect(repoJson<{ items: { title: string }[] }>('data/inbox.json').items.map((i) => i.title)).not.toContain(idea);
 });
 
-test('detailed stats scan the repo’s history, and Esc goes back to stats', async ({ page }) => {
+test('detailed stats build the repo’s history in the background, and Esc goes back to stats', async ({ page }) => {
   await page.goto('./#/stats');
   await page.getByRole('link', { name: /DETAILED STATS/ }).click();
   await expect(page).toHaveURL(/#\/records$/);
   const detailed = page.getByRole('region', { name: 'Detailed stats' });
-  await expect(detailed.getByRole('heading', { name: 'RECORDS · DETAILED' })).toBeVisible({ timeout: 20_000 });
-  // The local server has a real git log behind it.
-  await expect(detailed.locator('.ds-scan')).toContainText(/\d+ commits? scanned/);
+  // The page opens at once, whatever has been built so far.
+  await expect(detailed.getByRole('heading', { name: 'RECORDS · DETAILED' })).toBeVisible();
+  // The local server has a real git log behind it, read a page at a time until it's all in.
+  await expect(detailed.locator('.ds-scan')).toContainText(/\d+ commits? read, all of it/, { timeout: 30_000 });
+  await expect(page.locator('.ds-build')).toBeHidden();
   await expect(detailed.locator('.stats-heat button.heat')).not.toHaveCount(0);
   await expect(detailed.getByRole('heading', { name: 'BY PROJECT' })).toBeVisible();
 

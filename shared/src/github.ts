@@ -1,6 +1,6 @@
 import { classifyPath } from './serialize';
 import type { HistoryCommit } from './history';
-import type { CommitChanges, ScanProgress } from './scan';
+import type { CommitChanges, HistoryPage } from './scan';
 import { isDataPath } from './serialize';
 
 export interface RepoRef {
@@ -208,60 +208,58 @@ export class GitHubClient {
   }
 
   /**
-   * The level files each data commit changed, before and after, for the
-   * detailed stats scan: up to `max` of the newest commits (since `since`),
-   * oldest first. Merge commits are skipped: their changes arrive with the
-   * commits they merge. One request per commit plus two per level file, a
-   * few at a time; `onProgress` follows along.
+   * One page of data commits for the detailed stats history: the newest
+   * `limit` in the range (`since` < date <= `until`), newest first, each with
+   * the level files it changed before and after. Merge commits are skipped:
+   * their changes arrive with the commits they merge. Costs one request per
+   * commit plus two per changed level file, one at a time, so a background
+   * build stays gentle; `requests` says how many it took.
    */
-  async dataChanges(opts: { since?: string; max?: number; onProgress?: (p: ScanProgress) => void } = {}): Promise<CommitChanges[]> {
-    const max = opts.max ?? 500;
-    const listed = await this.listDataCommits(opts.since, Math.ceil(max / 100), (n) =>
-      opts.onProgress?.({ phase: 'reading', done: Math.min(n, max), total: max }),
-    );
-    const commits = listed.slice(0, max).filter((c) => c.parents.length <= 1).reverse();
-    const out: CommitChanges[] = new Array(commits.length);
-    let done = 0;
-    let next = 0;
+  async dataChangesPage(opts: { since?: string; until?: string; limit: number }): Promise<HistoryPage & { requests: number }> {
+    const q = new URLSearchParams({ sha: this.repo.branch, path: 'data', per_page: String(opts.limit), page: '1' });
+    if (opts.since) q.set('since', opts.since);
+    if (opts.until) q.set('until', opts.until);
+    const listed = await this.request<
+      { sha: string; parents?: { sha: string }[]; commit: { message: string; author?: { date?: string }; committer?: { date?: string } } }[]
+    >('GET', `/commits?${q}`);
+    let requests = 1;
     const raw = 'application/vnd.github.raw+json';
-    const before = async (path: string, parent: string | undefined) => {
-      if (!parent) return undefined;
+    const read = async (url: string) => {
+      requests++;
       try {
-        return await this.request<string>('GET', `/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${parent}`, undefined, raw);
+        return await this.request<string>('GET', url, undefined, raw);
       } catch (err) {
         if (err instanceof GitHubError && err.status === 404) return undefined;
         throw err;
       }
     };
-    const after = async (blob: string) => {
-      let text = this.blobCache.get(blob);
-      if (text === undefined) this.blobCache.set(blob, (text = await this.request<string>('GET', `/git/blobs/${blob}`, undefined, raw)));
-      return text;
-    };
-    const worker = async () => {
-      while (next < commits.length) {
-        const i = next++;
-        const c = commits[i];
-        const detail = await this.request<{ files?: { filename: string; status: string; sha?: string; previous_filename?: string }[] }>('GET', `/commits/${c.sha}`);
-        const files = (detail.files ?? []).filter((f) => classifyPath(f.filename)?.kind === 'level');
-        out[i] = {
-          sha: c.sha,
-          date: c.date,
-          message: c.message,
-          files: await Promise.all(
-            files.map(async (f) => ({
-              path: f.filename,
-              before: f.status === 'added' ? undefined : await before(f.previous_filename ?? f.filename, c.parents[0]),
-              after: f.status === 'removed' || !f.sha ? undefined : await after(f.sha),
-            })),
-          ),
-        };
-        done++;
-        opts.onProgress?.({ phase: 'comparing', done, total: commits.length, detail: files[0]?.filename.replace(/^data\/|\.json$/g, '') });
+    const commits: CommitChanges[] = [];
+    let oldest: string | undefined;
+    for (const c of listed) {
+      const date = c.commit.committer?.date ?? c.commit.author?.date;
+      if (!date) continue;
+      if (!oldest || date < oldest) oldest = date;
+      const parents = (c.parents ?? []).map((p) => p.sha);
+      if (parents.length > 1) continue;
+      const detail = await this.request<{ files?: { filename: string; status: string; sha?: string; previous_filename?: string }[] }>('GET', `/commits/${c.sha}`);
+      requests++;
+      const files = [];
+      for (const f of (detail.files ?? []).filter((x) => classifyPath(x.filename)?.kind === 'level')) {
+        const path = (f.previous_filename ?? f.filename).split('/').map(encodeURIComponent).join('/');
+        const before = f.status === 'added' || !parents[0] ? undefined : await read(`/contents/${path}?ref=${parents[0]}`);
+        let after: string | undefined;
+        if (f.status !== 'removed' && f.sha) {
+          after = this.blobCache.get(f.sha);
+          if (after === undefined) {
+            after = await read(`/git/blobs/${f.sha}`);
+            if (after !== undefined) this.blobCache.set(f.sha, after);
+          }
+        }
+        files.push({ path: f.filename, before, after });
       }
-    };
-    await Promise.all(Array.from({ length: 4 }, worker));
-    return out;
+      commits.push({ sha: c.sha, date: c.commit.author?.date ?? date, message: c.commit.message, files });
+    }
+    return { commits, more: listed.length >= opts.limit, oldest, requests };
   }
 
   /** All data files at a commit. `repoFullName` lets PR heads live in forks. */

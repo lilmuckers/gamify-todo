@@ -62,11 +62,13 @@ offline too.
 **DETAILED STATS ▶** (`#/records`) goes much further: a year-long calendar you can click into,
 your rhythm by weekday and hour, what kinds of things you finish, scope added against scope cut,
 every cleared level's days against its time-box, a table by project (finished games marked), a
-perfectionism watch and the latest activity. To get there it scans your repo's history commit by
-commit, comparing what each one changed, so it also sees edits made by hand or by an AI assistant.
-The first scan on GitHub can take a minute or two (heroes keep busy while the bar fills); after
-that only new commits are read. The demo comes with a made-up two-year history so you can see it
-all.
+perfectionism watch and the latest activity. It reads your repo's history commit by commit,
+comparing what each one changed, so it also sees edits made by hand or by an AI assistant. That
+history is built quietly in the background from your first visit: newest first, a little at a time,
+only when you're not doing anything, on a separate thread, and kept in this browser so it carries
+on where it left off. The page always opens straight away; while older history is still filling in,
+a strip at the top shows the heroes at work. The demo comes with a made-up two-year history so you
+can see it all.
 
 Most edits show an **UNDO** toast for a few seconds (Ctrl/Cmd+Z works too); edits that haven't
 synced yet are simply taken back, with no commit.

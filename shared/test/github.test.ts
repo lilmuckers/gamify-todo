@@ -98,15 +98,15 @@ describe('GitHubClient', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('reads what each data commit changed, oldest first, skipping merges', async () => {
+  it('reads one page of what data commits changed, newest first, skipping merges', async () => {
     const { fn, calls } = fakeFetch((url) => {
       const u = new URL(url);
       if (u.pathname.endsWith('/commits') && u.searchParams.get('path') === 'data')
         return {
           json: [
-            { sha: 'm', parents: [{ sha: 'b' }, { sha: 'x' }], commit: { message: 'Merge', author: { date: '2026-10-03T10:00:00Z' } } },
-            { sha: 'b', parents: [{ sha: 'a' }], commit: { message: 'quest: done: X (p/w/l)', author: { date: '2026-10-02T10:00:00Z' } } },
-            { sha: 'a', parents: [{ sha: 'z' }], commit: { message: 'add level', author: { date: '2026-10-01T10:00:00Z' } } },
+            { sha: 'm', parents: [{ sha: 'b' }, { sha: 'x' }], commit: { message: 'Merge', committer: { date: '2026-10-03T10:00:00Z' } } },
+            { sha: 'b', parents: [{ sha: 'a' }], commit: { message: 'quest: done: X (p/w/l)', author: { date: '2026-10-02T09:59:00Z' }, committer: { date: '2026-10-02T10:00:00Z' } } },
+            { sha: 'a', parents: [{ sha: 'z' }], commit: { message: 'add level', committer: { date: '2026-10-01T10:00:00Z' } } },
           ],
         };
       if (u.pathname.endsWith('/commits/b')) return { json: { files: [{ filename: 'data/p/w/l.json', status: 'modified', sha: 'blob-b' }, { filename: 'README.md', status: 'modified', sha: 'r' }] } };
@@ -115,12 +115,14 @@ describe('GitHubClient', () => {
       if (u.pathname.endsWith('/git/blobs/blob-b')) return { text: 'AFTER-B' };
       if (u.pathname.endsWith('/git/blobs/blob-a')) return { text: 'AFTER-A' };
     });
-    const seen: string[] = [];
-    const changes = await new GitHubClient('tok', repo, fn).dataChanges({ onProgress: (p) => seen.push(`${p.phase} ${p.done}/${p.total}`) });
-    expect(changes.map((c) => c.sha)).toEqual(['a', 'b']);
-    expect(changes[0].files).toEqual([{ path: 'data/p/w/l.json', before: undefined, after: 'AFTER-A' }]);
-    expect(changes[1].files).toEqual([{ path: 'data/p/w/l.json', before: 'BEFORE', after: 'AFTER-B' }]);
-    expect(seen).toEqual(['reading 3/500', 'comparing 1/2', 'comparing 2/2']);
+    const page = await new GitHubClient('tok', repo, fn).dataChangesPage({ until: '2026-10-04T00:00:00Z', limit: 3 });
+    expect(page.commits.map((c) => c.sha)).toEqual(['b', 'a']);
+    expect(page.commits[0]).toMatchObject({ date: '2026-10-02T09:59:00Z', files: [{ path: 'data/p/w/l.json', before: 'BEFORE', after: 'AFTER-B' }] });
+    expect(page.commits[1].files).toEqual([{ path: 'data/p/w/l.json', before: undefined, after: 'AFTER-A' }]);
+    // A full page: there may be more, older than the oldest commit date listed.
+    expect(page).toMatchObject({ more: true, oldest: '2026-10-01T10:00:00Z', requests: 6 });
+    const q = new URL(calls[0].url).searchParams;
+    expect([q.get('until'), q.get('per_page')]).toEqual(['2026-10-04T00:00:00Z', '3']);
     expect(calls.some((c) => c.url.includes('/commits/m'))).toBe(false);
   });
 
