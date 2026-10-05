@@ -56,7 +56,9 @@
       "title": "Under the bed",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-03-09T10:32:00Z"
+      "doneAt": "2025-03-09T10:32:00Z",
+      "budget": 15,
+      "spent": 22
     },
     {
       "id": "keep-the-old-sofa",

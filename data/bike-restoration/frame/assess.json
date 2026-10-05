@@ -52,7 +52,9 @@
       "title": "Bike co-op mechanic second opinion",
       "type": "dependency",
       "status": "done",
-      "doneAt": "2026-06-16T15:37:00Z"
+      "doneAt": "2026-06-16T15:37:00Z",
+      "budget": 20,
+      "spent": 15
     },
     {
       "id": "keep-this-frame-or-buy-another",

@@ -42,7 +42,9 @@
       "title": "References and credit check",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-02-17T07:02:00Z"
+      "doneAt": "2025-02-17T07:02:00Z",
+      "budget": 50,
+      "spent": 45
     },
     {
       "id": "guarantor-form-stuck",

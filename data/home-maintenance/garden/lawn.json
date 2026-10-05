@@ -54,19 +54,23 @@
       "title": "Lay a stepping-stone mower path",
       "type": "task",
       "status": "doing",
-      "notes": "12 of 20 slabs down."
+      "notes": "12 of 20 slabs down.",
+      "budget": 90,
+      "spent": 55
     },
     {
       "id": "mulch-the-borders-with-bark",
       "title": "Mulch the borders with bark",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 40
     },
     {
       "id": "overseed-with-micro-clover",
       "title": "Overseed with micro-clover",
       "type": "stretch",
-      "status": "todo"
+      "status": "todo",
+      "budget": 25
     },
     {
       "id": "sell-the-old-petrol-mower",

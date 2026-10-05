@@ -49,7 +49,9 @@
       "title": "Plant garlic",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-09-27T11:12:00Z"
+      "doneAt": "2025-09-27T11:12:00Z",
+      "budget": 10,
+      "spent": 12
     },
     {
       "id": "sharpen-and-oil-the-tools",

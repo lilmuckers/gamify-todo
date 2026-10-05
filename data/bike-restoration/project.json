@@ -18,5 +18,8 @@
   "worldOrder": [
     "frame",
     "build"
-  ]
+  ],
+  "budgets": {
+    "currency": "GBP"
+  }
 }

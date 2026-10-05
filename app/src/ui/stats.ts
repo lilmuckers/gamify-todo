@@ -1,4 +1,4 @@
-import { calibration, HISTORY_WEEKS, progressStats, type HeatCell, type ProgressStats, type TimeboxStats } from '@quest/shared';
+import { calibration, formatMoney, HISTORY_WEEKS, moneyStats, progressStats, type HeatCell, type ProgressStats, type TimeboxStats } from '@quest/shared';
 import type { App } from '../app';
 import { href } from '../router';
 import { h, icon } from './dom';
@@ -119,6 +119,21 @@ export function xpChart(xp: ProgressStats['xp'], label = `${HISTORY_WEEKS} weeks
 const xpNote = (s: ProgressStats) =>
   s.xp.total ? `+${s.xp.total - s.xp.before} XP in ${HISTORY_WEEKS} weeks · ${s.xp.total} XP in all` : 'XP comes from clearing levels. Your first one will show up here.';
 
+/** One line on money, for projects that track it: what's gone out against the budgets, and what's been saved. */
+function moneyLine(ws: Parameters<typeof moneyStats>[0]): HTMLElement | null {
+  const m = moneyStats(ws, { months: 1 });
+  if (!m) return null;
+  const money = (n: number) => formatMoney(n, m.currency);
+  return h(
+    'p',
+    { class: 'ss-note ss-money' },
+    icon('coin', 'grass', 'icon sm'),
+    ` ${money(m.spent)} spent of ${money(m.budget)} budgeted`,
+    m.saved ? ` · ${m.saved > 0 ? `${money(m.saved)} saved` : `${money(-m.saved)} over`} on finished things` : '',
+    m.settled ? ` · ${m.onBudget} of ${m.settled} on budget` : '',
+  );
+}
+
 /** Where the numbers come from: stamps alone, or with the commit history (and how fresh it is). */
 export function sourceNote(app: App): string {
   const p = app.progress;
@@ -167,6 +182,7 @@ export function statsScreen(app: App, onClose: () => void): HTMLElement {
       tile(String(s.xp.total), 'XP'),
     ),
     h('p', { class: 'ss-note' }, streakHint(s.streak), s.undone ? ` ${s.undone} reopened later, still counted.` : ''),
+    moneyLine(ws),
     h('section', { class: 'ss-box ss-cal' }, h('h3', null, `LAST ${HISTORY_WEEKS} WEEKS`), heatGrid(s.heatmap, { label: `in the last ${HISTORY_WEEKS} weeks` })),
     h(
       'div',

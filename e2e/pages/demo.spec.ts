@@ -20,7 +20,13 @@ test('the demo shows detailed stats from a made-up history, after a short preten
   await expect(detailed.locator('.ds-tile').filter({ hasText: 'REOPENED' }).locator('b')).not.toHaveText('–');
   await expect(detailed.locator('.ds-scope b.up')).toHaveText(/^\+\d+/);
   // The finished example games are marked.
-  await expect(detailed.locator('.ds-won')).toHaveCount(3);
+  await expect(detailed.locator('.ds-table .ds-won')).toHaveCount(3);
+  // Money over time, for the projects that track it.
+  const money = detailed.locator('.ds-money');
+  await expect(money.getByRole('heading', { name: 'MONEY' })).toBeVisible();
+  await expect(money.locator('.ds-row4')).toContainText('SPENT');
+  await expect(money.locator('.ds-money-table tbody tr')).toHaveCount(6);
+  await expect(money.locator('.ds-from')).toHaveCount(0);
 });
 
 test('the demo lets you tick a stair step, and keeps nothing after a reload', async ({ page }) => {

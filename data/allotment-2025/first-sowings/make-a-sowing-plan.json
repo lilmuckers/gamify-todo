@@ -43,7 +43,9 @@
       "title": "Order seeds",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-02-04T19:35:00Z"
+      "doneAt": "2025-02-04T19:35:00Z",
+      "budget": 40,
+      "spent": 58
     },
     {
       "id": "grow-23-things-instead-of-ten",

@@ -49,14 +49,18 @@
       "title": "Books on shelves",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-04-18T19:27:00Z"
+      "doneAt": "2025-04-18T19:27:00Z",
+      "budget": 180,
+      "spent": 230
     },
     {
       "id": "pictures-up",
       "title": "Pictures up",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-04-20T16:13:00Z"
+      "doneAt": "2025-04-20T16:13:00Z",
+      "budget": 25,
+      "spent": 18
     },
     {
       "id": "flatten-the-boxes",
@@ -70,7 +74,10 @@
       "title": "Housewarming",
       "type": "stretch",
       "status": "done",
-      "doneAt": "2025-04-23T08:36:00Z"
+      "doneAt": "2025-04-23T08:36:00Z",
+      "budget": 150,
+      "spent": 210
     }
-  ]
+  ],
+  "budget": 600
 }

@@ -2560,6 +2560,145 @@ button.heat:focus-visible,
   }
 }
 
+/* Money: where it stands, spending over the year, overruns and savings. */
+.ds-row4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.ds-row4 div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ds-row4 b {
+  font: 16px var(--pixel);
+  color: var(--gold-hi);
+}
+.ds-row4 span {
+  font: 6px var(--pixel);
+  color: var(--muted);
+}
+.ds-money .down-bad,
+.ds-money-table .down-bad {
+  color: var(--red);
+}
+.ds-money .up-good,
+.ds-money-table .up-good {
+  color: var(--green);
+}
+.ds-money-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+  margin-top: 12px;
+}
+.ds-money h4 {
+  margin: 0 0 4px;
+  font: 8px var(--pixel);
+  color: var(--gold);
+}
+.ds-money h4 + .ds-list {
+  margin-top: 0;
+}
+.ds-money .ds-list + h4,
+.ds-money .ss-note + h4 {
+  margin-top: 12px;
+}
+.ds-money-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ds-money-chart .spend {
+  fill: rgba(254, 174, 52, 0.3);
+  stroke: rgba(254, 174, 52, 0.6);
+  stroke-width: 0.5;
+}
+.ds-money-chart .base {
+  stroke: var(--line);
+}
+.ds-money-chart polyline {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.ds-money-chart .total {
+  stroke: var(--gold-hi);
+}
+.ds-money-chart .planned {
+  stroke: var(--sky);
+  stroke-dasharray: 4 3;
+}
+.ds-money-ticks {
+  display: grid;
+  grid-template-columns: repeat(var(--months), 1fr);
+  font: 6px var(--pixel);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.ds-money-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ds-key {
+  display: inline-block;
+  width: 12px;
+  height: 4px;
+  vertical-align: middle;
+}
+.ds-money-key .ds-key {
+  margin-right: 6px;
+}
+.ds-key.total {
+  background: var(--gold-hi);
+}
+.ds-key.planned {
+  background: var(--sky);
+}
+.ds-key.spend {
+  background: rgba(254, 174, 52, 0.6);
+}
+.ds-money-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ds-money-table thead th {
+  padding: 4px;
+  font: 6px var(--pixel);
+  color: var(--muted);
+  text-align: right;
+}
+.ds-money-table td,
+.ds-money-table tbody th {
+  padding: 6px 4px;
+  text-align: right;
+  font-weight: normal;
+  border-top: 1px solid var(--panel-2);
+}
+.ds-money-table tbody th {
+  text-align: left;
+}
+.ss-money .icon {
+  vertical-align: middle;
+}
+@media (max-width: 760px) {
+  .ds-money-grid {
+    grid-template-columns: 1fr;
+  }
+  .ds-row4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* Building: heroes at work while older history fills in. */
 .ds-build {
   display: grid;

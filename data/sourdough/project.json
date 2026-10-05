@@ -17,5 +17,8 @@
     "starter",
     "basics",
     "bake-sale"
-  ]
+  ],
+  "budgets": {
+    "currency": "GBP"
+  }
 }

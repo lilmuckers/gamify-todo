@@ -35,7 +35,9 @@
       "title": "Pick up the van",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-04-12T13:24:00Z"
+      "doneAt": "2025-04-12T13:24:00Z",
+      "budget": 30,
+      "spent": 41
     },
     {
       "id": "load-it",
@@ -57,14 +59,17 @@
       "type": "risk",
       "status": "done",
       "doneAt": "2025-04-13T10:25:00Z",
-      "notes": "It fitted. Just."
+      "notes": "It fitted. Just.",
+      "budget": 60
     },
     {
       "id": "return-the-van",
       "title": "Return the van",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-04-13T11:38:00Z"
+      "doneAt": "2025-04-13T11:38:00Z",
+      "budget": 40,
+      "spent": 38
     },
     {
       "id": "moved-in",

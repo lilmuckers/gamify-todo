@@ -60,7 +60,8 @@
       "id": "book-the-sportive",
       "title": "Book the sportive",
       "type": "task",
-      "status": "todo"
+      "status": "todo",
+      "budget": 45
     },
     {
       "id": "gearing-too-hard-for-dales-climbs",

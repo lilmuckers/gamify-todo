@@ -35,7 +35,8 @@
       "title": "Borrow a brushcutter from plot 9",
       "type": "task",
       "status": "done",
-      "doneAt": "2024-10-14T21:15:00Z"
+      "doneAt": "2024-10-14T21:15:00Z",
+      "budget": 40
     },
     {
       "id": "cut-back-the-brambles",
@@ -71,7 +72,9 @@
       "title": "Tip run with the car",
       "type": "task",
       "status": "done",
-      "doneAt": "2024-10-27T16:31:00Z"
+      "doneAt": "2024-10-27T16:31:00Z",
+      "budget": 10,
+      "spent": 10
     },
     {
       "id": "save-the-blackberry-by-the-fence",

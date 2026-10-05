@@ -85,28 +85,29 @@ test('logging what a done item cost commits it, updates the money box and costs 
 });
 
 test('budgets stay hidden until the project turns them on, then alert as costs are logged', async ({ page }) => {
-  const level = './#/p/home-maintenance/garden/fence/dig';
+  // Allotment 2026 doesn't track money (the example data's home-maintenance now does).
+  const level = './#/p/allotment/summer/watering/add-two-more-water-butts';
   await page.goto(level);
   await inScene(page, 'level');
   await expect(page.locator('.panel .money')).toHaveCount(0);
-  await page.locator('#item-dig').getByRole('button', { name: 'Edit item' }).click();
+  await page.locator('#item-add-two-more-water-butts').getByRole('button', { name: 'Edit item' }).click();
   await expect(page.getByLabel('Budget (£)')).toHaveCount(0);
   await page.getByRole('button', { name: 'Cancel' }).click();
 
-  await page.goto('./#/p/home-maintenance');
+  await page.goto('./#/p/allotment');
   await inScene(page, 'overworld');
   await page.locator('.panel').getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByLabel('Track cash budgets').check();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect.poll(() => repoJson('data/home-maintenance/project.json').budgets, { timeout: 15_000 }).toEqual({});
+  await expect.poll(() => repoJson('data/allotment/project.json').budgets, { timeout: 15_000 }).toEqual({});
 
   await page.goto(level);
   await inScene(page, 'level');
-  await page.locator('#item-dig').getByRole('button', { name: 'Edit item' }).click();
+  await page.locator('#item-add-two-more-water-butts').getByRole('button', { name: 'Edit item' }).click();
   await page.getByLabel('Budget (£)').fill('20');
   await page.getByLabel('Spent (£)').fill('19');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  // The item and its level are finished, so only the Garden world (still open) gets a heads-up.
-  await expect(page.locator('.toast.warn')).toContainText('Heads-up: Garden has used 95% of its £20.');
+  // The item and its level are finished, so only the Summer Crops world (still open) gets a heads-up.
+  await expect(page.locator('.toast.warn')).toContainText('Heads-up: Summer Crops has used 95% of its £20.');
   await expect(page.locator('.panel .money')).toContainText('£19 spent of £20');
 });

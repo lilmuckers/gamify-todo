@@ -35,8 +35,20 @@ export function demoCommits(ws: Workspace): CommitChanges[] {
   };
 
   for (const { level, ref } of levels) {
-    if (!level.startedAt) continue;
     const key = `${ref.projectId}/${ref.worldId}/${ref.levelId}`;
+    if (!level.startedAt) {
+      // Not started, but money can go out early (a deposit, samples): logged in the last few weeks.
+      const r = rand(`${key}/early`);
+      for (const { item, subject, parent } of flat(level)) {
+        if (!item.spent) continue;
+        const one = (spent?: number): Item[] => {
+          const self = { id: item.id, type: item.type, title: item.title, status: item.status, ...(spent ? { spent } : {}) } as Item;
+          return parent ? [{ id: parent.id, type: parent.type, title: parent.title, status: 'todo', subtasks: [self as NonNullable<Item['subtasks']>[number]] } as Item] : [self];
+        };
+        add(horizon - Math.ceil(2 + r() * 20) * DAY, `quest: edit ${subject} (${key})`, `data/${key}.json`, { timeboxDays: level.timeboxDays, items: one() }, { timeboxDays: level.timeboxDays, items: one(item.spent) });
+      }
+      continue;
+    }
     const path = `data/${key}.json`;
     const where = ` (${key})`;
     const r = rand(key);
@@ -94,6 +106,17 @@ export function demoCommits(ws: Workspace): CommitChanges[] {
         add(at, `quest: add ${item.type} "${item.title}"${where}`, path, { ...base, items: [] }, { ...base, items: one({}) });
       }
       if (stamp !== undefined) commit(stamp + 5_000, status(subject, 'done'), { status: 'doing' }, { status: 'done', doneAt: item.doneAt });
+
+      // Costs: logged as receipts come in. Usually once, as it's finished; sometimes the rest a few days later.
+      const spent = item.spent ?? 0;
+      if (spent > 0) {
+        const at = stamp ?? between(start, end, 0.3, 0.9);
+        const split = r() < 0.3 && spent >= 20;
+        const first = split ? Math.round(spent * (0.4 + r() * 0.3)) : spent;
+        const state = { status: item.status, ...(item.doneAt ? { doneAt: item.doneAt } : {}) };
+        commit(at + 30_000, `quest: edit ${subject}${where}`, { ...state }, { ...state, spent: first });
+        if (split) commit(at + Math.ceil(1 + r() * 6) * DAY, `quest: edit ${subject}${where}`, { ...state, spent: first }, { ...state, spent });
+      }
       if (item.status === 'dropped') commit(between(start, end, 0.6, 0.95), status(subject, 'dropped'), {}, { status: 'dropped' });
     }
 

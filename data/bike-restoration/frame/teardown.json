@@ -59,7 +59,9 @@
       "type": "blocker",
       "status": "done",
       "doneAt": "2026-06-09T12:09:00Z",
-      "notes": "French thread. Soaked in penetrating oil for a week; came out with a breaker bar."
+      "notes": "French thread. Soaked in penetrating oil for a week; came out with a breaker bar.",
+      "budget": 25,
+      "spent": 40
     },
     {
       "id": "remove-the-headset-and-fork",

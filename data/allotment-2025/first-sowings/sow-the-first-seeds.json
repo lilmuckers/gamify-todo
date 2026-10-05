@@ -35,14 +35,18 @@
       "title": "Plant onion sets",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-03-09T09:32:00Z"
+      "doneAt": "2025-03-09T09:32:00Z",
+      "budget": 8,
+      "spent": 8
     },
     {
       "id": "sow-broad-beans",
       "title": "Sow broad beans",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-03-12T19:56:00Z"
+      "doneAt": "2025-03-12T19:56:00Z",
+      "budget": 4,
+      "spent": 4
     },
     {
       "id": "sow-peas",
@@ -57,7 +61,9 @@
       "type": "risk",
       "status": "done",
       "doneAt": "2025-03-16T10:57:00Z",
-      "notes": "Netting over the peas."
+      "notes": "Netting over the peas.",
+      "budget": 15,
+      "spent": 18
     },
     {
       "id": "label-every-row",

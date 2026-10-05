@@ -22,5 +22,8 @@
     "first-sowings",
     "summer-glut",
     "lessons"
-  ]
+  ],
+  "budgets": {
+    "currency": "GBP"
+  }
 }

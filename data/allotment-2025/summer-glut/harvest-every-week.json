@@ -68,7 +68,8 @@
       "id": "chutney",
       "title": "Chutney",
       "type": "stretch",
-      "status": "dropped"
+      "status": "dropped",
+      "budget": 15
     }
   ],
   "stats": {

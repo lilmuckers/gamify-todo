@@ -169,7 +169,9 @@ These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, 
 2026, and three **finished games** from 2024–2025 with every level cleared: `allotment-2025`
 (year one of the allotment), `moving-flat` and `sourdough`. They power the read-only Pages site, the
 demo and the tour. Done items, steps and criteria carry `doneAt` stamps, so Stats has two years of
-history to show. Finished games sort after the others everywhere (`orderedProjects`).
+history to show. Finished games sort after the others everywhere (`orderedProjects`). Six projects
+track money (`budgets`): kitchen-renovation, home-maintenance, bike-restoration, moving-flat,
+allotment-2025 and sourdough, with a mix of overruns, savings and cut items.
 
 ---
 
@@ -537,11 +539,22 @@ or ✕ goes back to Stats. Its sections (`shared/src/detailed.ts`):
 - **Perfectionism watch:** reopened, edits after clearing, XP lost to polish, and the things most
   often reopened or edited after clearing.
 - **XP over the year** and **Lately** (the newest progress).
+- **Money** (projects with budgets on, `shared/src/money.ts`): budgeted, spent, left and saved so
+  far; spending by month from the first money spent (up to 36 months) as bars, with the running
+  total against what the things finished by then were budgeted at (a level with its own budget is
+  one envelope, settled when it clears); how many finished things came in on or under budget and
+  the typical over/under; the biggest overruns and savings (cut items save their whole budget); and
+  budget, spent, left and saved per project. One currency is shown (the one most money went
+  through); projects in others are noted. When each cost was paid comes from the history scan's
+  `spent` events; anything they don't cover is dated by when its item was finished (or its level
+  cleared or started), and the page says so. The Stats overlay shows one money line.
 
 **The deep scan** (`shared/src/scan.ts`) compares every data commit's level files before and after
 (`changesFromCommit`), so it sees hand and AI edits too: done, reopened, dropped, added (flagged
 after start / after clear), removed, edited, ticked, unticked, started, cleared, uncleared and
-extended. Its completions also feed the streak merge (`changesAsHistory`), deduplicated against
+extended, plus money: `spent` and `budgeted` with the amount added (a level's own budget has an
+empty subject). A change that only touches `budget`/`spent` is bookkeeping, never an edit, as in
+the app. Its completions also feed the streak merge (`changesAsHistory`), deduplicated against
 the quick history by commit.
 It is **built a little at a time in the background**, never in one big scan
 (`HistoryBuilder`, `app/src/data/history-builder.ts`):
@@ -589,6 +602,9 @@ the data (`app/test/demo-audit.test.ts` checks):
 - Extensions add up to `stats.timeboxExtendedDays` and come once the original box had run out.
 - Dropped items get their drop; about one item in six arrives after its level started (the data
   doesn't record adds), always before it's first finished.
+- Every cost is logged so each item's logged amounts add up exactly to its `spent`: usually as it's
+  finished, sometimes the rest a few days later (receipts can come after a clear); money spent in a
+  level that hasn't started is logged in the weeks before the data ends.
 - Nothing happens outside its level's start and clear, or after the data's last moment.
 Each commit carries a real `quest:` message and tiny before/after level snapshots, so the quick
 history and the deep scan read it exactly as they read a repo. The demo takes it in one page, so

@@ -36,7 +36,9 @@
       "title": "Strip and regrease the hubs",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-07T08:42:00Z"
+      "doneAt": "2026-09-07T08:42:00Z",
+      "budget": 15,
+      "spent": 12
     },
     {
       "id": "replace-two-broken-spokes",
@@ -44,7 +46,9 @@
       "type": "task",
       "status": "done",
       "doneAt": "2026-09-08T10:14:00Z",
-      "notes": "Rear drive side. Matching length from the co-op spares box."
+      "notes": "Rear drive side. Matching length from the co-op spares box.",
+      "budget": 10,
+      "spent": 8
     },
     {
       "id": "true-and-tension-both-wheels",
@@ -59,21 +63,26 @@
       "type": "task",
       "status": "done",
       "doneAt": "2026-09-12T13:41:00Z",
-      "notes": "Modern tyres fit the old rims fine."
+      "notes": "Modern tyres fit the old rims fine.",
+      "budget": 60,
+      "spent": 72
     },
     {
       "id": "new-rim-tape-and-tubes",
       "title": "New rim tape and tubes",
       "type": "task",
       "status": "done",
-      "doneAt": "2026-09-12T18:34:00Z"
+      "doneAt": "2026-09-12T18:34:00Z",
+      "budget": 20,
+      "spent": 18
     },
     {
       "id": "rims-too-worn-to-brake-on",
       "title": "Rims too worn to brake on",
       "type": "risk",
       "status": "dropped",
-      "notes": "Brake tracks still have plenty of material. Not a problem."
+      "notes": "Brake tracks still have plenty of material. Not a problem.",
+      "budget": 80
     }
   ]
 }

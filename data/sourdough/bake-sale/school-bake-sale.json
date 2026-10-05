@@ -42,21 +42,27 @@
       "title": "Bake three on Friday",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-10-27T18:51:00Z"
+      "doneAt": "2025-10-27T18:51:00Z",
+      "budget": 12,
+      "spent": 11
     },
     {
       "id": "bake-three-on-saturday-morning",
       "title": "Bake three on Saturday morning",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-10-27T21:23:00Z"
+      "doneAt": "2025-10-27T21:23:00Z",
+      "budget": 12,
+      "spent": 13
     },
     {
       "id": "labels-with-ingredients",
       "title": "Labels with ingredients",
       "type": "task",
       "status": "done",
-      "doneAt": "2025-10-28T18:56:00Z"
+      "doneAt": "2025-10-28T18:56:00Z",
+      "budget": 6,
+      "spent": 4
     },
     {
       "id": "sale-day",
@@ -70,7 +76,9 @@
       "title": "Seeded loaf",
       "type": "stretch",
       "status": "done",
-      "doneAt": "2025-10-30T18:39:00Z"
+      "doneAt": "2025-10-30T18:39:00Z",
+      "budget": 8,
+      "spent": 9
     }
   ]
 }

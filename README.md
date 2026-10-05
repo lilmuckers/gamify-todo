@@ -62,7 +62,8 @@ offline too.
 **DETAILED STATS ▶** (`#/records`) goes much further: a year-long calendar you can click into,
 your rhythm by weekday and hour, what kinds of things you finish, scope added against scope cut,
 every cleared level's days against its time-box, a table by project (finished games marked), a
-perfectionism watch and the latest activity. It reads your repo's history commit by commit,
+perfectionism watch, the latest activity and, for projects with budgets, money over time: what's
+been spent month by month against the budgets, what ran over and what came in under. It reads your repo's history commit by commit,
 comparing what each one changed, so it also sees edits made by hand or by an AI assistant. That
 history is built quietly in the background from your first visit: newest first, a little at a time,
 only when you're not doing anything, on a separate thread, and kept in this browser so it carries
