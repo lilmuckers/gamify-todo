@@ -2737,14 +2737,16 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-height: 24px;
   padding-left: 34px;
   counter-increment: step;
 }
 .next-steps li::before {
   content: counter(step);
   position: absolute;
-  top: -2px;
+  top: 0;
   left: 0;
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   width: 24px;
@@ -2763,6 +2765,9 @@ a:focus-visible {
   opacity: 0.7;
 }
 .next-steps b {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
   font: 9px/1.6 var(--pixel);
 }
 .next-steps .actions {
