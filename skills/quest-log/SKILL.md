@@ -1,6 +1,6 @@
 ---
 name: quest-log
-description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repository the user chooses — usually their own data repo, not the Quest Log app repo. First check the published skill version and reload the skill if it is newer. Use your own GitHub integration if you have one (ChatGPT's GitHub connector or Codex, Claude's GitHub integration, Claude Code with git), otherwise the bundled quest.py or the GitHub REST API with a personal access token. Every change must pass schema validation with quest.py before it is committed, pushed or handed over, and branches are updated from the base branch before a pull request is opened or added to. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, capture a quick idea or to-do (into the inbox when it's unclear where it belongs), say what to work on next, or open a pull request with Quest Log changes.
+description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repository the user chooses — usually their own data repo, not the Quest Log app repo. First check the published skill version and reload the skill if it is newer. Use your own GitHub integration if you have one (ChatGPT's GitHub connector or Codex, Claude's GitHub integration, Claude Code with git), otherwise the bundled quest.py or the GitHub REST API with a personal access token. Hard gate: never write to GitHub (commit, push, branch or pull request) unless quest.py validate has exited 0 on the complete resulting data tree in the same operation; with no way to run it, hand the files over instead of committing. Branches are updated from the base branch before a pull request is opened or added to. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, capture a quick idea or to-do (into the inbox when it's unclear where it belongs), say what to work on next, or open a pull request with Quest Log changes.
 ---
 
 # Quest Log data skill
@@ -11,14 +11,16 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 3**
+**Skill version: 4**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
 1. **Check for a newer skill first** (§0). If the published skill is newer than this copy, load
    the new one and follow it instead of this document.
-2. **Validation is a blocking gate** ("Schema validation"). No commit, push, pull request or
-   hand-over of files until the whole data tree passes validation against the current schema.
+2. **No unvalidated writes** ("Schema validation"). Writing to GitHub is **forbidden** unless
+   `quest.py validate --refresh` exited 0 on the complete resulting `data/` tree during the
+   current operation. If you can't run the validator, you don't write to GitHub: no commit, push,
+   branch or pull request. This is a precondition, not a step you can skip and make up for later.
 3. **Update from the base branch first.** Base a new pull request on the latest base branch, and
    bring the base branch into an existing pull request before you add commits to it ("Branches
    and pull requests").
@@ -68,29 +70,53 @@ Validation is a **blocking gate**, not a quality check you do if there's time. E
 must match the JSON Schema (§3) **and** the cross-file rules (§2, §7). The app and CI reject
 anything that doesn't, so invalid data is never "nearly done": it's broken.
 
-**The gate:** before **any** GitHub write (a commit, a push, creating a branch with data on it,
-opening or updating a pull request) and before you give the user files to commit, validate the
-**whole data tree** as it will be after your change. Only go on when it passes.
+### HARD GATE: no unvalidated writes
 
-```bash
-python3 scripts/quest.py validate --refresh DIR      # DIR contains data/
+A **write** is anything that changes data on GitHub: creating a commit, creating or updating a
+file, pushing, creating a branch with data on it, opening a pull request or adding to one.
+
+Before **every** write you **must**:
+
+1. Update from the base branch ("Branches and pull requests") and **materialise the complete
+   resulting tree**: every file under `data/` as it will be after the write, in one folder
+   (`DIR/data/...`). A checkout, a clone or a `quest.py pull` folder all count. A handful of the
+   files you touched does not.
+2. Run:
+   ```bash
+   python3 scripts/quest.py validate --refresh DIR      # DIR contains data/
+   ```
+3. Confirm it **exited with code 0** and printed a line starting `✓ N data file(s) valid`.
+
+If the validator can't be run, exits non-zero, or you can't give it the complete tree, **STOP.
+Do not write to GitHub.** Fix the issues and validate again, or, if you can't run it at all,
+hand the files over instead (§6.6) and tell the user why.
+
+The transaction order is fixed:
+
+```
+UPDATE FROM BASE → MATERIALISE COMPLETE TREE → EDIT → VALIDATE → WRITE
+                                                ↑        │
+                                                └─ fail ─┘
 ```
 
-The order is always:
+These steps **must not** be reordered or left out. `WRITE` is forbidden unless `VALIDATE`
+succeeded during the current operation, on exactly the files you're about to write. A pass
+from earlier in the chat, or on a different set of files, doesn't count: if anything changed
+since (your edits, a fix, the base branch moving), go round again.
 
-```
-read the current schema (§3) and the latest files
-        ↓
-make the change
-        ↓
-validate the whole tree  ←──────────┐
-        ↓                          │
-passed? ── no ──→ fix every issue ─┘
-        │
-       yes
-        ↓
-commit → push / open or update the pull request → tell the user
-```
+- **No manual fallback for writes.** Reading the schema and checking files by eye can help you
+  find a problem, but it never satisfies this gate. If you can write to GitHub but can't run the
+  validator, you still don't write.
+- **Never create the pull request first and rely on CI.** Validation must pass before the
+  **first** commit lands on the branch, not after.
+- **Report it, truthfully.** After a successful write, tell the user in one line:
+  `Quest validation: PASS — quest.py validate --refresh <DIR> exited 0 (✓ N data files valid)`.
+  If you can't truthfully say that, you must not have written.
+- **Prefer one atomic write.** When the change spans several files, write them in a single
+  commit (`quest.py push`, a `git` commit, your integration's multi-file commit, or §6.2) rather
+  than one file at a time, so no commit holds a half-made change. See "How to reach GitHub".
+
+The rest of this section explains what validation covers and how to handle failures.
 
 - **Pass** means exit code 0 and a line starting `✓ N data file(s) valid`. Anything else is a
   fail: exit 1 lists every issue as `file/path: message`.
@@ -118,17 +144,17 @@ commit → push / open or update the pull request → tell the user
   of a broken tree.
 - **Done means validated.** "Pull request opened" is not success; "validated changes are in a
   pull request" is. Never tell the user a branch or pull request is ready until validation has
-  passed on exactly what you committed. Report it in one line, e.g. *"Validated: ✓ 14 data files
-  valid."*
+  passed on exactly what you committed. Report it with the `Quest validation: PASS` line above.
 - **`quest.py push`** validates by itself and refuses to commit invalid data, both your copy and
   your copy combined with the latest branch. It has no way to skip this.
 
-**If you can't run Python**, validate by hand instead, and say that you did: fetch
-https://tasks.patrick-mckinley.com/schema/quest.schema.json and check every file you wrote or
-changed field by field against it (required fields, types, enums, patterns, lengths, **no extra
-fields**), then go through every box in the checklist in §7. Tell the user: *"I couldn't run the
-validator, so I checked by hand. The app will flag anything I missed."* If they have CI (§8), a
-pull request is the safer route.
+**If you can't run Python**, you can't pass the gate, so **don't write to GitHub**, even if you
+have write access. Check by hand instead and hand the files over for the user to commit (§6.6):
+fetch https://tasks.patrick-mckinley.com/schema/quest.schema.json and check every file you wrote
+or changed field by field against it (required fields, types, enums, patterns, lengths, **no
+extra fields**), then go through every box in the checklist in §7. Tell the user: *"I couldn't
+run the validator, so I checked by hand and haven't committed anything. Please commit these
+files yourself; the app (and CI, if you have it, §8) will flag anything I missed."*
 
 ## How to reach GitHub
 
@@ -139,16 +165,30 @@ still update from the base branch first ("Branches and pull requests").
 1. **Your own GitHub integration.** For example: ChatGPT's GitHub connector or Codex, Claude's
    GitHub integration or a GitHub MCP server, Claude Code or another agent with `git`/`gh` and a
    clone. Use it to read the data, commit and open pull requests, the same way you would for any
-   repo. It handles authentication, so **don't ask the user for a token**. Use `quest.py` to
-   validate: run `python3 scripts/quest.py validate --refresh DIR` on a checkout, or on a folder
-   where you've written **every** file under `data/` as it will be after your change (`DIR`
-   contains `data/`), and fix every issue before committing.
+   repo. It handles authentication, so **don't ask the user for a token**. It doesn't validate
+   for you, so follow the hard gate exactly:
+   1. **Update from base**: read the base (or pull request) branch's latest head sha.
+   2. **Materialise the complete tree**: with a clone or checkout, that's the checkout. With a
+      connector, read **every** file under `data/` at that sha and write each one into a folder
+      in your code execution sandbox as `DIR/data/...`. Not just the files you'll touch.
+   3. **Edit** the files in `DIR`.
+   4. **Validate**: `python3 scripts/quest.py validate --refresh DIR`, exit 0, or fix and repeat.
+   5. **Write** exactly the files you validated, byte for byte, from `DIR`.
+
+   If your integration can commit several files at once (a git commit, a "push files" or
+   "create tree" tool), use that: one commit for the whole change. If it can only create or
+   update one file per commit, **don't write file by file to the base branch**, because every
+   commit in between holds a half-made change. Put the change on a pull request branch instead,
+   writing only after the complete tree has passed, and tell the user to merge it once it's all
+   there.
 2. **`quest.py pull` / `push`** with a token, when you can run Python **and** reach
-   `api.github.com` but have no integration. See "The helper script".
-3. **The GitHub REST API directly** (§6), when you can make HTTP requests but can't run Python.
-   Check the rules in §7 by hand.
-4. **No access at all:** write the files, validate them if you can run Python, and give them to
-   the user to commit (§6.6).
+   `api.github.com` but have no integration. `push` validates for you and writes one atomic
+   commit; there's no way to skip its check. See "The helper script".
+3. **The GitHub REST API directly** (§6), when you can make HTTP requests and run the validator
+   but `quest.py push` doesn't suit. The gate is the same: validate the complete tree before
+   §6.2. If you can't run Python, use the API only to **read**, then hand the files over.
+4. **No validator or no write access:** write the files, validate them if you can run Python
+   (by hand if not, and say so), and give them to the user to commit (§6.6).
 
 Tell the user which route you're using when it isn't obvious, e.g. *"Committing through the
 GitHub connector to alice/quests@main"*.
@@ -667,7 +707,7 @@ Where you are running matters:
 | Environment | What to do |
 |---|---|
 | Claude Code, Codex, a terminal with `git`/`gh` | `update-check`, then clone or use the checkout, `git fetch` and update from the base branch, edit, `validate --refresh`, commit and push (or open a PR) with git. `quest.py pull`/`push` also works if there's no clone. |
-| An agent with a GitHub connector/integration (ChatGPT, Claude) | Check `version.json` (§0). Read the latest data and commit through the integration. Run `validate` in code execution on the whole data tree you're about to commit. |
+| An agent with a GitHub connector/integration (ChatGPT, Claude) | Check `version.json` (§0). Read **every** `data/` file at the latest head into a folder in code execution, edit there, `validate --refresh` it to exit 0, then commit exactly those files through the integration, in one commit if it can (see "How to reach GitHub"). No code execution means no commit: hand the files over (§6.6). |
 | Claude.ai / Claude apps with code execution, no integration | `update-check` and `validate` always. `pull`/`push` only if the sandbox can reach `api.github.com`; if you get a network error, validate and output the files (§6.6). |
 | ChatGPT code interpreter, no integration | No internet in the interpreter: check `version.json` by browsing if you can (§0), unzip the skill, run `validate` on the files you wrote, then output them (§6.6). |
 
@@ -716,6 +756,10 @@ data repo. Every step below works the same for any repo the token can access.
 Commit all changed files at once so the data is never half-updated. Send only the files you
 changed (`base_tree` keeps the rest), and build each one from the copy you read at **HEAD** in
 6.1, just before this, with only your edit applied.
+
+**Gate:** don't start step 1 until `quest.py validate --refresh` has exited 0 on the complete
+tree at HEAD with your edit applied ("Schema validation"). If you have to go back to 6.1 after
+a 422, validate again before retrying.
 
 1. `GET R/git/commits/<HEAD>` → `tree.sha` = **BASE_TREE**.
 2. `POST R/git/trees`
@@ -798,15 +842,19 @@ Every time, whatever the route:
 - [ ] You updated from the base branch just before: a new pull request branches from its latest
       commit, and an existing pull request has the base branch merged in ("Branches and pull
       requests").
-- [ ] `python3 scripts/quest.py validate --refresh DIR` passed (`✓ … valid`, exit 0) on the
-      **whole** data tree as it will be after your commit, and you told the user.
+- [ ] `python3 scripts/quest.py validate --refresh DIR` exited 0 (`✓ … valid`) on the
+      **complete** data tree as it will be after your commit, during this operation and after
+      your last edit. If not, you don't commit: there is no manual substitute.
+- [ ] You write exactly the files you validated, in one commit where your route allows it.
+- [ ] You told the user `Quest validation: PASS — quest.py validate --refresh <DIR> exited 0`.
 - [ ] Every value the schema limits (enums, patterns, ranges) was checked against the current
       schema, not remembered.
 - [ ] Your change removes nothing the user didn't ask to remove (`quest.py changes`), and you
       added new worlds and levels as new files without rewriting shared ones.
 
 `validate` checks all of the following for you. Without Python, check every box by hand against
-https://tasks.patrick-mckinley.com/schema/quest.schema.json, and tell the user you did:
+https://tasks.patrick-mckinley.com/schema/quest.schema.json, tell the user you did, and hand the
+files over (§6.6) rather than committing them:
 
 - [ ] Every file is under `data/<project>/…` with the right name, and its `id` matches.
 - [ ] `worldOrder` / `levelOrder` only name worlds / levels that exist (leaving new ones out is fine).
