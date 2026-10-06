@@ -13,3 +13,4 @@ e2e/.tmp
 app/dist-e2e-*
 .dev.vars*
 .wrangler/
+.claude/worktrees/
