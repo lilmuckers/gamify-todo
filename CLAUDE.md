@@ -73,8 +73,8 @@ app/      Vite + Phaser 3 + plain DOM (no framework)
                     history (stats' commit-message cache), history-builder + history-work + history.worker
                     (detailed stats built in the background, off the main thread), demo-history (made-up commits)
   src/game/         Phaser scenes: projects (bedroom/console), overworld, world, level (~2k lines), play/ (physics, input)
-  src/sprites/      all art drawn in code: pixels palette, heroes, portraits, cartridge, bedroom, junk-tv, strip
-  src/ui/           DOM: hud, panels, forms, today/inbox/weekly (legal pad), settings, toast, modal, dialogue, onboarding/
+  src/sprites/      all art drawn in code: pixels palette, heroes, portraits, fighters (48×64 poses), cartridge, bedroom, junk-tv, strip
+  src/ui/           DOM: hud, panels, forms, today/inbox/weekly (legal pad), settings, heroes (#/heroes profiles), toast, modal, dialogue, onboarding/
   src/analytics*.ts GA4 with an allow-list; nothing identifying leaves the browser
 server/   Fastify API for the Docker editor: reads/writes data/, commits, publishes, proxies PRs
 worker/   Cloudflare Worker for Sign in with GitHub: swaps a code/refresh token for a user token (not a workspace)
@@ -144,8 +144,8 @@ data/     eight example projects: five in play (customer-portal, home-maintenanc
   They have been reverted before ("Revert stray app data edits", "quest: settings: hero = goth").
 - Art is original pixel art drawn in code from the palette in `sprites/pixels.ts`. No Nintendo
   assets, and no external images.
-- **Adding a hero** touches the schema, `HERO_IDS`, 16×16 sprites, 32×32 portraits, 18 tour lines
-  and 73+ easter-egg lines in that hero's own voice. Follow the full guide and checklist in
+- **Adding a hero** touches the schema, `HERO_IDS`, 16×16 sprites, 32×32 portraits, a 48×64
+  fighter look, a voice/bio/quote, 18 tour lines and 73+ easter-egg lines in that hero's own voice. Follow the full guide and checklist in
   `SPEC.md` §18. Voices come from style and personality, never from background, identity or
   accent. Tests fail until every piece is there.
 - Ids are lowercase kebab-case and never renamed. Folder and file names equal ids. `world` is a

@@ -5,6 +5,7 @@ import { setSoundOn, soundOn } from '../audio';
 import { needsSignIn } from '../auth/session';
 import { REVOKE_URL, signInAvailable, signOut } from '../auth/signin';
 import { chosenBranch, heroStore, reloadWithMode, repoRef, savedRepo, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
+import { href } from '../router';
 import { HEROES, heroKey } from '../sprites/heroes';
 import { spriteUrl } from '../sprites/render';
 import { h, relTime } from './dom';
@@ -16,7 +17,11 @@ import { toast } from './toast';
 export function settingsDialog(app: App) {
   const s = app.store;
   const body = h('div', { class: 'settings' });
-  body.append(h('h3', null, 'Your hero'), heroPicker(app));
+  body.append(
+    h('h3', null, 'Your hero'),
+    heroPicker(app),
+    h('p', null, h('a', { href: href({ view: 'heroes', heroId: app.heroId }), onclick: () => closeAll() }, 'Meet the heroes: bios, poses and portraits ▶')),
+  );
 
   if (s.source.id === 'demo') {
     body.append(h('h3', null, 'Demo'), ...demoNotice(app));

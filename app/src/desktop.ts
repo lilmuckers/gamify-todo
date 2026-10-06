@@ -9,6 +9,7 @@ import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { mountPadOverlay } from './ui/today';
 import { mountRecords } from './ui/records';
+import { mountHeroes } from './ui/heroes';
 
 export function mountDesktop(app: App, root: HTMLElement) {
   const hud = h('header', { class: 'hud' });
@@ -19,7 +20,9 @@ export function mountDesktop(app: App, root: HTMLElement) {
   const today = h('div');
   // Detailed stats: a page over the game and panel (the pad can still go over it).
   const records = h('div');
-  root.append(hud, h('main', { class: 'desktop' }, h('div', { class: 'game-wrap' }, game, nav), panel, records, today));
+  // The hero gallery and profiles: a page over the game, like detailed stats.
+  const heroes = h('div');
+  root.append(hud, h('main', { class: 'desktop' }, h('div', { class: 'game-wrap' }, game, nav), panel, records, heroes, today));
   scheduler(app, panel, () => {
     renderHud(app, hud);
     renderGameNav(app, nav);
@@ -27,6 +30,7 @@ export function mountDesktop(app: App, root: HTMLElement) {
   }, () => repaintSyncStatus(app, hud, panel));
   mountPadOverlay(app, today);
   mountRecords(app, records);
+  mountHeroes(app, heroes);
   // Before the game starts, so Esc reaches us before Phaser's own key handling.
   bindNavKeys(app);
   startGame(app, game);

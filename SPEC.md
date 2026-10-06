@@ -249,6 +249,7 @@ touch screens, and can be overridden in Settings or with `?mobile=on|off`.
 …/~stats                                  the stats screen held up over any screen
 #/today, #/review, #/stats                short forms
 #/records                                 detailed stats
+#/heroes[/<hero>]                         hero gallery, or one hero's profile
 ```
 
 Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`, `?jam` (for testing: one of every
@@ -455,7 +456,20 @@ Each hero has:
 - walk and jump sprites (`sprites/heroes.ts`; `poses()` derives the frames);
 - 32×32 portraits, neutral and reacting (`sprites/portraits.ts`), composed from a shared head
   plus per-hero hair, clothes and accessories;
-- their own voice in the tour lines and easter-egg lines.
+- a 48×64 fighting-game pose with four idle frames and a victory frame (`sprites/fighters.ts`),
+  built from one shared body plus per-hero hair, clothes and details;
+- their own voice in the tour lines and easter-egg lines, plus a one-line `voice` summary, a short
+  `bio` and a signature `quote`.
+
+**Hero profiles** (`#/heroes`, linked from Settings → Your hero) are a full page over the game,
+like detailed stats. The gallery shows every hero's pose, portrait, name and bio; yours is
+marked P1. A profile (`#/heroes/<id>`) shows the pose breathing in its idle loop, the
+description, bio, quote and voice, **PICK THIS HERO** (the same as the Settings carousel) and
+**SAY SOMETHING** (a random tour or console line in the dialogue box). Below: the colour slots,
+the 16×16 frames at 8× on every world's sky plus the panel and the legal pad, and both
+portraits, so it's also the place to check a hero's art. ◀ ▶, ← → and `[` `]` step through the
+heroes in a loop; Esc goes back to the gallery, then the project floor. Unknown ids show the
+gallery. Page views are `/heroes` and `/hero`, never the id.
 
 Precedence: in read-only views the viewer's own choice wins over the repo default. §18 covers how
 to add a hero: the art, the voice and every line they need.
@@ -931,7 +945,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 **Quality:**
 - #39 Accessibility: screen-reader announcements, keyboard play, reduced motion
 - #40 Light theme
-- #41 Document the hero sprite format
 
 ---
 
@@ -975,6 +988,7 @@ half-added hero can't ship.
 | HUD and mobile tab bar | Small icon by the title, and on the Next tab | Standing frame |
 | Mobile level strip | Stands at the next stop | Standing frame |
 | Settings → Your hero | Carousel, walking in place, with label and description | Frames + `label` + `description` |
+| Hero gallery and profile (`#/heroes`) | Fighter pose, bio, quote, voice, colour slots, every frame and both portraits | Fighter look + `bio` + `quote` + `voice` + all the art |
 | Welcome screen | A random cast of three on the box cover (standing or jumping) | Frames |
 | Set-up guide | The hero gives tips in the margin | Standing frame |
 | Legal pad (Today, Inbox, Review) | The hero's hands hold the pad | Skin colour, slot `3` |
@@ -1044,9 +1058,26 @@ it from shared parts:
   there, that the two faces differ, that the shoulders fill the bottom row, and that only the
   hero's slots and palette letters are used.
 
+**Fighter pose: 48×64**, in `app/src/sprites/fighters.ts`. Like the portraits, it's built, not
+drawn: one body in a fists-up stance (head, torso, limbs, shoes, each outlined in `k` and lit from
+the top left) plus a `LOOKS[id]` entry naming the hero's hair, clothes, extras and top details.
+Add a new hair or clothes style there when none fits. Rules learned the hard way:
+- Use the hero's slots, plus `%` (the top, darkened) and `$` (the shoes, darkened). Slot `6` is an
+  accent, not a shade.
+- Recolour only painted pixels, never empty space.
+- Hair over the head has no outline where it meets the head; long hair goes *behind* the face, as
+  in the portraits.
+- Keep everything inside the frame, so the outline is never clipped.
+
+The tests check the size and colours, that there are no stray pixels, that the idle frames bob
+with the feet planted, and that the figure is outlined at the top.
+
 **Metadata.** Give the hero a `label` (2–3 words: "Hijab skater", "Beard & glasses") and a
 `description` (one line: hair, top, bottoms, shoes, plus the signature detail). Use the same
-description wording in the schema.
+description wording in the schema. Then the profile's words, in the hero's voice (§18.3):
+- `voice`: a few words on how they talk (the row you add to the voice table);
+- `bio`: one or two sentences, at most 160 characters, about personality and style;
+- `quote`: a signature line, at most 60 characters.
 
 ### 18.3 The voice
 
@@ -1150,16 +1181,18 @@ are hero-neutral.
    `quest.py` reads the bundled schema, so it picks up the new value with no code change.
 2. **Model:** add the id to `HERO_IDS` in `shared/src/model.ts`. Order sets the Settings
    carousel; put new heroes at the end.
-3. **Sprites:** add a `HEROES[id]` entry (label, description, colours, frames) in
-   `app/src/sprites/heroes.ts`.
-4. **Portraits:** add a `BUILD[id]` entry in `app/src/sprites/portraits.ts`.
+3. **Sprites:** add a `HEROES[id]` entry (label, description, voice, bio, quote, colours,
+   frames) in `app/src/sprites/heroes.ts`.
+4. **Portraits and pose:** add a `BUILD[id]` entry in `app/src/sprites/portraits.ts` and a
+   `LOOKS[id]` entry in `app/src/sprites/fighters.ts`.
 5. **Tour lines:** add `TOUR_LINES[id]` (18 lines).
 6. **Easter-egg lines:** add `LINES[id]` (73+ lines).
 7. **Docs:** add the id to the settings table in `skills/quest-log/SKILL.md`, update the hero
    count in `README.md` and in §5.11 here, and add a row to the voice table in §18.3.
 8. **Check:** `npm run typecheck` (the `Record<HeroId, …>` maps fail on a missing entry),
-   `npm test` (`heroes`, `portraits`, `junk-lines` and `tour` tests), `npm run schema:check`.
-   Then look at the hero in the app: Settings carousel, a level (walk, jump, play mode), the
+   `npm test` (`heroes`, `fighters`, `portraits`, `junk-lines` and `tour` tests),
+   `npm run schema:check`. Then look at the hero in the app: their profile (`#/heroes/<id>`:
+   pose, frames on every ground, portraits, SAY SOMETHING), Settings carousel, a level (walk, jump, play mode), the
    tour (`?welcome` → Take the tour, after picking the hero), the console egg on the bedroom
    floor, and a phone-width window. Check that the sprite reads against every world theme and
    that the portrait matches it.
