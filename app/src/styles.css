@@ -2298,6 +2298,232 @@ button.heat:focus-visible,
   }
 }
 
+/* ---------- Heroes (#/heroes): a gallery and profiles over the game ---------- */
+.heroes-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px;
+  color: var(--paper);
+}
+.heroes-page h3 {
+  margin: 22px 0 10px;
+  font: 11px var(--pixel);
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.hp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hp-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 10px;
+  color: var(--paper);
+  text-decoration: none;
+  background: var(--panel);
+  border: 3px solid var(--panel-2);
+}
+.hp-card:hover,
+.hp-card:focus-visible {
+  border-color: var(--gold);
+  outline: none;
+}
+.hp-card.mine {
+  border-color: var(--red);
+}
+.hp-card-art {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.hp-card b {
+  font: 9px/1.5 var(--pixel);
+  color: var(--gold-hi);
+}
+.hp-card small {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.hp-tag {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  padding: 2px 4px;
+  font: 7px var(--pixel);
+  color: var(--paper);
+  background: var(--red);
+}
+.hp-steps {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.hp-top {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  padding: 18px;
+  /* Room under the bio for a line in the dialogue box. */
+  padding-bottom: 150px;
+  background: linear-gradient(#29366f, var(--ink) 75%);
+  border: 3px solid var(--panel-2);
+}
+.hp-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hp-floor {
+  width: 100%;
+  min-width: 220px;
+  height: 12px;
+  margin-top: -4px;
+  background: repeating-linear-gradient(90deg, #5a6988 0 16px, #3a4466 16px 32px);
+  border-top: 3px solid #8b9bb4;
+}
+.hp-card-info h2 {
+  margin: 0 0 6px;
+  font: 18px/1.4 var(--pixel);
+  color: var(--gold);
+  text-shadow: 3px 3px 0 #a22633;
+  text-wrap: balance;
+}
+.hp-desc {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+.hp-bio {
+  max-width: 60ch;
+  padding: 12px 14px;
+  background: var(--ink);
+  border: 3px solid var(--panel-2);
+}
+.hp-bio p {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.hp-bio q {
+  display: block;
+  font: 9px/1.8 var(--pixel);
+  color: var(--gold-hi);
+}
+.hp-voice {
+  margin: 10px 0 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.hp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.hp-swatches li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hp-swatches i,
+.hp-grounds i {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.hp-swatches b {
+  font: 8px var(--pixel);
+}
+.hp-grounds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.hp-grounds .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--paper);
+  background: var(--panel);
+  cursor: pointer;
+}
+.hp-grounds .chip.on {
+  border-color: var(--gold);
+  color: var(--gold-hi);
+}
+.hp-frames,
+.hp-faces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.hp-frames {
+  padding: 16px;
+  border: 3px solid var(--panel-2);
+}
+.hp-frames figure,
+.hp-faces figure {
+  margin: 0;
+  text-align: center;
+}
+.hp-frames figcaption,
+.hp-faces figcaption {
+  margin-top: 6px;
+  font: 8px var(--pixel);
+  color: var(--muted);
+}
+.hp-frames figcaption {
+  display: inline-block;
+  padding: 2px 4px;
+  color: var(--paper);
+  background: rgba(26, 28, 44, 0.75);
+}
+.hp-face {
+  position: relative;
+  display: inline-block;
+  border: 3px solid var(--panel-2);
+  background: var(--panel);
+}
+.hp-emote {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+}
+@media (max-width: 760px) {
+  .hp-top {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding-bottom: 170px;
+  }
+  .hp-pose {
+    width: 144px !important;
+    height: 192px !important;
+  }
+  .hp-frame {
+    width: 96px !important;
+    height: 96px !important;
+  }
+  .hp-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
 /* ---------- Detailed stats (#/records): a page over the game ---------- */
 .records-host {
   position: absolute;

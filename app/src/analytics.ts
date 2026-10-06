@@ -102,6 +102,9 @@ export function routeType(route: Route): string {
       return '/warp-zone';
     case 'records':
       return '/records';
+    // Which hero is never part of the page view.
+    case 'heroes':
+      return route.heroId ? '/hero' : '/heroes';
     case 'pr':
       return '/pr';
     case 'pr-level':

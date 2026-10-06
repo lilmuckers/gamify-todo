@@ -12,6 +12,7 @@ import { scheduler } from './ui/render-loop';
 import { settingsDialog } from './ui/settings';
 import { mountPadOverlay } from './ui/today';
 import { mountRecords } from './ui/records';
+import { mountHeroes } from './ui/heroes';
 
 /** Compact, touch-first layout for phones: DOM screens plus a static level strip. */
 export function mountMobile(app: App, root: HTMLElement) {
@@ -20,7 +21,8 @@ export function mountMobile(app: App, root: HTMLElement) {
   const nav = h('nav', { class: 'tabbar' });
   // Detailed stats takes the body's place while it's open.
   const records = h('div', { class: 'mobile' });
-  root.append(hud, body, records, nav);
+  const heroes = h('div', { class: 'mobile' });
+  root.append(hud, body, records, heroes, nav);
 
   const today = h('div', { class: 'mobile' });
   root.append(today);
@@ -36,6 +38,7 @@ export function mountMobile(app: App, root: HTMLElement) {
   window.addEventListener('hashchange', () => (stripScroll = undefined));
   mountPadOverlay(app, today);
   mountRecords(app, records, { onShow: (shown) => (body.hidden = shown) });
+  mountHeroes(app, heroes, { onShow: (shown) => (body.hidden = shown) });
 }
 
 function renderVisual(app: App, scroll?: number): HTMLElement | null {

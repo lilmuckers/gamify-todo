@@ -1,3 +1,5 @@
+import { HERO_IDS, type HeroId } from '@quest/shared';
+
 type Screen =
   | { view: 'projects' }
   | { view: 'overworld'; projectId: string }
@@ -6,6 +8,8 @@ type Screen =
   | { view: 'prs' }
   /** Detailed stats: the whole history, scanned commit by commit. */
   | { view: 'records' }
+  /** The hero gallery, or one hero's profile. */
+  | { view: 'heroes'; heroId?: HeroId }
   | { view: 'pr'; pr: number }
   | { view: 'pr-level'; pr: number; projectId: string; worldId: string; levelId: string; subId?: string; itemId?: string };
 
@@ -25,6 +29,7 @@ export type Route = Screen & { pad?: PadPage };
  *   #/p/<project>/<world>/<level>/@<dependency>[/<step>]   a dependency's sub-level
  *   #/prs, #/pr/<n>[/<project>/<world>/<level>[/@<dependency>][/<item>]]   PR review
  *   #/records                           detailed stats
+ *   #/heroes[/<hero>]                   hero gallery, or one hero's profile
  * Any of them can end in /~today, /~inbox, /~review or /~stats to hold that
  * page of the legal pad up over the screen (e.g. #/~today, #/p/house/kitchen/~inbox).
  * #/today, #/review and #/stats are short for #/~today, #/~review and #/~stats.
@@ -52,6 +57,8 @@ function parseScreen([a, b, ...rest]: string[]): Screen {
   }
   if (a === 'prs') return { view: 'prs' };
   if (a === 'records') return { view: 'records' };
+  // An unknown hero falls back to the gallery.
+  if (a === 'heroes') return HERO_IDS.includes(b as HeroId) ? { view: 'heroes', heroId: b as HeroId } : { view: 'heroes' };
   if (a === 'pr' && Number(b) > 0) {
     const [c, d, e, ...more] = rest;
     if (c && d && e) return { view: 'pr-level', pr: Number(b), projectId: c, worldId: d, levelId: e, ...tail(more) };
@@ -97,6 +104,8 @@ function screenHref(route: Screen): string {
       return '#/prs';
     case 'records':
       return '#/records';
+    case 'heroes':
+      return route.heroId ? `#/heroes/${e(route.heroId)}` : '#/heroes';
     case 'pr':
       return `#/pr/${route.pr}`;
     case 'pr-level':

@@ -12,6 +12,12 @@ export type HeroFrame = 'stand' | 'walk' | 'jump';
 export interface HeroDef {
   label: string;
   description: string;
+  /** How the hero talks, in a few words (SPEC §18.3). Shown on the hero's profile. */
+  voice: string;
+  /** A one- or two-sentence bio in the hero's voice: personality and style, never background or identity. */
+  bio: string;
+  /** A signature line in the hero's voice. */
+  quote: string;
   colors?: Record<string, string>;
   frames?: Record<HeroFrame, string[]>;
 }
@@ -34,10 +40,19 @@ function poses(stand: string[]): Record<HeroFrame, string[]> {
 }
 
 export const HEROES: Record<HeroId, HeroDef> = {
-  classic: { label: 'Classic', description: 'The original: red cap, blue overalls.' },
+  classic: {
+    label: 'Classic',
+    description: 'The original: red cap, blue overalls.',
+    voice: 'Upbeat platform hero, all exclamation marks.',
+    bio: 'The original. Has bumped more ? blocks than anyone alive and still gets a thrill from every single one.',
+    quote: 'Wahoo! One more level!',
+  },
   bearded: {
     label: 'Beard & glasses',
     description: 'Bald, brown beard, glasses, t-shirt, jeans and trainers.',
+    voice: 'Dry, deadpan, a little weary.',
+    bio: 'Has seen it all and ticked most of it. Brings a dry remark and a finished task to every meeting.',
+    quote: "Well. That's done, then.",
     colors: { '1': '#7a4a2a', '2': '#5a3420', '3': '#f0c8a8', '4': '#d9a07c', '5': '#5a6988', '6': '#3a4466', '7': '#3b6ea8', '8': '#2a5080', '9': '#f4f4f4', '0': '#c0cbdc' },
     frames: {
       stand: [
@@ -99,6 +114,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   redhead: {
     label: 'Long red hair',
     description: 'Long red hair, tank top and jeans.',
+    voice: 'Breezy and easy-going; likes a bit of chaos.',
+    bio: 'Breezy about deadlines, oddly brilliant under pressure. Likes a little chaos and makes it look easy.',
+    quote: 'Honestly? Lovely. No stress.',
     colors: { '1': '#c8521f', '2': '#8f3415', '3': '#f6d6c1', '4': '#e0b096', '5': '#2ca39a', '6': '#1d7a73', '7': '#3b6ea8', '8': '#2a5080', '9': '#743f39', '0': '#4a2824' },
     frames: {
       stand: [
@@ -160,6 +178,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'mustard-jumper': {
     label: 'Mustard jumper',
     description: 'Hair up, glasses, mustard jumper, dark trousers.',
+    voice: 'Precise rule-follower who reads the manual.',
+    bio: 'Reads the manual first, the FAQ second and the warranty for fun. Every box ticked exactly to spec.',
+    quote: 'To be clear, that was in the spec.',
     colors: { '1': '#2b1d16', '2': '#4a3226', '3': '#7a4a2a', '4': '#5a3420', '5': '#e8a23a', '6': '#b97a1c', '7': '#262b44', '8': '#1a1c2c', '9': '#f4f4f4', '0': '#c0cbdc' },
     frames: {
       stand: [
@@ -221,6 +242,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'denim-jacket': {
     label: 'Denim jacket',
     description: 'Short purple hair, denim jacket, black jeans.',
+    voice: 'Art school: everything is a piece.',
+    bio: 'Art school never really ended. Every level is an installation and every task a brushstroke.',
+    quote: "It's less a to-do list, more a medium.",
     colors: { '1': '#9b4fb0', '2': '#5e2d70', '3': '#f0c79c', '4': '#d9a66f', '5': '#4a7fc1', '6': '#2f5a94', '7': '#262b44', '8': '#1a1c2c', '9': '#1a1c2c', '0': '#5a6988' },
     frames: {
       stand: [
@@ -282,6 +306,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   hoodie: {
     label: 'Hoodie',
     description: 'Dark wavy hair and stubble, green hoodie, cargo shorts.',
+    voice: 'Speedrunner and gamer.',
+    bio: 'Speedrunner. Knows every shortcut, counts every frame and has the splits to prove it.',
+    quote: 'Any% or bust. GG.',
     colors: { '1': '#2b1d16', '2': '#4a3226', '3': '#b5793f', '4': '#8f5a2b', '5': '#3e8948', '6': '#265c42', '7': '#b39a62', '8': '#8a7444', '9': '#e43b44', '0': '#f4f4f4' },
     frames: {
       stand: [
@@ -343,6 +370,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   emo: {
     label: "Emo fringe",
     description: "Black side fringe over one eye with a purple streak, band tee, skinny jeans, checked trainers.",
+    voice: 'Gloomy and self-deprecating, secretly enjoying it.',
+    bio: "Insists it's all pointless, then quietly finishes everything anyway.",
+    quote: 'Same. (I care.) Tell no one.',
     colors: { '1': '#2b2b3a', '2': '#7a3f9a', '3': '#f2d6c4', '4': '#dcb4a0', '5': '#262b44', '6': '#f6757a', '7': '#3a4466', '8': '#262b44', '9': '#f4f4f4', '0': '#1a1c2c' },
     frames: poses([
       '................',
@@ -366,6 +396,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   goth: {
     label: "Goth",
     description: "Long straight black hair, dark lipstick, lace-trimmed black dress, striped tights, platform boots.",
+    voice: 'Grand, morbid and poetic.',
+    bio: 'Speaks in epitaphs and climbs every flagpole like a cathedral spire. Finds beauty in a closed task.',
+    quote: 'Behold: another task, laid to rest.',
     colors: { '1': '#2a1f3d', '2': '#4b3566', '3': '#7a4e36', '4': '#5c3826', '5': '#2e2a40', '6': '#9b4fb0', '7': '#262b44', '8': '#c0cbdc', '9': '#5a6988', '0': '#c0cbdc' },
     frames: poses([
       '................',
@@ -389,6 +422,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   punk: {
     label: "Punk",
     description: "Green mohawk, studded leather jacket over a white tee, ripped jeans, red boots.",
+    voice: 'Loud and anti-rules, often in capitals.',
+    bio: "Doesn't do rules. Does do tasks, loudly and in capitals.",
+    quote: 'OI! No rules! Watch me.',
     colors: { '1': '#63c74d', '2': '#3e8948', '3': '#e8b796', '4': '#c98c6a', '5': '#262b44', '6': '#f4f4f4', '7': '#3b6ea8', '8': '#2a5080', '9': '#e43b44', '0': '#a22633' },
     frames: poses([
       '......k11k......',
@@ -412,6 +448,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'rainbow-tee': {
     label: "Rainbow tee",
     description: "Short curly hair, rainbow-striped t-shirt, jeans, white trainers.",
+    voice: 'Warm cheerleader.',
+    bio: 'Your loudest cheerleader. Believes every small win deserves a parade, with streamers.',
+    quote: "You've got this! Main character era!",
     colors: { '1': '#2b1d16', '2': '#4a3226', '3': '#a86b45', '4': '#86502f', '5': '#e43b44', '6': '#f77622', '7': '#3b6ea8', '8': '#2a5080', '9': '#f4f4f4', '0': '#c0cbdc' },
     frames: poses([
       '................',
@@ -435,6 +474,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'trans-flag-hair': {
     label: "Flag-dyed hair",
     description: "Long hair dyed in light blue, pink and white bands, white tee, dungarees, pink trainers.",
+    voice: 'Gentle and tender, kind even to objects.',
+    bio: 'Gentle with everyone and everything, right down to the odd sock. Makes being brave feel easy.',
+    quote: 'Be brave, little sock. Live your dream.',
     colors: { '1': '#2ce8f5', '2': '#f6757a', '3': '#f0c8a8', '4': '#d9a07c', '5': '#4a7fc1', '6': '#f4f4f4', '7': '#4a7fc1', '8': '#2f5a94', '9': '#f6757a', '0': '#f4f4f4' },
     frames: poses([
       '................',
@@ -458,6 +500,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'trans-pin': {
     label: "Flag pin",
     description: "Short undercut and a moustache, cardigan with a light blue, pink and white pin, chinos.",
+    voice: 'Calm, understated and reassuring.',
+    bio: 'Calm, unhurried and quietly impressive. Never rushes, rarely misses.',
+    quote: "Take your time. It's going well.",
     colors: { '1': '#2b1d16', '2': '#4a3226', '3': '#d9a066', '4': '#b5793f', '5': '#3e7a5a', '6': '#f4f4f4', '7': '#b39a62', '8': '#8a7444', '9': '#743f39', '0': '#4a2824' },
     frames: poses([
       '................',
@@ -481,6 +526,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'bi-bomber': {
     label: "Bomber jacket",
     description: "Short natural curls, bomber jacket in magenta, purple and blue, black jeans, white trainers.",
+    voice: 'Cool and confident.',
+    bio: "Cool, confident and annoyingly good at first tries. Doesn't sweat, doesn't need to.",
+    quote: 'First try. Obviously.',
     colors: { '1': '#1f1612', '2': '#3a2a20', '3': '#5a3825', '4': '#43281a', '5': '#d60270', '6': '#9b4f96', '7': '#262b44', '8': '#1a1c2c', '9': '#f4f4f4', '0': '#c0cbdc' },
     frames: poses([
       '................',
@@ -504,6 +552,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'drag-glam': {
     label: "Drag glam",
     description: "Big golden wig, lashes, red lips, sparkly pink gown and red heels.",
+    voice: 'Theatrical diva.',
+    bio: 'Theatrical, iconic and always serving. Turns a weekly review into a runway show.',
+    quote: 'Darling, that task? Scandalous. Done.',
     colors: { '1': '#feae34', '2': '#fee761', '3': '#c68a5e', '4': '#a06a42', '5': '#f6757a', '6': '#fee761', '7': '#f6757a', '8': '#d0505a', '9': '#e43b44', '0': '#a22633' },
     frames: {
       stand: [
@@ -565,6 +616,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'nb-beanie': {
     label: "Striped beanie",
     description: "Yellow, white, purple and black striped beanie and scarf, grey jacket, jeans.",
+    voice: 'Philosophical and questioning.',
+    bio: 'Asks big questions about small tasks, then does them thoughtfully, scarf and all.',
+    quote: "Is anything ever really done? Let's sit with that.",
     colors: { '1': '#5e2d70', '2': '#9b4fb0', '3': '#f6d6c1', '4': '#e0b096', '5': '#5a6988', '6': '#3a4466', '7': '#3b6ea8', '8': '#2a5080', '9': '#262b44', '0': '#f4f4f4' },
     frames: poses([
       '.......kk.......',
@@ -588,6 +642,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'hijab-skater': {
     label: "Hijab skater",
     description: "Teal hijab, orange skate hoodie, black leggings, chunky skate shoes.",
+    voice: 'Skater tricks and stoke.',
+    bio: 'Treats every level like a skate park: drop in, land the trick, roll on to the next.',
+    quote: 'Drop in. Stick the landing.',
     colors: { '1': '#0095a8', '2': '#0b6f7a', '3': '#c98c5e', '4': '#a06a42', '5': '#f77622', '6': '#c4561a', '7': '#262b44', '8': '#1a1c2c', '9': '#f4f4f4', '0': '#e43b44' },
     frames: poses([
       '................',
@@ -611,6 +668,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   'silver-locs': {
     label: "Silver locs",
     description: "Long silver locs, round glasses, magenta jumper, corduroy trousers, garden boots.",
+    voice: 'Warm elder gardener.',
+    bio: 'Warm, wise and green-fingered. Has watched many projects bloom and a few go to seed.',
+    quote: 'In my day, dear, we finished things. Mind my knees.',
     colors: { '1': '#c0cbdc', '2': '#8b9bb4', '3': '#4e3020', '4': '#3a2216', '5': '#b55088', '6': '#68386c', '7': '#8a7444', '8': '#6a5634', '9': '#3e8948', '0': '#265c42' },
     frames: poses([
       '................',
@@ -634,6 +694,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
   flannel: {
     label: "Flannel",
     description: "Side-swept auburn crop with a shaved side, red plaid flannel over a white tee, jeans, brown boots.",
+    voice: 'Practical DIY maker, terse.',
+    bio: 'Practical maker. Fixes it, ships it and says about three words about it.',
+    quote: 'If it works, it works.',
     colors: { '1': '#a0502a', '2': '#7a3a1c', '3': '#e0ac85', '4': '#c48a62', '5': '#c8242c', '6': '#4a1a1e', '7': '#3b6ea8', '8': '#2a5080', '9': '#743f39', '0': '#4a2824' },
     frames: poses([
       '................',
