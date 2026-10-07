@@ -1127,6 +1127,9 @@ a:focus-visible {
 
 .cart-shelf summary {
   padding: 10px 16px;
+  /* Coving: the shelf's ceiling. */
+  border-bottom: 3px solid #dfe9f0;
+  box-shadow: 0 3px 0 rgba(26, 28, 44, 0.25);
   font: 8px/1.5 var(--pixel);
   color: #fee761;
   cursor: pointer;
@@ -1140,7 +1143,8 @@ a:focus-visible {
   padding: 0 10px;
   min-height: 112px;
   border-bottom: 10px solid #b86f50;
-  box-shadow: 0 3px 0 #3f2832;
+  /* The board's edge, then its shadow on the wall. */
+  box-shadow: 0 3px 0 #3f2832, 4px 8px 0 rgba(26, 28, 44, 0.4);
 }
 
 .shelf-row .spine {
@@ -1230,7 +1234,7 @@ a:focus-visible {
   gap: 14px;
   padding: 0 12px;
   border-bottom: 8px solid #b86f50;
-  box-shadow: 0 2px 0 #3f2832;
+  box-shadow: 0 2px 0 #3f2832, 4px 7px 0 rgba(26, 28, 44, 0.4);
 }
 
 .shelf-row .top-shelf img {

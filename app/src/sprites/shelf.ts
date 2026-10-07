@@ -98,6 +98,31 @@ export function shelfBoard(w: number): HTMLCanvasElement {
   });
 }
 
+/**
+ * The shadow a shelf casts on the wall, stylised: a hard dark band right under
+ * the board, fading out in a dither, with the brackets' shadows slanting off.
+ * Drawn at the board's top-left, 4 px down and to the right.
+ */
+export function shelfShadow(w: number): HTMLCanvasElement {
+  return once(`shadow:${w}`, () => {
+    const H = 22;
+    const [cv, ctx] = canvas(w + 4, H);
+    const shade = (x: number, y: number, a: number) => {
+      ctx.fillStyle = `rgba(26,28,44,${a})`;
+      ctx.fillRect(x, y, 1, 1);
+    };
+    for (let x = 4; x < w + 4; x++) {
+      for (let y = 7; y < 10; y++) shade(x, y, 0.4);
+      for (let y = 10; y < 14; y++) if ((x + y) % 2 === 0) shade(x, y, 0.3);
+      if ((x + 14) % 4 === 0) shade(x, 14, 0.25);
+    }
+    for (const bx of [16, w - 22])
+      for (let y = 10; y < H; y++)
+        for (let x = 0; x < 6; x++) if ((x + y) % 2 === 0 || y < 14) shade(bx + 4 + x + Math.floor((y - 10) / 3), y, 0.32);
+    return cv;
+  });
+}
+
 /** A grey dust drift along the board in the archived corner. */
 export function dustPile(w: number): HTMLCanvasElement {
   return once(`pile:${w}`, () => {

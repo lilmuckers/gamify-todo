@@ -13,7 +13,7 @@ import { showDialogue, type Dialogue } from '../ui/dialogue';
 import { carpetCanvas, cartridge, CART_H, CART_W, controllerCanvas, type CartSpec } from '../sprites/cartridge';
 import { projectForm } from '../ui/forms';
 import { h } from '../ui/dom';
-import { bookend, cartSpine, cobweb, cocoon, decorCanvas, dustPile, heroFly, ORNAMENTS, SHELF_EGGS, shelfBoard, silkLetter, spider, spineDust, type DecorKind } from '../sprites/shelf';
+import { bookend, cartSpine, cobweb, cocoon, decorCanvas, shelfShadow, dustPile, heroFly, ORNAMENTS, SHELF_EGGS, shelfBoard, silkLetter, spider, spineDust, type DecorKind } from '../sprites/shelf';
 import { heroKey } from '../sprites/heroes';
 import { QuestScene } from './common';
 import { shelfLayout, SPINE_H, SPINE_W, topShelfDecor, WEB_H, type ShelfLayout, type TopShelf } from './shelf-layout';
@@ -29,6 +29,7 @@ const TV = { x: CENTER.x, y: SKIRTING_Y - 40 - TV_H / 2 };
 /** The games shelf hangs on the wall right of the TV, a little lower: books stand on its board at this y. */
 const SHELF_TOP = SKIRTING_Y - 96;
 const SHELF_GAP = 26;
+const CEILING_Y = shelfLayout(0, 0, 0, SHELF_TOP).ceiling;
 
 interface Cart {
   key: string;
@@ -127,7 +128,7 @@ function rotate(p: { x: number; y: number }, deg: number) {
  * What's on the top shelf, picked once per page load (not per visit), so the
  * clutter stays put while you come and go. Picked again only if the shelf's width changes.
  */
-let topDecor: { width: number; shelf: TopShelf<DecorKind>; tallest: number } | undefined;
+let topDecor: { width: number; shelf: TopShelf<DecorKind> } | undefined;
 
 const cartTexture = (cart: Cart) => `cart:${cart.key}:${cart.spec.title}:${cart.spec.themes.join(',')}`;
 
@@ -157,7 +158,7 @@ export class ProjectsScene extends QuestScene {
   private propKeys = new Set<string>();
   /** Looking at the floor, or up at the games shelf. */
   private view: 'floor' | 'shelf' = 'floor';
-  private shelf?: ShelfLayout & { cx: number; spines: Spine[]; tallest: number };
+  private shelf?: ShelfLayout & { cx: number; spines: Spine[] };
   private corner?: Corner;
   private spiderAct?: SpiderActivity;
   private spiderFrom = 0;
@@ -381,6 +382,12 @@ export class ProjectsScene extends QuestScene {
     const pad = 600;
     layer.add(this.add.tileSprite(-pad, SKIRTING_Y - 500, FLOOR_W + 2 * pad, 500, tex('wallpaper', wallpaperCanvas)).setOrigin(0));
     layer.add(this.add.rectangle(-pad, SKIRTING_Y - 8, FLOOR_W + 2 * pad, 10, 0xdfe9f0).setOrigin(0));
+    // The ceiling, with coving along its edge and a little shadow under that: the top shelf is right up by it.
+    layer.add(this.add.rectangle(-pad, CEILING_Y - 400, FLOOR_W + 2 * pad, 400, 0xdfe9f0).setOrigin(0));
+    layer.add(this.add.rectangle(-pad, CEILING_Y - 6, FLOOR_W + 2 * pad, 3, 0xf4f4f4).setOrigin(0));
+    layer.add(this.add.rectangle(-pad, CEILING_Y - 3, FLOOR_W + 2 * pad, 2, 0xc0cbdc).setOrigin(0));
+    layer.add(this.add.rectangle(-pad, CEILING_Y - 1, FLOOR_W + 2 * pad, 1, 0x8b9bb4).setOrigin(0));
+    layer.add(this.add.rectangle(-pad, CEILING_Y, FLOOR_W + 2 * pad, 3, 0x1a1c2c, 0.25).setOrigin(0));
     layer.add(this.add.rectangle(TV.x - TV_W / 2 - 10, SKIRTING_Y - 40, TV_W + 20, 38, 0x743f39).setOrigin(0).setStrokeStyle(2, 0x1a1c2c));
     const tv = this.add.image(TV.x, TV.y, tex('tv', tvCanvas));
     layer.add(tv);
@@ -513,8 +520,7 @@ export class ProjectsScene extends QuestScene {
     if (topDecor?.width !== u.width) {
       const kinds: DecorKind[] = ['books', ...ORNAMENTS, ...SHELF_EGGS];
       const widths = Object.fromEntries(kinds.map((k) => [k, decorCanvas(k).width])) as Record<DecorKind, number>;
-      const shelf = topShelfDecor(u, widths, 'books', SHELF_EGGS, ORNAMENTS, Math.random, urlMode().jam);
-      topDecor = { width: u.width, shelf, tallest: Math.max(...shelf.items.map((d) => decorCanvas(d.kind).height)) };
+      topDecor = { width: u.width, shelf: topShelfDecor(u, widths, 'books', SHELF_EGGS, ORNAMENTS, Math.random, urlMode().jam) };
     }
     const top = topDecor.shelf;
     layer.add(this.add.image(l.web.x, l.web.y, tex('shelf-web', cobweb)).setOrigin(1, 0));
@@ -525,6 +531,7 @@ export class ProjectsScene extends QuestScene {
       // Stood on the board's top edge, leaning about their base (sunk a pixel so a lean doesn't float).
       layer.add(this.add.image(d.x, u.top + 1, tex(`shelf-decor:${d.kind}`, () => decorCanvas(d.kind))).setOrigin(0.5, 1).setAngle(d.angle));
     }
+    layer.add(this.add.image(u.left, u.top, tex(`shelf-shadow:${u.width}`, () => shelfShadow(u.width))).setOrigin(0, 0));
     layer.add(this.add.image(u.left, u.top, tex(`shelf-board:${u.width}`, () => shelfBoard(u.width))).setOrigin(0, 0));
     // Guy lines from the web down to the board's end and the last game, so it isn't floating.
     const guys = this.add.graphics().lineStyle(1, 0xf4f4f4, 0.5);
@@ -532,6 +539,7 @@ export class ProjectsScene extends QuestScene {
     guys.lineBetween(l.web.x - 22, l.web.y + WEB_H - 8, (l.archived.at(-1) ?? right - 20) + 3, SHELF_TOP - SPINE_H);
     guys.lineBetween(l.web.x - 46, l.web.y + WEB_H - 14, l.dustFrom + 6, SHELF_TOP);
     layer.add(guys);
+    layer.add(this.add.image(l.left, SHELF_TOP, tex(`shelf-shadow:${l.width}`, () => shelfShadow(l.width))).setOrigin(0, 0));
     layer.add(this.add.image(l.left, SHELF_TOP, tex(`shelf-board:${l.width}`, () => shelfBoard(l.width))).setOrigin(0, 0));
     if (l.bookend !== undefined) layer.add(this.add.image(l.bookend, SHELF_TOP, tex('shelf-bookend', bookend)).setOrigin(0.5, 1));
 
@@ -582,7 +590,7 @@ export class ProjectsScene extends QuestScene {
     tex('spider:1', () => spider(1));
     layer.add([...letters, thread, fly, wrap, spiderImg]);
     this.corner = { web: l.web, spider: spiderImg, thread, fly, cocoon: wrap, letters, peeker, peek: { hide: top.hide, peek: top.peek } };
-    this.shelf = { ...l, cx, spines, tallest: topDecor.tallest };
+    this.shelf = { ...l, cx, spines };
     this.poseSpider(this.time.now);
   }
 
@@ -591,11 +599,9 @@ export class ProjectsScene extends QuestScene {
     const s = this.shelf;
     if (!s) return;
     const cam = this.cameras.main;
-    // From the things on the top shelf down to the brackets under the games.
-    const top = s.upper.top - s.tallest - 6;
-    const bottom = SHELF_TOP + 20;
-    const y = (top + bottom) / 2;
-    const zoom = Math.min(cam.width / (s.width + 60), cam.height / (bottom - top + 50), this.floorZoom * 4);
+    // Centred on the games, far enough out to see the top shelf up by the ceiling.
+    const y = SHELF_TOP - SPINE_H / 2;
+    const zoom = Math.min(cam.width / (s.width + 60), cam.height / (2 * (y - CEILING_Y) + 16), this.floorZoom * 4);
     if (!animate) {
       cam.setZoom(zoom);
       cam.centerOn(s.cx, y);

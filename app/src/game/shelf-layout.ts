@@ -13,6 +13,8 @@ export const BOARD_H = 7;
 const DECOR_PAD = 8;
 /** How often each easter egg turns up on the top shelf, per page load. */
 export const EGG_CHANCE = 0.6;
+/** The ceiling sits this far above the top shelf: just clear of the tallest ornament (the lava lamp). */
+export const CEILING_GAP = 122;
 /** How far a hero leans out from behind the books to peek. */
 export const PEEK_OUT = 9;
 
@@ -36,6 +38,8 @@ export interface ShelfLayout {
    * stand on it at `top`; a hero hides behind the books and leans out to peek.
    */
   upper: { left: number; width: number; top: number };
+  /** Where the wall meets the ceiling: the top shelf is up near it. */
+  ceiling: number;
 }
 
 const PAD = 10;
@@ -66,6 +70,7 @@ export function shelfLayout(finished: number, archived: number, cx: number, top:
     web: { x: right - 2, y: top - SPINE_H - WEB_H + 8 },
     // The top shelf runs the whole width, just above the web.
     upper: { left, width, top: top - SPINE_H - WEB_H + 8 - BOARD_H },
+    ceiling: top - SPINE_H - WEB_H + 8 - BOARD_H - CEILING_GAP,
   };
   if (archived) out.bookend = right - PAD - run(archived) - SPINE_GAP - BOOKEND_W / 2;
   return out;
