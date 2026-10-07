@@ -1136,7 +1136,7 @@ a:focus-visible {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  margin: 112px 12px 12px;
+  margin: 152px 12px 12px;
   padding: 0 10px;
   min-height: 112px;
   border-bottom: 10px solid #b86f50;
@@ -1234,7 +1234,7 @@ a:focus-visible {
 }
 
 .shelf-row .top-shelf img {
-  height: 40px;
+  display: block;
 }
 
 .shelf-row .spider {

@@ -123,6 +123,12 @@ function rotate(p: { x: number; y: number }, deg: number) {
   return { x: p.x * Math.cos(a) - p.y * Math.sin(a), y: p.x * Math.sin(a) + p.y * Math.cos(a) };
 }
 
+/**
+ * What's on the top shelf, picked once per page load (not per visit), so the
+ * clutter stays put while you come and go. Picked again only if the shelf's width changes.
+ */
+let topDecor: { width: number; shelf: TopShelf<DecorKind>; tallest: number } | undefined;
+
 const cartTexture = (cart: Cart) => `cart:${cart.key}:${cart.spec.title}:${cart.spec.themes.join(',')}`;
 
 /**
@@ -151,7 +157,7 @@ export class ProjectsScene extends QuestScene {
   private propKeys = new Set<string>();
   /** Looking at the floor, or up at the games shelf. */
   private view: 'floor' | 'shelf' = 'floor';
-  private shelf?: ShelfLayout & { cx: number; spines: Spine[] };
+  private shelf?: ShelfLayout & { cx: number; spines: Spine[]; tallest: number };
   private corner?: Corner;
   private spiderAct?: SpiderActivity;
   private spiderFrom = 0;
@@ -160,7 +166,7 @@ export class ProjectsScene extends QuestScene {
   private peekFrom = 0;
   private peekHero: HeroId = 'classic';
   /** What's on the top shelf this visit (thrown again, like the floor, each time the room is shown). */
-  private topDecor?: { width: number; shelf: TopShelf<DecorKind> };
+
   /** "Look at the shelf" (top right) and "Back to the floor" (bottom), over the game. */
   private shelfNav?: { up: HTMLButtonElement; down: HTMLButtonElement; root: HTMLElement };
 
@@ -180,7 +186,6 @@ export class ProjectsScene extends QuestScene {
     this.view = 'floor';
     // Locators go when the scene shuts down: register them again this time round.
     this.shelfLocators = new Set();
-    this.topDecor = undefined;
     this.shelf = undefined;
     this.corner = undefined;
     this.spiderAct = undefined;
@@ -496,24 +501,30 @@ export class ProjectsScene extends QuestScene {
     };
     const finished = carts.filter((c) => c.shelf === 'finished');
     const archived = carts.filter((c) => c.shelf === 'archived');
-    const probe = shelfLayout(finished.length, archived.length, 0, SHELF_TOP);
+    // ?jam puts every easter egg on the top shelf: give them room to be seen.
+    const minWidth = urlMode().jam ? 380 : undefined;
+    const probe = shelfLayout(finished.length, archived.length, 0, SHELF_TOP, minWidth);
     const cx = TV.x + TV_W / 2 + SHELF_GAP + probe.width / 2;
-    const l = shelfLayout(finished.length, archived.length, cx, SHELF_TOP);
+    const l = shelfLayout(finished.length, archived.length, cx, SHELF_TOP, minWidth);
     const right = l.left + l.width;
 
-    // The top shelf, just for show: dusty books, a dusty trophy, and the cobweb strung under it.
+    // The top shelf, just for show: a dusty jumble of things, and the cobweb strung under it.
     const u = l.upper;
-    if (this.topDecor?.width !== u.width) {
+    if (topDecor?.width !== u.width) {
       const kinds: DecorKind[] = ['books', ...ORNAMENTS, ...SHELF_EGGS];
       const widths = Object.fromEntries(kinds.map((k) => [k, decorCanvas(k).width])) as Record<DecorKind, number>;
-      this.topDecor = { width: u.width, shelf: topShelfDecor(u, widths, 'books', SHELF_EGGS, ORNAMENTS, Math.random, urlMode().jam) };
+      const shelf = topShelfDecor(u, widths, 'books', SHELF_EGGS, ORNAMENTS, Math.random, urlMode().jam);
+      topDecor = { width: u.width, shelf, tallest: Math.max(...shelf.items.map((d) => decorCanvas(d.kind).height)) };
     }
-    const top = this.topDecor.shelf;
+    const top = topDecor.shelf;
     layer.add(this.add.image(l.web.x, l.web.y, tex('shelf-web', cobweb)).setOrigin(1, 0));
-    // The peeking hero goes in first, so the books stand in front of them.
+    // Back to front; the peeking hero goes in just before the books, so they stand in front of them.
     const peeker = this.add.image(top.hide, u.top, heroKey(this.peekHero)).setOrigin(0.5, 1).setVisible(false);
-    layer.add(peeker);
-    for (const d of top.items) layer.add(this.add.image(d.x, u.top, tex(`shelf-decor:${d.kind}`, () => decorCanvas(d.kind))).setOrigin(0.5, 1));
+    for (const d of top.items) {
+      if (d.kind === 'books') layer.add(peeker);
+      // Stood on the board's top edge, leaning about their base (sunk a pixel so a lean doesn't float).
+      layer.add(this.add.image(d.x, u.top + 1, tex(`shelf-decor:${d.kind}`, () => decorCanvas(d.kind))).setOrigin(0.5, 1).setAngle(d.angle));
+    }
     layer.add(this.add.image(u.left, u.top, tex(`shelf-board:${u.width}`, () => shelfBoard(u.width))).setOrigin(0, 0));
     // Guy lines from the web down to the board's end and the last game, so it isn't floating.
     const guys = this.add.graphics().lineStyle(1, 0xf4f4f4, 0.5);
@@ -571,7 +582,7 @@ export class ProjectsScene extends QuestScene {
     tex('spider:1', () => spider(1));
     layer.add([...letters, thread, fly, wrap, spiderImg]);
     this.corner = { web: l.web, spider: spiderImg, thread, fly, cocoon: wrap, letters, peeker, peek: { hide: top.hide, peek: top.peek } };
-    this.shelf = { ...l, cx, spines };
+    this.shelf = { ...l, cx, spines, tallest: topDecor.tallest };
     this.poseSpider(this.time.now);
   }
 
@@ -581,7 +592,7 @@ export class ProjectsScene extends QuestScene {
     if (!s) return;
     const cam = this.cameras.main;
     // From the things on the top shelf down to the brackets under the games.
-    const top = s.upper.top - 26;
+    const top = s.upper.top - s.tallest - 6;
     const bottom = SHELF_TOP + 20;
     const y = (top + bottom) / 2;
     const zoom = Math.min(cam.width / (s.width + 60), cam.height / (bottom - top + 50), this.floorZoom * 4);
