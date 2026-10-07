@@ -13,7 +13,7 @@ import { field, requireFilled, select, text } from '../forms';
 import { confirmDialog } from '../modal';
 import { repoChoice } from '../repo-picker';
 import { beginSignIn } from '../sign-in';
-import { heroPicker } from '../settings';
+import { heroSelect } from '../hero-select';
 import { skillHelpDialog } from '../skill-help';
 import { play as sfx } from '../../audio';
 import { toast } from '../toast';
@@ -51,6 +51,8 @@ interface Wizard {
   back(): void;
   rerender(): void;
   close(): void;
+  /** Undoes what the current page set up (timers, key handlers) before the next one renders. */
+  cleanup?: () => void;
 }
 
 const ext = (url: string, label: string) => h('a', { class: 'manual-go', href: url, target: '_blank', rel: 'noopener' }, `${label} ↗`);
@@ -246,7 +248,12 @@ const CHAPTERS: Chapter[] = [
     id: 'hero',
     title: 'Pick your hero',
     tip: 'Pick whoever makes you smile.',
-    render: (w) => [h('p', { class: 'manual-lead' }, 'Who walks your levels? You can change this any time in Settings.'), heroPicker(w.app)],
+    render: (w) => {
+      // The character select, in the manual's colours. Picking plays the transformation, then turns the page.
+      const select = heroSelect(w.app, { theme: 'manual', onPicked: () => w.next() });
+      w.cleanup = select.destroy;
+      return [h('p', { class: 'manual-lead' }, 'Who walks your levels? You can change this any time in Settings.'), select.el];
+    },
   },
   {
     id: 'game',
@@ -425,6 +432,7 @@ export function openSetup(app: App, start?: ChapterId) {
     back: () => move(-1),
     rerender: () => render(),
     close: () => {
+      w.cleanup?.();
       overlay.remove();
       unsub();
       document.removeEventListener('keydown', onKey, true);
@@ -437,6 +445,8 @@ export function openSetup(app: App, start?: ChapterId) {
     render();
   };
   const render = () => {
+    w.cleanup?.();
+    w.cleanup = undefined;
     const c = chapters[at];
     side.replaceChildren(
       ...chapters.map((ch, k) => h('li', { class: k < at ? 'done' : k === at ? 'now' : 'todo' }, h('button', { type: 'button', disabled: k > at, onclick: () => ((at = k), render()) }, `${k + 1}. ${ch.title}`))),
@@ -460,7 +470,8 @@ export function openSetup(app: App, start?: ChapterId) {
         h('img', { class: 'pixel', src: spriteUrl(heroKey(app.heroId)), alt: '' }),
       ),
     );
-    (page.querySelector('input, select, button') as HTMLElement | null)?.focus();
+    // The character select starts on your hero, so focus that portrait rather than the first one.
+    ((page.querySelector('.hp-cell.on') ?? page.querySelector('input, select, button')) as HTMLElement | null)?.focus();
   };
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {

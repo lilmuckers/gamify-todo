@@ -55,8 +55,6 @@ describe('routeType', () => {
     { view: 'prs' },
     { view: 'pr', pr: 12 },
     { view: 'pr-level', pr: 12, projectId: 'secret-project', worldId: 'kitchen', levelId: 'demo' },
-    { view: 'heroes' },
-    { view: 'heroes', heroId: 'punk' },
   ];
 
   it('names screens without any ids', () => {
@@ -64,7 +62,7 @@ describe('routeType', () => {
       const t = routeType(r);
       expect(t).toMatch(/^\/[a-z-]+$/);
       if (r.pad) expect(t).toBe(`/${r.pad}`);
-      for (const id of ['secret-project', 'kitchen', 'demo', 'buy-tiles', 'permit', '12', 'punk']) expect(t).not.toContain(id);
+      for (const id of ['secret-project', 'kitchen', 'demo', 'buy-tiles', 'permit', '12']) expect(t).not.toContain(id);
     }
     expect(routeType(parseRoute(href(routes[6])))).toBe('/sub-level');
   });

@@ -22,6 +22,8 @@ export interface ModalOptions {
   dismissable?: boolean;
   /** Runs once when the modal closes, however it closes. */
   onClose?: () => void;
+  /** A wider dialog, for screens rather than forms (the character select). */
+  wide?: boolean;
 }
 
 export function openModal(title: string, body: Node, actions: ModalAction[] = [{ label: 'Close' }], opts: ModalOptions = {}) {
@@ -53,7 +55,7 @@ export function openModal(title: string, body: Node, actions: ModalAction[] = [{
   );
   const dialog = h(
     'form',
-    { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+    { class: `modal${opts.wide ? ' wide' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
     h('h2', null, title),
     h('div', { class: 'modal-body' }, body),
     h('div', { class: 'modal-actions' }, buttons),

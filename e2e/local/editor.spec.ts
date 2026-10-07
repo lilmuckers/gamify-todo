@@ -53,9 +53,14 @@ test('the hero picker saves the hero to data/settings.json', async ({ page }) =>
   await inScene(page, 'projects');
   const before = repoJson('data/settings.json').hero;
   await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByRole('button', { name: 'Next hero' }).click();
-  await page.getByRole('button', { name: 'Use this hero' }).click();
-  await expect(page.getByRole('button', { name: '✓ Your hero' })).toBeDisabled();
+  // The character select opens over Settings; pick a hero other than the repo's.
+  await page.getByRole('button', { name: 'CHANGE HERO' }).click();
+  const pick = before === 'goth' ? 'Punk' : 'Goth';
+  await page.getByRole('radio', { name: pick }).click();
+  await page.getByRole('button', { name: 'PICK THIS HERO' }).click();
+  // It closes itself after the transformation, back to Settings.
+  await expect(page.getByRole('dialog', { name: 'CHOOSE YOUR HERO' })).toHaveCount(0);
+  await expect(page.locator('.hero-card b')).toHaveText(pick);
   const chosen = await page.evaluate(() => (window.__questGame!.registry.get('app') as { heroId: string }).heroId);
   expect(chosen).not.toBe(before);
 

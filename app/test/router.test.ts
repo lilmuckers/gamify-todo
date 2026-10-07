@@ -18,9 +18,6 @@ describe('router deep links', () => {
     { view: 'pr-level', pr: 7, projectId: 'house', worldId: 'kitchen', levelId: 'demo' },
     { view: 'pr-level', pr: 7, projectId: 'house', worldId: 'kitchen', levelId: 'demo', itemId: 'x' },
     { view: 'pr-level', pr: 7, projectId: 'house', worldId: 'kitchen', levelId: 'demo', subId: 'dep', itemId: 'x' },
-    { view: 'heroes' },
-    { view: 'heroes', heroId: 'hijab-skater' },
-    { view: 'heroes', heroId: 'punk', pad: 'today' },
   ];
 
   it('round-trips every screen through the URL', () => {
@@ -49,11 +46,6 @@ describe('router deep links', () => {
     expect(withPad({ view: 'prs', pad: 'today' }, undefined)).toEqual({ view: 'prs' });
     expect(togglePad({ view: 'prs', pad: 'inbox' }, 'inbox')).toEqual({ view: 'prs' });
     expect(togglePad({ view: 'prs', pad: 'today' }, 'inbox')).toEqual({ view: 'prs', pad: 'inbox' });
-  });
-
-  it('opens the hero gallery for an unknown hero', () => {
-    expect(href({ view: 'heroes', heroId: 'goth' })).toBe('#/heroes/goth');
-    expect(parseRoute('#/heroes/not-a-hero')).toEqual({ view: 'heroes' });
   });
 
   it('falls back to the project list for unknown hashes', () => {
