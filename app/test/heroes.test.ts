@@ -21,10 +21,10 @@ describe('heroes', () => {
 });
 
 describe('hero profiles', () => {
-  it('gives every hero a voice, a short bio and a signature quote', () => {
+  it('gives every hero a short bio and a signature quote', () => {
     for (const id of HERO_IDS) {
-      const { voice, bio, quote } = HEROES[id];
-      for (const [what, text] of Object.entries({ voice, bio, quote })) {
+      const { bio, quote } = HEROES[id];
+      for (const [what, text] of Object.entries({ bio, quote })) {
         expect(text.trim(), `${id} ${what}`).not.toBe('');
         // Plain text: no dialogue markup.
         expect(text, `${id} ${what}`).not.toMatch(/[*{}]/);

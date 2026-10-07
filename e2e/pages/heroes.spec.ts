@@ -3,37 +3,36 @@ import { hash, skipWelcome } from '../helpers';
 
 test.beforeEach(({ page }) => skipWelcome(page));
 
-test('browse the heroes, read a profile and pick that hero', async ({ page }) => {
+test('pick a hero from the select screen', async ({ page }) => {
+  // With no hero named, the screen opens on yours.
   await page.goto('./#/heroes');
   await expect(page.getByRole('heading', { name: 'HEROES' })).toBeVisible();
-  await expect(page.locator('.hp-card')).toHaveCount(18);
+  await expect(page.getByRole('radio')).toHaveCount(18);
+  await expect(page.getByRole('radio', { checked: true })).toHaveCount(1);
 
-  // Open a profile from the gallery: pose, bio and the 16x16 frames.
-  await page.locator('.hp-card', { hasText: 'Hijab skater' }).click();
+  // Pick a portrait: their pose and bio on the left, name and description under the grid.
+  await page.getByRole('radio', { name: 'Hijab skater' }).click();
   await expect.poll(() => hash(page)).toBe('#/heroes/hijab-skater');
-  await expect(page.getByRole('heading', { name: 'HIJAB SKATER' })).toBeVisible();
-  await expect(page.locator('.hp-bio')).toContainText('skate park');
+  await expect(page.getByRole('radio', { name: 'Hijab skater' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByRole('img', { name: 'Hijab skater, in a fighting stance' })).toBeVisible();
-  await expect(page.locator('.hp-frame')).toHaveCount(3);
+  await expect(page.locator('.hp-bio')).toContainText('skate park');
+  await expect(page.locator('.hp-name')).toHaveText('HIJAB SKATER');
+  await expect(page.locator('.hp-desc')).toContainText('Teal hijab');
 
-  // Say something: a line in the dialogue box.
-  await page.getByRole('button', { name: 'SAY SOMETHING' }).click();
-  await expect(page.locator('.dlg')).toBeVisible();
-
-  // Pick the hero: the button says so, and the gallery marks them as yours.
+  // Make them yours: the button says so and their portrait is marked P1.
   await page.getByRole('button', { name: 'PICK THIS HERO' }).click();
   await expect(page.getByRole('button', { name: '✓ YOUR HERO' })).toBeDisabled();
-  await page.goto('./#/heroes');
-  await expect(page.locator('.hp-card.mine')).toContainText('Hijab skater');
+  await expect(page.locator('.hp-cell.mine')).toHaveAttribute('aria-label', 'Hijab skater');
 
-  // Arrow keys step through the heroes; Esc goes back to the gallery.
-  await page.goto('./#/heroes/hijab-skater');
+  // Arrow keys move round the grid (six across); Esc goes back to the projects.
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => hash(page)).toBe('#/heroes/silver-locs');
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => hash(page)).toBe('#/heroes/trans-flag-hair');
   await page.keyboard.press('Escape');
-  await expect.poll(() => hash(page)).toBe('#/heroes');
+  await expect.poll(() => hash(page)).toBe('#/');
 
-  // An unknown hero falls back to the gallery.
+  // An unknown hero opens on yours.
   await page.goto('./#/heroes/nobody');
-  await expect(page.locator('.hp-card')).toHaveCount(18);
+  await expect(page.getByRole('radio', { name: 'Hijab skater' })).toHaveAttribute('aria-checked', 'true');
 });

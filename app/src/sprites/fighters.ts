@@ -4,7 +4,7 @@ import { canvas } from './canvas';
 import { PALETTE } from './pixels';
 
 /**
- * Big 48x64 fighting-game poses for the hero profile (and, later, the
+ * Big 48x64 fighting-game poses for the heroes screen (and, later, the
  * character select, #111). Like the portraits, a deliberate exception to
  * "everything is 16px", used only on those screens: the game keeps its 16x16
  * sprites.

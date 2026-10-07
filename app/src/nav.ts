@@ -47,13 +47,11 @@ function screenNav(app: App, r: Route): NavModel {
     case 'records':
       return { crumbs: [home, link('Detailed stats', r)], up: link('Stats', { view: 'projects', pad: 'stats' }) };
     case 'heroes': {
-      const gallery = link('Heroes', { view: 'heroes' });
-      if (!r.heroId) return { crumbs: [home, gallery], up: link('All projects', { view: 'projects' }) };
-      // The heroes go round in a loop.
+      // One select screen; the heroes go round in a loop.
       const n = HERO_IDS.length;
-      const i = HERO_IDS.indexOf(r.heroId);
+      const i = HERO_IDS.indexOf(r.heroId ?? app.heroId);
       const at = (id: HeroId) => link(HEROES[id].label, { view: 'heroes', heroId: id });
-      return { crumbs: [home, gallery, at(r.heroId)], up: gallery, prev: at(HERO_IDS[(i - 1 + n) % n]), next: at(HERO_IDS[(i + 1) % n]) };
+      return { crumbs: [home, link('Heroes', r)], up: link('All projects', { view: 'projects' }), prev: at(HERO_IDS[(i - 1 + n) % n]), next: at(HERO_IDS[(i + 1) % n]) };
     }
     case 'overworld':
       return { crumbs: [home, link(projectTitle, r)], up: link('All projects', { view: 'projects' }) };
