@@ -1,14 +1,15 @@
-import { describeOp, GitHubClient, HERO_IDS, parseRepo, REVIEW_SLOTS, type HeroId, type ReviewDay } from '@quest/shared';
+import { describeOp, GitHubClient, parseRepo, REVIEW_SLOTS, type ReviewDay } from '@quest/shared';
 import { analyticsAllowed, analyticsAvailable, setAnalyticsAllowed, track } from '../analytics';
 import type { App } from '../app';
 import { setSoundOn, soundOn } from '../audio';
 import { needsSignIn } from '../auth/session';
 import { REVOKE_URL, signInAvailable, signOut } from '../auth/signin';
-import { chosenBranch, heroStore, reloadWithMode, repoRef, savedRepo, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
-import { href } from '../router';
+import { chosenBranch, reloadWithMode, repoRef, savedRepo, setRepo, setUiPrefs, TARGET, tokenStore, uiPrefs } from '../config';
 import { HEROES, heroKey } from '../sprites/heroes';
+import { portraitCanvas } from '../sprites/portraits';
 import { spriteUrl } from '../sprites/render';
 import { h, relTime } from './dom';
+import { openHeroSelect } from './hero-select';
 import { confirmDialog, openModal } from './modal';
 import { openRepoPicker } from './repo-picker';
 import { beginSignIn } from './sign-in';
@@ -19,8 +20,7 @@ export function settingsDialog(app: App) {
   const body = h('div', { class: 'settings' });
   body.append(
     h('h3', null, 'Your hero'),
-    heroPicker(app),
-    h('p', null, h('a', { href: href({ view: 'heroes', heroId: app.heroId }), onclick: () => closeAll() }, 'Meet the heroes: bios, poses and portraits ▶')),
+    heroCard(app),
   );
 
   if (s.source.id === 'demo') {
@@ -321,16 +321,11 @@ export function demoNotice(app: App): Node[] {
 }
 
 /**
- * Carousel of player characters. The choice is kept in this browser; when the
- * data is editable it is also saved to data/settings.json as the repo default.
+ * Your hero, with a button that opens the character select over Settings.
+ * The choice is kept in this browser; when the data is editable it is also
+ * saved to data/settings.json as the repo default.
  */
-export function heroPicker(app: App) {
-  let index = Math.max(0, HERO_IDS.indexOf(app.heroId));
-  const img = h('img', { class: 'pixel hero-big', alt: '' });
-  const name = h('b', null);
-  const desc = h('small', { class: 'muted' });
-  const dots = h('div', { class: 'hero-dots', 'aria-hidden': 'true' });
-  const use = h('button', { class: 'btn sm primary', type: 'button' });
+export function heroCard(app: App) {
   const repoHero = app.workspace?.settings?.hero;
   const where = app.store.source.label;
   const note = h(
@@ -340,52 +335,18 @@ export function heroPicker(app: App) {
       ? `Saved in this browser and to data/settings.json (${where}), so it becomes the default for everyone viewing this data.`
       : `Saved in this browser only, next to your token. It overrides the data's default${repoHero ? ` (${HEROES[repoHero].label})` : ''}.`,
   );
-
-  // Two-frame walk cycle in the preview, until the dialog closes.
-  let step = 0;
-  const timer = setInterval(() => {
-    if (!img.isConnected && step > 0) return clearInterval(timer);
-    step++;
-    img.src = spriteUrl(heroKey(HERO_IDS[index], step % 2 ? 'walk' : 'stand'));
-  }, 260);
-
+  const card = h('div', { class: 'hero-card' });
   const show = () => {
-    const id = HERO_IDS[index];
-    img.src = spriteUrl(heroKey(id));
-    img.alt = HEROES[id].label;
-    name.textContent = HEROES[id].label;
-    desc.textContent = HEROES[id].description;
-    dots.replaceChildren(...HERO_IDS.map((_, i) => h('i', { class: i === index ? 'on' : '' })));
-    const current = id === app.heroId && heroStore.get() === id;
-    use.textContent = current ? '✓ Your hero' : 'Use this hero';
-    use.disabled = current;
+    const id = app.heroId;
+    const face = h('canvas', { class: 'pixel hero-card-face', width: 32, height: 32, 'aria-hidden': 'true' });
+    face.getContext('2d')!.drawImage(portraitCanvas(id), 0, 0);
+    card.replaceChildren(
+      face,
+      h('img', { class: 'pixel hero-card-sprite', src: spriteUrl(heroKey(id)), alt: '' }),
+      h('div', null, h('b', null, HEROES[id].label), h('small', { class: 'muted' }, HEROES[id].description)),
+    );
   };
-  const move = (d: number) => {
-    index = (index + d + HERO_IDS.length) % HERO_IDS.length;
-    show();
-  };
-  use.onclick = () => {
-    app.setHero(HERO_IDS[index] as HeroId);
-    show();
-  };
-  const arrow = (label: string, d: number) =>
-    h('button', { class: 'btn sm', type: 'button', 'aria-label': label, onclick: () => move(d) }, d < 0 ? '◀' : '▶');
-  const stage = h(
-    'div',
-    {
-      class: 'hero-carousel',
-      tabIndex: 0,
-      onkeydown: (e: KeyboardEvent) => {
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-          e.preventDefault();
-          move(e.key === 'ArrowLeft' ? -1 : 1);
-        }
-      },
-    },
-    arrow('Previous hero', -1),
-    h('div', { class: 'hero-card' }, img, name, desc, dots),
-    arrow('Next hero', 1),
-  );
   show();
-  return h('div', { class: 'hero-picker' }, stage, h('div', { class: 'actions' }, use), note);
+  const change = h('button', { class: 'btn sm primary', type: 'button', onclick: () => openHeroSelect(app, show) }, 'CHANGE HERO');
+  return h('div', { class: 'hero-picker' }, card, h('div', { class: 'actions' }, change), note);
 }

@@ -1,10 +1,9 @@
-import { HERO_IDS, orderedWorlds, type HeroId } from '@quest/shared';
+import { orderedWorlds } from '@quest/shared';
 import { track } from './analytics';
 import type { App } from './app';
 import { pullLookup } from './data/source';
 import { runPendingUndo } from './ui/toast';
 import { isTyping } from './ui/dom';
-import { HEROES } from './sprites/heroes';
 import { href, togglePad, withPad, type PadPage, type Route } from './router';
 
 export interface NavLink {
@@ -46,13 +45,6 @@ function screenNav(app: App, r: Route): NavModel {
       return { crumbs: [home, link('Warp Zone', r)], up: link('All projects', { view: 'projects' }) };
     case 'records':
       return { crumbs: [home, link('Detailed stats', r)], up: link('Stats', { view: 'projects', pad: 'stats' }) };
-    case 'heroes': {
-      // One select screen; the heroes go round in a loop.
-      const n = HERO_IDS.length;
-      const i = HERO_IDS.indexOf(r.heroId ?? app.heroId);
-      const at = (id: HeroId) => link(HEROES[id].label, { view: 'heroes', heroId: id });
-      return { crumbs: [home, link('Heroes', r)], up: link('All projects', { view: 'projects' }), prev: at(HERO_IDS[(i - 1 + n) % n]), next: at(HERO_IDS[(i + 1) % n]) };
-    }
     case 'overworld':
       return { crumbs: [home, link(projectTitle, r)], up: link('All projects', { view: 'projects' }) };
     case 'world': {

@@ -1,25 +1,31 @@
 import { HERO_IDS, type HeroId } from '@quest/shared';
 import type { App } from '../app';
-import { heroStore } from '../config';
 import { play as sfx } from '../audio';
-import { go, href } from '../router';
+import { heroStore } from '../config';
 import { fighterCanvas, IDLE_FRAMES } from '../sprites/fighters';
 import { HEROES, heroKey } from '../sprites/heroes';
 import { portraitCanvas } from '../sprites/portraits';
 import { sprite } from '../sprites/render';
 import { h, isTyping } from './dom';
+import { openModal } from './modal';
 
 /** The idle loop: a breathing bob. */
 const IDLE_MS = 180;
 /** Portraits per row in the grid (six by three for eighteen heroes). */
 const COLS = 6;
-
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /** Screen pixels per art pixel for the big pose (48x64 shown at 192x256). */
 const POSE_PX = 4;
 const STAGE_W = 48 * POSE_PX;
 const STAGE_H = 64 * POSE_PX;
+
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Draws `src` into `c`, replacing what was there. */
+function blit(c: HTMLCanvasElement, src: HTMLCanvasElement) {
+  const ctx = c.getContext('2d')!;
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.drawImage(src, 0, 0);
+}
 
 const feetRows = new WeakMap<HTMLCanvasElement, number>();
 /** Rows down to the soles: art is padded below the feet by different amounts. */
@@ -53,26 +59,28 @@ function stand(c: HTMLCanvasElement, src: HTMLCanvasElement, scale: number, floo
   }
 }
 
-/** Draws `src` into `c`, replacing what was there. */
-function blit(c: HTMLCanvasElement, src: HTMLCanvasElement) {
-  const ctx = c.getContext('2d')!;
-  ctx.clearRect(0, 0, c.width, c.height);
-  ctx.drawImage(src, 0, 0);
+export interface HeroSelectOptions {
+  /** 'arcade' (dark, for the Settings modal) or 'manual' (the set-up guide's cream pages). */
+  theme?: 'arcade' | 'manual';
+  /** After the transformation has played and the hero is yours. */
+  onPicked?: (id: HeroId) => void;
 }
 
 /**
- * The heroes (#/heroes, #/heroes/<id>) as a fighting-game select screen: the
- * chosen hero's big pose on the left with their bio under it, the grid of
- * portraits on the right with their name and description under it. A DOM page
- * over the game, like detailed stats.
+ * A fighting-game character select: the hero under the cursor stands on a
+ * stage in their big pose with their bio under it; a grid of portraits sits
+ * beside it with the name and description under that. Picking plays the
+ * transformation from a 90s handheld RPG's intro: the pose flashes white and
+ * shrinks in pixel steps into the 16x16 sprite, which colours in and hops.
  */
-export function mountHeroes(app: App, host: HTMLElement, opts: { onShow?: (shown: boolean) => void } = {}) {
-  host.classList.add('records-host', 'heroes-host');
-  host.hidden = true;
+export function heroSelect(app: App, opts: HeroSelectOptions = {}): { el: HTMLElement; destroy(): void } {
+  let current: HeroId = app.heroId;
   let idle: ReturnType<typeof setInterval> | undefined;
-  let shown: { id?: HeroId; mine?: HeroId } = {};
   /** True while the pick plays out: the grid and keys wait. */
   let busy = false;
+  let alive = true;
+  /** A pointer is pressing a portrait (so its focus isn't a keyboard move). */
+  let pressing = false;
 
   const pose = h('canvas', { class: 'pixel hp-pose', width: 48, height: 64, role: 'img' });
   // The pick's transformation plays here, over the pose, in real screen pixels.
@@ -87,30 +95,31 @@ export function mountHeroes(app: App, host: HTMLElement, opts: { onShow?: (shown
   const cells = HERO_IDS.map((id) => {
     const face = h('canvas', { class: 'pixel', width: 32, height: 32, 'aria-hidden': 'true' });
     blit(face, portraitCanvas(id));
-    const cell = h(
-      'a',
-      { class: 'hp-cell', href: href({ view: 'heroes', heroId: id }), role: 'radio', 'aria-label': HEROES[id].label, 'aria-checked': 'false' },
-      face,
-    );
+    const cell = h('button', { class: 'hp-cell', type: 'button', role: 'radio', 'aria-label': HEROES[id].label, 'aria-checked': 'false' }, face);
+    // A click moves the cursor here; a click on the hero already under it picks them.
+    cell.addEventListener('click', () => {
+      pressing = false;
+      if (current === id) void choose(id);
+      else move(id);
+    });
+    // Tabbing onto a portrait moves the cursor too, so Enter picks the one with focus.
+    // Not for a mouse press, which focuses first: its click moves the cursor instead.
+    cell.addEventListener('pointerdown', () => (pressing = true));
+    cell.addEventListener('focus', () => !pressing && move(id));
     return { id, cell, face };
   });
-  const page = h(
+  const el = h(
     'div',
-    { class: 'heroes-page' },
-    h('h2', { class: 'hp-title' }, 'HEROES'),
+    { class: `hero-select hp-${opts.theme ?? 'arcade'}` },
+    h('div', { class: 'hp-left' }, h('div', { class: 'hp-stage' }, h('div', { class: 'hp-spot' }, pose, morph, flash), h('div', { class: 'hp-floor' })), h('div', { class: 'hp-bio' }, bio, quote)),
     h(
       'div',
-      { class: 'hp-select' },
-      h('div', { class: 'hp-left' }, h('div', { class: 'hp-stage' }, h('div', { class: 'hp-spot' }, pose, morph, flash), h('div', { class: 'hp-floor' })), h('div', { class: 'hp-bio' }, bio, quote)),
-      h(
-        'div',
-        { class: 'hp-right' },
-        h('div', { class: 'hp-grid', role: 'radiogroup', 'aria-label': 'Heroes', style: `--cols:${COLS}` }, cells.map((c) => c.cell)),
-        name,
-        desc,
-        h('div', { class: 'actions' }, pick),
-        caption,
-      ),
+      { class: 'hp-right' },
+      h('div', { class: 'hp-grid', role: 'radiogroup', 'aria-label': 'Heroes', style: `--cols:${COLS}` }, cells.map((c) => c.cell)),
+      name,
+      desc,
+      h('div', { class: 'actions' }, pick),
+      caption,
     ),
   );
 
@@ -124,53 +133,51 @@ export function mountHeroes(app: App, host: HTMLElement, opts: { onShow?: (shown
     if (reduced()) return;
     let t = 0;
     idle = setInterval(() => {
-      if (host.hidden) return stopIdle();
+      if (!el.isConnected) return stopIdle();
       t = (t + 1) % IDLE_FRAMES.length;
       blit(pose, fighterCanvas(id, IDLE_FRAMES[t]));
     }, IDLE_MS);
   };
 
-  /** Shows `id`: pose, bio, name, description, and the cursor on their portrait. */
-  const show = (id: HeroId) => {
+  /** The button reads "✓ YOUR HERO" when the hero under the cursor is already yours. */
+  const refreshPick = () => {
+    const mine = app.heroId === current && heroStore.get() === current;
+    pick.textContent = mine ? '✓ YOUR HERO' : 'PICK THIS HERO';
+    pick.disabled = mine || busy;
+    for (const c of cells) c.cell.classList.toggle('mine', c.id === app.heroId);
+  };
+
+  /** Moves the cursor to `id`: pose, bio, name, description and the highlighted portrait. */
+  const move = (id: HeroId, first = false) => {
+    if (busy || (id === current && !first)) return;
+    current = id;
     const hero = HEROES[id];
-    const changed = shown.id !== id;
-    shown = { id, mine: app.heroId };
-    if (changed) {
-      startIdle(id);
-      pose.setAttribute('aria-label', `${hero.label}, in a fighting stance`);
-      bio.textContent = hero.bio;
-      quote.textContent = hero.quote;
-      name.textContent = hero.label.toUpperCase();
-      desc.textContent = hero.description;
-    }
+    startIdle(id);
+    pose.setAttribute('aria-label', `${hero.label}, in a fighting stance`);
+    bio.textContent = hero.bio;
+    quote.textContent = hero.quote;
+    name.textContent = hero.label.toUpperCase();
+    desc.textContent = hero.description;
     for (const c of cells) {
       const on = c.id === id;
       c.cell.classList.toggle('on', on);
       c.cell.setAttribute('aria-checked', String(on));
-      c.cell.classList.toggle('mine', c.id === app.heroId);
       // A quick double take as the cursor lands.
-      if (on && changed && !reduced()) {
+      if (on && !first && !reduced()) {
         blit(c.face, portraitCanvas(c.id, 'reacting'));
         setTimeout(() => blit(c.face, portraitCanvas(c.id)), 350);
       }
     }
-    const mine = app.heroId === id && heroStore.get() === id;
-    pick.textContent = mine ? '✓ YOUR HERO' : 'PICK THIS HERO';
-    pick.disabled = mine;
-    pick.onclick = () => void choose(id);
+    if (!first) sfx('select');
+    refreshPick();
   };
 
-  /**
-   * Picking a hero, as in a 90s handheld RPG's intro: the big pose throws a
-   * victory pose, flashes white, shrinks in pixel steps into the 16x16 sprite,
-   * which colours in and hops. Then back to the project floor. Reduced motion
-   * (or a hidden tab) skips straight to the end.
-   */
+  /** Picks `id`: the transformation, then `onPicked`. Reduced motion (or a hidden tab) skips to the end. */
   const choose = async (id: HeroId) => {
     if (busy) return;
     busy = true;
-    host.classList.add('picking');
-    pick.disabled = true;
+    el.classList.add('picking');
+    refreshPick();
     const hero = HEROES[id];
     let skip = reduced() || document.hidden;
     const onHide = () => document.hidden && (skip = true);
@@ -181,7 +188,7 @@ export function mountHeroes(app: App, host: HTMLElement, opts: { onShow?: (shown
     const small = (frame: 'stand' | 'jump') => sprite(heroKey(id, frame));
     // Everything stands where the big pose's feet are, so nobody sinks into the floor.
     const floor = feet(body) * POSE_PX;
-    const draw = (src: HTMLCanvasElement, scale: number, opts?: { white?: boolean; lift?: number }) => stand(morph, src, scale, floor, opts);
+    const draw = (src: HTMLCanvasElement, scale: number, o?: { white?: boolean; lift?: number }) => stand(morph, src, scale, floor, o);
 
     stopIdle();
     if (!skip) {
@@ -224,46 +231,58 @@ export function mountHeroes(app: App, host: HTMLElement, opts: { onShow?: (shown
     await wait(1100);
     document.removeEventListener('visibilitychange', onHide);
     busy = false;
-    host.classList.remove('picking');
-    caption.textContent = '';
+    el.classList.remove('picking');
+    if (!alive) return;
+    opts.onPicked?.(id);
+    // Still showing (the set-up guide stays put): back to the pose, with the new hero marked.
     morph.hidden = true;
     pose.style.visibility = '';
-    shown = {};
-    go({ view: 'projects' });
+    startIdle(current);
+    refreshPick();
   };
+  pick.addEventListener('click', () => void choose(current));
 
-  const render = () => {
-    const r = app.route;
-    const visible = r.view === 'heroes';
-    if (host.hidden === visible) opts.onShow?.(visible);
-    host.hidden = !visible;
-    if (!visible) {
-      stopIdle();
-      shown = {};
-      host.replaceChildren();
-      return;
-    }
-    if (!host.contains(page)) host.replaceChildren(page);
-    if (busy) return;
-    const id = r.heroId ?? app.heroId;
-    if (shown.id !== id || shown.mine !== app.heroId) show(id);
-  };
-
-  // Arrow keys move the cursor round the grid; Enter picks the hero under it.
-  window.addEventListener('keydown', (e) => {
-    const r = app.route;
-    if (host.hidden || busy || r.view !== 'heroes' || e.altKey || e.metaKey || e.ctrlKey || isTyping() || document.querySelector('.overlay')) return;
-    const at = HERO_IDS.indexOf(r.heroId ?? app.heroId);
+  // Arrow keys move the cursor round the grid; Enter picks. Only while this
+  // select is on top: not under another dialog.
+  const onKey = (e: KeyboardEvent) => {
+    if (!el.isConnected || busy || e.altKey || e.metaKey || e.ctrlKey || isTyping()) return;
+    const overlays = document.querySelectorAll('.overlay');
+    const top = overlays[overlays.length - 1];
+    if (top && !top.contains(el)) return;
+    const at = HERO_IDS.indexOf(current);
     const step = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -COLS, ArrowDown: COLS } as Record<string, number>)[e.key];
     if (step) {
       e.preventDefault();
-      go({ view: 'heroes', heroId: HERO_IDS[(at + step + HERO_IDS.length) % HERO_IDS.length] });
-    } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLAnchorElement && !e.target.matches('.hp-cell'))) {
+      e.stopPropagation();
+      move(HERO_IDS[(at + step + HERO_IDS.length) % HERO_IDS.length]);
+      cells.find((c) => c.id === current)?.cell.focus();
+    } else if (e.key === 'Enter' && (!(e.target instanceof HTMLButtonElement) || e.target.matches('.hp-cell'))) {
       e.preventDefault();
-      void choose(HERO_IDS[at]);
+      void choose(current);
     }
-  });
+  };
+  // Capture, so the arrows don't also scroll the page or the set-up guide.
+  window.addEventListener('keydown', onKey, true);
 
-  app.subscribe((change) => change !== 'sync' && render());
-  render();
+  move(current, true);
+  return {
+    el,
+    destroy() {
+      alive = false;
+      stopIdle();
+      window.removeEventListener('keydown', onKey, true);
+    },
+  };
+}
+
+/** The character select in a modal over Settings. It closes itself once the hero is picked. */
+export function openHeroSelect(app: App, onPicked?: (id: HeroId) => void) {
+  let close = () => {};
+  const select = heroSelect(app, {
+    onPicked: (id) => {
+      close();
+      onPicked?.(id);
+    },
+  });
+  close = openModal('CHOOSE YOUR HERO', select.el, [{ label: 'Close' }], { wide: true, onClose: () => select.destroy() });
 }

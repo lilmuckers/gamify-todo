@@ -1382,61 +1382,35 @@ a:focus-visible {
   transform: translateX(-50%);
 }
 
-/* ---------- Hero picker (settings) ---------- */
+/* ---------- Your hero (settings): the hero, and a button to the character select ---------- */
 .hero-picker {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.hero-carousel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  outline: none;
-}
-.hero-carousel:focus-visible .hero-card {
-  outline: 2px solid var(--gold);
-}
 .hero-card {
-  flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: linear-gradient(#5c94fc, #9cc3ff);
-  text-align: center;
-  min-height: 150px;
+  gap: 12px;
+  padding: 10px 12px;
+  background: linear-gradient(#29366f, var(--ink));
+  border: 3px solid var(--panel-2);
 }
-.hero-card b {
-  font: 9px var(--pixel);
-  color: #1a1c2c;
-}
-.hero-card small {
-  color: #1a1c2c;
-  opacity: 0.8;
-}
-.hero-big {
+.hero-card-face {
   width: 64px;
   height: 64px;
+  border: 2px solid var(--line);
 }
-.hero-dots {
-  display: flex;
-  gap: 4px;
+.hero-card-sprite {
+  width: 32px;
+  height: 32px;
+  align-self: flex-end;
 }
-.hero-dots i {
-  width: 6px;
-  height: 6px;
-  background: rgba(26, 28, 44, 0.3);
-}
-.hero-dots i.on {
-  background: #1a1c2c;
-}
-.hero-carousel > .btn {
-  font: 16px/1 var(--body);
-  padding: 14px 10px;
+.hero-card b {
+  display: block;
+  margin-bottom: 4px;
+  font: 9px/1.5 var(--pixel);
+  color: var(--gold-hi);
 }
 
 /* ---------- Today: a legal pad on the bedroom floor ---------- */
@@ -2442,24 +2416,13 @@ button.heat:focus-visible,
   }
 }
 
-/* ---------- Heroes (#/heroes): a fighting-game select screen over the game ---------- */
-.heroes-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 16px;
-  color: var(--paper);
+/* ---------- Character select (Settings modal, set-up guide) ---------- */
+.modal.wide {
+  width: min(980px, 100%);
 }
-.hp-title {
-  margin: 4px 0 14px;
-  font: 18px var(--pixel);
-  text-align: center;
-  letter-spacing: 2px;
-  color: var(--gold);
-  text-shadow: 3px 3px 0 #a22633;
-}
-.hp-select {
+.hero-select {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1fr) auto;
   gap: 24px;
   align-items: start;
   padding: 18px;
@@ -2509,8 +2472,8 @@ button.heat:focus-visible,
   font: 10px/1.6 var(--pixel);
   color: var(--green);
 }
-.heroes-host.picking .hp-cell,
-.heroes-host.picking .hp-pick {
+.hero-select.picking .hp-cell,
+.hero-select.picking .hp-pick {
   pointer-events: none;
 }
 .hp-floor {
@@ -2550,6 +2513,7 @@ button.heat:focus-visible,
 .hp-cell {
   position: relative;
   display: block;
+  cursor: pointer;
   width: 72px;
   height: 72px;
   padding: 1px;
@@ -2602,7 +2566,7 @@ button.heat:focus-visible,
   }
 }
 @media (max-width: 760px) {
-  .hp-select {
+  .hero-select {
     grid-template-columns: 1fr;
     padding: 12px;
   }
@@ -2623,6 +2587,55 @@ button.heat:focus-visible,
     width: 100%;
     height: 100%;
   }
+}
+
+/* In the set-up guide: printed on the manual's page, in its ink and red. */
+.hero-select.hp-manual {
+  background: #fffaf0;
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 #e43b44;
+  color: var(--ink);
+}
+.hp-manual .hp-floor {
+  background: repeating-linear-gradient(90deg, #d8c9a8 0 16px, #c4b28c 16px 32px);
+  border-top-color: var(--ink);
+}
+.hp-manual .hp-bio {
+  background: #f4ecd8;
+  border-color: var(--ink);
+}
+.hp-manual .hp-bio q {
+  color: #a22633;
+}
+.hp-manual .hp-cell {
+  background: #f4ecd8;
+  border-color: #c4b28c;
+}
+.hp-manual .hp-cell:hover,
+.hp-manual .hp-cell:focus-visible {
+  border-color: var(--ink);
+}
+.hp-manual .hp-cell.on {
+  border-color: #e43b44;
+  animation-name: hp-blink-manual;
+}
+@keyframes hp-blink-manual {
+  50% {
+    border-color: var(--ink);
+  }
+}
+.hp-manual .hp-name {
+  color: #e43b44;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+.hp-manual .hp-desc {
+  color: #5a4a3a;
+}
+.hp-manual .hp-caption {
+  color: #265c42;
+}
+.manual .hero-select {
+  margin-top: 8px;
 }
 
 /* ---------- Detailed stats (#/records): a page over the game ---------- */
@@ -4177,9 +4190,6 @@ button.heat:focus-visible,
   .manual-close {
     top: 8px;
     right: 8px;
-  }
-  .manual .hero-carousel {
-    max-width: 100%;
   }
 }
 

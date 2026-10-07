@@ -74,7 +74,7 @@ app/      Vite + Phaser 3 + plain DOM (no framework)
                     (detailed stats built in the background, off the main thread), demo-history (made-up commits)
   src/game/         Phaser scenes: projects (bedroom/console), overworld, world, level (~2k lines), play/ (physics, input)
   src/sprites/      all art drawn in code: pixels palette, heroes, portraits, fighters (48×64 poses), cartridge, bedroom, junk-tv, strip
-  src/ui/           DOM: hud, panels, forms, today/inbox/weekly (legal pad), settings, heroes (#/heroes select screen), toast, modal, dialogue, onboarding/
+  src/ui/           DOM: hud, panels, forms, today/inbox/weekly (legal pad), settings, hero-select (character select: Settings modal + set-up guide), toast, modal, dialogue, onboarding/
   src/analytics*.ts GA4 with an allow-list; nothing identifying leaves the browser
 server/   Fastify API for the Docker editor: reads/writes data/, commits, publishes, proxies PRs
 worker/   Cloudflare Worker for Sign in with GitHub: swaps a code/refresh token for a user token (not a workspace)

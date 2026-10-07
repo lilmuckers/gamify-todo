@@ -256,7 +256,6 @@ touch screens, and can be overridden in Settings or with `?mobile=on|off`.
 …/~stats                                  the stats screen held up over any screen
 #/today, #/review, #/stats                short forms
 #/records                                 detailed stats
-#/heroes[/<hero>]                         hero select screen, on your hero or the one named
 ```
 
 Query flags: `?demo`, `?tour`, `?welcome`, `?mobile=`, `?jam` (for testing: one of every
@@ -435,7 +434,8 @@ canvas give ▲ up, ◀ ▶ prev/next and Play.
 
 ### 5.9 Settings (⚙)
 
-- **Your hero:** an 18-hero carousel. The choice is kept in this browser. When the data is
+- **Your hero:** the hero's portrait, sprite, name and description, and **CHANGE HERO**, which
+  opens the character select (§5.11) in a modal over Settings. The choice is kept in this browser. When the data is
   editable it is also saved to `data/settings.json` as everyone's default.
 - **GitHub** (builds with sign-in): **Sign in with GitHub**; once signed in, the repo in use,
   **Change repo** (the repo picker), **Sign out** and a link to revoke the App on GitHub. An
@@ -479,22 +479,25 @@ Each hero has:
 - their own voice in the tour lines and easter-egg lines, plus a short `bio` and a signature
   `quote`.
 
-**Heroes** (`#/heroes`, linked from Settings → Your hero) is a fighting-game select screen,
-a full page over the game like detailed stats. On the left, the hero under the cursor stands on
-a stage in their pose, breathing in its idle loop, with their bio and quote under it. On the
-right, a 6×3 grid of portraits (the cursor blinks gold; yours is marked P1), with the hero's name,
-description and **PICK THIS HERO** (the same as the Settings carousel) under it. On phones the
-two stack. Click a portrait, or move with the arrow keys (`[` `]` too); Enter or the button picks.
-Picking plays the transformation from a 90s handheld RPG's intro:
+**The character select** (`ui/hero-select.ts`) is a fighting-game select screen, used in two
+places: in a modal over Settings (**CHANGE HERO**, dark arcade colours) and on the set-up guide's
+**Pick your hero** page (printed in the manual's cream, ink and red). On the left, the hero under
+the cursor stands on a stage in their pose, breathing in its idle loop, with their bio and quote
+under it. On the right, a 6×3 grid of portraits (the cursor blinks; yours is marked P1), with the
+hero's name, description and **PICK THIS HERO** under it. On phones the two stack. Click a
+portrait to move the cursor (click it again to pick), or use the arrow keys; Enter or the button
+picks. It always opens on your hero. Picking plays the transformation from a 90s handheld RPG's
+intro:
 1. the pose throws its victory frame;
 2. a white flash, and the pose turns into a white silhouette;
 3. the silhouette shrinks in snapped steps (3×, 2×, 1×) into the 16×16 sprite's silhouette;
 4. the sprite colours in (the hero becomes yours here) and hops;
-5. "✓ <hero> is your hero" shows, and the screen goes back to the project floor.
+5. "✓ <hero> is your hero" shows. Then the modal closes back to Settings, or the set-up guide
+   turns to its next page.
 
 Everything stands on the pose's feet. Reduced motion or a hidden tab skips to the end, and the
-grid and keys wait while it plays. `#/heroes` opens on your hero, `#/heroes/<id>` on that one
-(unknown ids open on yours). Esc goes back to the project floor. Page views are `/heroes` and `/hero`, never the id.
+grid and keys wait while it plays. The keys only work while the select is on top (not under
+another dialog). Picking is tracked as `hero_select`, as before.
 
 Precedence: in read-only views the viewer's own choice wins over the repo default. §18 covers how
 to add a hero: the art, the voice and every line they need.
@@ -1012,8 +1015,8 @@ half-added hero can't ship.
 | Tour demos | Bumps a `?` block, dives into a pipe, climbs the stairs | Sprite frames |
 | HUD and mobile tab bar | Small icon by the title, and on the Next tab | Standing frame |
 | Mobile level strip | Stands at the next stop | Standing frame |
-| Settings → Your hero | Carousel, walking in place, with label and description | Frames + `label` + `description` |
-| Heroes select screen (`#/heroes`) | Fighter pose with bio and quote; portrait in the grid; name and description | Fighter look + portrait + `bio` + `quote` + `label` + `description` |
+| Settings → Your hero | Portrait, standing sprite, label and description | Portraits + frames + `label` + `description` |
+| Character select (Settings modal, set-up guide) | Fighter pose with bio and quote; portrait in the grid; name and description; the shrink into the sprite | Fighter look + portraits + frames + `bio` + `quote` + `label` + `description` |
 | Welcome screen | A random cast of three on the box cover (standing or jumping) | Frames |
 | Set-up guide | The hero gives tips in the margin | Standing frame |
 | Legal pad (Today, Inbox, Review) | The hero's hands hold the pad | Skin colour, slot `3` |
@@ -1099,7 +1102,7 @@ with the feet planted, and that the figure is outlined at the top.
 
 **Metadata.** Give the hero a `label` (2–3 words: "Hijab skater", "Beard & glasses") and a
 `description` (one line: hair, top, bottoms, shoes, plus the signature detail). Use the same
-description wording in the schema. Then the heroes screen's words, in the hero's voice (§18.3):
+description wording in the schema. Then the character select's words, in the hero's voice (§18.3):
 - `bio`: one or two sentences, at most 160 characters, about personality and style;
 - `quote`: a signature line, at most 60 characters.
 
@@ -1203,8 +1206,8 @@ are hero-neutral.
 1. **Schema:** add the id and a one-line look description to `$defs.HeroId` in
    `schema/quest.schema.json` (`Settings.hero` refers to it). Then run `npm run schema:gen`.
    `quest.py` reads the bundled schema, so it picks up the new value with no code change.
-2. **Model:** add the id to `HERO_IDS` in `shared/src/model.ts`. Order sets the Settings
-   carousel; put new heroes at the end.
+2. **Model:** add the id to `HERO_IDS` in `shared/src/model.ts`. Order sets the character
+   select's grid; put new heroes at the end.
 3. **Sprites:** add a `HEROES[id]` entry (label, description, bio, quote, colours, frames) in `app/src/sprites/heroes.ts`.
 4. **Portraits and pose:** add a `BUILD[id]` entry in `app/src/sprites/portraits.ts` and a
    `LOOKS[id]` entry in `app/src/sprites/fighters.ts`.
@@ -1214,8 +1217,8 @@ are hero-neutral.
    count in `README.md` and in §5.11 here, and add a row to the voice table in §18.3.
 8. **Check:** `npm run typecheck` (the `Record<HeroId, …>` maps fail on a missing entry),
    `npm test` (`heroes`, `fighters`, `portraits`, `junk-lines` and `tour` tests),
-   `npm run schema:check`. Then look at the hero in the app: the heroes screen
-   (`#/heroes/<id>`: pose, bio, portrait), Settings carousel, a level (walk, jump, play mode), the
+   `npm run schema:check`. Then look at the hero in the app: the character select
+   (Settings → CHANGE HERO: pose, bio, portrait, the shrink when picked), a level (walk, jump, play mode), the
    tour (`?welcome` → Take the tour, after picking the hero), the console egg on the bedroom
    floor, and a phone-width window. Check that the sprite reads against every world theme and
    that the portrait matches it.
