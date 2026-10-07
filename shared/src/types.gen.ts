@@ -48,6 +48,10 @@ export interface Project {
   id: string;
   title: Title;
   description?: Notes;
+  /**
+   * When the project was archived (put on the shelf). An archived project is off the bedroom floor and its clocks are frozen at this moment: it drops out of Today, the weekly review and every deadline alert, but its history still counts in the stats. Archiving works on unfinished projects too. To unarchive, add the days since archivedAt to pausedDays on every started, uncleared level, then remove this field. Omit for projects in play.
+   */
+  archivedAt?: string;
   budgets?: BudgetSettings;
   /**
    * Key project goals. Keep to 1-5.
@@ -149,6 +153,10 @@ export interface Level {
    * When all MVP criteria were first done. Set automatically. Omit for uncleared levels.
    */
   clearedAt?: string;
+  /**
+   * Days this level's clock was suspended while its project was archived. They push the time-box deadline back, so archived time never counts as overdue. Added when the project is unarchived (days from the project's archivedAt to now, for started, uncleared levels). Omit when 0.
+   */
+  pausedDays?: number;
   /**
    * true = parked on the someday shelf (from the weekly review): the level isn't being worked on, so it drops out of Today, the review's overdue/stale lists and 'next level' suggestions. Parking clears startedAt, so the time-box starts afresh when work resumes; marking an item doing/done or ticking a criterion unparks it. Omit when false.
    */

@@ -248,6 +248,12 @@ function line(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number,
   for (let i = 0; i <= n; i++) ctx.fillRect(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), 1, 1);
 }
 
+/** The cartridge's shell colours [hi, mid, lo]: the first thing its seed picks, so spines match faces. */
+export function cartShell(spec: CartSpec): [string, string, string] {
+  const kind = spec.kind ?? 'game';
+  return kind === 'warp' ? SHELLS[3] : kind === 'blank' ? SHELLS[0] : pick(seeded(spec.seed), SHELLS);
+}
+
 /** A cartridge with procedural label art, seeded by `spec.seed`. */
 export function cartridge(spec: CartSpec): HTMLCanvasElement {
   const key = `${spec.kind ?? 'game'}:${spec.seed}:${spec.title}:${spec.themes.join(',')}`;

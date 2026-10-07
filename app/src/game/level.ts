@@ -241,7 +241,9 @@ export class LevelScene extends QuestScene {
     this.hero.x = this.heroTargetX;
     const score = scoreLevel(cur.level);
     this.wasCleared = score.cleared;
-    if (!cur.sub && !this.params.pr && (score.timer.phase === 'hurry' || score.timer.phase === 'overdue')) {
+    // An archived game's clock is paused: no warning.
+    const archived = !!this.app.workspace?.projects[cur.projectId]?.overworld.archivedAt;
+    if (!cur.sub && !this.params.pr && !archived && (score.timer.phase === 'hurry' || score.timer.phase === 'overdue')) {
       const key = `${cur.projectId}/${cur.world.id}/${cur.level.id}:${new Date().toDateString()}`;
       if (!warned.has(key)) track('timebox_warning', { phase: score.timer.phase });
       warned.add(key);

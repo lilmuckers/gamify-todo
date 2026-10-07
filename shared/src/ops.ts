@@ -63,6 +63,11 @@ type ProjectOpBody =
   | { kind: 'updateWorld'; worldId: string; patch: WorldPatch }
   | { kind: 'deleteWorld'; worldId: string }
   | { kind: 'updateProject'; patch: ProjectPatch }
+  /**
+   * Puts the project on the shelf (archivedAt = op time, clocks frozen) or takes it
+   * back down: unarchiving credits the archived days to every started, uncleared level's pausedDays.
+   */
+  | { kind: 'setArchived'; archived: boolean }
   | { kind: 'addGoal'; goal: Goal }
   | { kind: 'updateGoal'; goalId: string; patch: Partial<Omit<Goal, 'id'>> }
   | { kind: 'deleteGoal'; goalId: string };
@@ -435,6 +440,24 @@ function applyProjectOp(state: GameState, op: ProjectOp): GameState {
       for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (o as any)[k];
       return next;
     }
+    case 'setArchived': {
+      if (op.archived) {
+        if (!next.overworld.archivedAt) overworld().archivedAt = op.at;
+        return next;
+      }
+      const since = next.overworld.archivedAt;
+      if (!since) return next;
+      delete overworld().archivedAt;
+      const days = Math.round(Math.max(0, Date.parse(op.at) - Date.parse(since)) / 8_640_000) / 10;
+      if (!(days > 0)) return next;
+      for (const wid of Object.keys(next.worlds))
+        for (const l of next.worlds[wid].levels)
+          if (l.startedAt && !isCleared(l)) {
+            const lv = level(world(wid), l.id);
+            lv.pausedDays = Math.round(((lv.pausedDays ?? 0) + days) * 10) / 10;
+          }
+      return next;
+    }
     case 'addGoal':
       if (next.overworld.goals.some((g) => g.id === op.goal.id))
         throw new OpConflict(`goal id "${op.goal.id}" already taken`, op);
@@ -632,6 +655,8 @@ export function describeOp(op: Op, state?: Workspace): string {
       return `delete world ${op.worldId}${where}`;
     case 'updateProject':
       return `edit project${where}`;
+    case 'setArchived':
+      return `${op.archived ? 'archive' : 'unarchive'}: ${state?.projects[op.projectId]?.overworld.title ?? op.projectId}${where}`;
     case 'addGoal':
       return `add goal "${op.goal.title}"${where}`;
     case 'updateGoal':

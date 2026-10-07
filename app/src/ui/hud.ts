@@ -1,4 +1,4 @@
-import { currentStreak, scoreLevel, totals, type TimerPhase } from '@quest/shared';
+import { clockNow, currentStreak, scoreLevel, totals, type TimerPhase } from '@quest/shared';
 import { play as sfx } from '../audio';
 import type { App } from '../app';
 import { href, togglePad } from '../router';
@@ -83,23 +83,28 @@ export function renderHud(app: App, el: HTMLElement) {
   let middle: Node | null = null;
   // A sub-level has no time-box or stars of its own.
   if (cur && r.view === 'level' && !cur.sub) {
-    const sc = scoreLevel(cur.level);
+    // An archived game's clocks are frozen: no countdown and no hurry-up sound.
+    const project = app.workspace?.projects[cur.projectId]?.overworld;
+    const paused = !!project?.archivedAt;
+    const sc = scoreLevel(cur.level, clockNow(project));
     const tm = sc.timer;
     const key = `${cur.projectId}/${cur.world.id}/${cur.level.id}`;
-    if (lastPhase?.key === key && lastPhase.phase !== tm.phase && (tm.phase === 'hurry' || tm.phase === 'overdue')) sfx('hurry');
+    if (!paused && lastPhase?.key === key && lastPhase.phase !== tm.phase && (tm.phase === 'hurry' || tm.phase === 'overdue')) sfx('hurry');
     lastPhase = { key, phase: tm.phase };
     middle = h(
       'div',
-      { class: `hud-level ${tm.phase}` },
+      { class: `hud-level ${paused && tm.phase !== 'cleared' ? 'paused' : tm.phase}` },
       stars(sc.stars),
       h(
         'span',
-        { class: 'hud-time' },
-        tm.phase === 'not-started'
-          ? `⏱ ${cur.level.timeboxDays}d`
-          : tm.phase === 'cleared'
-            ? 'CLEAR!'
-            : `⏱ ${fmtDuration(tm.remainingMs!)}`,
+        { class: 'hud-time', title: paused ? 'Game archived: the clock is paused' : undefined },
+        tm.phase === 'cleared'
+          ? 'CLEAR!'
+          : paused
+            ? '⏸ paused'
+            : tm.phase === 'not-started'
+              ? `⏱ ${cur.level.timeboxDays}d`
+              : `⏱ ${fmtDuration(tm.remainingMs!)}`,
       ),
     );
   }

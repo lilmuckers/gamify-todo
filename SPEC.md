@@ -86,7 +86,8 @@ per-file schemas (`project`, `world`, `level`, `settings`, `inbox`) `$ref` it, a
 
 **Id:** `^[a-z0-9]+(-[a-z0-9]+)*$`, max 64 characters, derived from names and never renamed.
 
-**Project:** `id`, `title` (≤120), `description?` (≤4000, markdown), `budgets?` (`{currency?,
+**Project:** `id`, `title` (≤120), `description?` (≤4000, markdown), `archivedAt?` (put on the
+shelf: clocks frozen, out of Today and the review), `budgets?` (`{currency?,
 alerts?, alertAt?}`: turns cash budgets on), `goals[]` (`{id, title, description?}`, 1–5),
 `worldOrder[]`.
 
@@ -105,7 +106,7 @@ alerts?, alertAt?}`: turns cash budgets on), `goals[]` (`{id, title, description
 `unlocksAfter` draws the map's branches. It is purely visual: a locked world is still editable.
 
 **Level:** `id`, `name`, `deliverable` (≤280, one sentence), `description?`, `timeboxDays`
-(1–90), `startedAt?`, `clearedAt?`, `someday?`, `budget?`, `successCriteria[]` (1–20, at least one
+(1–90), `startedAt?`, `clearedAt?`, `pausedDays?`, `someday?`, `budget?`, `successCriteria[]` (1–20, at least one
 with `mvp: true`), `items[]` (≤200), `stats?` (app-maintained).
 
 **Criterion:** `{id, text (≤280), mvp, done, doneAt?}`; all but `doneAt` required.
@@ -159,6 +160,11 @@ These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, 
 - `doneAt` is present only on done items and steps and on ticked criteria. Tools set it when
   marking something done (or ticking it) and remove it on reopen.
 - `someday: true` means no `startedAt`, and is never set on a cleared level.
+- **Archiving (#32):** `archivedAt` on a project freezes its clocks at that moment (`clockNow`).
+  It drops out of Today, the weekly review's overdue/stale/focus lists, the HUD hurry sound and
+  the nudges. What it shipped still counts in the review and the stats. Unarchiving
+  (`setArchived`) adds the archived days to `pausedDays` on every started, uncleared level, so
+  the deadline is `startedAt + timeboxDays + pausedDays` and archived time never costs a star.
 - Files are UTF-8, 2-space indent, with a trailing newline. The canonical format is
   `npm run format:data`.
 
@@ -169,7 +175,8 @@ These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, 
 2026, and three **finished games** from 2024–2025 with every level cleared: `allotment-2025`
 (year one of the allotment), `moving-flat` and `sourdough`. They power the read-only Pages site, the
 demo and the tour. Done items, steps and criteria carry `doneAt` stamps, so Stats has two years of
-history to show. Finished games sort after the others everywhere (`orderedProjects`). Six projects
+history to show. Finished games sort after the others everywhere, and archived ones last
+(`orderedProjects`). `moving-flat` is archived, so the shelf shows both kinds. Six projects
 track money (`budgets`): kitchen-renovation, home-maintenance, bike-restoration, moving-flat,
 allotment-2025 and sourdough, with a mix of overruns, savings and cut items.
 
@@ -264,6 +271,17 @@ and **cartridges** for each project. Each cartridge label shows totals. There ar
 **Warp Zone** cartridge (with its PR count) and a **Blank cartridge** (new project). The project
 you last opened sits just right of the console. Picking a cartridge inserts it, the console boots
 and the camera pans up to the TV.
+
+- **The shelf (#32):** only games still in play lie on the floor. Finished and archived games
+  stand on a shelf on the wall, like books with their names on the spines. A "Look at the shelf"
+  button (top right, with the counts) pans the camera up to it; "Back to the floor" (bottom
+  centre) or Esc pans back. Finished games stand on the left, then a bookend, then archived games
+  in a dusty corner with a cobweb and an 8-bit spider. The spider bounces on its thread, crawls
+  its web, wraps a fly (a tiny winged hero the user isn't playing as) or writes "SOME PIG" in
+  the web. Hovering a game lifts it off the shelf and turns it to show its face; clicking it
+  loads it into the console as usual. An archived game stays archived while you play it; the
+  project form and the overworld panel have Archive / Unarchive. Mobile shows the shelf as a
+  collapsed row of spines under the floor.
 
 - **Clutter**: socks, snack bags, crumbs, spills, pizza, comics, cassette, banana, rubber duck,
   donut, teddy, yo-yo and a pick-your-path fantasy gamebook, laid out randomly each visit.
@@ -701,7 +719,7 @@ Implemented in `app/src/data/store.ts`.
   - **Levels:** `startLevel`, `updateLevel`, `extendTimebox`, `setSomeday`, `deleteLevel`,
     `moveLevel`, `addLevel`.
   - **Worlds:** `addWorld`, `updateWorld`, `deleteWorld`.
-  - **Projects and goals:** `updateProject`, `addGoal`, `updateGoal`, `deleteGoal`,
+  - **Projects and goals:** `updateProject`, `setArchived`, `addGoal`, `updateGoal`, `deleteGoal`,
     `addProject`, `deleteProject`.
   - **Settings:** `updateSettings`.
   - **Inbox:** `inboxAdd`, `inboxUpdate`, `inboxRemove`, `inboxPlace`.

@@ -111,3 +111,24 @@ test('budgets stay hidden until the project turns them on, then alert as costs a
   await expect(page.locator('.toast.warn')).toContainText('Heads-up: Summer Crops has used 95% of its £20.');
   await expect(page.locator('.panel .money')).toContainText('£19 spent of £20');
 });
+
+test('archiving a project commits archivedAt and pauses it; unarchiving takes it back off the shelf', async ({ page }) => {
+  const file = 'data/bike-restoration/project.json';
+  await page.goto('./#/p/bike-restoration');
+  await inScene(page, 'overworld');
+  await page.locator('.panel').getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  const note = page.locator('.panel .archived-note');
+  await expect(note).toContainText('Archived');
+  await expect.poll(() => repoJson<{ archivedAt?: string }>(file).archivedAt, { timeout: 15_000 }).toMatch(/^\d{4}-/);
+
+  // Its started levels say the clock is paused.
+  await page.goto('./#/p/bike-restoration/build/drivetrain');
+  await inScene(page, 'level');
+  await expect(page.locator('.panel .timer.archived')).toContainText('the clock is paused');
+  await expect(page.locator('.hud-time')).toHaveText('⏸ paused');
+
+  await page.locator('.panel .timer.archived').getByRole('button', { name: 'Unarchive' }).click();
+  await expect(page.locator('.panel .timer.archived')).toHaveCount(0);
+  await expect.poll(() => repoJson<{ archivedAt?: string }>(file).archivedAt, { timeout: 15_000 }).toBeUndefined();
+});

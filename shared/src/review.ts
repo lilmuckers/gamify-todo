@@ -1,5 +1,5 @@
 import type { Item, Level, Workspace } from './model';
-import { isMvpItem, isResolved, orderedProjects } from './model';
+import { activeProjects, isMvpItem, isProjectArchived, isResolved } from './model';
 import type { OpBody } from './ops';
 import { isCleared, levelTimer, scoreLevel, suggestNext, type TimerPhase } from './scoring';
 import { levelsOf, type LevelRef } from './today';
@@ -101,7 +101,7 @@ export function weeklyReview(ws: Workspace, now = Date.now()): WeeklyReview {
     candidates: [],
   };
 
-  for (const { level, ref } of levelsOf(ws)) {
+  for (const { level, ref, state } of levelsOf(ws)) {
     const cleared = isCleared(level);
     if (cleared && inWindow(level.clearedAt)) {
       const s = scoreLevel(level, now);
@@ -116,7 +116,8 @@ export function weeklyReview(ws: Workspace, now = Date.now()): WeeklyReview {
           review.shipped.items.push({ ...ref, item: step as Item, doneAt: step.doneAt!, subId: item.id, depTitle: item.title });
     }
 
-    if (cleared || level.someday || !level.startedAt) continue;
+    // What shipped still counts; an archived game's clocks are frozen, so it's never overdue or stale.
+    if (cleared || level.someday || !level.startedAt || isProjectArchived(state)) continue;
     const timer = levelTimer(level, now);
     const last = lastActivity(level) ?? Date.parse(level.startedAt);
     const idle = Math.floor((now - last) / DAY_MS);
@@ -147,13 +148,13 @@ const PHASE_RANK: Record<TimerPhase, number> = { overdue: 0, hurry: 1, 'on-track
 /**
  * Levels to pick next week's focus from: every started, uncleared level (most
  * pressing first), then each project's suggested next level if nothing in it
- * is started. The someday shelf is left out.
+ * is started. The someday shelf and archived games are left out.
  */
 export function focusCandidates(ws: Workspace, now = Date.now()): FocusCandidate[] {
   const started: (FocusCandidate & { urgency: number })[] = [];
   const busy = new Set<string>();
-  for (const { level, ref } of levelsOf(ws)) {
-    if (!level.startedAt || level.someday || isCleared(level)) continue;
+  for (const { level, ref, state } of levelsOf(ws)) {
+    if (!level.startedAt || level.someday || isCleared(level) || isProjectArchived(state)) continue;
     const timer = levelTimer(level, now);
     started.push({ ...ref, phase: timer.phase, mvpLeft: mvpLeft(level), urgency: timer.remainingFraction ?? Infinity });
     busy.add(ref.projectId);
@@ -161,7 +162,7 @@ export function focusCandidates(ws: Workspace, now = Date.now()): FocusCandidate
   started.sort((a, b) => PHASE_RANK[a.phase] - PHASE_RANK[b.phase] || a.urgency - b.urgency);
   const out: FocusCandidate[] = started.map(({ urgency: _, ...c }) => c);
   const all = levelsOf(ws);
-  for (const state of orderedProjects(ws)) {
+  for (const state of activeProjects(ws)) {
     if (busy.has(state.overworld.id)) continue;
     const s = suggestNext(state);
     const found = s && all.find((l) => l.ref.projectId === state.overworld.id && l.ref.worldId === s.worldId && l.ref.levelId === s.levelId);

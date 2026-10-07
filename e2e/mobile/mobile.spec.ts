@@ -44,3 +44,18 @@ test("a dependency's sub-level gets its own strip with the steps", async ({ page
   await expect(page.locator('.sub-level')).toBeVisible();
   await expect(page.locator('.sub-level li.item')).toHaveCount(5);
 });
+
+test('finished and archived games wait on a shelf under the floor', async ({ page }) => {
+  await page.goto('./#/');
+  await cssSettled(page.locator('.legal-pad'));
+  await page.getByRole('link', { name: 'Put the pad away' }).click({ force: true });
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.locator('.cart-floor a.cart', { hasText: 'Moving Flat' })).toHaveCount(0);
+  const shelf = page.locator('details.cart-shelf');
+  await expect(shelf.locator('summary')).toHaveText('The shelf: 2 completed · 1 archived');
+  await shelf.locator('summary').click();
+  await expect(shelf.locator('a.spine')).toHaveCount(3);
+  await expect(shelf.locator('a.spine.dusty')).toHaveCount(1);
+  await shelf.getByRole('link', { name: 'Moving Flat' }).click();
+  await expect(page).toHaveURL(/#\/p\/moving-flat$/);
+});
