@@ -9,13 +9,9 @@ export const WEB_W = 64;
 export const WEB_H = 46;
 /** Thickness of a shelf board (its brackets hang below). */
 export const BOARD_H = 7;
-/** The pile of ornamental books on the top shelf, that a hero hides behind. */
-export const DECOR_BOOKS_W = 30;
-export const TROPHY_W = 14;
-/** Space between ornaments on the top shelf, and at its ends. */
-const DECOR_GAP = 7;
-const DECOR_PAD = 12;
-/** How often each easter egg turns up on the top shelf, per visit. */
+/** Space at the ends of the top shelf. */
+const DECOR_PAD = 8;
+/** How often each easter egg turns up on the top shelf, per page load. */
 export const EGG_CHANCE = 0.6;
 /** How far a hero leans out from behind the books to peek. */
 export const PEEK_OUT = 9;
@@ -53,11 +49,11 @@ const MID_GAP = 18;
  * at `top`. Finished games line up from the left; a bookend, then archived
  * games pushed into the dusty right-hand corner under the cobweb.
  */
-export function shelfLayout(finished: number, archived: number, cx: number, top: number): ShelfLayout {
+export function shelfLayout(finished: number, archived: number, cx: number, top: number, minWidth = 240): ShelfLayout {
   const run = (n: number) => (n ? n * SPINE_W + (n - 1) * SPINE_GAP : 0);
   const corner = Math.max(MIN_CORNER, run(archived) + BOOKEND_W + 2 * SPINE_GAP + 14);
   // Wide enough for a good few ornaments on the top shelf, even with only a game or two.
-  const width = Math.max(240, PAD + run(finished) + MID_GAP + corner + PAD);
+  const width = Math.max(minWidth, PAD + run(finished) + MID_GAP + corner + PAD);
   const left = Math.round(cx - width / 2);
   const right = left + width;
   const step = SPINE_W + SPINE_GAP;
@@ -79,9 +75,12 @@ export interface DecorPick<K extends string> {
   kind: K;
   /** Centre x on the top shelf. */
   x: number;
+  /** A lean, in degrees: nothing up there was put back straight. */
+  angle: number;
 }
 
 export interface TopShelf<K extends string> {
+  /** In drawing order, back to front: a jumble, not left to right. */
   items: DecorPick<K>[];
   /** A 16 px hero centred here is hidden behind the books... */
   hide: number;
@@ -89,11 +88,16 @@ export interface TopShelf<K extends string> {
   peek: number;
 }
 
+/** How many things clutter the top shelf. */
+export const DECOR_MIN = 4;
+export const DECOR_MAX = 5;
+
 /**
- * What stands on the top shelf this visit. The books always do (a hero
- * lives behind them); each easter egg turns up EGG_CHANCE of the time, or
- * always with `jam`; ordinary ornaments fill the rest, shuffled, as many
- * as fit. `widths` gives every kind's width; `books` is the books' kind.
+ * What's left lying about on the top shelf. The books are always there (a
+ * hero lives behind them); each easter egg turns up EGG_CHANCE of the time, or
+ * always with `jam`; ordinary ornaments make it up to DECOR_MIN-DECOR_MAX
+ * things. They're dumped untidily: uneven gaps, some overlapping, leaning a
+ * little, in no particular depth order. `widths` gives every kind's width.
  */
 export function topShelfDecor<K extends string>(
   upper: { left: number; width: number },
@@ -112,28 +116,33 @@ export function topShelfDecor<K extends string>(
     }
     return out;
   };
-  const room = upper.width - 2 * DECOR_PAD;
+  const count = jam ? DECOR_MAX : DECOR_MIN + Math.floor(r() * (DECOR_MAX - DECOR_MIN + 1));
   const picked: K[] = [books];
-  let used = widths[books];
-  const tryAdd = (k: K) => {
-    if (used + DECOR_GAP + widths[k] > room) return;
-    picked.push(k);
-    used += DECOR_GAP + widths[k];
-  };
-  for (const egg of shuffle(eggs)) if (jam || r() < EGG_CHANCE) tryAdd(egg);
-  for (const o of shuffle(ornaments)) tryAdd(o);
-  // Shuffle where things stand, but never put the books first: the peeking hero needs room to their left.
+  for (const egg of shuffle(eggs)) if (picked.length < count && (jam || r() < EGG_CHANCE)) picked.push(egg);
+  for (const o of shuffle(ornaments)) if (picked.length < count) picked.push(o);
+
+  // Left to right in a random order, but never the books first: the peeking hero needs room to their left.
   const rest = shuffle(picked.slice(1));
-  const order = rest.length ? [rest[0], books, ...rest.slice(1)] : [books];
-  // Spread out evenly along the board.
-  const spare = room - used;
-  const gap = DECOR_GAP + (order.length > 1 ? spare / (order.length - 1) : 0);
-  let x = upper.left + DECOR_PAD + (order.length > 1 ? 0 : spare / 2);
-  const items = order.map((kind) => {
-    const pick = { kind, x: Math.round(x + widths[kind] / 2) };
-    x += widths[kind] + gap;
-    return pick;
+  const order = [rest[0], books, ...rest.slice(1)].filter((k): k is K => k !== undefined);
+  const room = upper.width - 2 * DECOR_PAD;
+  const total = order.reduce((n, k) => n + widths[k], 0);
+  // Uneven gaps sharing out the spare room; when there isn't any, things overlap.
+  const weights = order.slice(1).map(() => 0.2 + r());
+  const sum = weights.reduce((a, b) => a + b, 0) || 1;
+  const spare = room - total;
+  let x = upper.left + DECOR_PAD + (order.length === 1 ? spare / 2 : 0);
+  const placed = order.map((kind, i) => {
+    if (i > 0) x += (spare * weights[i - 1]) / sum + (r() - 0.6) * 10;
+    const w = widths[kind];
+    const cx = Math.round(Math.min(upper.left + upper.width - w / 2 - 2, Math.max(upper.left + w / 2 + 2, x + w / 2)));
+    x += w;
+    // Tall, thin things lean most; the books lean on their own.
+    const angle = kind === books ? 0 : Math.round((r() - 0.5) * 2 * (w < 30 ? 7 : 3));
+    return { kind, x: cx, angle };
   });
-  const b = items.find((i) => i.kind === books)!.x;
+  const b = placed.find((p) => p.kind === books)!.x;
+  // Roughly biggest at the back so little things aren't lost behind them, but jumbled: no neat rows.
+  const depth = new Map(placed.map((p) => [p, widths[p.kind] * (0.6 + r() * 0.8)]));
+  const items = [...placed].sort((p, q) => depth.get(q)! - depth.get(p)!);
   return { items, hide: b, peek: b - widths[books] / 2 - PEEK_OUT + 8 };
 }
