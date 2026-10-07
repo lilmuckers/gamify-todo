@@ -485,8 +485,16 @@ a stage in their pose, breathing in its idle loop, with their bio and quote unde
 right, a 6×3 grid of portraits (the cursor blinks gold; yours is marked P1), with the hero's name,
 description and **PICK THIS HERO** (the same as the Settings carousel) under it. On phones the
 two stack. Click a portrait, or move with the arrow keys (`[` `]` too); Enter or the button picks.
-`#/heroes` opens on your hero, `#/heroes/<id>` on that one (unknown ids open on yours). Esc goes
-back to the project floor. Page views are `/heroes` and `/hero`, never the id.
+Picking plays the transformation from a 90s handheld RPG's intro:
+1. the pose throws its victory frame;
+2. a white flash, and the pose turns into a white silhouette;
+3. the silhouette shrinks in snapped steps (3×, 2×, 1×) into the 16×16 sprite's silhouette;
+4. the sprite colours in (the hero becomes yours here) and hops;
+5. "✓ <hero> is your hero" shows, and the screen goes back to the project floor.
+
+Everything stands on the pose's feet. Reduced motion or a hidden tab skips to the end, and the
+grid and keys wait while it plays. `#/heroes` opens on your hero, `#/heroes/<id>` on that one
+(unknown ids open on yours). Esc goes back to the project floor. Page views are `/heroes` and `/hero`, never the id.
 
 Precedence: in read-only views the viewer's own choice wins over the repo default. §18 covers how
 to add a hero: the art, the voice and every line they need.

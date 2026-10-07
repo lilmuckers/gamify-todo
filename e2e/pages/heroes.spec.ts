@@ -19,10 +19,17 @@ test('pick a hero from the select screen', async ({ page }) => {
   await expect(page.locator('.hp-name')).toHaveText('HIJAB SKATER');
   await expect(page.locator('.hp-desc')).toContainText('Teal hijab');
 
-  // Make them yours: the button says so and their portrait is marked P1.
+  // Make them yours: the pose shrinks into the 16x16 sprite, then it's back to the projects.
   await page.getByRole('button', { name: 'PICK THIS HERO' }).click();
-  await expect(page.getByRole('button', { name: '✓ YOUR HERO' })).toBeDisabled();
+  await expect(page.locator('.hp-morph')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: '✓ Hijab skater is your hero' })).toBeVisible();
+  await expect.poll(() => hash(page)).toBe('#/');
+
+  // Back on the select screen, they're yours and the cursor starts on them.
+  await page.goto('./#/heroes');
+  await expect(page.getByRole('radio', { name: 'Hijab skater' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.locator('.hp-cell.mine')).toHaveAttribute('aria-label', 'Hijab skater');
+  await expect(page.getByRole('button', { name: '✓ YOUR HERO' })).toBeDisabled();
 
   // Arrow keys move round the grid (six across); Esc goes back to the projects.
   await page.keyboard.press('ArrowRight');
@@ -35,4 +42,14 @@ test('pick a hero from the select screen', async ({ page }) => {
   // An unknown hero opens on yours.
   await page.goto('./#/heroes/nobody');
   await expect(page.getByRole('radio', { name: 'Hijab skater' })).toHaveAttribute('aria-checked', 'true');
+});
+
+test('with reduced motion, picking a hero goes straight back to the projects', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('./#/heroes/punk');
+  await page.getByRole('radio', { name: 'Punk' }).focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => hash(page)).toBe('#/');
+  await page.goto('./#/heroes');
+  await expect(page.locator('.hp-cell.mine')).toHaveAttribute('aria-label', 'Punk');
 });

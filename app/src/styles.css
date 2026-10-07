@@ -2478,9 +2478,40 @@ button.heat:focus-visible,
   align-items: center;
   width: 100%;
 }
-.hp-pose {
+.hp-spot {
+  position: relative;
+}
+.hp-pose,
+.hp-morph {
+  display: block;
   width: 192px;
   height: 256px;
+  image-rendering: pixelated;
+}
+.hp-morph {
+  position: absolute;
+  inset: 0;
+}
+.hp-morph[hidden] {
+  display: none;
+}
+/* The flash on a pick: a white frame over the stage, faded out by script. */
+.hp-flash {
+  position: absolute;
+  inset: -24px;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+.hp-caption {
+  min-height: 1.6em;
+  margin: 0;
+  font: 10px/1.6 var(--pixel);
+  color: var(--green);
+}
+.heroes-host.picking .hp-cell,
+.heroes-host.picking .hp-pick {
+  pointer-events: none;
 }
 .hp-floor {
   width: 100%;
@@ -2575,7 +2606,8 @@ button.heat:focus-visible,
     grid-template-columns: 1fr;
     padding: 12px;
   }
-  .hp-pose {
+  .hp-pose,
+  .hp-morph {
     width: 144px;
     height: 192px;
   }
