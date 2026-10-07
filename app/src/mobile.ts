@@ -5,7 +5,7 @@ import { canvasUrl, island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
 import { heroKey } from './sprites/heroes';
 import { carpetCanvas, cartridge } from './sprites/cartridge';
-import { cartSpine, cobweb, spider, spineDust } from './sprites/shelf';
+import { cartSpine, cobweb, decorBooks, spider, spineDust, trophy } from './sprites/shelf';
 import { h, icon, mount } from './ui/dom';
 import { renderHud, repaintSyncStatus } from './ui/hud';
 import { renderPanel } from './ui/panels';
@@ -73,6 +73,13 @@ function mobileShelf(games: GameState[]): HTMLElement | null {
         h(
           'div',
           { class: 'dusty-corner' },
+          // A little top shelf for the web to hang from, with things nobody's touched in years.
+          h(
+            'div',
+            { class: 'top-shelf', 'aria-hidden': 'true' },
+            h('img', { class: 'pixel', src: canvasUrl(decorBooks()), alt: '' }),
+            h('img', { class: 'pixel', src: canvasUrl(trophy()), alt: '' }),
+          ),
           h('img', { class: 'pixel web', src: canvasUrl(cobweb()), alt: '' }),
           h('img', { class: 'pixel spider', src: canvasUrl(spider(0)), alt: '' }),
           archived.map(spine),

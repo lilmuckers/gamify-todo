@@ -1136,7 +1136,7 @@ a:focus-visible {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  margin: 52px 12px 12px;
+  margin: 112px 12px 12px;
   padding: 0 10px;
   min-height: 112px;
   border-bottom: 10px solid #b86f50;
@@ -1219,6 +1219,22 @@ a:focus-visible {
   width: 128px;
   opacity: 0.8;
   pointer-events: none;
+}
+
+.shelf-row .top-shelf {
+  position: absolute;
+  right: 0;
+  bottom: 162px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 0 12px;
+  border-bottom: 8px solid #b86f50;
+  box-shadow: 0 2px 0 #3f2832;
+}
+
+.shelf-row .top-shelf img {
+  height: 40px;
 }
 
 .shelf-row .spider {
