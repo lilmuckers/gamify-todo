@@ -118,6 +118,12 @@ describe('eventsForOp', () => {
     expect(events[1].params).toMatchObject({ stars: expect.any(Number), within_timebox: expect.any(Boolean) });
   });
 
+  it('reports archiving with only whether it was archived', () => {
+    const events = run(workspace(), { kind: 'setArchived', projectId: 'p', archived: true });
+    expect(events).toEqual([{ name: 'project_archive', params: { archived: true } }]);
+    expect(sanitize(EVENT_PARAMS.shelf_open, { finished: 3, archived: 1, title: 'Secret' } as Record<string, unknown> as any)).toEqual({ finished: 3, archived: 1 });
+  });
+
   it('falls back to a generic edit event with only the op kind', () => {
     expect(run(workspace(), { kind: 'updateLevel', ...at, patch: { name: 'Secret level' } })).toEqual([
       { name: 'data_edit', params: { kind: 'updateLevel' } },

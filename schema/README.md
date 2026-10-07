@@ -46,6 +46,9 @@ Checked by `npm run validate`, the app, and CI:
   criterion) and remove it when they reopen it, so the weekly review and the stats page can see
   what shipped and when.
 - `someday: true` parks a level (no `startedAt` while parked; never on a cleared level).
+- `archivedAt` on a project archives it: its clocks freeze at that moment and it drops out of
+  Today and the review. Unarchiving adds the archived days to `pausedDays` on every started,
+  uncleared level (the deadline is `startedAt + timeboxDays + pausedDays`), then removes `archivedAt`.
 - Money is optional and per project: `budgets` on the project turns it on (`currency`, an ISO 4217
   code, GBP when unset; `alerts`; `alertAt`, the heads-up percentage). Then `budget` and `spent` go
   on items and steps, and `budget` on levels and worlds. Amounts are plain numbers ≥ 0. A level or

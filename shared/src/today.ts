@@ -1,5 +1,5 @@
 import type { GameState, Item, Level, Workspace } from './model';
-import { dependencyMode, isResolved, orderedProjects, orderedWorlds, subLevel } from './model';
+import { activeProjects, dependencyMode, isProjectArchived, isResolved, orderedProjects, orderedWorlds, subLevel } from './model';
 import { layoutLevel } from './layout';
 import { isCleared, levelTimer, suggestNext, type TimerPhase } from './scoring';
 
@@ -112,9 +112,9 @@ export function todayList(ws: Workspace, now = Date.now(), focus: string[] = [])
   const focusLevels: TodayFocus[] = [];
   const focused = new Set(focus);
 
-  for (const { level, ref } of levelsOf(ws)) {
-    // Parked on the someday shelf: not today's problem.
-    if (isCleared(level) || level.someday) continue;
+  for (const { level, ref, state } of levelsOf(ws)) {
+    // Parked on the someday shelf, or the whole game archived: not today's problem.
+    if (isCleared(level) || level.someday || isProjectArchived(state)) continue;
     const timer = levelTimer(level, now);
     const urgency = timer.remainingFraction ?? Infinity;
     const inFocus = focused.has(levelKey(ref));
@@ -142,7 +142,7 @@ export function todayList(ws: Workspace, now = Date.now(), focus: string[] = [])
 
   // Projects with nothing on the go: suggest where to start.
   const active = new Set(next.map((n) => n.projectId));
-  for (const state of orderedProjects(ws)) {
+  for (const state of activeProjects(ws)) {
     if (active.has(state.overworld.id)) continue;
     const s = suggestNext(state);
     if (!s) continue;

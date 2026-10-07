@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 4**
+**Skill version: 5**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -396,6 +396,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `id` | ✓ | id | = folder name |
 | `title` | ✓ | string ≤120 | |
 | `description` | | string ≤4000 | |
+| `archivedAt` | | ISO date-time | set when the project is archived (put on the shelf): clocks frozen, left out of Today and the review. Works on unfinished projects too. Omit for projects in play. See §5. |
 | `budgets` | | `{currency?, alerts?, alertAt?}` | turns on cash budgets (off when missing; `{}` = on with defaults). `currency`: ISO 4217 code, default `GBP`. `alerts`: `false` turns off alerts. `alertAt`: 50–100, % of a budget spent that gives a heads-up, default 90. |
 | `goals` | ✓ | `{id, title, description?}[]` | 1–5 key outcomes |
 | `worldOrder` | ✓ | id[] | world folders, in map order. Only names existing worlds; ones left out go last. |
@@ -424,6 +425,7 @@ package also bundles copies under `schemas/`, so validation works offline.
 | `timeboxDays` | ✓ | integer 1–90 | time budget, counted from `startedAt` |
 | `startedAt` | | ISO date-time | see §5 |
 | `clearedAt` | | ISO date-time | see §5 |
+| `pausedDays` | | number ≥0 | days the clock was suspended while the project was archived; pushes the deadline back to `startedAt + timeboxDays + pausedDays`. Omit when 0. |
 | `someday` | | boolean | `true` = parked on the someday shelf (see "weekly review" below). Omit otherwise. |
 | `budget` | | number ≥0 | cash for the whole level. Omit to add up its items' budgets. |
 | `successCriteria` | ✓ | Criterion[] (1–20) | at least one with `mvp: true` |
@@ -581,6 +583,8 @@ minimum, and keep the rest byte-for-byte. See "Parallel changes".
 | Set a budget | Set `budget` (a plain number, no currency symbol) on the item, step, level or world, in a project with `budgets`. Remove the key to go back to adding up what's inside. |
 | Log a cost | Set (or raise) `spent` on the item or step it was for. Don't change `status` or `doneAt`. |
 | Park a level (someday) | Set `"someday": true` and remove `startedAt`. Never on a cleared level. Bring it back by removing `someday` (and set `startedAt` to now if work is starting). |
+| Archive a project | Set `archivedAt` in `project.json` to the current UTC time. Don't touch its levels: their clocks freeze at `archivedAt`. |
+| Unarchive a project | Work out the days since `archivedAt` (decimals fine, e.g. `12.5`). Add them to `pausedDays` (create it if missing) on every level with a `startedAt` and no `clearedAt`, then remove `archivedAt`, all in **one commit**. |
 | Tick a criterion | Set `done: true` and `doneAt` to the current UTC time (un-ticking removes `doneAt`). If now **every** MVP criterion is done and `clearedAt` is missing, set `clearedAt` to now. If an MVP criterion is un-ticked, remove `clearedAt`. |
 | Delete a level | Only when asked. Delete the file **and** remove it from `levelOrder`; remove any `levelRef` pointing at it. Name it with `--allow-delete level:<p>/<w>/<l>`. |
 | Delete a step | Remove it from `subtasks` and from its siblings' `dependsOn`; drop the `subtasks` key if it's now empty. |
@@ -624,7 +628,8 @@ Read the data and answer the way the app's **Today** page does, across all proje
    suggest the first uncleared level of the first world.
 
 Nudge towards finishing what's started and cutting scope (`dropped` is a fine answer).
-Skip levels with `"someday": true` everywhere above.
+Skip levels with `"someday": true` and every project with `archivedAt` everywhere above. Deadlines
+are `startedAt + timeboxDays + pausedDays` (pausedDays defaults to 0).
 
 ### Running a weekly review
 
@@ -640,6 +645,8 @@ When asked for a weekly review (the app's **Review** page does the same):
    (Review page) rather than editing `timeboxDays` yourself.
 3. **Gone quiet:** started, uncleared levels with no activity (latest of `startedAt`, `clearedAt`,
    any `doneAt`) for 14+ days. Offer: keep going, park it (someday), or delete the level.
+   Archived projects (`archivedAt`) are never overdue or quiet: leave them out of steps 2–4, but
+   still celebrate what they shipped in step 1.
 4. **Next week:** suggest at most 3 levels to focus on. (The app keeps the chosen focus in the
    browser, not in `data/`.)
 

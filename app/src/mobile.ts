@@ -1,10 +1,11 @@
-import { isWorldLocked, orderedProjects, orderedWorlds, seeded, suggestNext, totals, worldTotals } from '@quest/shared';
+import { isWorldLocked, orderedProjects, orderedWorlds, seeded, shelfKind, suggestNext, totals, worldTotals, type GameState } from '@quest/shared';
 import type { App } from './app';
 import { go, href, togglePad } from './router';
 import { canvasUrl, island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
 import { heroKey } from './sprites/heroes';
 import { carpetCanvas, cartridge } from './sprites/cartridge';
+import { cartSpine, cobweb, spider, spineDust } from './sprites/shelf';
 import { h, icon, mount } from './ui/dom';
 import { renderHud, repaintSyncStatus } from './ui/hud';
 import { renderPanel } from './ui/panels';
@@ -41,27 +42,76 @@ export function mountMobile(app: App, root: HTMLElement) {
   mountHeroes(app, heroes, { onShow: (shown) => (body.hidden = shown) });
 }
 
+/** The shelf stays open across re-renders once it's been opened. */
+let shelfOpen = false;
+
+/** Finished and archived games, as a row of spines on a shelf under the floor: tap one to play it. */
+function mobileShelf(games: GameState[]): HTMLElement | null {
+  if (!games.length) return null;
+  const finished = games.filter((p) => shelfKind(p) === 'finished');
+  const archived = games.filter((p) => shelfKind(p) === 'archived');
+  const spine = (p: GameState) => {
+    const id = p.overworld.id;
+    const spec = { seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) };
+    const dusty = shelfKind(p) === 'archived';
+    return h(
+      'a',
+      { class: `spine${dusty ? ' dusty' : ''}`, href: href({ view: 'overworld', projectId: id }), title: p.overworld.title, 'aria-label': p.overworld.title },
+      h('img', { class: 'pixel side', src: canvasUrl(cartSpine(spec, !dusty)), alt: '' }),
+      dusty && h('img', { class: 'pixel dust', src: canvasUrl(spineDust(id)), alt: '' }),
+      h('img', { class: 'pixel face', src: canvasUrl(cartridge(spec)), alt: '' }),
+    );
+  };
+  const el = h(
+    'details',
+    { class: 'cart-shelf', open: shelfOpen },
+    // Noted on click, not on 'toggle' (which fires later): a re-render in between mustn't shut it again.
+    h('summary', { onclick: () => (shelfOpen = !shelfOpen) }, `The shelf: ${finished.length} completed · ${archived.length} archived`),
+    h(
+      'div',
+      { class: 'shelf-row' },
+      finished.map(spine),
+      archived.length > 0 && h('i', { class: 'bookend', 'aria-hidden': 'true' }),
+      archived.length > 0 &&
+        h(
+          'div',
+          { class: 'dusty-corner' },
+          h('img', { class: 'pixel web', src: canvasUrl(cobweb()), alt: '' }),
+          h('img', { class: 'pixel spider', src: canvasUrl(spider(0)), alt: '' }),
+          archived.map(spine),
+        ),
+    ),
+  );
+  return el;
+}
+
 function renderVisual(app: App, scroll?: number): HTMLElement | null {
   const r = app.route;
   const state = app.state;
   if (r.view === 'projects' && app.workspace) {
-    // Cartridges on the carpet, each tilted by its own seed.
+    const all = orderedProjects(app.workspace);
+    // Cartridges on the carpet, each tilted by its own seed; finished and archived ones on the shelf.
     return h(
       'div',
-      { class: 'cart-floor', style: `background-image:url(${canvasUrl(carpetCanvas())})` },
-      orderedProjects(app.workspace).map((p) => {
-        const t = totals(p);
-        const id = p.overworld.id;
-        const tilt = (seeded(id)() - 0.5) * 16;
-        const art = cartridge({ seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) });
-        return h(
-          'a',
-          { class: 'cart', href: href({ view: 'overworld', projectId: id }), style: `--tilt:${tilt.toFixed(1)}deg` },
-          h('img', { src: canvasUrl(art), class: 'pixel', alt: '' }),
-          h('b', null, p.overworld.title),
-          h('small', null, `★${t.stars}/${t.maxStars}`),
-        );
-      }),
+      null,
+      h(
+        'div',
+        { class: 'cart-floor', style: `background-image:url(${canvasUrl(carpetCanvas())})` },
+        all.filter((p) => shelfKind(p) === 'floor').map((p) => {
+          const t = totals(p);
+          const id = p.overworld.id;
+          const tilt = (seeded(id)() - 0.5) * 16;
+          const art = cartridge({ seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) });
+          return h(
+            'a',
+            { class: 'cart', href: href({ view: 'overworld', projectId: id }), style: `--tilt:${tilt.toFixed(1)}deg` },
+            h('img', { src: canvasUrl(art), class: 'pixel', alt: '' }),
+            h('b', null, p.overworld.title),
+            h('small', null, `★${t.stars}/${t.maxStars}`),
+          );
+        }),
+      ),
+      mobileShelf(all.filter((p) => shelfKind(p) !== 'floor')),
     );
   }
   if (r.view === 'overworld' && state) {

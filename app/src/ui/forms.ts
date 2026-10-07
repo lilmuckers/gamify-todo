@@ -609,6 +609,15 @@ export function projectForm(app: App, create = false) {
       },
       o && { title: 'Delete project', text: `Delete "${o.title}" with all its worlds and levels?` },
     ),
+    // Put it on the shelf (clocks paused, out of Today and the review), or take it back down.
+    ...(o
+      ? [
+          {
+            label: o.archivedAt ? 'Unarchive' : 'Archive',
+            run: () => app.dispatch({ projectId: app.projectId!, kind: 'setArchived', archived: !o.archivedAt }).ok,
+          },
+        ]
+      : []),
     { label: 'Cancel' },
     { label: create ? 'Create' : 'Save', kind: 'primary' as const, run: save },
   ];

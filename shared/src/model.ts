@@ -38,11 +38,34 @@ export function isProjectFinished(state: GameState): boolean {
   return levels.length > 0 && levels.every((l) => l.successCriteria.some((c) => c.mvp) && l.successCriteria.every((c) => !c.mvp || c.done));
 }
 
-/** Projects by title, with finished games after the ones still being played. */
+/** Put away on the shelf: off the floor, clocks frozen, out of Today and the review. */
+export function isProjectArchived(state: GameState): boolean {
+  return !!state.overworld.archivedAt;
+}
+
+/** Where a game lives in the bedroom: on the floor while in play, on the shelf when finished or archived. */
+export function shelfKind(state: GameState): 'floor' | 'finished' | 'archived' {
+  return isProjectArchived(state) ? 'archived' : isProjectFinished(state) ? 'finished' : 'floor';
+}
+
+const SHELF_RANK = { floor: 0, finished: 1, archived: 2 };
+
+/** Projects by title: games in play first, then finished games, then archived ones. */
 export function orderedProjects(ws: Workspace): GameState[] {
   return Object.values(ws.projects).sort(
-    (a, b) => Number(isProjectFinished(a)) - Number(isProjectFinished(b)) || a.overworld.title.localeCompare(b.overworld.title),
+    (a, b) => SHELF_RANK[shelfKind(a)] - SHELF_RANK[shelfKind(b)] || a.overworld.title.localeCompare(b.overworld.title),
   );
+}
+
+/** orderedProjects without the archived ones: everything whose clocks are running. */
+export function activeProjects(ws: Workspace): GameState[] {
+  return orderedProjects(ws).filter((p) => !isProjectArchived(p));
+}
+
+/** "Now" for a project's clocks: frozen at archivedAt while it's archived. */
+export function clockNow(project: Project | undefined, now = Date.now()): number {
+  const at = project?.archivedAt ? Date.parse(project.archivedAt) : NaN;
+  return Number.isNaN(at) ? now : Math.min(now, at);
 }
 
 export const ITEM_TYPES: ItemType[] = [
@@ -167,6 +190,7 @@ export function subLevel(parent: Level, dep: Item): Level {
     ...(dep.notes ? { description: dep.notes } : {}),
     timeboxDays: parent.timeboxDays,
     ...(parent.startedAt ? { startedAt: parent.startedAt } : {}),
+    ...(parent.pausedDays ? { pausedDays: parent.pausedDays } : {}),
     successCriteria: [{ id: SUB_CRITERION_ID, text: 'Every must-do step done or dropped', mvp: true, done }],
     items,
   };

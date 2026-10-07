@@ -152,6 +152,10 @@
         "description": {
           "$ref": "#/$defs/Notes"
         },
+        "archivedAt": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "When the project was archived (put on the shelf). An archived project is off the bedroom floor and its clocks are frozen at this moment: it drops out of Today, the weekly review and every deadline alert, but its history still counts in the stats. Archiving works on unfinished projects too. To unarchive, add the days since archivedAt to pausedDays on every started, uncleared level, then remove this field. Omit for projects in play."
+        },
         "budgets": {
           "$ref": "#/$defs/BudgetSettings",
           "description": "Turns on cash budgets for this project. Omit it and the app hides every budget, cost and alert, even if items carry 'budget' or 'spent' (they are kept for when it's turned back on)."
@@ -312,6 +316,12 @@
         "clearedAt": {
           "$ref": "#/$defs/Timestamp",
           "description": "When all MVP criteria were first done. Set automatically. Omit for uncleared levels."
+        },
+        "pausedDays": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3650,
+          "description": "Days this level's clock was suspended while its project was archived. They push the time-box deadline back, so archived time never counts as overdue. Added when the project is unarchived (days from the project's archivedAt to now, for started, uncleared levels). Omit when 0."
         },
         "someday": {
           "type": "boolean",

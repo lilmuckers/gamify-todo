@@ -20,11 +20,15 @@ export interface TimerState {
   remainingFraction?: number;
 }
 
+/**
+ * The level's clock. `now` should come from `clockNow(project)` so an archived
+ * project's clocks stay frozen; `pausedDays` (archived time) pushes the deadline back.
+ */
 export function levelTimer(level: Level, now = Date.now()): TimerState {
   if (!level.startedAt) return { phase: 'not-started' };
   const start = Date.parse(level.startedAt);
   const total = level.timeboxDays * DAY_MS;
-  const deadline = start + total;
+  const deadline = start + total + (level.pausedDays ?? 0) * DAY_MS;
   const at = level.clearedAt ? Date.parse(level.clearedAt) : now;
   const remainingMs = deadline - at;
   const remainingFraction = remainingMs / total;
@@ -201,8 +205,8 @@ export interface Nudge {
   text: string;
 }
 
-/** Anti-perfectionism coaching for a level. */
-export function nudges(level: Level, now = Date.now()): Nudge[] {
+/** Anti-perfectionism coaching for a level. `paused` (an archived game) leaves out the clock's warnings. */
+export function nudges(level: Level, now = Date.now(), paused = false): Nudge[] {
   const out: Nudge[] = [];
   const score = scoreLevel(level, now);
   const optional = level.items.filter((i) => !isMvpItem(i) && !isResolved(i));
@@ -217,7 +221,9 @@ export function nudges(level: Level, now = Date.now()): Nudge[] {
       out.push({ tone: 'warn', text: `Perfectionism detected 🐢 (${score.polish} polish point${score.polish === 1 ? '' : 's'}): −${score.polish * POLISH_XP_COST} XP.` });
     return out;
   }
-  if (score.timer.phase === 'overdue') {
+  if (paused) {
+    // An archived game's clock is stopped: nothing to hurry for.
+  } else if (score.timer.phase === 'overdue') {
     const cut = optional.map((i) => i.title).slice(0, 3);
     out.push({
       tone: 'alert',

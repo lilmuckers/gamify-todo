@@ -1,6 +1,7 @@
 import {
   alertLevel,
   budgetPrefs,
+  clockNow,
   costLabel,
   costNote,
   dependencyMode,
@@ -25,6 +26,7 @@ import {
   orderedWorlds,
   safeLink,
   scoreLevel,
+  shelfKind,
   suggestNextLevel,
   totals,
   uniqueId,
@@ -87,10 +89,13 @@ function costBlock(c: Cost, prefs: BudgetPrefs | undefined, opts: { note?: boole
   ];
 }
 
+const SHELF_HEADING = { floor: '', finished: 'Completed', archived: 'Archived: clocks paused' };
+
 function projectsPanel(app: App) {
   const ws = app.workspace!;
   const projects = orderedProjects(ws);
   const edit = app.caps.canEdit;
+  const kinds = (['floor', 'finished', 'archived'] as const).map((k) => [k, projects.filter((p) => shelfKind(p) === k)] as const);
   return h(
     'div',
     { class: 'panel-inner' },
@@ -102,36 +107,40 @@ function projectsPanel(app: App) {
         { class: 'note info' },
         edit ? 'No projects yet. Create one to start your quest.' : 'No projects here yet.',
       ),
-    h(
-      'ul',
-      { class: 'list' },
-      projects.map((p) => {
-        const t = totals(p);
-        const cash = projectCost(p);
-        const money = budgetPrefs(p);
-        const nextLevel = suggestNextLevel(p)?.level;
-        return h(
-          'li',
-          null,
-          h(
-            'div',
-            { class: 'row' },
-            link(p.overworld.title, href({ view: 'overworld', projectId: p.overworld.id })),
-            h('span', { class: 'grow' }),
-            h('small', null, `★${t.stars}/${t.maxStars}`),
-          ),
-          p.overworld.description && h('small', { class: 'muted' }, p.overworld.description),
-          h('div', { class: 'bar' }, h('i', { style: `width:${t.levels ? (100 * t.levelsCleared) / t.levels : 0}%` })),
-          h(
-            'small',
-            { class: 'muted' },
-            `${Object.keys(p.worlds).length} world(s) · ${t.levelsCleared}/${t.levels} levels · ${t.xp} XP`,
-            nextLevel ? ` · next: ${nextLevel.name}` : '',
-            money && hasCost(cash) ? ` · ${costLabel(cash, money.currency)}` : '',
-          ),
-        );
-      }),
-    ),
+    kinds.map(([kind, group]) => [
+      kind !== 'floor' && group.length > 0 && h('h3', { class: 'shelf-heading' }, SHELF_HEADING[kind]),
+      group.length > 0 &&
+        h(
+          'ul',
+          { class: 'list' },
+          group.map((p) => {
+            const t = totals(p);
+            const cash = projectCost(p);
+            const money = budgetPrefs(p);
+            const nextLevel = suggestNextLevel(p)?.level;
+            return h(
+              'li',
+              null,
+              h(
+                'div',
+                { class: 'row' },
+                link(p.overworld.title, href({ view: 'overworld', projectId: p.overworld.id })),
+                h('span', { class: 'grow' }),
+                h('small', null, `★${t.stars}/${t.maxStars}`),
+              ),
+              p.overworld.description && h('small', { class: 'muted' }, p.overworld.description),
+              h('div', { class: 'bar' }, h('i', { style: `width:${t.levels ? (100 * t.levelsCleared) / t.levels : 0}%` })),
+              h(
+                'small',
+                { class: 'muted' },
+                `${Object.keys(p.worlds).length} world(s) · ${t.levelsCleared}/${t.levels} levels · ${t.xp} XP`,
+                nextLevel ? ` · next: ${nextLevel.name}` : '',
+                money && hasCost(cash) ? ` · ${costLabel(cash, money.currency)}` : '',
+              ),
+            );
+          }),
+        ),
+    ]),
     app.caps.canReviewPRs &&
       warpZoneButton(),
     syncFooter(app),
@@ -204,6 +213,13 @@ function overworldPanel(app: App) {
       edit && smallBtn('Edit', () => projectForm(app)),
     ),
     s.overworld.description && h('p', { class: 'muted' }, s.overworld.description),
+    s.overworld.archivedAt &&
+      h(
+        'div',
+        { class: 'note info archived-note' },
+        h('span', null, '📦 Archived: on the shelf, with its clocks paused. It stays out of Today and the weekly review.'),
+        edit && smallBtn('Unarchive', () => app.dispatch({ projectId: pid, kind: 'setArchived', archived: false })),
+      ),
     h(
       'div',
       { class: 'stat-grid' },
@@ -344,9 +360,23 @@ function worldPanel(app: App, worldId: string) {
 }
 
 function timerBlock(app: App, world: World, level: Level, readonly: boolean) {
-  const sc = scoreLevel(level);
+  const project = app.state?.overworld;
+  const sc = scoreLevel(level, clockNow(project));
   const t = sc.timer;
   const edit = !readonly && app.caps.canEdit;
+  if (project?.archivedAt && t.phase !== 'cleared')
+    return h(
+      'div',
+      { class: 'timer idle archived' },
+      h(
+        'span',
+        null,
+        t.phase === 'not-started'
+          ? '⏸ Game archived: this level waits on the shelf with it.'
+          : `⏸ Game archived: the clock is paused ${t.remainingMs! < 0 ? `${fmtDuration(-t.remainingMs!)} over the time-box` : `with ${fmtDuration(t.remainingMs!)} left`}. It picks up from there when you unarchive.`,
+      ),
+      edit && smallBtn('Unarchive', () => app.dispatch({ projectId: app.projectId!, kind: 'setArchived', archived: false })),
+    );
   if (level.someday)
     return h(
       'div',
@@ -617,7 +647,7 @@ function levelPanel(app: App) {
       sc.polish > 0 && h('span', { class: 'warn-text', title: 'Edits after clearing' }, `🐢 ${sc.polish}`),
     ),
     !readonly &&
-      nudges(level).map((n) => h('p', { class: `note ${n.tone}` }, n.text)),
+      nudges(level, clockNow(app.state?.overworld), !!app.state?.overworld.archivedAt).map((n) => h('p', { class: `note ${n.tone}` }, n.text)),
     section(
       `Success criteria · ${sc.mvpDone}/${sc.mvpTotal} MVP`,
       edit ? smallBtn('+', () => criterionForm(app, world.id, level)) : null,

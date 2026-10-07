@@ -75,6 +75,9 @@ export function eventsForOp(op: Op | OpBody, before: Workspace | undefined, afte
     case 'addProject':
       out.push({ name: 'project_add' });
       break;
+    case 'setArchived':
+      out.push({ name: 'project_archive', params: { archived: op.archived } });
+      break;
     case 'updateSettings':
       // Reported as hero_select by App.setHero.
       break;

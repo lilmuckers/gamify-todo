@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { orderedProjects, orderedWorlds, suggestNextLevel, totals, type GameState } from '@quest/shared';
+import { HERO_IDS, orderedProjects, orderedWorlds, shelfKind, suggestNextLevel, totals, type GameState, type HeroId } from '@quest/shared';
 import { go } from '../router';
 import { uiPrefs, urlMode } from '../config';
 import { track } from '../analytics';
@@ -12,7 +12,11 @@ import { JUNK_SCALE, junkScreen, junkTitle, pickVariant, staticFrame } from '../
 import { showDialogue, type Dialogue } from '../ui/dialogue';
 import { carpetCanvas, cartridge, CART_H, CART_W, controllerCanvas, type CartSpec } from '../sprites/cartridge';
 import { projectForm } from '../ui/forms';
+import { h } from '../ui/dom';
+import { bookend, cartSpine, cobweb, cocoon, dustPile, heroFly, shelfBoard, silkLetter, spider, spineDust } from '../sprites/shelf';
 import { QuestScene } from './common';
+import { shelfLayout, SPINE_H, SPINE_W, WEB_H, type ShelfLayout } from './shelf-layout';
+import { DURATION, letterAt, nextActivity, REST, spiderPose, WEB_WORDS, type SpiderActivity } from './shelf-spider';
 
 /** Floor area in world pixels; the camera zooms to fit it. */
 const FLOOR_W = 480;
@@ -21,6 +25,9 @@ const CENTER = { x: FLOOR_W / 2, y: FLOOR_H / 2 };
 /** The wall with the TV sits "above" the floor; the camera pans up to it. */
 const SKIRTING_Y = -300;
 const TV = { x: CENTER.x, y: SKIRTING_Y - 40 - TV_H / 2 };
+/** The games shelf hangs on the wall right of the TV, a little lower: books stand on its board at this y. */
+const SHELF_TOP = SKIRTING_Y - 96;
+const SHELF_GAP = 26;
 
 interface Cart {
   key: string;
@@ -29,6 +36,31 @@ interface Cart {
   onPick: () => void;
   /** Insert into the console and boot (real games), or act at once. */
   insert: boolean;
+  /** Games that live on the shelf rather than the floor. */
+  shelf?: 'finished' | 'archived';
+}
+
+/** A game standing on the shelf, and what the scene drew for it. */
+interface Spine {
+  cart: Cart;
+  x: number;
+  img: Phaser.GameObjects.Image;
+  dust?: Phaser.GameObjects.Image;
+  /** What the pointer hovers: steady while the game turns (a turning image is briefly 0 px wide). */
+  hit: Phaser.GameObjects.Zone;
+  /** Bumped on each hover change, so a half-done turn knows it's been overtaken. */
+  gen: number;
+  up: boolean;
+}
+
+/** The spider's things in the dusty corner, moved every frame while the shelf is in view. */
+interface Corner {
+  web: { x: number; y: number };
+  spider: Phaser.GameObjects.Image;
+  thread: Phaser.GameObjects.Rectangle;
+  fly: Phaser.GameObjects.Image;
+  cocoon: Phaser.GameObjects.Image;
+  letters: Phaser.GameObjects.Image[];
 }
 
 interface Placed {
@@ -113,6 +145,15 @@ export class ProjectsScene extends QuestScene {
   private resized = false;
   /** Prop textures the current room uses (kept across visits so old ones can be freed). */
   private propKeys = new Set<string>();
+  /** Looking at the floor, or up at the games shelf. */
+  private view: 'floor' | 'shelf' = 'floor';
+  private shelf?: ShelfLayout & { cx: number; spines: Spine[] };
+  private corner?: Corner;
+  private spiderAct?: SpiderActivity;
+  private spiderFrom = 0;
+  private flyHero: HeroId = 'classic';
+  /** "Look at the shelf" (top right) and "Back to the floor" (bottom), over the game. */
+  private shelfNav?: { up: HTMLButtonElement; down: HTMLButtonElement; root: HTMLElement };
 
   constructor() {
     super('projects');
@@ -127,6 +168,12 @@ export class ProjectsScene extends QuestScene {
     // New clutter every time the screen is shown.
     this.room = undefined;
     this.visit++;
+    this.view = 'floor';
+    // Locators go when the scene shuts down: register them again this time round.
+    this.shelfLocators = new Set();
+    this.shelf = undefined;
+    this.corner = undefined;
+    this.spiderAct = undefined;
   }
 
   create() {
@@ -134,6 +181,7 @@ export class ProjectsScene extends QuestScene {
     // Leaving mid-egg (the HUD still works): take the box and key handler with us.
     this.events.once('shutdown', () => this.egg && this.endEgg());
     this.cameras.main.fadeIn(250);
+    this.mountShelfNav();
     this.render();
     this.watch(() => this.render());
     // The tour points at the first cartridge on the floor.
@@ -156,7 +204,7 @@ export class ProjectsScene extends QuestScene {
   private carts(): Cart[] | undefined {
     const ws = this.app.workspace;
     if (!ws) return;
-    const out: Cart[] = orderedProjects(ws).map((p) => this.gameCart(p));
+    const out: Cart[] = orderedProjects(ws).filter((p) => shelfKind(p) === 'floor').map((p) => this.gameCart(p));
     if (this.app.caps.canReviewPRs) {
       const n = this.app.pulls.list?.length;
       out.push({
@@ -179,17 +227,28 @@ export class ProjectsScene extends QuestScene {
     return out;
   }
 
+  /** Finished and archived games, for the shelf: finished first, as orderedProjects has them. */
+  private shelfCarts(): Cart[] {
+    const ws = this.app.workspace;
+    if (!ws) return [];
+    return orderedProjects(ws).flatMap((p) => {
+      const kind = shelfKind(p);
+      return kind === 'floor' ? [] : [{ ...this.gameCart(p), shelf: kind }];
+    });
+  }
+
   private gameCart(p: GameState): Cart {
     const t = totals(p);
     const nextLevel = suggestNextLevel(p)?.level;
     const id = p.overworld.id;
+    const archived = shelfKind(p) === 'archived';
     return {
       key: id,
       spec: { seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) },
       lines: [
         p.overworld.title,
         `${Object.keys(p.worlds).length} worlds · ${t.levelsCleared}/${t.levels} levels · ${t.stars}/${t.maxStars} stars`,
-        nextLevel ? `Next: ${nextLevel.name}` : t.levels ? 'All clear!' : 'No levels yet',
+        archived ? 'Archived: clocks paused' : nextLevel ? `Next: ${nextLevel.name}` : t.levels ? 'All clear!' : 'No levels yet',
       ],
       insert: true,
       onPick: () => go({ view: 'overworld', projectId: id }),
@@ -198,9 +257,10 @@ export class ProjectsScene extends QuestScene {
 
   /** Visible floor rectangle in world pixels. */
   private floorView() {
+    // At floor zoom, even while the camera is up at the shelf.
     const cam = this.cameras.main;
-    const w = Math.min(cam.width / cam.zoom, FLOOR_W * 1.6);
-    const h = Math.min(cam.height / cam.zoom, FLOOR_H * 1.6);
+    const w = Math.min(cam.width / this.floorZoom, FLOOR_W * 1.6);
+    const h = Math.min(cam.height / this.floorZoom, FLOOR_H * 1.6);
     return { x: CENTER.x - w / 2, y: CENTER.y - h / 2, w, h };
   }
 
@@ -274,14 +334,15 @@ export class ProjectsScene extends QuestScene {
   private render() {
     const carts = this.carts();
     if (!carts || this.busy) return;
-    const sig = JSON.stringify([carts.map((c) => [c.key, c.spec, c.lines]), this.scale.width, this.scale.height]);
+    const onShelf = this.shelfCarts();
+    const sig = JSON.stringify([carts.map((c) => [c.key, c.spec, c.lines]), onShelf.map((c) => [c.key, c.spec, c.lines, c.shelf]), this.scale.width, this.scale.height]);
     if (sig === this.sig) return;
     this.sig = sig;
+    // Nothing left on the shelf (the last game came back down): look at the floor.
+    if (!onShelf.length) this.view = 'floor';
 
     const cam = this.cameras.main;
     this.floorZoom = Math.max(0.5, Math.min(this.scale.width / FLOOR_W, this.scale.height / FLOOR_H));
-    cam.setZoom(this.floorZoom);
-    cam.centerOn(CENTER.x, CENTER.y);
     cam.setBackgroundColor('#1a1c2c');
 
     if (!this.room || this.room.carts.length !== carts.length) {
@@ -309,6 +370,13 @@ export class ProjectsScene extends QuestScene {
     const tv = this.add.image(TV.x, TV.y, tex('tv', tvCanvas));
     layer.add(tv);
     this.mutter(layer, tv, undefined, { x: TV.x, y: TV.y, angle: 0 }, 'tv', undefined, 1.04);
+    this.drawShelf(layer, onShelf);
+    if (this.view === 'shelf') this.aimAtShelf(false);
+    else {
+      cam.setZoom(this.floorZoom);
+      cam.centerOn(CENTER.x, CENTER.y);
+    }
+    this.syncShelfNav();
     layer.add(this.add.tileSprite(-pad, SKIRTING_Y + 2, FLOOR_W + 2 * pad, FLOOR_H + pad, tex('carpet', carpetCanvas)).setOrigin(0));
 
     // Puddles and crumbs under everything else.
@@ -397,6 +465,350 @@ export class ProjectsScene extends QuestScene {
         void this.play(img, shadow, consoleImg, cart);
       });
     });
+  }
+
+  // ---- The games shelf: finished and archived games, up on the wall ----
+
+  /** Shelf games that have a locator (for tests and the tour) this visit. */
+  private shelfLocators = new Set<string>();
+
+  /**
+   * The shelf right of the TV: finished games stand on the left, a bookend,
+   * then archived games in a dusty corner under a cobweb with its spider.
+   */
+  private drawShelf(layer: Phaser.GameObjects.Container, carts: Cart[]) {
+    this.shelf = undefined;
+    this.corner = undefined;
+    if (!carts.length) return;
+    const tex = (key: string, c: () => HTMLCanvasElement) => {
+      if (!this.textures.exists(key)) this.textures.addCanvas(key, c());
+      return key;
+    };
+    const finished = carts.filter((c) => c.shelf === 'finished');
+    const archived = carts.filter((c) => c.shelf === 'archived');
+    const probe = shelfLayout(finished.length, archived.length, 0, SHELF_TOP);
+    const cx = TV.x + TV_W / 2 + SHELF_GAP + probe.width / 2;
+    const l = shelfLayout(finished.length, archived.length, cx, SHELF_TOP);
+    const right = l.left + l.width;
+
+    // The cobweb goes behind the games; the board, dust and spider in front.
+    layer.add(this.add.image(l.web.x, l.web.y, tex('shelf-web', cobweb)).setOrigin(1, 0));
+    // Guy lines from the web down to the board's end and the last game, so it isn't floating.
+    const guys = this.add.graphics().lineStyle(1, 0xf4f4f4, 0.5);
+    guys.lineBetween(l.web.x, l.web.y + 6, right - 1, SHELF_TOP);
+    guys.lineBetween(l.web.x - 22, l.web.y + WEB_H - 8, (l.archived.at(-1) ?? right - 20) + 3, SHELF_TOP - SPINE_H);
+    guys.lineBetween(l.web.x - 46, l.web.y + WEB_H - 14, l.dustFrom + 6, SHELF_TOP);
+    layer.add(guys);
+    layer.add(this.add.image(l.left, SHELF_TOP, tex(`shelf-board:${l.width}`, () => shelfBoard(l.width))).setOrigin(0, 0));
+    if (l.bookend !== undefined) layer.add(this.add.image(l.bookend, SHELF_TOP, tex('shelf-bookend', bookend)).setOrigin(0.5, 1));
+
+    const spines: Spine[] = [];
+    const stand = (cart: Cart, x: number) => {
+      const isArchived = cart.shelf === 'archived';
+      const key = tex(`spine:${cartTexture(cart)}:${cart.shelf}`, () => cartSpine(cart.spec, !isArchived));
+      tex(cartTexture(cart), () => cartridge(cart.spec));
+      const img = this.add.image(x, SHELF_TOP, key).setOrigin(0.5, 1);
+      // Archived games have gathered dust: greyed, and speckled.
+      if (isArchived) img.setTint(0xb4b8c4);
+      layer.add(img);
+      const dust = isArchived ? this.add.image(x, SHELF_TOP, tex(`spine-dust:${cart.key}`, () => spineDust(cart.key))).setOrigin(0.5, 1) : undefined;
+      if (dust) layer.add(dust);
+      const hit = this.add.zone(x, SHELF_TOP, SPINE_W + 2, SPINE_H).setOrigin(0.5, 1);
+      layer.add(hit);
+      const spine: Spine = { cart, x, img, dust, hit, gen: 0, up: false };
+      spines.push(spine);
+      hit.setInteractive({ useHandCursor: true });
+      hit.on('pointerover', () => this.liftSpine(layer, spine));
+      hit.on('pointerout', () => this.dropSpine(spine));
+      hit.on('pointerup', () => {
+        if (this.view !== 'shelf' || this.busy) return;
+        void this.playFromShelf(spine);
+      });
+      if (!this.shelfLocators.has(cart.key)) {
+        this.shelfLocators.add(cart.key);
+        const id = cart.key;
+        this.locator(`shelf:${id}`, () => {
+          const s = this.shelf?.spines.find((sp) => sp.cart.key === id);
+          return s && { x: s.x - 6, y: SHELF_TOP - SPINE_H, w: 12, h: SPINE_H };
+        });
+      }
+    };
+    finished.forEach((c, i) => stand(c, l.finished[i]));
+    archived.forEach((c, i) => stand(c, l.archived[i]));
+    layer.add(this.add.image(l.dustFrom, SHELF_TOP, tex(`shelf-pile:${right - l.dustFrom}`, () => dustPile(right - l.dustFrom))).setOrigin(0, 1));
+
+    // The spider and its doings, posed each frame by update().
+    const thread = this.add.rectangle(0, 0, 1, 1, 0xf4f4f4, 0.8).setOrigin(0.5, 0);
+    const fly = this.add.image(0, 0, tex(`fly:${this.flyHero}:0`, () => heroFly(this.flyHero, 0))).setVisible(false);
+    const wrap = this.add.image(0, 0, tex('shelf-cocoon', cocoon)).setAlpha(0);
+    const letters = [...WEB_WORDS].map((ch, i) => {
+      const at = letterAt(i);
+      return this.add.image(l.web.x + at.x, l.web.y + at.y, tex(`silk:${ch}`, () => silkLetter(ch))).setOrigin(0).setVisible(false);
+    });
+    const spiderImg = this.add.image(l.web.x + REST.x, l.web.y + REST.y, tex('spider:0', () => spider(0)));
+    tex('spider:1', () => spider(1));
+    layer.add([...letters, thread, fly, wrap, spiderImg]);
+    this.corner = { web: l.web, spider: spiderImg, thread, fly, cocoon: wrap, letters };
+    this.shelf = { ...l, cx, spines };
+    this.poseSpider(this.time.now);
+  }
+
+  /** Camera on the shelf: the whole board, the web above it, a little wall round it. */
+  private aimAtShelf(animate: boolean) {
+    const s = this.shelf;
+    if (!s) return;
+    const cam = this.cameras.main;
+    const y = SHELF_TOP - SPINE_H / 2 - 8;
+    const zoom = Math.min(cam.width / (s.width + 60), cam.height / (SPINE_H + 120), this.floorZoom * 4);
+    if (!animate) {
+      cam.setZoom(zoom);
+      cam.centerOn(s.cx, y);
+      return;
+    }
+    cam.pan(s.cx, y, 750, 'Sine.easeInOut');
+    cam.zoomTo(zoom, 750, 'Sine.easeInOut');
+  }
+
+  /** Looks up from the floor at the shelf (the same move as looking at the TV, but not as far). */
+  private async lookAtShelf() {
+    if (this.busy || this.view === 'shelf' || !this.shelf) return;
+    sfx('select');
+    track('shelf_open', { finished: this.shelf.finished.length, archived: this.shelf.archived.length });
+    this.info?.destroy();
+    this.view = 'shelf';
+    this.spiderAct = undefined;
+    if (reducedMotion()) this.aimAtShelf(false);
+    else {
+      this.busy = true;
+      this.syncShelfNav();
+      this.aimAtShelf(true);
+      await this.wait(780);
+      this.busy = false;
+    }
+    this.syncShelfNav();
+    this.afterBusy();
+  }
+
+  /** Back down to the floor. */
+  private async backToFloor() {
+    if (this.busy || this.view !== 'shelf') return;
+    this.info?.destroy();
+    for (const s of this.shelf?.spines ?? []) this.dropSpine(s, true);
+    this.view = 'floor';
+    const cam = this.cameras.main;
+    if (reducedMotion()) {
+      cam.setZoom(this.floorZoom);
+      cam.centerOn(CENTER.x, CENTER.y);
+    } else {
+      this.busy = true;
+      this.syncShelfNav();
+      cam.pan(CENTER.x, CENTER.y, 650, 'Sine.easeInOut');
+      cam.zoomTo(this.floorZoom, 650, 'Sine.easeInOut');
+      await this.wait(680);
+      this.busy = false;
+    }
+    this.syncShelfNav();
+    this.afterBusy();
+  }
+
+  /** A resize or data change that came in while the camera was moving. */
+  private afterBusy() {
+    if (this.resized) {
+      this.resized = false;
+      this.onResize();
+    } else {
+      this.sig = '';
+      this.render();
+    }
+  }
+
+  /** Hover: the game slides up out of the row and turns to show its face; the dust puffs off. */
+  private liftSpine(layer: Phaser.GameObjects.Container, s: Spine) {
+    if (this.view !== 'shelf' || this.busy || s.up) return;
+    s.up = true;
+    const gen = ++s.gen;
+    layer.bringToTop(s.img);
+    layer.bringToTop(s.hit);
+    // The whole face can be hovered once it's turned round, plus the gap it rose out of.
+    s.hit.setSize(CART_W, SHELF_TOP - (SHELF_TOP - 16 - CART_H));
+    (s.hit.input!.hitArea as Phaser.Geom.Rectangle).setSize(s.hit.width, s.hit.height);
+    const face = cartTexture(s.cart);
+    const top = SHELF_TOP - 16;
+    this.showInfo(s.cart, s.x, top - SPINE_H / 2);
+    if (s.dust) this.puff(s.x, top - SPINE_H, s.dust);
+    this.tweens.killTweensOf(s.img);
+    if (reducedMotion()) {
+      s.img.setTexture(face).clearTint().setY(top);
+      return;
+    }
+    this.tweens.add({ targets: s.img, y: top, duration: 140, ease: 'Quad.out' });
+    this.tweens.add({
+      targets: s.img,
+      scaleX: 0,
+      duration: 90,
+      delay: 90,
+      onComplete: () => {
+        if (s.gen !== gen) return;
+        s.img.setTexture(face).clearTint();
+        this.tweens.add({ targets: s.img, scaleX: 1, duration: 110, ease: 'Back.out' });
+      },
+    });
+  }
+
+  /** Back onto the shelf, spine out (and dusty again, if it's archived). */
+  private dropSpine(s: Spine, instant = false) {
+    if (!s.up) return;
+    s.up = false;
+    const gen = ++s.gen;
+    this.info?.destroy();
+    s.hit.setSize(SPINE_W + 2, SPINE_H);
+    (s.hit.input!.hitArea as Phaser.Geom.Rectangle).setSize(s.hit.width, s.hit.height);
+    this.tweens.killTweensOf(s.img);
+    const spineKey = `spine:${cartTexture(s.cart)}:${s.cart.shelf}`;
+    const settle = () => {
+      s.img.setTexture(spineKey).setScale(1);
+      if (s.dust) {
+        s.img.setTint(0xb4b8c4);
+        this.tweens.killTweensOf(s.dust);
+        s.dust.setAlpha(1).setY(SHELF_TOP);
+      }
+    };
+    if (instant || reducedMotion()) {
+      settle();
+      s.img.setY(SHELF_TOP);
+      return;
+    }
+    this.tweens.add({
+      targets: s.img,
+      scaleX: 0,
+      duration: 80,
+      onComplete: () => {
+        if (s.gen !== gen) return;
+        settle();
+        s.img.setScale(0, 1);
+        this.tweens.add({ targets: s.img, scaleX: 1, duration: 90 });
+      },
+    });
+    this.tweens.add({ targets: s.img, y: SHELF_TOP, duration: 160, delay: 60, ease: 'Quad.in' });
+  }
+
+  /** Dust shaken off a lifted game: the specks fade and a little cloud drifts away. */
+  private puff(x: number, y: number, dust: Phaser.GameObjects.Image) {
+    this.tweens.killTweensOf(dust);
+    if (reducedMotion()) return void dust.setAlpha(0);
+    this.tweens.add({ targets: dust, alpha: 0, y: dust.y - 16, duration: 220 });
+    for (let i = 0; i < 6; i++) {
+      const p = this.add.rectangle(x + (Math.random() - 0.5) * 10, y + Math.random() * 10, 1, 1, i % 2 ? 0xc0cbdc : 0xead4aa).setDepth(900);
+      this.tweens.add({
+        targets: p,
+        x: p.x + (Math.random() - 0.5) * 18,
+        y: p.y - 4 - Math.random() * 8,
+        alpha: 0,
+        duration: 400 + Math.random() * 200,
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  /** A game off the shelf: look back down, and it goes in the console like any other. */
+  private async playFromShelf(s: Spine) {
+    this.busy = true;
+    this.info?.destroy();
+    this.syncShelfNav();
+    s.img.setVisible(false);
+    s.dust?.setVisible(false);
+    const cam = this.cameras.main;
+    if (reducedMotion()) {
+      cam.setZoom(this.floorZoom);
+      cam.centerOn(CENTER.x, CENTER.y);
+    } else {
+      cam.pan(CENTER.x, CENTER.y, 600, 'Sine.easeInOut');
+      cam.zoomTo(this.floorZoom, 600, 'Sine.easeInOut');
+      await this.wait(620);
+    }
+    this.view = 'floor';
+    // It drops in from the top of the view, where the shelf is.
+    const v = this.floorView();
+    const key = cartTexture(s.cart);
+    const img = this.add.image(Phaser.Math.Clamp(s.x, v.x + 40, v.x + v.w - 40), v.y - CART_H / 2, key);
+    const shadow = this.add.image(img.x, img.y, key).setVisible(false);
+    this.layer!.add([shadow, img]);
+    this.busy = false;
+    await this.play(img, shadow, this.consoleImg!, s.cart);
+  }
+
+  /** The buttons over the game that look up at the shelf and back down. */
+  private mountShelfNav() {
+    const host = this.game.canvas.parentElement;
+    if (!host) return;
+    const up = h('button', { class: 'btn shelf-up', type: 'button', onclick: () => void this.lookAtShelf() }) as HTMLButtonElement;
+    const down = h('button', { class: 'btn shelf-down', type: 'button', onclick: () => void this.backToFloor() }, '▼ Back to the floor') as HTMLButtonElement;
+    const root = h('div', { class: 'shelf-nav' }, up, down);
+    host.append(root);
+    this.shelfNav = { up, down, root };
+    window.addEventListener('keydown', this.onShelfKey, true);
+    this.events.once('shutdown', () => {
+      root.remove();
+      this.shelfNav = undefined;
+      window.removeEventListener('keydown', this.onShelfKey, true);
+    });
+  }
+
+  /** Shows the button that fits where the camera is, with the shelf's counts. */
+  private syncShelfNav() {
+    const nav = this.shelfNav;
+    if (!nav) return;
+    const s = this.shelf;
+    const finished = s?.finished.length ?? 0;
+    const archived = s?.archived.length ?? 0;
+    nav.up.textContent = `▲ Look at the shelf: ${finished} completed · ${archived} archived`;
+    nav.up.title = `${finished} completed and ${archived} archived game${finished + archived === 1 ? '' : 's'}`;
+    nav.up.hidden = !s || this.view !== 'floor' || this.busy;
+    nav.down.hidden = this.view !== 'shelf' || this.busy;
+  }
+
+  /** Esc on the shelf looks back down (before the app's own Esc handling). */
+  private onShelfKey = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || this.view !== 'shelf' || this.egg) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    void this.backToFloor();
+  };
+
+  /** The spider, frame by frame: an activity at a time while anyone's looking, else resting in its corner. */
+  private poseSpider(now: number) {
+    const c = this.corner;
+    if (!c) return;
+    let pose = { x: REST.x, y: REST.y, frame: 0 as 0 | 1, letters: 0 } as ReturnType<typeof spiderPose>;
+    if (this.view === 'shelf' && !reducedMotion()) {
+      if (!this.spiderAct || now - this.spiderFrom > DURATION[this.spiderAct]) {
+        this.spiderAct = nextActivity(this.spiderAct);
+        this.spiderFrom = now;
+        if (this.spiderAct === 'wrap') this.pickFly();
+      }
+      pose = spiderPose(this.spiderAct, now - this.spiderFrom);
+    }
+    c.spider.setPosition(c.web.x + pose.x, c.web.y + pose.y).setTexture(`spider:${pose.frame}`);
+    c.thread.setVisible(!!pose.thread).setPosition(c.web.x + pose.x, c.web.y).setSize(1, Math.max(1, (pose.thread ?? 0) - 3));
+    const fly = pose.fly;
+    c.fly.setVisible(!!fly && fly.wrapped < 1);
+    c.cocoon.setVisible(!!fly).setAlpha(fly?.wrapped ?? 0);
+    if (fly) {
+      const flap = Math.floor(now / 70) % 2 as 0 | 1;
+      const key = `fly:${this.flyHero}:${fly.wrapped > 0 ? 0 : flap}`;
+      if (!this.textures.exists(key)) this.textures.addCanvas(key, heroFly(this.flyHero, flap));
+      // Struggling a bit while it's being wrapped.
+      const shake = fly.wrapped > 0 && fly.wrapped < 1 ? (Math.floor(now / 60) % 2) - 0.5 : 0;
+      c.fly.setTexture(key).setPosition(c.web.x + fly.x + shake, c.web.y + fly.y);
+      c.cocoon.setPosition(c.web.x + fly.x, c.web.y + fly.y + 1);
+    }
+    c.letters.forEach((l, i) => l.setVisible(i < pose.letters));
+  }
+
+  /** The fly is a little winged hero, never the one you're playing as. */
+  private pickFly() {
+    const others = HERO_IDS.filter((id) => id !== this.app.heroId);
+    this.flyHero = others[Math.floor(Math.random() * others.length)];
   }
 
   /**
@@ -1047,8 +1459,9 @@ export class ProjectsScene extends QuestScene {
     if (egg && !egg.resetting) void this.resetJunk(egg, true);
   };
 
-  /** Gamepad: A moves the dialogue on, B stops. */
-  update() {
+  /** Gamepad: A moves the dialogue on, B stops. The spider gets on with its day. */
+  update(time: number) {
+    this.poseSpider(time);
     const egg = this.egg;
     if (!egg || egg.resetting) return;
     const pad = activePad();
