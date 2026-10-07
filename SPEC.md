@@ -282,7 +282,9 @@ and the camera pans up to the TV.
   ornaments from a desk globe and a lava lamp down to a d20 and a pocket pet (trophy, snow globe,
   cactus, alarm clock, piggy bank, model rocket, holiday photo, marbles, puzzle cube). Easter eggs
   each turn up on about 60% of page loads: a sleeping cat, the floor sock's missing pair, "spider of
-  the month" and a spare life in a jar. `?jam` shows them all, on a wider shelf. Now and then a hero you aren't playing as leans out
+  the month" and a spare life in a jar. `?jam` shows them all, on a wider shelf. The top shelf is
+  up by the ceiling (coving along the top of the wall); both shelves cast a stylised, dithered
+  shadow on the wall, and the camera centres on the games shelf. Now and then a hero you aren't playing as leans out
   from behind the books, looks round and hides again. The spider bounces on its thread, crawls
   its web, wraps a fly (a tiny winged hero the user isn't playing as) or writes "SOME PIG" in
   the web. Hovering a game lifts it off the shelf and turns it to show its face; clicking it
