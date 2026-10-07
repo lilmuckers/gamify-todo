@@ -29,7 +29,7 @@ export type Route = Screen & { pad?: PadPage };
  *   #/p/<project>/<world>/<level>/@<dependency>[/<step>]   a dependency's sub-level
  *   #/prs, #/pr/<n>[/<project>/<world>/<level>[/@<dependency>][/<item>]]   PR review
  *   #/records                           detailed stats
- *   #/heroes[/<hero>]                   hero gallery, or one hero's profile
+ *   #/heroes[/<hero>]                   hero select screen, on your hero or the one named
  * Any of them can end in /~today, /~inbox, /~review or /~stats to hold that
  * page of the legal pad up over the screen (e.g. #/~today, #/p/house/kitchen/~inbox).
  * #/today, #/review and #/stats are short for #/~today, #/~review and #/~stats.
