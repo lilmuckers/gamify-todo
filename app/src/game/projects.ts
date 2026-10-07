@@ -13,10 +13,11 @@ import { showDialogue, type Dialogue } from '../ui/dialogue';
 import { carpetCanvas, cartridge, CART_H, CART_W, controllerCanvas, type CartSpec } from '../sprites/cartridge';
 import { projectForm } from '../ui/forms';
 import { h } from '../ui/dom';
-import { bookend, cartSpine, cobweb, cocoon, dustPile, heroFly, shelfBoard, silkLetter, spider, spineDust } from '../sprites/shelf';
+import { bookend, cartSpine, cobweb, cocoon, decorCanvas, dustPile, heroFly, ORNAMENTS, SHELF_EGGS, shelfBoard, silkLetter, spider, spineDust, type DecorKind } from '../sprites/shelf';
+import { heroKey } from '../sprites/heroes';
 import { QuestScene } from './common';
-import { shelfLayout, SPINE_H, SPINE_W, WEB_H, type ShelfLayout } from './shelf-layout';
-import { DURATION, letterAt, nextActivity, REST, spiderPose, WEB_WORDS, type SpiderActivity } from './shelf-spider';
+import { shelfLayout, SPINE_H, SPINE_W, topShelfDecor, WEB_H, type ShelfLayout, type TopShelf } from './shelf-layout';
+import { DURATION, letterAt, nextActivity, nextPeekIn, peekPose, PEEK_MS, REST, spiderPose, WEB_WORDS, type SpiderActivity } from './shelf-spider';
 
 /** Floor area in world pixels; the camera zooms to fit it. */
 const FLOOR_W = 480;
@@ -61,6 +62,9 @@ interface Corner {
   fly: Phaser.GameObjects.Image;
   cocoon: Phaser.GameObjects.Image;
   letters: Phaser.GameObjects.Image[];
+  /** A hero who lives behind the books on the top shelf, and now and then peeks out. */
+  peeker: Phaser.GameObjects.Image;
+  peek: { hide: number; peek: number };
 }
 
 interface Placed {
@@ -152,6 +156,11 @@ export class ProjectsScene extends QuestScene {
   private spiderAct?: SpiderActivity;
   private spiderFrom = 0;
   private flyHero: HeroId = 'classic';
+  /** When the next peek from behind the books starts (scene time), and who does it. */
+  private peekFrom = 0;
+  private peekHero: HeroId = 'classic';
+  /** What's on the top shelf this visit (thrown again, like the floor, each time the room is shown). */
+  private topDecor?: { width: number; shelf: TopShelf<DecorKind> };
   /** "Look at the shelf" (top right) and "Back to the floor" (bottom), over the game. */
   private shelfNav?: { up: HTMLButtonElement; down: HTMLButtonElement; root: HTMLElement };
 
@@ -171,6 +180,7 @@ export class ProjectsScene extends QuestScene {
     this.view = 'floor';
     // Locators go when the scene shuts down: register them again this time round.
     this.shelfLocators = new Set();
+    this.topDecor = undefined;
     this.shelf = undefined;
     this.corner = undefined;
     this.spiderAct = undefined;
@@ -491,8 +501,20 @@ export class ProjectsScene extends QuestScene {
     const l = shelfLayout(finished.length, archived.length, cx, SHELF_TOP);
     const right = l.left + l.width;
 
-    // The cobweb goes behind the games; the board, dust and spider in front.
+    // The top shelf, just for show: dusty books, a dusty trophy, and the cobweb strung under it.
+    const u = l.upper;
+    if (this.topDecor?.width !== u.width) {
+      const kinds: DecorKind[] = ['books', ...ORNAMENTS, ...SHELF_EGGS];
+      const widths = Object.fromEntries(kinds.map((k) => [k, decorCanvas(k).width])) as Record<DecorKind, number>;
+      this.topDecor = { width: u.width, shelf: topShelfDecor(u, widths, 'books', SHELF_EGGS, ORNAMENTS, Math.random, urlMode().jam) };
+    }
+    const top = this.topDecor.shelf;
     layer.add(this.add.image(l.web.x, l.web.y, tex('shelf-web', cobweb)).setOrigin(1, 0));
+    // The peeking hero goes in first, so the books stand in front of them.
+    const peeker = this.add.image(top.hide, u.top, heroKey(this.peekHero)).setOrigin(0.5, 1).setVisible(false);
+    layer.add(peeker);
+    for (const d of top.items) layer.add(this.add.image(d.x, u.top, tex(`shelf-decor:${d.kind}`, () => decorCanvas(d.kind))).setOrigin(0.5, 1));
+    layer.add(this.add.image(u.left, u.top, tex(`shelf-board:${u.width}`, () => shelfBoard(u.width))).setOrigin(0, 0));
     // Guy lines from the web down to the board's end and the last game, so it isn't floating.
     const guys = this.add.graphics().lineStyle(1, 0xf4f4f4, 0.5);
     guys.lineBetween(l.web.x, l.web.y + 6, right - 1, SHELF_TOP);
@@ -548,7 +570,7 @@ export class ProjectsScene extends QuestScene {
     const spiderImg = this.add.image(l.web.x + REST.x, l.web.y + REST.y, tex('spider:0', () => spider(0)));
     tex('spider:1', () => spider(1));
     layer.add([...letters, thread, fly, wrap, spiderImg]);
-    this.corner = { web: l.web, spider: spiderImg, thread, fly, cocoon: wrap, letters };
+    this.corner = { web: l.web, spider: spiderImg, thread, fly, cocoon: wrap, letters, peeker, peek: { hide: top.hide, peek: top.peek } };
     this.shelf = { ...l, cx, spines };
     this.poseSpider(this.time.now);
   }
@@ -558,8 +580,11 @@ export class ProjectsScene extends QuestScene {
     const s = this.shelf;
     if (!s) return;
     const cam = this.cameras.main;
-    const y = SHELF_TOP - SPINE_H / 2 - 8;
-    const zoom = Math.min(cam.width / (s.width + 60), cam.height / (SPINE_H + 120), this.floorZoom * 4);
+    // From the things on the top shelf down to the brackets under the games.
+    const top = s.upper.top - 26;
+    const bottom = SHELF_TOP + 20;
+    const y = (top + bottom) / 2;
+    const zoom = Math.min(cam.width / (s.width + 60), cam.height / (bottom - top + 50), this.floorZoom * 4);
     if (!animate) {
       cam.setZoom(zoom);
       cam.centerOn(s.cx, y);
@@ -577,6 +602,8 @@ export class ProjectsScene extends QuestScene {
     this.info?.destroy();
     this.view = 'shelf';
     this.spiderAct = undefined;
+    // Someone's hiding up there: the first peek comes soon after you look.
+    this.peekFrom = this.time.now + 2500;
     if (reducedMotion()) this.aimAtShelf(false);
     else {
       this.busy = true;
@@ -803,6 +830,24 @@ export class ProjectsScene extends QuestScene {
       c.cocoon.setPosition(c.web.x + fly.x, c.web.y + fly.y + 1);
     }
     c.letters.forEach((l, i) => l.setVisible(i < pose.letters));
+
+    // Now and then a hero leans out from behind the books, looks about, and hides again.
+    let out = 0;
+    let lookBack = false;
+    if (this.view === 'shelf' && !reducedMotion()) {
+      if (now > this.peekFrom + PEEK_MS) {
+        this.peekFrom = now + nextPeekIn();
+        const others = HERO_IDS.filter((id) => id !== this.app.heroId);
+        this.peekHero = others[Math.floor(Math.random() * others.length)];
+      }
+      ({ out, lookBack } = peekPose(now - this.peekFrom));
+    }
+    c.peeker
+      .setTexture(heroKey(this.peekHero))
+      .setX(Math.round(c.peek.hide + (c.peek.peek - c.peek.hide) * out))
+      // Heroes face right: flipped, they look out into the room; then back at the shelf.
+      .setFlipX(!lookBack)
+      .setVisible(out > 0);
   }
 
   /** The fly is a little winged hero, never the one you're playing as. */

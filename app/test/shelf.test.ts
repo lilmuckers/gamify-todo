@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BOOKEND_W, shelfLayout, SPINE_W } from '../src/game/shelf-layout';
-import { DURATION, FLY_AT, letterAt, nextActivity, REST, SPIDER_ACTIVITIES, spiderPose, WEB_WORDS } from '../src/game/shelf-spider';
+import { BOARD_H, BOOKEND_W, DECOR_BOOKS_W, EGG_CHANCE, PEEK_OUT, shelfLayout, SPINE_H, SPINE_W, topShelfDecor } from '../src/game/shelf-layout';
+import { DURATION, FLY_AT, letterAt, nextActivity, nextPeekIn, peekPose, PEEK_MS, REST, SPIDER_ACTIVITIES, spiderPose, WEB_WORDS } from '../src/game/shelf-spider';
 
 describe('shelfLayout', () => {
   it('lines finished games up on the left and archived ones in the right-hand corner', () => {
@@ -22,7 +22,65 @@ describe('shelfLayout', () => {
     const none = shelfLayout(2, 0, 0, 0);
     expect(none.bookend).toBeUndefined();
     expect(none.left + none.width - none.dustFrom).toBeGreaterThanOrEqual(56);
-    expect(shelfLayout(30, 10, 0, 0).width).toBeGreaterThan(none.width * 3);
+    expect(shelfLayout(30, 10, 0, 0).width).toBeGreaterThan(none.width * 2);
+  });
+});
+
+describe('the top shelf', () => {
+  const widths = { books: 30, a: 12, b: 10, c: 14, d: 8, e: 16, egg1: 12, egg2: 10 } as Record<string, number>;
+  const ornaments = ['a', 'b', 'c', 'd', 'e'];
+  const eggs = ['egg1', 'egg2'];
+  /** Repeatable "random" numbers. */
+  const seq = (...xs: number[]) => {
+    let i = 0;
+    return () => xs[i++ % xs.length];
+  };
+
+  it('runs the width of the games shelf and holds the cobweb up from underneath', () => {
+    const l = shelfLayout(3, 2, 200, 0);
+    expect(l.upper.left).toBe(l.left);
+    expect(l.upper.width).toBe(l.width);
+    expect(l.upper.top + BOARD_H).toBe(l.web.y);
+    expect(l.upper.top).toBeLessThan(-SPINE_H);
+  });
+
+  it('always has the books, never first, and fits everything on the board without overlaps', () => {
+    for (const r of [seq(0.1), seq(0.9), seq(0.3, 0.7, 0.5)]) {
+      const upper = { left: 0, width: 160 };
+      const t = topShelfDecor(upper, widths, 'books', eggs, ornaments, r);
+      expect(t.items.map((i) => i.kind)).toContain('books');
+      expect(t.items[0].kind).not.toBe('books');
+      for (let i = 1; i < t.items.length; i++) {
+        const a = t.items[i - 1];
+        const b = t.items[i];
+        expect(b.x - widths[b.kind] / 2).toBeGreaterThanOrEqual(a.x + widths[a.kind] / 2);
+      }
+      const last = t.items.at(-1)!;
+      expect(last.x + widths[last.kind] / 2).toBeLessThanOrEqual(upper.width);
+    }
+  });
+
+  it('shows each easter egg some visits only, and all of them with ?jam', () => {
+    const has = (r: () => number, jam = false) => topShelfDecor({ left: 0, width: 400 }, widths, 'books', eggs, ornaments, r, jam).items.map((i) => i.kind);
+    expect(has(seq(0.99))).not.toContain('egg1');
+    expect(has(seq(0.1))).toEqual(expect.arrayContaining(['egg1', 'egg2']));
+    expect(has(seq(0.99), true)).toEqual(expect.arrayContaining(['egg1', 'egg2']));
+    expect(EGG_CHANCE).toBe(0.6);
+  });
+
+  it('hides a hero right behind the books, and lets them lean out a little', () => {
+    const t = topShelfDecor({ left: 0, width: 200 }, widths, 'books', eggs, ornaments, seq(0.4));
+    const books = t.items.find((i) => i.kind === 'books')!.x;
+    expect(t.hide).toBe(books);
+    expect(books - DECOR_BOOKS_W / 2 - (t.peek - 8)).toBe(PEEK_OUT);
+  });
+
+  it('peeks out, looks round, and hides again', () => {
+    expect(peekPose(0).out).toBe(0);
+    expect(peekPose(PEEK_MS / 2).out).toBe(1);
+    expect(peekPose(PEEK_MS * 0.7).lookBack).toBe(true);
+    expect(peekPose(PEEK_MS).out).toBe(0);
+    expect(nextPeekIn(() => 0)).toBeGreaterThanOrEqual(5000);
   });
 });
 

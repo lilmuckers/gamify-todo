@@ -276,7 +276,9 @@ and the camera pans up to the TV.
   stand on a shelf on the wall, like books with their names on the spines. A "Look at the shelf"
   button (top right, with the counts) pans the camera up to it; "Back to the floor" (bottom
   centre) or Esc pans back. Finished games stand on the left, then a bookend, then archived games
-  in a dusty corner with a cobweb and an 8-bit spider. The spider bounces on its thread, crawls
+  in a dusty corner with a cobweb and an 8-bit spider. The web hangs from a top shelf that's just
+  for show (dusty books and a dusty trophy); now and then a hero you aren't playing as leans out
+  from behind the books, looks round and hides again. The spider bounces on its thread, crawls
   its web, wraps a fly (a tiny winged hero the user isn't playing as) or writes "SOME PIG" in
   the web. Hovering a game lifts it off the shelf and turns it to show its face; clicking it
   loads it into the console as usual. An archived game stays archived while you play it; the

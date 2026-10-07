@@ -6,7 +6,7 @@ import { cartShell, drawText } from './cartridge';
 import { heroKey } from './heroes';
 import { PALETTE } from './pixels';
 import { sprite } from './render';
-import { SPINE_H, SPINE_W, BOOKEND_W, WEB_H, WEB_W } from '../game/shelf-layout';
+import { SPINE_H, SPINE_W, BOOKEND_W, DECOR_BOOKS_W, TROPHY_W, WEB_H, WEB_W } from '../game/shelf-layout';
 import type { CartSpec } from './cartridge';
 
 const K = PALETTE.k;
@@ -221,3 +221,368 @@ export function silkLetter(ch: string): HTMLCanvasElement {
     return cv;
   });
 }
+
+/** Dust on whatever's been left on the top shelf: a grey film along the tops, and specks. */
+function dusting(ctx: CanvasRenderingContext2D, w: number, h: number, seed: string) {
+  const r = seeded(seed);
+  for (let i = 0; i < w * 1.5; i++) {
+    ctx.fillStyle = r() < 0.6 ? 'rgba(192,203,220,0.85)' : 'rgba(234,212,170,0.8)';
+    ctx.fillRect(Math.floor(r() * w), Math.floor(r() * h * 0.6), 1, 1);
+  }
+}
+
+/** Old books nobody reads, standing and leaning, for the top shelf. Just for show. */
+export function decorBooks(): HTMLCanvasElement {
+  return once('decor-books', () => {
+    const H = 24;
+    const [cv, ctx] = canvas(DECOR_BOOKS_W, H);
+    const books: [number, number, number, string, string][] = [
+      // x, width, height, cover, band
+      [0, 6, 20, '#a22633', '#feae34'],
+      [6, 5, 23, '#265c42', '#ead4aa'],
+      [11, 7, 21, '#124e89', '#c0cbdc'],
+      [18, 4, 18, '#68386c', '#feae34'],
+    ];
+    for (const [x, w, h, cover, band] of books) {
+      ctx.fillStyle = K;
+      ctx.fillRect(x, H - h, w, h);
+      ctx.fillStyle = cover;
+      ctx.fillRect(x + 1, H - h + 1, w - 2, h - 2);
+      ctx.fillStyle = band;
+      ctx.fillRect(x + 1, H - h + 4, w - 2, 1);
+      ctx.fillRect(x + 1, H - 5, w - 2, 1);
+    }
+    // The last one has slumped against its neighbours.
+    ctx.save();
+    ctx.translate(23, H);
+    ctx.rotate(0.35);
+    ctx.fillStyle = K;
+    ctx.fillRect(0, -17, 6, 17);
+    ctx.fillStyle = '#743f39';
+    ctx.fillRect(1, -16, 4, 15);
+    ctx.fillStyle = '#fee761';
+    ctx.fillRect(1, -12, 4, 1);
+    ctx.restore();
+    dusting(ctx, DECOR_BOOKS_W, H, 'decor-books');
+    return cv;
+  });
+}
+
+/** A gold cup from some long-ago win, gone dull under the dust. */
+export function trophy(): HTMLCanvasElement {
+  return once('trophy', () => {
+    const H = 20;
+    const [cv, ctx] = canvas(TROPHY_W, H);
+    const px = (c: string, x: number, y: number, w: number, h: number) => {
+      ctx.fillStyle = c;
+      ctx.fillRect(x, y, w, h);
+    };
+    // Cup, handles, stem and a plinth.
+    px(K, 2, 0, 10, 9);
+    px(K, 0, 1, 3, 5);
+    px(K, 11, 1, 3, 5);
+    px('#c67a14', 3, 1, 8, 7);
+    px('#feae34', 3, 1, 3, 6);
+    px('#c67a14', 1, 2, 1, 3);
+    px('#c67a14', 12, 2, 1, 3);
+    px(K, 5, 9, 4, 4);
+    px('#c67a14', 6, 9, 2, 4);
+    px(K, 2, 13, 10, 7);
+    px('#743f39', 3, 14, 8, 5);
+    px('#c0cbdc', 5, 16, 4, 1);
+    dusting(ctx, TROPHY_W, H, 'trophy');
+    return cv;
+  });
+}
+
+/** Paints a character map: each character is a colour from `colors` ('.' is clear). */
+function paintMap(rows: string[], colors: Record<string, string>): HTMLCanvasElement {
+  const w = Math.max(...rows.map((r) => r.length));
+  const [cv, ctx] = canvas(w, rows.length);
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const c = row[x] === 'k' ? K : colors[row[x]];
+      if (!c) continue;
+      ctx.fillStyle = c;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  });
+  return cv;
+}
+
+/** A map painted, then left to gather dust. */
+const dusty = (name: string, rows: string[], colors: Record<string, string>) => () => {
+  const cv = paintMap(rows, colors);
+  dusting(cv.getContext('2d')!, cv.width, cv.height, name);
+  return cv;
+};
+
+/** A small framed picture of `draw`, for the wall of the top shelf. */
+function framed(name: string, draw: (ctx: CanvasRenderingContext2D) => void, plate?: string) {
+  return () => {
+    const [cv, ctx] = canvas(14, 17);
+    ctx.fillStyle = K;
+    ctx.fillRect(0, 0, 14, 16);
+    ctx.fillStyle = '#c67a14';
+    ctx.fillRect(1, 1, 12, 14);
+    ctx.fillStyle = '#ead4aa';
+    ctx.fillRect(3, 3, 8, 9);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(3, 3, 8, 9);
+    ctx.clip();
+    draw(ctx);
+    ctx.restore();
+    if (plate) {
+      ctx.fillStyle = '#fee761';
+      ctx.fillRect(4, 13, 6, 1);
+    }
+    // A little stand at the back.
+    ctx.fillStyle = K;
+    ctx.fillRect(9, 16, 4, 1);
+    dusting(ctx, 14, 17, name);
+    return cv;
+  };
+}
+
+/** Ornaments for the top shelf: always some of these, shuffled each visit. */
+export const ORNAMENTS = [
+  'trophy', 'globe', 'snow-globe', 'cactus', 'alarm-clock', 'piggy-bank', 'lava-lamp',
+  'rocket', 'd20', 'photo', 'marbles', 'puzzle-cube', 'pet-egg',
+] as const;
+/** Easter eggs: each turns up on some visits only (all of them with ?jam). */
+export const SHELF_EGGS = ['sleeping-cat', 'other-sock', 'spider-of-the-month', 'spare-life'] as const;
+export type DecorKind = 'books' | (typeof ORNAMENTS)[number] | (typeof SHELF_EGGS)[number];
+
+const DECOR_DRAW: Record<DecorKind, () => HTMLCanvasElement> = {
+  books: decorBooks,
+  trophy,
+  globe: dusty('globe', [
+    '....kkkk....',
+    '..kkbbggkk..',
+    '.kbbbggbbbk.',
+    '.kbggbbbggk.',
+    'kbbggggbbbbk',
+    'kbbbggbbbggk',
+    'kbbbbbbbggbk',
+    '.kbggbbbbbk.',
+    '.kbbggbbbbk.',
+    '..kkbbbbkk..',
+    '....kkkk....',
+    '.....kk.....',
+    '.....kk.....',
+    '....kyyk....',
+    '...kyyyyk...',
+    '..kkkkkkkk..',
+  ], { b: '#0099db', g: '#63c74d', y: '#c67a14' }),
+  'snow-globe': dusty('snow-globe', [
+    '...kkkkkk...',
+    '..kllwlllk..',
+    '.kwllllwllk.',
+    '.klllgglllk.',
+    '.kllggggwlk.',
+    '.kwgggggglk.',
+    '.klllhhlllk.',
+    '..kwlhhllk..',
+    '...kkkkkk...',
+    '..kddddddk..',
+    '..kdwddwdk..',
+    '..kkkkkkkk..',
+  ], { l: '#a8d8ea', w: '#f4f4f4', g: '#3e8948', h: '#743f39', d: '#b55088' }),
+  cactus: dusty('cactus', [
+    '....kk....',
+    '...kggk...',
+    '.k.kggk...',
+    'kgkkgwk.k.',
+    'kggkggkkgk',
+    '.kggggkggk',
+    '..kggggggk',
+    '...kgggkk.',
+    '...kgggk..',
+    '...kgwgk..',
+    '.kkkkkkkk.',
+    '.kooooook.',
+    '..kooook..',
+    '..kooook..',
+    '...kkkk...',
+  ], { g: '#3e8948', w: '#63c74d', o: '#be4a2f' }),
+  'alarm-clock': dusty('alarm-clock', [
+    '.kk......kk.',
+    'kyyk....kyyk',
+    'kyyykkkkyyyk',
+    '.kkrrrrrrkk.',
+    '.krwwwwwwrk.',
+    'krwwwkwwwwrk',
+    'krwwwkwwwwrk',
+    'krwwwkkkwwrk',
+    'krwwwwwwwwrk',
+    '.krwwwwwwrk.',
+    '..krrrrrrk..',
+    '.kk.kkkk.kk.',
+  ], { y: '#feae34', r: '#e43b44', w: '#f4f4f4' }),
+  'piggy-bank': dusty('piggy-bank', [
+    '.....kkkk.k.....',
+    '...kkppppkpk....',
+    '..kpppppppppkk..',
+    '.kppppkkpppppwk.',
+    'kpppppppppppppk.',
+    'kpppppppppppkppk',
+    'kppppppppppppppk',
+    '.kppppppppppppk.',
+    '..kpkkkkkkkkpk..',
+    '..kpk......kpk..',
+    '..kkk......kkk..',
+  ], { p: '#f6757a', w: '#f4f4f4' }),
+  'lava-lamp': dusty('lava-lamp', [
+    '...kk...',
+    '..kssk..',
+    '..kssk..',
+    '.kllllk.',
+    '.kloolk.',
+    '.kloolk.',
+    '.kllllk.',
+    'kllllllk',
+    'klllollk',
+    'kllooolk',
+    'kllllllk',
+    'kloollllk',
+    'kllllllk',
+    '.kllllk.',
+    '.kssssk.',
+    'kssssssk',
+    'kssssssk',
+    'kkkkkkkk',
+  ], { s: '#8b9bb4', l: '#b55088', o: '#feae34' }),
+  rocket: dusty('rocket', [
+    '...kk...',
+    '..krrk..',
+    '..kwwk..',
+    '.kwwwwk.',
+    '.kwbbwk.',
+    '.kwbbwk.',
+    '.kwwwwk.',
+    '.kwwwwk.',
+    '.kwrrwk.',
+    '.kwwwwk.',
+    'krkwwkrk',
+    'krkwwkrk',
+    'krrkkrrk',
+    'kk.ss.kk',
+    '...ss...',
+    '.kkkkkk.',
+  ], { r: '#e43b44', w: '#f4f4f4', b: '#0099db', s: '#5a6988' }),
+  d20: dusty('d20', [
+    '....kkk....',
+    '..kkrrrkk..',
+    '.krrkrkrrk.',
+    'krrkrrrkrrk',
+    'krkrwwwrkrk',
+    'kkrrwrwrrkk',
+    'krkrrwrrkrk',
+    'krrkwwwkrrk',
+    '.krrkkkrrk.',
+    '..kkrrrkk..',
+    '....kkk....',
+  ], { r: '#e43b44', w: '#f4f4f4' }),
+  photo: framed('photo', (ctx) => {
+    // A holiday snap: the classic hero on a beach.
+    ctx.fillStyle = '#2ce8f5';
+    ctx.fillRect(3, 3, 8, 5);
+    ctx.fillStyle = '#fee761';
+    ctx.fillRect(3, 8, 8, 4);
+    ctx.drawImage(sprite(heroKey('classic')), 0, 0, 16, 16, 4, 4, 8, 8);
+  }),
+  marbles: dusty('marbles', [
+    '.kkkkkkkk.',
+    '.kssssssk.',
+    'k........k',
+    'k.r.bb...k',
+    'k.rr.bgg.k',
+    'k.yy..gg.k',
+    'kbyyrr...k',
+    'kbb.rrwwyk',
+    'kgg.bbwwyk',
+    'kggrrbbrrk',
+    '.kkkkkkkk.',
+  ], { s: '#8b9bb4', r: '#e43b44', b: '#0099db', g: '#63c74d', y: '#fee761', w: '#f4f4f4' }),
+  'puzzle-cube': dusty('puzzle-cube', [
+    'kkkkkkkkkk',
+    'krrkwwkbbk',
+    'krrkwwkbbk',
+    'kkkkkkkkkk',
+    'kyykggkrrk',
+    'kyykggkrrk',
+    'kkkkkkkkkk',
+    'kbbkoowwk.',
+    'kbbkoowwk.',
+    'kkkkkkkkk.',
+  ], { r: '#e43b44', w: '#f4f4f4', b: '#0099db', y: '#fee761', g: '#63c74d', o: '#feae34' }),
+  'pet-egg': dusty('pet-egg', [
+    '...kkkk...',
+    '..kppppk..',
+    '.kppppppk.',
+    'kpkkkkkkpk',
+    'kpkggggkpk',
+    'kpkgkgkkpk',
+    'kpkggggkpk',
+    'kpkkkkkkpk',
+    'kppwpwpppk',
+    '.kppppppk.',
+    '..kkkkkk..',
+  ], { p: '#b55088', g: '#63c74d', w: '#f4f4f4' }),
+  // ---- Easter eggs ----
+  'sleeping-cat': dusty('sleeping-cat', [
+    '..............w.',
+    '.............w..',
+    '..k.k.......www.',
+    '.kokok..........',
+    '.koooookkkkk....',
+    'kokoookooooook..',
+    'koooooooooooook.',
+    '.kooooooooooookk',
+    '..kkkkkkkkkkkkok',
+    '..............k.',
+  ], { o: '#feae34', w: '#c0cbdc' }),
+  // The floor's sock has a pair after all.
+  'other-sock': dusty('other-sock', [
+    '.kkkkk....',
+    '.kwwwk....',
+    '.krrrk....',
+    '.kwwwk....',
+    '.krrrk....',
+    '.kwwwk....',
+    '.kwwwk....',
+    '.kwwwkk...',
+    'kwwwwwwk..',
+    'kwwwwwwwk.',
+    'krrwwwwwk.',
+    '.kkkkkkk..',
+  ], { w: '#f4f4f4', r: '#e43b44' }),
+  // A portrait of the spider downstairs, with a little brass plate.
+  'spider-of-the-month': framed(
+    'spider-of-the-month',
+    (ctx) => {
+      ctx.fillStyle = '#c0cbdc';
+      ctx.fillRect(3, 3, 8, 9);
+      ctx.drawImage(spider(0), 0, 0, 9, 8, 3, 4, 9, 8);
+    },
+    'plate',
+  ),
+  // An extra life, saved in a jar for a rainy day.
+  'spare-life': dusty('spare-life', [
+    '.kkkkkkkk.',
+    '.kssssssk.',
+    'k........k',
+    'k.kk..kk.k',
+    'kkggkkggkk',
+    'kkgwggggkk',
+    'kkggggggkk',
+    'k.kggggk.k',
+    'k..kggk..k',
+    'k...kk...k',
+    '.kkkkkkkk.',
+  ], { s: '#8b9bb4', g: '#63c74d', w: '#f4f4f4' }),
+};
+
+/** A top-shelf ornament or easter egg. */
+export const decorCanvas = (kind: DecorKind) => once(`decor:${kind}`, DECOR_DRAW[kind]);
