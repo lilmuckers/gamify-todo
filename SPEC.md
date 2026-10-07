@@ -276,11 +276,13 @@ and the camera pans up to the TV.
   button (top right, with the counts) pans the camera up to it; "Back to the floor" (bottom
   centre) or Esc pans back. Finished games stand on the left, then a bookend, then archived games
   in a dusty corner with a cobweb and an 8-bit spider. The web hangs from a top shelf, as wide as
-  the games shelf and just for show: dusty books plus a shuffled pick of a dozen ornaments (trophy,
-  globe, snow globe, cactus, alarm clock, piggy bank, lava lamp, rocket, d20, holiday photo, marbles,
-  puzzle cube, pet egg), and easter eggs that each turn up on about 60% of visits (a sleeping cat,
-  the floor sock's missing pair, "spider of the month", a spare life in a jar; `?jam` shows them
-  all). Now and then a hero you aren't playing as leans out
+  the games shelf and just for show, cluttered with four or five dusty things picked once per page
+  load and left untidily (uneven gaps, overlapping, leaning). Everything is drawn at the room's own
+  scale (a cartridge is ~13 cm, about 4 px to the centimetre): hardback books (always there) plus
+  ornaments from a desk globe and a lava lamp down to a d20 and a pocket pet (trophy, snow globe,
+  cactus, alarm clock, piggy bank, model rocket, holiday photo, marbles, puzzle cube). Easter eggs
+  each turn up on about 60% of page loads: a sleeping cat, the floor sock's missing pair, "spider of
+  the month" and a spare life in a jar. `?jam` shows them all, on a wider shelf. Now and then a hero you aren't playing as leans out
   from behind the books, looks round and hides again. The spider bounces on its thread, crawls
   its web, wraps a fly (a tiny winged hero the user isn't playing as) or writes "SOME PIG" in
   the web. Hovering a game lifts it off the shelf and turns it to show its face; clicking it
