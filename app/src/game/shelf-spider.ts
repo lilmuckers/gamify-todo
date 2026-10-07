@@ -121,3 +121,20 @@ export function nextActivity(last: SpiderActivity | undefined, r: () => number =
   const choices = SPIDER_ACTIVITIES.filter((a) => a !== last);
   return choices[Math.floor(r() * choices.length)];
 }
+
+/** A peek from behind the books on the top shelf: out, a look round, back. */
+export const PEEK_MS = 2600;
+const PEEK_SLIDE = 320;
+
+/**
+ * How far out a peeking hero is, 0 (hidden) to 1, `t` ms into a peek, and
+ * which way they're looking: out at the room, then back at the shelf below.
+ */
+export function peekPose(t: number): { out: number; lookBack: boolean } {
+  if (t <= 0 || t >= PEEK_MS) return { out: 0, lookBack: false };
+  const out = t < PEEK_SLIDE ? ease(t / PEEK_SLIDE) : t > PEEK_MS - PEEK_SLIDE ? ease((PEEK_MS - t) / PEEK_SLIDE) : 1;
+  return { out, lookBack: t > PEEK_MS * 0.55 && t < PEEK_MS - PEEK_SLIDE };
+}
+
+/** Wait before the next peek: now and then, never on a beat. */
+export const nextPeekIn = (r: () => number = Math.random) => 5000 + r() * 9000;
