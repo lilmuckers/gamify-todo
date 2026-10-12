@@ -4405,6 +4405,35 @@ button.heat:focus-visible,
   outline-offset: -2px;
 }
 
+/* What an after: or a link could point at, in a list at the caret. */
+.qt-suggest {
+  position: absolute;
+  z-index: 2;
+  min-width: 180px;
+  max-width: min(100%, 360px);
+  max-height: 208px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+}
+.qt-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.qt-option.on {
+  background: var(--gold);
+  color: var(--ink);
+}
+.qt-option.on small {
+  color: var(--ink);
+}
+
 .qt-tree {
   position: relative;
   height: var(--qt-height);
