@@ -196,3 +196,78 @@ test('a project typed as Quest Markdown marks the line to check, asks once, then
   expect((await commits()).length).toBe(before.length + 1);
   expect((await commits())[0]).toMatch(/^quest: 5 updates/);
 });
+
+test('the Quest Markdown editor carries lists on, moves lines in and out, and suggests what to link to', async ({ page }) => {
+  await page.goto('./#/');
+  await inScene(page, 'projects');
+  await page.getByRole('button', { name: '+ Project' }).click();
+  const form = page.getByRole('dialog', { name: 'New project' });
+  await form.getByLabel('Project title', { exact: true }).fill('Shed');
+  await form.getByRole('tab', { name: 'Quest Markdown' }).click();
+  const text = form.getByRole('textbox', { name: 'Quest Markdown' });
+  const list = form.getByRole('listbox', { name: 'Link to' });
+  // A level to link to, already there; the rest is typed after it.
+  const trades = ['# Trades', '## Book the electrician @5d', '> A date in the diary', '- [ ] Booked', ''];
+  await text.fill(trades.join('\n'));
+  await text.press('ControlOrMeta+End');
+  const type = (s: string) => page.keyboard.type(s);
+  const press = (k: string) => page.keyboard.press(k);
+
+  await type('# Base');
+  await press('Enter');
+  await type('## Slab down @7d');
+  await press('Enter');
+  await type('> A level slab');
+  await press('Enter');
+  // "- []" and a space is a criterion; Enter starts another, and Enter again on the empty one leaves the list.
+  await type('- [] Slab is level');
+  await press('Enter');
+  await press('Enter');
+  await type('- Book a skip');
+  await press('Enter');
+  await type('=> Building control');
+  await press('Enter');
+  // Tab makes the new bullet a step; Enter on an empty step comes back out.
+  await press('Tab');
+  await type('Send the forms');
+  await press('Enter');
+  await press('Enter');
+  await expect(text).toHaveValue([...trades.slice(0, 4), '# Base', '## Slab down @7d', '> A level slab', '- [ ] Slab is level', '- Book a skip', '- => Building control', '  - Send the forms', '- '].join('\n'));
+
+  // after: offers the level's other items by any part of their name; Enter puts the id in.
+  await type('Pour the concrete after:sk');
+  await expect(list.getByRole('option')).toHaveText(['Book a skipbook-a-skip']);
+  await press('Enter');
+  await expect(list).toBeHidden();
+  await press('Enter');
+  // A link offers levels; Esc closes only the list, and Tab picks.
+  await type('=> [Booked](elec');
+  await expect(list.getByRole('option')).toHaveText(['Trades › Book the electriciantrades/book-the-electrician']);
+  await press('Escape');
+  await expect(list).toBeHidden();
+  await expect(form).toBeVisible();
+  await type('t');
+  await expect(list.getByRole('option')).toHaveCount(1);
+  await press('Tab');
+  await expect(text).toHaveValue(/- Pour the concrete after:book-a-skip\n- => \[Booked\]\(trades\/book-the-electrician\)$/);
+  // Both links are good: nothing to check.
+  await expect(form.locator('.qt-msg')).toHaveCount(0);
+  await expect(form.locator('.qt-row', { hasText: 'Booked' }).last()).toContainText('☁ to trades/book-the-electrician');
+
+  // Shift+Tab and Tab move the line the caret is on, wherever in the line it is.
+  await press('ArrowUp');
+  await press('ArrowUp');
+  await press('Shift+Tab');
+  await expect(text).toHaveValue(/\n- Send the forms\n/);
+  await press('Tab');
+  await expect(text).toHaveValue(/\n  - Send the forms\n/);
+  // Each helper is one step of the browser's own undo.
+  await press('ControlOrMeta+z');
+  await expect(text).toHaveValue(/\n- Send the forms\n/);
+  await expect(form.locator('.qt-row.d3')).toHaveCount(0);
+  await press('ControlOrMeta+Shift+z');
+  await expect(form.locator('.qt-row.d3')).toContainText('Send the forms');
+
+  // Nothing was made: the form is cancelled.
+  await form.getByRole('button', { name: 'Cancel' }).click();
+});
