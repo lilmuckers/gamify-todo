@@ -13,6 +13,7 @@ import {
 import type { App } from '../app';
 import { h, icon, mount } from './dom';
 import { TYPE_INFO } from './forms';
+import { cleanPaste, completionAt, continueList, expandCheckbox, indentLines, pickSuggestion, type Completion, type Edit } from './quest-keys';
 
 const PLACEHOLDER = `# World name
 ## Level name @7d
@@ -32,7 +33,10 @@ const HELP = `# World                      a theme or phase        # World after
 - Task £40                   a cost, at the end of the line
 - => [Title](world/level)    waits on another level
 - => Title                   something to wait for; indent lines under it for the steps to chase it
-  - A step`;
+  - A step
+
+Enter carries a list on, and steps out of it on an empty line. Tab and Shift+Tab move a line in and out.
+"- []" then a space makes a criterion. After "after:" or "](", pick what to link to from the list.`;
 
 /** What was typed, kept over a closed modal (Esc, a stray click) until a project is made from it. */
 let kept = '';
@@ -76,6 +80,7 @@ export function questTextEditor(app: App, opts: EditorOptions): QuestTextEditor 
   source.value = kept;
   const gutter = h('div', { class: 'qt-gutter', 'aria-hidden': 'true' });
   const marks = h('pre', { class: 'qt-marks', 'aria-hidden': 'true' });
+  const suggest = h('div', { class: 'qt-suggest', role: 'listbox', 'aria-label': 'Link to', hidden: true });
   const tree = h('div', { class: 'qt-tree', 'aria-label': 'What will be created' });
   const target = h('div', { class: 'qt-target' });
   const summary = h('div', { class: 'qt-summary', role: 'status' });
@@ -84,7 +89,7 @@ export function questTextEditor(app: App, opts: EditorOptions): QuestTextEditor 
     'div',
     { class: 'qt' },
     target,
-    h('div', { class: 'qt-split' }, h('div', { class: 'qt-source' }, gutter, h('div', { class: 'qt-stack' }, marks, source)), tree),
+    h('div', { class: 'qt-split' }, h('div', { class: 'qt-source' }, gutter, h('div', { class: 'qt-stack' }, marks, source, suggest)), tree),
     summary,
     h('details', { class: 'qt-help' }, h('summary', null, 'Format help'), h('pre', null, HELP)),
   );
@@ -299,18 +304,147 @@ export function questTextEditor(app: App, opts: EditorOptions): QuestTextEditor 
     if (i * line < source.scrollTop || (i + 1) * line + pad > source.scrollTop + source.clientHeight) source.scrollTop = Math.max(0, (i - 2) * line);
   });
 
-  source.addEventListener('input', () => {
+  // --- Suggestions: what an after: or a link could point at, in a list at the caret.
+  let offered: { c: Completion; index: number } | undefined;
+  /** Where the list was closed by hand (Esc, or a pick): it stays shut until the text changes. */
+  let shut: string | undefined;
+  /** Width of one character: the font is monospace and the text doesn't wrap. */
+  const charWidth = () => {
+    const cs = getComputedStyle(source);
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return parseFloat(cs.fontSize) * 0.6;
+    ctx.font = `${cs.fontSize} ${cs.fontFamily}`;
+    return ctx.measureText('0'.repeat(20)).width / 20;
+  };
+  function closeSuggest() {
+    offered = undefined;
+    suggest.hidden = true;
+  }
+  function paintSuggest() {
+    if (!offered) return;
+    const { c, index } = offered;
+    mount(
+      suggest,
+      c.options.length
+        ? c.options.map((o, i) =>
+            h(
+              'div',
+              {
+                class: `qt-option${i === index ? ' on' : ''}`,
+                role: 'option',
+                'aria-selected': String(i === index),
+                // The text keeps the keyboard: a press picks without taking focus.
+                onmousedown: (e: Event) => {
+                  e.preventDefault();
+                  pick(i);
+                },
+              },
+              h('span', null, o.title),
+              h('small', { class: 'muted' }, o.insert),
+              o.there && h('small', { class: 'qt-there' }, 'already there'),
+            ),
+          )
+        : h('div', { class: 'qt-option muted' }, 'Nothing matches'),
+    );
+    suggest.hidden = false;
+    suggest.querySelector('.on')?.scrollIntoView({ block: 'nearest' });
+    // Under the word being typed; above it when there is no room below.
+    const { line, pad } = metrics();
+    const upTo = source.value.slice(0, c.from);
+    const row = upTo.split('\n').length - 1;
+    const col = upTo.slice(upTo.lastIndexOf('\n') + 1).replace(/\t/g, '  ').length;
+    const stack = suggest.parentElement!;
+    const top = pad + (row + 1) * line - source.scrollTop;
+    if (top - line < 0 || top - line > stack.clientHeight) return closeSuggest();
+    const x = pad + col * charWidth() - source.scrollLeft;
+    suggest.style.left = `${Math.max(0, Math.min(x, stack.clientWidth - suggest.offsetWidth))}px`;
+    suggest.style.top = `${top + suggest.offsetHeight > stack.clientHeight && top - line - suggest.offsetHeight >= 0 ? top - line - suggest.offsetHeight : top}px`;
+  }
+  function updateSuggest() {
+    const caret = source.selectionStart;
+    const c = document.activeElement === source && caret === source.selectionEnd && shut !== source.value ? completionAt(source.value, caret, draft, into?.state) : undefined;
+    if (!c) return closeSuggest();
+    // The same list keeps its place; a new one starts at the top.
+    const same = offered && offered.c.from === c.from && offered.c.options.length === c.options.length;
+    offered = { c, index: same ? offered!.index : 0 };
+    paintSuggest();
+  }
+  function pick(i: number) {
+    if (!offered) return;
+    const edit = pickSuggestion(source.value, offered.c, offered.c.options[i]);
+    closeSuggest();
+    apply(edit);
+    shut = source.value;
+    closeSuggest();
+  }
+
+  /** Makes an edit the way typing would, so the browser's own undo steps back through it. */
+  function apply(edit: Edit) {
+    source.focus();
+    source.setSelectionRange(edit.from, edit.to);
+    const typed = edit.text ? document.execCommand('insertText', false, edit.text) : edit.from === edit.to || document.execCommand('delete');
+    if (!typed) {
+      source.setRangeText(edit.text, edit.from, edit.to, 'end');
+      opts.onEdit();
+      refresh();
+    }
+    source.setSelectionRange(edit.start, edit.end);
+    updateSuggest();
+  }
+
+  source.addEventListener('input', (e) => {
     opts.onEdit();
     refresh();
+    const box = (e as InputEvent).data === ' ' && source.selectionStart === source.selectionEnd ? expandCheckbox(source.value, source.selectionStart) : undefined;
+    if (box) apply(box);
+    else updateSuggest();
   });
-  // Tab indents (steps need it); Esc still closes the form, and the text is kept.
   source.addEventListener('keydown', (e) => {
-    if (e.key !== 'Tab' || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (offered) {
+      const n = offered.c.options.length;
+      if (e.key === 'Escape') {
+        // Only the list closes: the form's own Esc never hears this one.
+        e.preventDefault();
+        e.stopPropagation();
+        shut = source.value;
+        return closeSuggest();
+      }
+      if (n && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        offered.index = (offered.index + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+        return paintSuggest();
+      }
+      if (n && !e.shiftKey && (e.key === 'Enter' || e.key === 'Tab')) {
+        e.preventDefault();
+        return pick(offered.index);
+      }
+    }
+    const { value, selectionStart: start, selectionEnd: end } = source;
+    // Tab never leaves the text (steps need it); Esc closes the form, and the text is kept.
+    if (e.key === 'Tab') e.preventDefault();
+    const edit =
+      e.key === 'Tab' ? indentLines(value, start, end, e.shiftKey) : e.key === 'Enter' && !e.shiftKey ? continueList(value, start, end) : undefined;
+    if (!edit) return;
     e.preventDefault();
-    source.setRangeText('  ', source.selectionStart, source.selectionEnd, 'end');
-    opts.onEdit();
-    refresh();
+    apply(edit);
   });
+  // Lists pasted from elsewhere come in with this format's own bullets and boxes.
+  source.addEventListener('paste', (e) => {
+    const text = e.clipboardData?.getData('text/plain');
+    if (!text || cleanPaste(text) === text) return;
+    e.preventDefault();
+    const clean = cleanPaste(text);
+    const at = source.selectionStart + clean.length;
+    apply({ from: source.selectionStart, to: source.selectionEnd, text: clean, start: at, end: at });
+  });
+  // The caret moved without typing (arrows, Home, a click): the list follows or goes.
+  source.addEventListener('keyup', (e) => {
+    if (!['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].includes(e.key)) updateSuggest();
+  });
+  source.addEventListener('click', updateSuggest);
+  source.addEventListener('scroll', () => offered && paintSuggest());
+  source.addEventListener('blur', closeSuggest);
   merge.addEventListener('change', () => {
     opts.onEdit();
     refresh();

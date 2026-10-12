@@ -340,8 +340,18 @@ goal (left blank, it is the title) and two tabs.
 - **The editor** parses as you type. The text is on the left with line numbers; what it makes is
   on the right, and the two scroll together. A line with a message gets a red number and a band,
   the word at fault is underlined in the text itself, and the message sits in the tree under its
-  row. Clicking a row selects its line; clicking a message selects the word. Tab indents. It is
-  a plain textarea over a backdrop that holds the same text in clear ink plus the marks: no
+  row. Clicking a row selects its line; clicking a message selects the word.
+- **Keys** (`app/src/ui/quest-keys.ts`, plain string functions): Enter on a list line starts the
+  next one with the same dash (and box, after a criterion), and on an empty bullet steps out
+  instead. Tab and Shift+Tab move the line, or the selected lines, in and out. `- []` then a
+  space becomes `- [ ] `. A pasted list has its bullets (`•`, `*`, `–`, `1.`) and tick boxes
+  turned into this format's. Every one is made the way typing is, so the browser's undo works.
+- **Suggestions:** after `after:` (and each comma) a list at the caret offers the level's other
+  items, a dependency's other steps, or on a world line the other worlds; inside
+  `=> [Title](` it offers every level as `world/level`. It filters as you type by "contains",
+  on title or id, with matches at the start first. ↑ ↓ move, Enter or Tab picks, Esc closes the
+  list only. When adding to a project, what that project holds is offered too.
+- The editor is a plain textarea over a backdrop that holds the same text in clear ink plus the marks: no
   editor library. Under 760px the two sides stack.
 - **Create asks once** while messages remain ("Create anyway"); any edit takes the question back.
   The text is kept if the form is closed, until a project is made from it.
