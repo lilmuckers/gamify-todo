@@ -307,6 +307,51 @@ and the camera pans up to the TV.
   kind × 5 lines, with a mood emote and keyword highlight, and no line repeats twice running.
   Closing it ejects the thing. Esc, gamepad B or clicking away resets it.
 
+#### New project, and a whole plan as text (Quest Markdown)
+
+The Blank cartridge and **+ Project** open the New project form: a title, an optional first key
+goal (left blank, it is the title) and two tabs.
+
+- **Details:** cash budgets and a description, as before.
+- **Quest Markdown:** type or paste the whole plan as text and it is created with the project,
+  in one commit. Left empty, the project starts empty.
+
+```
+# World name after:other-world       a world; after: sets unlocksAfter
+## Level name @7d                    a level and its time-box in days
+> One sentence                       the deliverable
+- [ ] Check                          an MVP success criterion; "- [ ] (opt) ..." is optional
+- Task                               - ! blocker  - ? decision  - ~ risk  - * deliverable  - + stretch
+- Task after:other-task £40          waits for another item in the level; a cost
+- => [Title](world/level)            a dependency on another level (cloud)
+- => Title                           a dependency to wait for (plain)...
+  - A step                           ...or, with indented lines under it, to chase (warp pipe)
+```
+
+- `shared/src/quest-text.ts` holds it: `parseQuestText` reads the text into a draft, and
+  `planImport` turns the draft into ordinary ops (`addProject`, `addWorld`, `addLevel`, and
+  `addItem` / `addCriterion` when adding to a project), sent as one batch.
+- **Ids** come from titles with `uniqueId`, as the forms make them. `after:` and links take an id
+  or a name, may point forward, and cost and `after:` are only read at the end of a line.
+- **It never fails.** Whatever can't be used becomes a message with its line, and the rest is
+  kept: an unknown `after:` or link is dropped and the item stays; a level with no time-box,
+  deliverable or criterion gets 5 days and its own name for both. Lists stop at the schema's
+  limits. A cost in the text turns the project's cash budgets on.
+- **The editor** parses as you type. The text is on the left with line numbers; what it makes is
+  on the right, and the two scroll together. A line with a message gets a red number and a band,
+  the word at fault is underlined in the text itself, and the message sits in the tree under its
+  row. Clicking a row selects its line; clicking a message selects the word. Tab indents. It is
+  a plain textarea over a backdrop that holds the same text in clear ink plus the marks: no
+  editor library. Under 760px the two sides stack.
+- **Create asks once** while messages remain ("Create anyway"); any edit takes the question back.
+  The text is kept if the form is closed, until a project is made from it.
+- **A title that is already a project** makes a new one beside it (`kitchen-renovation-2`) unless
+  *Add to that project* is ticked. Then matching worlds and levels (by id or by name) are reused,
+  items and criteria it already has are skipped, and nothing in it is changed. So pasting the
+  same plan twice adds nothing.
+- Create only: text never edits or deletes. Notes, links, spent, done and non-MVP items have no
+  syntax; set them in the app afterwards.
+
 ### 5.3 Overworld and world maps
 
 - **Overworld:** the project's goals plus its worlds as themed islands, laid out by
