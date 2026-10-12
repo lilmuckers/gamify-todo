@@ -137,3 +137,62 @@ test('archiving a project commits archivedAt and pauses it; unarchiving takes it
   await expect(page.locator('.panel .timer.archived')).toHaveCount(0);
   await expect.poll(() => repoJson<{ archivedAt?: string }>(file).archivedAt, { timeout: 15_000 }).toBeUndefined();
 });
+
+test('a project typed as Quest Markdown marks the line to check, asks once, then lands in one commit', async ({ page }) => {
+  const before = await commits();
+  await page.goto('./#/');
+  await inScene(page, 'projects');
+  await page.getByRole('button', { name: '+ Project' }).click();
+  const form = page.getByRole('dialog', { name: 'New project' });
+  await form.getByLabel('Project title', { exact: true }).fill('Garden office');
+  await form.getByRole('tab', { name: 'Quest Markdown' }).click();
+  await form.getByRole('textbox', { name: 'Quest Markdown' }).fill(
+    [
+      '# Base',
+      '## Slab down @7d',
+      '> A level concrete slab',
+      '- [ ] Slab is level',
+      '- Dig out the turf £60',
+      '- Pour the concrete after:dig-the-turf',
+      '- => Building control',
+      '  - Send the forms',
+      '# Build after:base',
+      '## Walls up @14d',
+      '> Four walls and a roof',
+      '- [ ] Watertight',
+      '- => [Slab cured](base/slab-down)',
+    ].join('\n'),
+  );
+
+  // The wrong id is marked where it is typed, and explained beside it.
+  await expect(form.locator('.qt-gutter .bad')).toHaveText(['6']);
+  await expect(form.locator('.qt-marks mark')).toHaveText(['dig-the-turf']);
+  await expect(form.locator('.qt-msg')).toContainText('Line 6: after:dig-the-turf matches nothing in this level');
+  await expect(form.locator('.qt-summary')).toContainText('Creates data/garden-office/ · 2 worlds, 2 levels, 5 items, 2 criteria · cash budgets turned on · 1 line to check');
+
+  await form.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(form.locator('.qt-summary')).toContainText('1 line still has something to check');
+  await form.getByRole('button', { name: 'Create anyway' }).click();
+  await expect(form).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => location.hash)).toBe('#/p/garden-office');
+
+  const read = <T>(path: string): T | undefined => {
+    try {
+      return repoJson<T>(path);
+    } catch {
+      return undefined;
+    }
+  };
+  await expect.poll(() => read<{ budgets?: object }>('data/garden-office/project.json')?.budgets, { timeout: 15_000 }).toEqual({});
+  expect(repoJson('data/garden-office/project.json')).toMatchObject({ title: 'Garden office', goals: [{ title: 'Garden office' }], worldOrder: ['base', 'build'] });
+  expect(repoJson('data/garden-office/build/world.json')).toMatchObject({ unlocksAfter: ['base'], levelOrder: ['walls-up'] });
+  const slab = repoJson<{ timeboxDays: number; items: { id: string; budget?: number; dependsOn?: string[]; subtasks?: { title: string }[] }[] }>('data/garden-office/base/slab-down.json');
+  expect(slab.timeboxDays).toBe(7);
+  expect(slab.items).toMatchObject([{ id: 'dig-out-the-turf', budget: 60 }, { id: 'pour-the-concrete' }, { id: 'building-control', subtasks: [{ title: 'Send the forms' }] }]);
+  // The wait that matched nothing was left out; the item was kept.
+  expect(slab.items[1].dependsOn).toBeUndefined();
+  expect(repoJson<{ items: { levelRef?: string }[] }>('data/garden-office/build/walls-up.json').items[0].levelRef).toBe('base/slab-down');
+  // The whole plan is one commit.
+  expect((await commits()).length).toBe(before.length + 1);
+  expect((await commits())[0]).toMatch(/^quest: 5 updates/);
+});

@@ -16,3 +16,4 @@ export * from './detailed';
 export * from './money';
 export * from './oauth';
 export * from './budget';
+export * from './quest-text';

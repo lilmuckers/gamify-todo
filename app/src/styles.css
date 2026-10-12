@@ -4285,6 +4285,213 @@ button.heat:focus-visible,
   }
 }
 
+/* ---------- Quest Markdown (New project form) ---------- */
+.qt-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 12px;
+  border-bottom: 2px solid var(--panel-2);
+}
+.qt-tabs .btn {
+  border-bottom: 0;
+  color: var(--muted);
+}
+.qt-tabs .btn[aria-selected='true'] {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.qt {
+  /* One size and line height for the text, its line numbers and the marks under it. */
+  --qt-size: 13px;
+  --qt-line: 20px;
+  --qt-pad: 8px;
+  --qt-height: min(420px, 40vh);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.qt[hidden] {
+  display: none;
+}
+.qt-target {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.qt-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  border: 2px solid var(--line);
+  background: var(--ink);
+}
+.qt-source {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  height: var(--qt-height);
+  min-width: 0;
+  border-right: 2px solid var(--line);
+}
+.qt-gutter,
+.qt-marks,
+.qt .qt-text {
+  margin: 0;
+  padding: var(--qt-pad);
+  font: var(--qt-size) / var(--qt-line) ui-monospace, Menlo, Consolas, monospace;
+  letter-spacing: 0;
+  tab-size: 2;
+}
+.qt-gutter {
+  overflow: hidden;
+  padding-bottom: 120px;
+  text-align: right;
+  color: var(--line);
+  user-select: none;
+  border-right: 1px solid var(--panel-2);
+}
+.qt-gutter div {
+  height: var(--qt-line);
+  margin: 0 calc(var(--qt-pad) * -1);
+  padding: 0 var(--qt-pad);
+}
+.qt-gutter .bad {
+  background: var(--red);
+  color: var(--paper);
+}
+.qt-stack {
+  position: relative;
+  min-width: 0;
+}
+.qt-marks,
+.qt .qt-text {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  white-space: pre;
+}
+/* The same text in clear ink, under the field: only its marks show. */
+.qt-marks {
+  overflow: hidden;
+  color: transparent;
+  pointer-events: none;
+}
+.qt-marks-in {
+  display: inline-block;
+  min-width: 100%;
+  padding-bottom: 120px;
+}
+.qt-marks-in > div {
+  height: var(--qt-line);
+}
+.qt-marks-in > .bad {
+  background: rgba(228, 59, 68, 0.14);
+}
+.qt-marks mark {
+  color: transparent;
+  background: rgba(228, 59, 68, 0.4);
+  text-decoration: underline wavy var(--red);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+.qt .qt-text {
+  background: transparent;
+  resize: none;
+  overflow: auto;
+}
+.qt .qt-text:focus {
+  outline-offset: -2px;
+}
+
+.qt-tree {
+  position: relative;
+  height: var(--qt-height);
+  overflow: auto;
+  padding: var(--qt-pad);
+  background: var(--panel);
+}
+.qt-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  padding: 2px 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.qt-row:hover > span,
+.qt-row:hover > b {
+  text-decoration: underline;
+}
+.qt-row .icon {
+  align-self: center;
+}
+.qt-row.d1 {
+  padding-left: 12px;
+}
+.qt-row.d2 {
+  padding-left: 26px;
+}
+.qt-row.d3 {
+  margin-left: 34px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+}
+.qt-there {
+  color: var(--sky);
+}
+.qt-msg {
+  margin: 2px 0 4px 26px;
+  padding: 3px 8px;
+  border-left: 3px solid var(--red);
+  background: rgba(228, 59, 68, 0.22);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.qt-tail {
+  height: calc(var(--qt-height) - 60px);
+}
+.qt-summary {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.qt-count {
+  color: var(--gold-hi);
+}
+.qt-help summary {
+  cursor: pointer;
+  color: var(--gold-hi);
+}
+.qt-help pre {
+  margin: 6px 0 0;
+  padding: 8px;
+  overflow-x: auto;
+  font: 12px/1.6 ui-monospace, Menlo, Consolas, monospace;
+  background: var(--ink);
+}
+/* Touch fields are 16px (see below): the numbers and marks keep step with them. */
+@media (pointer: coarse), (max-width: 767px) {
+  .qt {
+    --qt-size: 16px;
+    --qt-line: 24px;
+  }
+}
+/* Narrow: the text above what it makes. */
+@media (max-width: 760px) {
+  .qt {
+    --qt-height: 34vh;
+  }
+  .qt-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .qt-source {
+    border-right: 0;
+    border-bottom: 2px solid var(--line);
+  }
+}
+
 /*
  * iOS zooms the page into any text field smaller than 16px. On touch
  * screens, fields are at least 16px; pinch-zoom still works.

@@ -90,6 +90,13 @@ cutting scope saves money too. As you log costs, an alert pops up when something
 its budget (you can change that, or turn alerts off) or goes over. Pick the currency in the same
 place (GBP by default).
 
+Starting a project with a plan already in your head? The New project form has a **Quest Markdown**
+tab: type or paste the whole thing as text (`# World`, `## Level @7d`, `> deliverable`,
+`- [ ] criterion`, `- task`, with `!` `?` `~` `*` `+` and `=>` for blockers, decisions, risks,
+deliverables, stretch goals and dependencies) and watch it turn into worlds, levels and items
+beside it as you type. Anything it can't use is underlined where you typed it. *Format help* under
+the box has the full list.
+
 Pick your **hero** from eighteen characters in **⚙ Settings**. The choice is kept in your browser
 (next to the token). When the data is editable it is also saved to `data/settings.json` as the
 default for everyone; in read-only views your own choice wins over that default.

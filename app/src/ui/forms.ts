@@ -5,6 +5,7 @@ import {
   DEFAULT_CURRENCY,
   ITEM_TYPES,
   layoutLevel,
+  planImport,
   STATUSES,
   THEMES,
   orderedWorlds,
@@ -22,6 +23,7 @@ import { itemAddr, type App, type LevelView } from '../app';
 import { go } from '../router';
 import { h } from './dom';
 import { confirmDialog, openModal, type ModalAction } from './modal';
+import { questTextEditor } from './quest-text';
 
 export const TYPE_INFO: Record<ItemType, { label: string; sprite: string; hint: string }> = {
   task: { label: 'Task', sprite: 'qblock', hint: 'Work you do. A ? block; done pops a coin.' },
@@ -552,13 +554,10 @@ export function projectForm(app: App, create = false) {
   track.addEventListener('change', syncMoney);
   alerts.addEventListener('change', syncMoney);
   syncMoney();
-  const goal = create ? text('', { placeholder: 'e.g. Kitchen usable by Christmas' }) : null;
-  const body = h(
+  const goal = create ? text('', { required: false, placeholder: 'e.g. Kitchen usable by Christmas' }) : null;
+  const details = h(
     'div',
     null,
-    create && h('p', { class: 'muted' }, 'A project is a completely separate effort — a house renovation, a furniture build, a work launch. It gets its own folder and map.'),
-    field('Project title', title),
-    goal && field('First key goal', goal, 'What does success look like? You can add more later.'),
     field(
       'Track cash budgets',
       track,
@@ -567,8 +566,57 @@ export function projectForm(app: App, create = false) {
     moneyRows,
     field('Description', desc),
   );
+  // A new project can come with its whole plan, typed as text on the second tab.
+  const primary = () => body.closest('.modal')?.querySelector<HTMLButtonElement>('.modal-actions .btn.primary');
+  /** True once Create has asked about the lines still to check; any edit takes the question back. */
+  let asked = false;
+  const unask = () => {
+    asked = false;
+    const btn = primary();
+    if (btn) btn.textContent = 'Create';
+  };
+  const plan = create ? questTextEditor(app, { title: () => title.value, budgets: () => track.checked, onEdit: unask }) : null;
+  const tab = (label: string, pane: HTMLElement, wide: boolean) => {
+    const btn = h(
+      'button',
+      {
+        type: 'button',
+        class: 'btn sm',
+        role: 'tab',
+        onclick: () => {
+          for (const t of tabs) {
+            t.btn.setAttribute('aria-selected', String(t === me));
+            t.pane.hidden = t !== me;
+          }
+          // The plan needs the room; the form doesn't.
+          body.closest('.modal')?.classList.toggle('wide', wide);
+          plan?.refresh();
+        },
+      },
+      label,
+    );
+    const me = { btn, pane };
+    return me;
+  };
+  const tabs = plan ? [tab('Details', details, false), tab('Quest Markdown', plan.el, true)] : [];
+  tabs.forEach((t, i) => {
+    t.btn.setAttribute('aria-selected', String(i === 0));
+    t.pane.hidden = i > 0;
+  });
+  title.addEventListener('input', () => plan?.refresh());
+  track.addEventListener('change', () => plan?.refresh());
+  const body = h(
+    'div',
+    null,
+    create && h('p', { class: 'muted' }, 'A project is a completely separate effort — a house renovation, a furniture build, a work launch. It gets its own folder and map.'),
+    field('Project title', title),
+    goal && field('First key goal', goal, 'What does success look like? Left blank, it is the project title. You can add more later.'),
+    plan && h('div', { class: 'qt-tabs', role: 'tablist' }, tabs.map((t) => t.btn)),
+    details,
+    plan?.el,
+  );
   const save = () => {
-    if (!requireFilled(title, ...(goal ? [goal] : []))) return false;
+    if (!requireFilled(title)) return false;
     const at = Number(alertAt.value);
     if (track.checked && alerts.checked && (!alertAt.checkValidity() || !Number.isInteger(at))) {
       alertAt.reportValidity();
@@ -587,18 +635,27 @@ export function projectForm(app: App, create = false) {
         : undefined,
     };
     if (!create) return app.dispatch({ projectId: app.projectId!, kind: 'updateProject', patch: values }).ok;
-    const id = uniqueId(values.title, Object.keys(app.workspace?.projects ?? {}));
-    const ok = app.dispatch({
-      kind: 'addProject',
-      projectId: id,
-      project: stripUndefined({
-        id,
-        ...values,
-        goals: [{ id: uniqueId(goal!.value, []), title: goal!.value.trim() }],
-        worldOrder: [],
-      }),
-    }).ok;
-    if (ok) go({ view: 'overworld', projectId: id });
+    const draft = plan!.draft();
+    // Lines that won't come out as written: say so once, then go ahead if asked again.
+    if (draft.messages.length && !asked) {
+      asked = true;
+      const n = draft.messages.length;
+      plan!.ask(`${n} line${n === 1 ? ' still has' : 's still have'} something to check. What can't be used is left out. Create anyway, or keep editing?`);
+      const btn = primary();
+      if (btn) btn.textContent = 'Create anyway';
+      return false;
+    }
+    const into = plan!.mergeInto();
+    const id = into?.projectId ?? uniqueId(values.title, Object.keys(app.workspace?.projects ?? {}));
+    const goalTitle = goal!.value.trim() || values.title;
+    const project = stripUndefined({ id, ...values, goals: [{ id: uniqueId(goalTitle, []), title: goalTitle }], worldOrder: [] });
+    const { ops } = planImport(draft, into ? { projectId: id } : { projectId: id, create: project }, into?.state);
+    // Just the project (nothing typed on the plan tab) is the one edit it always was.
+    const ok = ops.length === 1 ? app.dispatch(ops[0]).ok : app.dispatchBatch(ops);
+    if (ok) {
+      plan!.clear();
+      go({ view: 'overworld', projectId: id });
+    }
     return ok;
   };
   const actions = [
