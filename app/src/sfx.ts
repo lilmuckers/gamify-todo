@@ -100,6 +100,7 @@ export const SFX = {
   pipe: seq(7, (i) => ({ w: 'pulse25', f: hz('C6') * 2 ** (-SCALE_DOWN[i] / 12), at: i * 0.05, d: 0.05, v: 0.3 })),
   pipeUp: seq(7, (i) => ({ w: 'pulse25', f: hz('C5') * 2 ** (SCALE_DOWN[i] / 12), at: i * 0.05, d: 0.05, v: 0.3 })),
   whoosh: [{ w: 'noise', at: 0, d: 0.55, v: 0.5, a: 0.18, filter: { type: 'bandpass', f: 400, to: 3200, q: 2 } }],
+  dash: [{ w: 'noise', at: 0, d: 0.16, v: 0.3, a: 0.02, filter: { type: 'bandpass', f: 1200, to: 4200, q: 2 } }],
 
   // Play mode
   jump: [{ w: 'pulse25', f: 280, to: 620, at: 0, d: 0.11, v: 0.22 }],

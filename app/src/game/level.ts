@@ -33,6 +33,7 @@ import { GROUND_Y, heroWalk, QuestScene, tex, WORLD_H } from './common';
 import { PlayControls, type Controls } from './play/input';
 import { ahead, buildWorld, criterionOf, EXIT_ID, FLAG_ID, HITBOX, HOME_CLOUD, HOME_ID, nearest, newBody, step, stepId, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
 import { poleQuip } from './quips';
+import { planWalk } from './walk';
 
 export interface LevelParams {
   projectId: string;
@@ -90,7 +91,9 @@ interface PoleView {
 const POLE_H = 9;
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const WALK_TILES_PER_SEC = 7;
+/** Camera lerp while the hero walks himself about, and while he hurries or pops in (#22). */
+const WALK_LERP = 0.08;
+const FAST_LERP = 0.2;
 const STATUS_COLOR: Record<Item['status'], string> = {
   todo: '#ffffff',
   doing: '#fee761',
@@ -254,7 +257,7 @@ export class LevelScene extends QuestScene {
     // Start black so the arrival animation fades in without a flash of the old pose.
     if (arrival) this.cameras.main.fadeIn(350, 0, 0, 0);
     this.cameras.main.centerOn(this.hero.x + TILE, WORLD_H / 2);
-    this.cameras.main.startFollow(this.hero, true, 0.08, 0.08, -this.viewWidth / 6, 0);
+    this.cameras.main.startFollow(this.hero, true, WALK_LERP, WALK_LERP, -this.viewWidth / 6, 0);
     this.enableScrolling(() => {
       this.following = false;
       this.cameras.main.stopFollow();
@@ -1303,7 +1306,7 @@ export class LevelScene extends QuestScene {
     if (this.leaving) return;
     this.hero.setAlpha(1).setFlipX(false);
     this.following = true;
-    this.cameras.main.startFollow(this.hero, true, 0.08, 0.08, -this.viewWidth / 6, 0);
+    this.cameras.main.startFollow(this.hero, true, WALK_LERP, WALK_LERP, -this.viewWidth / 6, 0);
     const prev = this.busy;
     this.busy = (async () => {
       await prev;
@@ -1595,20 +1598,50 @@ export class LevelScene extends QuestScene {
     this.hero.setTexture(this.heroTex());
   }
 
-  private async walkTo(x: number): Promise<void> {
+  /**
+   * Walks the hero to `x`, never for much over a second: further off he hurries, and a long way
+   * off he pops up just short of it (#22). `hurry` keeps the camera quick after an `approach()` pop.
+   */
+  private async walkTo(x: number, hurry = false): Promise<void> {
     // Up the stairs: hop down before walking anywhere.
     if (!this.playing && this.hero.y < GROUND_Y - 1) await this.toGround();
     const dist = Math.abs(x - this.hero.x);
     if (dist < 1) return;
-    if (!this.following) {
-      this.following = true;
-      this.cameras.main.startFollow(this.hero, true, 0.08, 0.08, -this.viewWidth / 6, 0);
-    }
+    const plan = planWalk(dist / TILE);
+    if (plan.pop) await this.popTo(x - Math.sign(x - this.hero.x) * plan.tiles * TILE);
+    const fast = hurry || plan.pop || plan.pace > 1;
+    this.follow(fast);
     this.hero.setFlipX(x < this.hero.x);
     this.hero.play(heroWalk(this.app.heroId));
-    await this.tween({ targets: this.hero, x, duration: (dist / TILE / WALK_TILES_PER_SEC) * 1000 });
+    this.hero.anims.timeScale = plan.pace;
+    await this.tween({ targets: this.hero, x, duration: plan.ms });
+    if (fast && this.following) this.follow();
     this.hero.setFlipX(false);
     this.idle();
+  }
+
+  /**
+   * Follows the hero as he walks himself about. `fast` tightens the camera so a hurry or a
+   * pop-in keeps him in view; play mode keeps its own follow.
+   */
+  private follow(fast = false) {
+    const lerp = fast ? FAST_LERP : WALK_LERP;
+    const cam = this.cameras.main;
+    if (!this.following) {
+      this.following = true;
+      cam.startFollow(this.hero, true, lerp, lerp, -this.viewWidth / 6, 0);
+    } else if (!this.playing) cam.setLerp(lerp, lerp);
+  }
+
+  /** Blinks the hero out (if he's showing) and fades him back in on the ground at `x`. */
+  private async popTo(x: number) {
+    if (this.hero.visible && this.hero.alpha > 0) {
+      sfx('dash');
+      await this.tween({ targets: this.hero, alpha: 0, duration: 120 });
+    }
+    this.perch = undefined;
+    this.hero.setPosition(x, GROUND_Y).setVisible(true).setAlpha(0);
+    this.tweens.add({ targets: this.hero, alpha: 1, duration: 150 });
   }
 
   private async jump(height = 22): Promise<void> {
@@ -1821,12 +1854,9 @@ export class LevelScene extends QuestScene {
    * already inside the castle) popping up just short of it first.
    */
   private async approach(x: number) {
-    if (!this.hero.visible || Math.abs(this.hero.x - x) > 6 * TILE) {
-      this.hero.setPosition(x - 2 * TILE, GROUND_Y).setVisible(true).setAlpha(0);
-      this.tweens.add({ targets: this.hero, alpha: 1, duration: 150 });
-      this.following = false;
-    }
-    await this.walkTo(x);
+    const pop = !this.hero.visible || Math.abs(this.hero.x - x) > 6 * TILE;
+    if (pop) await this.popTo(x - 2 * TILE);
+    await this.walkTo(x, pop);
   }
 
   /** Down the warp pipe into the dependency's sub-level. */
