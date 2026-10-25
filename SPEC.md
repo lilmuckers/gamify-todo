@@ -379,6 +379,13 @@ mobile strip all share.
 - Items go left → right by their longest `dependsOn` chain. Decoration is seeded per level, so
   it stays stable.
 - The **hero auto-walks** to the first unfinished must-do item (the "next stop") and waits there.
+  No walk takes more than about 1.2 s (#22): past about 8 tiles he hurries, and past 12 he
+  blinks out and pops up 2 tiles short of the stop, then walks the rest. The camera tightens
+  while he hurries so he stays in view.
+  The faster he goes, the more he panics: he leans in and bounces on his toes, a big worried
+  drop sticks to his head, and sweat flies off behind him, tumbling and splatting on the ground
+  (a burst of it as he blinks out). A stroll stays calm, and with reduced motion only the drop
+  shows.
 - **Flagpole stairs (#55):** one step per success criterion, in order, before the pole. Must-do
   steps are grey until ticked, then lit. Bonus steps are pink and see-through. Labels sit in the
   dirt. Past 8 criteria the climb spreads out instead of getting taller. Clicking a step opens a
@@ -582,7 +589,8 @@ to add a hero: the art, the voice and every line they need.
 - The level scene plays item and goal sounds in time with their animations: coin + bump (task,
   stretch), crumble (blocker), stomp (risk), checkpoint (deliverable), flip (decision), poof
   (dropped, dependency done), a rising blip per stair step, flagpole slide, clear jingle with
-  firework pops, and a sad pair when a level un-clears. Travel: pipe down/up, cloud whoosh.
+  firework pops, and a sad pair when a level un-clears. Travel: pipe down/up, cloud whoosh, a dash
+  when the hero blinks out on a long walk.
   Play mode: jump, hurt, bonk (flagpole whack); play on/off chimes.
 - Bedroom: cartridge slot clunk, power-on hum, QUEST-16 boot jingle, PRESS START, junk TV static
   and switch-off, and a sound per junk sound word. Typewriter dialogue ticks, pitched per hero.
@@ -1041,7 +1049,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   under the clutter. It never touches data.
 - #24 Hero idle/victory animations.
 - #23 A livelier world map.
-- #22 Faster long walks.
 
 **Productivity:**
 - #26 A "good enough" moment
