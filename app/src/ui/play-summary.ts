@@ -51,6 +51,8 @@ export function playSummary(app: App, ops: Op[], why: PlayEnd) {
     decided = true;
     track('play_commit', { kept: keep.length, skipped: ops.length - keep.length, why });
     app.store.release(keep);
+    // A level cleared on the run: now it's saved (or not), the hero can grudgingly approve.
+    app.showGoodEnough();
   };
   const close = openModal(
     TITLE[why],

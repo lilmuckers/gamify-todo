@@ -7,7 +7,9 @@ import {
   findLevelAt,
   HERO_IDS,
   inverseOp,
+  isCleared,
   isReviewDue,
+  optionalLeft,
   UNDOABLE,
   reviewLevel,
   subLevel,
@@ -18,6 +20,7 @@ import {
   type Issue,
   type Item,
   type Level,
+  type LevelAt,
   type LevelDiff,
   type OpBody,
   type PullSummary,
@@ -40,6 +43,7 @@ import { memoryKV } from './data/demo';
 import { currentRoute, href, routeProject, type Route } from './router';
 import { sceneShows, soundForOp } from './sound-events';
 import { playSummary } from './ui/play-summary';
+import { goodEnoughDialog, goodEnoughDue } from './ui/good-enough';
 
 /**
  * What an emit may have changed: anything, or only the sync status (the HUD
@@ -142,6 +146,8 @@ export class App {
   bubbleOpen = false;
   /** Play mode: the hero is driven by gamepad or keyboard instead of walking himself. */
   playing = false;
+  /** A level just cleared with optional items left: its "you did enough" moment waits for the finale or the end of play. */
+  private goodEnough?: LevelAt;
   /** Next time the inbox page renders, put the cursor in its scribble line. */
   focusCapture = false;
   /** The tour's guide, standing in for the player's hero while it runs (never saved). */
@@ -331,7 +337,35 @@ export class App {
       if (sound) sfx(sound);
     }
     if (r.ok && before && !meta?.undo) this.alertBudgets(body, before);
+    if (r.ok && before && !meta?.undo) this.noteClear(body, before);
     return r;
+  }
+
+  /**
+   * An edit that cleared a level with optional items still open queues the
+   * "you did enough" moment. The level scene shows it after the finale and
+   * play mode after the summary; anywhere else it shows now. A level cleared
+   * with nothing optional left gets the fireworks and nothing more.
+   */
+  private noteClear(body: OpBody, before: Workspace) {
+    if (body.kind !== 'setItemStatus' && body.kind !== 'setCriterion') return;
+    if ('parentId' in body && body.parentId) return;
+    const at = { projectId: body.projectId, worldId: body.worldId, levelId: body.levelId };
+    const was = findLevelAt(before, at);
+    const now = this.store.state && findLevelAt(this.store.state, at);
+    if (!was || !now || isCleared(was) || !isCleared(now)) return;
+    if (!this.caps.canEdit || !optionalLeft(now).length || !goodEnoughDue(at)) return;
+    this.goodEnough = at;
+    if (!this.playing && (this.compact || !sceneShows(this.route, body))) this.showGoodEnough();
+  }
+
+  /** Shows the waiting "you did enough" moment, if its level is still cleared with something optional left. */
+  showGoodEnough() {
+    const at = this.goodEnough;
+    if (!at || this.playing) return;
+    this.goodEnough = undefined;
+    const level = this.store.state && findLevelAt(this.store.state, at);
+    if (level && isCleared(level) && goodEnoughDue(at)) goodEnoughDialog(this, at, level);
   }
 
   /** A toast when an edit takes something past its heads-up point or over budget (if the project wants alerts). */

@@ -4634,3 +4634,44 @@ button.heat:focus-visible,
     display: none;
   }
 }
+
+/* ---------- Good enough (#26): a grudging thumbs up ---------- */
+.ge-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.ge-face {
+  position: relative;
+}
+.ge-portrait {
+  width: 96px;
+  height: 96px;
+  border: 3px solid var(--ink);
+  background: var(--panel-2);
+}
+.ge-emote {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 14px;
+  height: 14px;
+}
+.ge-thumb {
+  width: 48px;
+  height: 56px;
+  transform-origin: 50% 100%;
+  animation: ge-thumb 1.6s steps(2) infinite;
+}
+@keyframes ge-thumb {
+  50% {
+    transform: translateY(-3px) rotate(-6deg);
+  }
+}
+.ge-line {
+  text-align: center;
+  font: 11px/1.8 var(--pixel);
+  color: var(--gold-hi);
+}

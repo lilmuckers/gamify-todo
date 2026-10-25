@@ -1,5 +1,6 @@
-import type { Item, Level, Workspace } from './model';
-import { activeProjects, isMvpItem, isProjectArchived, isResolved } from './model';
+import type { InboxItem, Item, Level, LevelAt, Workspace } from './model';
+import { activeProjects, isMvpItem, isProjectArchived, isResolved, uniqueId } from './model';
+import { itemCost, roundMoney } from './budget';
 import type { OpBody } from './ops';
 import { isCleared, levelTimer, scoreLevel, suggestNext, type TimerPhase } from './scoring';
 import { levelsOf, type LevelRef } from './today';
@@ -172,7 +173,7 @@ export function focusCandidates(ws: Workspace, now = Date.now()): FocusCandidate
 }
 
 /** One op per optional item still open: the scope cut, applied together as one commit. */
-export function dropOptionalOps(ref: LevelRef, level: Level): OpBody[] {
+export function dropOptionalOps(ref: LevelAt, level: Level): OpBody[] {
   return optionalLeft(level).map((i) => ({
     kind: 'setItemStatus',
     projectId: ref.projectId,
@@ -181,6 +182,31 @@ export function dropOptionalOps(ref: LevelRef, level: Level): OpBody[] {
     itemId: i.id,
     status: 'dropped',
   }));
+}
+
+/** What dropping the optional items left would bank: their unspent budgets. */
+export function optionalSavings(level: Level): number {
+  return roundMoney(optionalLeft(level).reduce((sum, i) => sum + Math.max(0, itemCost(i).left), 0));
+}
+
+/**
+ * "Keep them for later": each optional item left moves to the inbox (type,
+ * title, notes and link) and leaves the level. Deleting is a scope cut, so it
+ * costs no polish.
+ */
+export function keepOptionalOps(at: LevelAt, level: Level, inbox: InboxItem[] = [], now = new Date().toISOString()): OpBody[] {
+  const taken = inbox.map((i) => i.id);
+  return optionalLeft(level).flatMap((item): OpBody[] => {
+    const id = uniqueId(item.id, taken);
+    taken.push(id);
+    const idea: InboxItem = { id, type: item.type, title: item.title, addedAt: now };
+    if (item.notes) idea.notes = item.notes;
+    if (item.link) idea.link = item.link;
+    return [
+      { kind: 'inboxAdd', item: idea },
+      { kind: 'deleteItem', ...at, itemId: item.id },
+    ];
+  });
 }
 
 /** When the weekly review falls due, in this browser's local time. */

@@ -198,6 +198,15 @@ Defined in `shared/src/scoring.ts`.
   Editing a cleared level, adding scope after clearing, or editing a done item more than 3 times
   costs points. A toast says "Perfectionism detected 🐢". **Scope cuts never count**: deleting
   items or criteria, dropping an item, or parking a level.
+- **Good enough** (#26): when an edit clears a level and optional items (stretch or non-MVP) are
+  still open, the hero gives a grudging thumbs up (the "reacting" portrait, a meh emote and a
+  thumb in their skin colour) with one of ~40 deadpan "you did enough" lines, never the same one
+  twice in a row (`app/src/ui/good-enough-lines.ts`). It offers **Drop the rest** (one batch of
+  `dropped`, saying how much it banks when budgets are on), **Keep for later** (each item goes to
+  the inbox and leaves the level) or **Leave them**. Both are scope cuts, so no polish. It shows
+  once per level per browser (`localStorage['quest.good-enough']`), only when you can edit: on
+  desktop after the finale, after the summary in play mode, at once on phones or from the pad. A
+  level cleared with nothing optional left (perfection) just gets the plain fireworks.
 - **Nudges** (shown in the level panel): win; still polishing extras; time-box blown → names up
   to 3 optional items to drop; under 25% left; all critical items done → tick the criteria;
   more than 5 MVP criteria ("which 3 truly matter?"); more than 15 MVP items ("split it?").
@@ -1071,7 +1080,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #24 Hero idle/victory animations.
 
 **Productivity:**
-- #26 A "good enough" moment
 - #27 WIP-limit warning
 - #29 World-level time-box
 - #31 Better conflict resolution
