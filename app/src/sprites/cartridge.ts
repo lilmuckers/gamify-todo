@@ -16,6 +16,8 @@ export interface CartSpec {
   /** Themes of the project's worlds; tint the label art. */
   themes: ThemeKey[];
   kind?: CartKind;
+  /** Stars won and the most there are, for the badge on the label (#23). */
+  stars?: [number, number];
 }
 
 const cache = new Map<string, HTMLCanvasElement>();
@@ -63,6 +65,7 @@ const GLYPHS: Record<string, string> = {
   '!': '.#.|.#.|.#.|...|.#.',
   '&': '.#.|#.#|.#.|#.#|.##',
   '?': '##.|..#|.#.|...|.#.',
+  '/': '..#|..#|.#.|#..|#..',
 };
 
 function glyph(ch: string): string {
@@ -256,7 +259,7 @@ export function cartShell(spec: CartSpec): [string, string, string] {
 
 /** A cartridge with procedural label art, seeded by `spec.seed`. */
 export function cartridge(spec: CartSpec): HTMLCanvasElement {
-  const key = `${spec.kind ?? 'game'}:${spec.seed}:${spec.title}:${spec.themes.join(',')}`;
+  const key = `${spec.kind ?? 'game'}:${spec.seed}:${spec.title}:${spec.themes.join(',')}:${spec.stars ?? ''}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const r = seeded(spec.seed);
@@ -338,6 +341,7 @@ export function cartridge(spec: CartSpec): HTMLCanvasElement {
     // Publisher-style stripe at the bottom.
     label.fillStyle = mid;
     label.fillRect(0, 38, 32, 2);
+    if (spec.stars && spec.stars[1] > 0) starBadge(label, spec.stars[0], spec.stars[1]);
   }
   ctx.drawImage(label.canvas, lx, ly);
   // Shine.
@@ -345,6 +349,20 @@ export function cartridge(spec: CartSpec): HTMLCanvasElement {
   ctx.fillRect(lx, ly, 2, 40);
   cache.set(key, cv);
   return cv;
+}
+
+/** A dark badge in the label's bottom-right corner: a gold star and "won/max". */
+function starBadge(ctx: CanvasRenderingContext2D, won: number, max: number) {
+  const text = `${won}/${max}`;
+  const w = 8 + text.length * 4;
+  const x = 32 - w;
+  const y = 31;
+  ctx.fillStyle = PALETTE.k;
+  ctx.fillRect(x, y, w, 7);
+  // Five-pixel star.
+  ctx.fillStyle = won === max ? '#fee761' : '#feae34';
+  for (const [dx, dy, len] of [[2, 0, 1], [1, 1, 3], [0, 2, 5], [1, 3, 3], [1, 4, 1], [3, 4, 1]]) ctx.fillRect(x + 1 + dx, y + 1 + dy, len, 1);
+  drawText(ctx, text, x + 7, y + 1, won === max ? '#fee761' : PALETTE.w);
 }
 
 /** Original controller pad. */

@@ -1,8 +1,9 @@
-import { isWorldLocked, orderedProjects, orderedWorlds, seeded, shelfKind, suggestNext, totals, worldTotals, type GameState } from '@quest/shared';
+import { orderedProjects, orderedWorlds, seeded, shelfKind, suggestNext, totals, worldTotals, type GameState } from '@quest/shared';
 import type { App } from './app';
 import { go, href, togglePad } from './router';
 import { canvasUrl, island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
+import { lockReason } from './game/map-life';
 import { heroKey } from './sprites/heroes';
 import { carpetCanvas, cartridge } from './sprites/cartridge';
 import { cartSpine, cobweb, decorCanvas, spider, spineDust } from './sprites/shelf';
@@ -50,7 +51,8 @@ function mobileShelf(games: GameState[]): HTMLElement | null {
   const archived = games.filter((p) => shelfKind(p) === 'archived');
   const spine = (p: GameState) => {
     const id = p.overworld.id;
-    const spec = { seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) };
+    const t = totals(p);
+    const spec = { seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme), stars: [t.stars, t.maxStars] as [number, number] };
     const dusty = shelfKind(p) === 'archived';
     return h(
       'a',
@@ -109,7 +111,7 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
           const t = totals(p);
           const id = p.overworld.id;
           const tilt = (seeded(id)() - 0.5) * 16;
-          const art = cartridge({ seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) });
+          const art = cartridge({ seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme), stars: [t.stars, t.maxStars] });
           return h(
             'a',
             { class: 'cart', href: href({ view: 'overworld', projectId: id }), style: `--tilt:${tilt.toFixed(1)}deg` },
@@ -129,12 +131,14 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
       { class: 'islands' },
       orderedWorlds(state).map((w, i) => {
         const t = worldTotals(w);
+        const why = lockReason(state, w);
         return h(
           'a',
           { class: 'island', href: href({ view: 'world', projectId: r.projectId, worldId: w.id }) },
-          h('img', { src: canvasUrl(island(w.theme, isWorldLocked(state, w))), class: 'pixel', alt: '' }),
+          h('img', { src: canvasUrl(island(w.theme, !!why)), class: 'pixel', alt: '' }),
           h('b', null, `${i + 1}. ${w.name}`),
           h('small', null, `★${t.stars}/${t.maxStars}${next?.worldId === w.id ? ' · ▶' : ''}`),
+          why && h('small', { class: 'locked' }, `🔒 ${why}`),
         );
       }),
     );

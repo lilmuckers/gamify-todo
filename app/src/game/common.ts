@@ -5,6 +5,9 @@ import { HERO_IDS } from '@quest/shared';
 import { heroKey, type HeroFrame } from '../sprites/heroes';
 import { island, sprite, TILE, type ThemeKey } from '../sprites/render';
 import { isTyping } from '../ui/dom';
+import { play as sfx } from '../audio';
+import { fanfareStore } from '../config';
+import { mapWalk } from './map-life';
 
 export const WORLD_H = 15 * TILE;
 export const GROUND_Y = 12 * TILE;
@@ -12,6 +15,8 @@ export const FONT = '"Press Start 2P", monospace';
 export const THEMED = new Set(['ground-top', 'ground-fill', 'hill']);
 /** Quiet time after the last resize event before a scene re-lays itself out. */
 const RESIZE_SETTLE_MS = 120;
+/** Honoured everywhere: no walks or fireworks, the end state at once. */
+export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const THEME_KEYS: ThemeKey[] = ['grass', 'desert', 'water', 'ice', 'sky', 'castle', 'warp', 'under'];
 
 /** Texture key for a sprite; themed sprites get a per-theme key. */
@@ -54,9 +59,12 @@ export abstract class QuestScene extends Phaser.Scene {
   /** World pixels that should fit horizontally; lowers zoom on narrow screens. */
   protected minVisible = 0;
   private unsub?: () => void;
+  /** World-clear fanfares started in this run of the scene. */
+  private fanfares = new Set<string>();
 
   init(_params?: object) {
     this.app = this.registry.get('app') as App;
+    this.fanfares = new Set();
     // Tweens keep their own clock, which by default turns a long frame into a
     // 33 ms one; let them see real time, like the rest of the game (#21).
     this.tweens.setLagSmooth();
@@ -210,6 +218,79 @@ export abstract class QuestScene extends Phaser.Scene {
   /** Resolves after `ms` of scene time. */
   protected wait(ms: number): Promise<void> {
     return new Promise((resolve) => this.time.delayedCall(ms, () => resolve()));
+  }
+
+  /**
+   * Walks a map hero along `points` (feet positions), facing the way he goes, at the level's
+   * pace and never for much over a second in all (#23).
+   */
+  protected async walkAlong(hero: Phaser.GameObjects.Sprite, points: { x: number; y: number }[]): Promise<void> {
+    const legs = points.map((p, i) => (i ? Phaser.Math.Distance.Between(points[i - 1].x, points[i - 1].y, p.x, p.y) : 0));
+    const total = legs.reduce((a, b) => a + b, 0);
+    if (total < 1) return;
+    const { ms, pace } = mapWalk(total, TILE);
+    this.tweens.killTweensOf(hero);
+    hero.play(heroWalk(this.app.heroId));
+    hero.anims.timeScale = pace;
+    for (let i = 1; i < points.length; i++) {
+      if (legs[i] < 0.5) continue;
+      if (Math.abs(points[i].x - hero.x) > 0.5) hero.setFlipX(points[i].x < hero.x);
+      await this.tween({ targets: hero, x: points[i].x, y: points[i].y, duration: (ms * legs[i]) / total });
+      // A re-render mid-walk replaces the hero.
+      if (!hero.active) return;
+    }
+    hero.anims.stop();
+    hero.anims.timeScale = 1;
+    hero.setTexture(this.heroTex()).setFlipX(false);
+  }
+
+  /** A sparkle that twinkles on the map's suggested next stop (still under reduced motion). */
+  protected twinkle(x: number, y: number) {
+    const s = this.add.image(x, y, 'sparkle').setScale(0.5);
+    if (!reducedMotion()) this.tweens.add({ targets: s, alpha: 0.2, scale: 0.3, angle: 90, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.inOut' });
+    return s;
+  }
+
+  /**
+   * The world-clear fanfare (#23): a banner and fireworks over (x, y). Under reduced motion the
+   * banner shows and fades with no fireworks. `key` is remembered once it has played to the end,
+   * so a scene that stops half-way (a restart at boot, a quick click away) plays it next time.
+   */
+  protected async fanfare(key: string, x: number, y: number, name: string): Promise<void> {
+    if (this.fanfares.has(key)) return;
+    this.fanfares.add(key);
+    // Its own layer, so a re-render of the map (a resize, a sync) doesn't cut it short.
+    const layer = this.add.container(0, 0).setDepth(10);
+    sfx('clear');
+    const banner = this.text(x, y - 56, `WORLD CLEAR!\n${name}`, 6, '#fee761', 140).setOrigin(0.5, 1);
+    layer.add(banner);
+    if (reducedMotion()) {
+      await this.wait(2000);
+      layer.destroy();
+      return fanfareStore.see(key);
+    }
+    const full = banner.scaleX;
+    banner.setScale(full * 0.2);
+    const bursts: Promise<void>[] = [this.tween({ targets: banner, scaleX: full, scaleY: full, duration: 300, ease: 'Back.out' })];
+    for (let i = 0; i < 6; i++)
+      bursts.push(
+        this.wait(250 + i * 220).then(() => {
+          sfx('firework', { semis: (i % 3) * 2 });
+          const bx = x + Phaser.Math.Between(-40, 40);
+          const by = y - Phaser.Math.Between(20, 60);
+          for (let k = 0; k < 10; k++) {
+            const s = this.add.image(bx, by, k % 2 ? 'sparkle' : 'star').setScale(0.4);
+            layer.add(s);
+            const a = (k / 10) * Math.PI * 2;
+            void this.tween({ targets: s, x: bx + Math.cos(a) * 24, y: by + Math.sin(a) * 24, alpha: 0, duration: 700 }).then(() => s.destroy());
+          }
+        }),
+      );
+    await Promise.all(bursts);
+    await this.wait(1200);
+    await this.tween({ targets: banner, alpha: 0, duration: 400 });
+    layer.destroy();
+    fanfareStore.see(key);
   }
 
   /** Re-render on app changes until the scene shuts down (sync status alone shows nowhere in the game). */

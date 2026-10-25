@@ -130,7 +130,7 @@ function rotate(p: { x: number; y: number }, deg: number) {
  */
 let topDecor: { width: number; shelf: TopShelf<DecorKind> } | undefined;
 
-const cartTexture = (cart: Cart) => `cart:${cart.key}:${cart.spec.title}:${cart.spec.themes.join(',')}`;
+const cartTexture = (cart: Cart) => `cart:${cart.key}:${cart.spec.title}:${cart.spec.themes.join(',')}:${cart.spec.stars ?? ''}`;
 
 /**
  * Title screen: a bedroom floor seen from above. Project cartridges lie around
@@ -260,7 +260,7 @@ export class ProjectsScene extends QuestScene {
     const archived = shelfKind(p) === 'archived';
     return {
       key: id,
-      spec: { seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme) },
+      spec: { seed: id, title: p.overworld.title, themes: orderedWorlds(p).map((w) => w.theme), stars: [t.stars, t.maxStars] },
       lines: [
         p.overworld.title,
         `${Object.keys(p.worlds).length} worlds · ${t.levelsCleared}/${t.levels} levels · ${t.stars}/${t.maxStars} stars`,
