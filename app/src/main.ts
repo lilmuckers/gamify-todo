@@ -7,7 +7,7 @@ import { bucket, initAnalytics, setUserProps, track } from './analytics';
 import { App } from './app';
 import { initSound } from './audio';
 import { answerPopup, finishSignIn, sessionTokens, signInAvailable, takeCallback, takeOutcome, type SignInOutcome } from './auth/signin';
-import { chosenBranch, isFirstVisit, rememberBranch, repoRef, TARGET, tokenStore, uiPrefs, urlMode } from './config';
+import { chosenBranch, fanfareStore, isFirstVisit, rememberBranch, repoRef, TARGET, tokenStore, uiPrefs, urlMode } from './config';
 import { DemoSource, memoryKV } from './data/demo';
 import { GitHubSource } from './data/github';
 import { browserKV } from './data/kv';
@@ -85,6 +85,8 @@ async function main() {
   const app = new App(store);
   app.compact = mobile;
   initSound();
+  // Start the world-clear log now, so a world cleared before you next open a map still gets its fanfare.
+  fanfareStore.get();
   // A tour in progress: its guide walks the levels from the very first frame.
   const tour = uiPrefs();
   if (typeof tour.tourStep === 'number' && tour.tourStep >= 0 && HERO_IDS.includes(tour.tourGuide as HeroId)) app.heroOverride = tour.tourGuide as HeroId;

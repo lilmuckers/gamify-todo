@@ -6,6 +6,10 @@ launch — completely separate efforts) is its own Mario-style **overworld**; th
 blockers are brick walls, dependencies are pipes, risks are critters, decisions are signposts and
 stretch goals are floating coins. A hero auto-walks to whatever is blocking you next.
 
+On the maps your hero waits at the next stop and walks the paths to wherever you click. A locked
+world wears a padlock that tells you what to clear first, and clearing a whole world for the first
+time sets off fireworks. Each cartridge's label shows the stars you've won.
+
 Each level ends with a **staircase** up to the flagpole: one step per success criterion, in order.
 Must-do steps are grey until ticked, then light up; bonus steps are pink and see-through. Click a
 step to tick it (or untick it) and the hero hops up onto it. Tick the last must-do and he leaps

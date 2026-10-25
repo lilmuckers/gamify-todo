@@ -26,6 +26,7 @@ const UI_KEY = 'quest.ui';
 const HERO_KEY = 'quest.hero';
 const REVIEW_KEY = 'quest.review';
 const ONBOARDED_KEY = 'quest.onboarded';
+const FANFARE_KEY = 'quest.fanfares';
 
 /** Keys that mean this browser has used Quest Log before (the welcome screen skips them). */
 export const VISIT_KEYS = [TOKEN_KEY, REPO_KEY, BRANCH_KEY, UI_KEY, HERO_KEY, ONBOARDED_KEY];
@@ -224,6 +225,28 @@ export function isFirstVisit(storage: Pick<Storage, 'getItem'> | undefined = glo
     return false;
   }
 }
+
+/**
+ * World-clear fanfares already played in this browser (#23). The first read starts the log, so
+ * worlds cleared before then never fanfare.
+ */
+export const fanfareStore = {
+  get(): { since: string; seen: string[] } {
+    try {
+      const log = JSON.parse(read(FANFARE_KEY) ?? 'null') as { since?: string; seen?: string[] } | null;
+      if (log?.since) return { since: log.since, seen: log.seen ?? [] };
+    } catch {
+      /* start again */
+    }
+    const fresh = { since: new Date().toISOString(), seen: [] };
+    write(FANFARE_KEY, JSON.stringify(fresh));
+    return fresh;
+  },
+  see(key: string) {
+    const log = fanfareStore.get();
+    if (!log.seen.includes(key)) write(FANFARE_KEY, JSON.stringify({ ...log, seen: [...log.seen, key] }));
+  },
+};
 
 /** The welcome screen has been seen (or skipped): don't show it again. */
 export const onboardedStore = {
