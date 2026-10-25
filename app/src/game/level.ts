@@ -1786,6 +1786,7 @@ export class LevelScene extends QuestScene {
       const ticked = crit.filter((c) => c.done).at(-1);
       await this.climbTo(ticked ? this.stepIndex(ticked.id) : this.topReachable());
       await this.finale(level);
+      this.app.showGoodEnough();
     } else {
       if (!cleared && this.wasCleared) {
         sfx('unclear');

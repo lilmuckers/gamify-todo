@@ -18,6 +18,11 @@ a gamepad) you climb the stairs yourself: landing on a step ticks it, bonus step
 over, and a must-do step can't be skipped. Reach the pole with one missing and it whacks you back
 with a few words.
 
+Clear a level with optional bits still lying about and your hero gives you a grudging thumbs up
+("You did enough." "Put the sandpaper down." and about forty more), then offers to drop the rest
+or move it to the inbox, with no polish penalty either way. Finish absolutely everything and you
+get… some fireworks. That's it. Perfection is its own reward.
+
 **Today** (the TODAY button or `t`; the first thing you see on phones) is a legal pad your hero
 holds up over whatever you're looking at, with the day's plan scrawled on it: levels running out
 of time, what's in progress and where the hero is waiting in every project, each with its level

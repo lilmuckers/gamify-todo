@@ -606,3 +606,42 @@ export function emoteCanvas(m: Mood): HTMLCanvasElement {
   cache.set(key, c);
   return c;
 }
+
+// ---- A grudging thumbs up, in the hero's own skin, for the "good enough" moment ----
+
+const THUMB = [
+  '....kk......',
+  '...k@@k.....',
+  '...k@@k.....',
+  '...k@@k.....',
+  '...k@%k.....',
+  '.kkk@%kkkk..',
+  'k@@@@@@@@@k.',
+  'k%%%%%%%%@k.',
+  'k@@@@@@@@@k.',
+  'k%%%%%%%%@k.',
+  'k@@@@@@@@@k.',
+  'k%%%%%%%%@k.',
+  '.k@@@@@@@k..',
+  '..kkkkkkk...',
+];
+
+/** A 12x14 fist with its thumb up, coloured like the hero's portrait skin. */
+export function thumbCanvas(id: HeroId): HTMLCanvasElement {
+  const key = `thumb:${id}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const roles = { ...SLOTS, ...BUILD[id].roles };
+  const colors = portraitColors(id);
+  const fill: Record<string, string> = { k: PALETTE.k, '@': colors[roles.skin], '%': colors[roles.skinShade] };
+  const [c, ctx] = canvas(THUMB[0].length, THUMB.length);
+  THUMB.forEach((row, y) =>
+    [...row].forEach((ch, x) => {
+      if (ch === '.') return;
+      ctx.fillStyle = fill[ch];
+      ctx.fillRect(x, y, 1, 1);
+    }),
+  );
+  cache.set(key, c);
+  return c;
+}
