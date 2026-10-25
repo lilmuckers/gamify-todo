@@ -14,6 +14,9 @@ import {
   worldCost,
   type BudgetPrefs,
   type Cost,
+  filterItems,
+  hasFilters,
+  type SearchFilters,
   isBlocking,
   isMvpItem,
   isResolved,
@@ -44,6 +47,7 @@ import { NODE_SPRITE } from '../sprites/pixels';
 import { fmtDuration, h, icon, relTime, stars } from './dom';
 import { criterionForm, goalForm, itemForm, levelForm, projectForm, STATUS_LABEL, TYPE_INFO, worldForm } from './forms';
 import { mergeDialog, reviewDialog } from './review';
+import { filterChips } from './search';
 
 const link = (label: string, to: string, cls = 'link') => h('a', { href: to, class: cls }, label);
 
@@ -426,6 +430,7 @@ function levelPanel(app: App) {
   const lay = layoutLevel(level, { sub: !!cur.sub });
   const order = new Map(lay.entities.map((e, i) => [e.itemId, i]));
   const items = [...level.items].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  const filter = itemFilter(app, cur, items);
   const heroAt = lay.hero.itemId;
   const sel = app.selection;
   const back =
@@ -614,7 +619,8 @@ function levelPanel(app: App) {
         null,
         edit && quickAdd(),
         items.length === 0 && h('p', { class: 'muted' }, 'No steps yet. What has to happen before you have this?'),
-        h('ul', { class: 'list items' }, items.map(itemCard)),
+        filter.el,
+        h('ul', { class: 'list items' }, filter.shown.map(itemCard)),
       ),
     );
   }
@@ -657,9 +663,42 @@ function levelPanel(app: App) {
       null,
       edit && quickAdd(),
       items.length === 0 && h('p', { class: 'muted' }, 'Empty level. Add tasks, blockers, risks…'),
-      h('ul', { class: 'list items' }, items.map(itemCard)),
+      filter.el,
+      h('ul', { class: 'list items' }, filter.shown.map(itemCard)),
     ),
   );
+}
+
+/** A level list's filters: kept across re-renders, cleared on moving to another level. */
+let listFilter: { key: string; filters: SearchFilters; open: boolean } = { key: '', filters: {}, open: false };
+
+/** The items that get past the level list's filter chips, and the chips themselves (folded away until wanted). */
+function itemFilter(app: App, cur: LevelView, items: Item[]): { shown: Item[]; el: HTMLElement | null } {
+  const key = `${cur.projectId}/${cur.world.id}/${cur.level.id}/${cur.sub?.dep.id ?? ''}`;
+  if (listFilter.key !== key) listFilter = { key, filters: {}, open: false };
+  const f = listFilter.filters;
+  const shown = filterItems(items, f, cur.budgets);
+  if (items.length < 2 && !hasFilters(f)) return { shown, el: null };
+  const on = hasFilters(f);
+  const el = h(
+    'details',
+    { class: 'item-filter', open: listFilter.open },
+    // Noted on click (not 'toggle', which fires later), so a re-render in between keeps it open.
+    h(
+      'summary',
+      { onclick: () => (listFilter.open = !listFilter.open) },
+      on ? `Filter: showing ${shown.length} of ${items.length}` : 'Filter',
+    ),
+    filterChips(f, { budgets: !!cur.budgets }, (next) => {
+      listFilter.filters = next;
+      app.emit();
+    }),
+    on && smallBtn('Clear filters', () => {
+      listFilter.filters = {};
+      app.emit();
+    }, 'ghost'),
+  );
+  return { shown, el };
 }
 
 /** The cloud back to the dependency the hero rode over from, while it waits here. */

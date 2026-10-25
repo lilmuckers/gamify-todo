@@ -123,7 +123,7 @@ function screenNav(app: App, r: Route): NavModel {
  * Keyboard: Esc goes up a screen (unless a popup or item bubble is open) or
  * puts today's plan away, [ and ] step to the previous / next level or world,
  * t / i / w / s hold up the Today / Inbox / Weekly review / Stats page of the pad (or put it away), n opens
- * the inbox ready to write on, p starts or stops play mode.
+ * the inbox ready to write on, p starts or stops play mode, / opens search.
  */
 export function bindNavKeys(app: App) {
   window.addEventListener('keydown', (e) => {
@@ -146,6 +146,13 @@ export function bindNavKeys(app: App) {
     }
     // The play controls handle Esc themselves.
     if (app.playing) return;
+    if (e.key === '/') {
+      e.preventDefault();
+      track('nav_shortcut', { key: '/' });
+      // Loaded on demand: it pulls in the forms (and Phaser), which nav's tests run without.
+      void import('./ui/search').then((m) => m.openSearch(app, 'key'));
+      return;
+    }
     const nav = navFor(app);
     const r = app.route;
     const today = { label: 'Today', href: href(togglePad(r, 'today')) };

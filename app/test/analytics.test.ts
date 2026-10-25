@@ -38,6 +38,13 @@ describe('sanitize', () => {
     expect(sanitize(EVENT_PARAMS.sign_in, { result: 'ok', login: 'octocat', repo: 'me/quests', token: 'ghu_x' } as Record<string, string>)).toEqual({ result: 'ok' });
   });
 
+  it('never sends search terms, only what was opened and a result-count bucket', () => {
+    expect(sanitize(EVENT_PARAMS.search_open, { via: 'key', query: 'tiling quote' })).toEqual({ via: 'key' });
+    expect(
+      sanitize(EVENT_PARAMS.search_go, { kind: 'item', results_bucket: '2-5', filtered: true, query: 'tiling quote', title: 'Get the tiling quote' }),
+    ).toEqual({ kind: 'item', results_bucket: '2-5', filtered: true });
+  });
+
   it('sends only whether sound was turned on', () => {
     expect(sanitize(EVENT_PARAMS.sound_toggle, { on: true, hero: 'goth' })).toEqual({ on: true });
   });

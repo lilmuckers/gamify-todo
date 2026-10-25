@@ -64,3 +64,28 @@ test('ride a cloud to the level a dependency waits on, and back again', async ({
   await expect(page.getByRole('link', { name: /Ride the cloud back to/ })).toHaveCount(0);
   expect(await parked()).toBe(false);
 });
+
+test('search with / finds a step inside a dependency and opens it', async ({ page }) => {
+  await page.goto('./#/');
+  await inScene(page, 'projects');
+  await page.keyboard.press('/');
+  const input = page.getByRole('searchbox', { name: 'Search' });
+  await expect(input).toBeFocused();
+
+  // A step under the kitchen's permit dependency, found by its own words.
+  await input.fill('council website');
+  const hit = page.locator('.search-hit').first();
+  await expect(hit).toContainText('Apply on the council website');
+  await expect(hit).toContainText('Kitchen Renovation › Strip-out › Demolition › Skip permit from the council');
+
+  // Filters narrow it further and combine with the text.
+  await page.getByRole('button', { name: 'Decision', exact: true }).click();
+  await expect(page.locator('.search-hit')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Decision', exact: true }).click();
+
+  await input.press('Enter');
+  await expect(page.locator('.overlay')).toHaveCount(0);
+  await expect.poll(() => hash(page)).toBe('#/p/kitchen-renovation/strip/demolition/@permit/apply-online');
+  await inScene(page, 'level');
+  await expect.poll(() => bubbleItem(page)).toBe('apply-online');
+});
