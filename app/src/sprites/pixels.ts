@@ -787,6 +787,10 @@ export const SPRITES: Record<string, Map> = {
     'kPPPPPPPPPPPPPPk',
     'kkkkkkkkkkkkkkkk',
   ],
+  /** A drip flying off a panicking hero (#22). */
+  sweat: ['.c.', 'cwc', 'ccC', '.C.'],
+  /** The big worried drop stuck to his head while he hurries. */
+  'sweat-big': ['.k..', 'kck.', 'kwck', 'kcck', 'kcCk', '.kk.'],
   sparkle: [
     '.......u........',
     '.......u........',

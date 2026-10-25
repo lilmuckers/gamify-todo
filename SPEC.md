@@ -382,6 +382,10 @@ mobile strip all share.
   No walk takes more than about 1.2 s (#22): past about 8 tiles he hurries, and past 12 he
   blinks out and pops up 2 tiles short of the stop, then walks the rest. The camera tightens
   while he hurries so he stays in view.
+  The faster he goes, the more he panics: he leans in and bounces on his toes, a big worried
+  drop sticks to his head, and sweat flies off behind him, tumbling and splatting on the ground
+  (a burst of it as he blinks out). A stroll stays calm, and with reduced motion only the drop
+  shows.
 - **Flagpole stairs (#55):** one step per success criterion, in order, before the pole. Must-do
   steps are grey until ticked, then lit. Bonus steps are pink and see-through. Labels sit in the
   dirt. Past 8 criteria the climb spreads out instead of getting taller. Clicking a step opens a

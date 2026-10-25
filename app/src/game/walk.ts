@@ -18,7 +18,12 @@ export interface WalkPlan {
   ms: number;
   /** Walk animation speed: above 1 when he hurries. */
   pace: number;
+  /** How panicked he looks, 0 (strolling) to 1 (popping in): lean, bounce and sweat. */
+  panic: number;
 }
+
+/** Pace of the fastest hurry, just short of a pop-in. */
+const TOP_PACE = (POP_TILES / WALK_TILES_PER_SEC) * 1000 / MAX_WALK_MS;
 
 /** Plans a walk of `tiles`: a stroll, a hurry capped at `MAX_WALK_MS`, or a pop-in and a short walk. */
 export function planWalk(tiles: number): WalkPlan {
@@ -26,5 +31,7 @@ export function planWalk(tiles: number): WalkPlan {
   const walk = pop ? POP_SHORT_TILES : tiles;
   const natural = (walk / WALK_TILES_PER_SEC) * 1000;
   const ms = Math.min(natural, MAX_WALK_MS);
-  return { pop, tiles: walk, ms, pace: ms > 0 ? natural / ms : 1 };
+  const pace = ms > 0 ? natural / ms : 1;
+  const panic = pop ? 1 : Math.min(1, Math.max(0, (pace - 1) / (TOP_PACE - 1)));
+  return { pop, tiles: walk, ms, pace, panic };
 }

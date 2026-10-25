@@ -3,7 +3,7 @@ import { MAX_WALK_MS, planWalk, POP_SHORT_TILES, POP_TILES, WALK_TILES_PER_SEC }
 
 describe('planWalk', () => {
   it('strolls short walks at the normal pace', () => {
-    expect(planWalk(7)).toEqual({ pop: false, tiles: 7, ms: 1000, pace: 1 });
+    expect(planWalk(7)).toEqual({ pop: false, tiles: 7, ms: 1000, pace: 1, panic: 0 });
   });
 
   it('hurries past the cap instead of taking longer', () => {
@@ -15,11 +15,23 @@ describe('planWalk', () => {
 
   it('pops up just short of a far stop and walks the rest', () => {
     const plan = planWalk(60);
-    expect(plan).toMatchObject({ pop: true, tiles: POP_SHORT_TILES, pace: 1 });
+    expect(plan).toMatchObject({ pop: true, tiles: POP_SHORT_TILES, pace: 1, panic: 1 });
     expect(plan.ms).toBeLessThan(MAX_WALK_MS);
   });
 
   it('never plans a walk over the cap', () => {
     for (let tiles = 0; tiles <= 200; tiles += 0.5) expect(planWalk(tiles).ms).toBeLessThanOrEqual(MAX_WALK_MS);
+  });
+
+  it('panics more the faster he goes', () => {
+    let last = 0;
+    for (let tiles = 0; tiles <= 40; tiles += 0.5) {
+      const { panic } = planWalk(tiles);
+      expect(panic).toBeGreaterThanOrEqual(last);
+      expect(panic).toBeLessThanOrEqual(1);
+      last = panic;
+    }
+    expect(planWalk(10).panic).toBeGreaterThan(0);
+    expect(planWalk(POP_TILES).panic).toBeCloseTo(1);
   });
 });

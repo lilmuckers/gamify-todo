@@ -34,6 +34,7 @@ import { PlayControls, type Controls } from './play/input';
 import { ahead, buildWorld, criterionOf, EXIT_ID, FLAG_ID, HITBOX, HOME_CLOUD, HOME_ID, nearest, newBody, step, stepId, TUNING, type Body, type PlayEvent, type PlayWorld } from './play/physics';
 import { poleQuip } from './quips';
 import { planWalk } from './walk';
+import { isCatchingUp } from './catch-up';
 
 export interface LevelParams {
   projectId: string;
@@ -94,6 +95,8 @@ const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').match
 /** Camera lerp while the hero walks himself about, and while he hurries or pops in (#22). */
 const WALK_LERP = 0.08;
 const FAST_LERP = 0.2;
+/** Pull on flying sweat, in px/s². */
+const SWEAT_GRAVITY = 420;
 const STATUS_COLOR: Record<Item['status'], string> = {
   todo: '#ffffff',
   doing: '#fee761',
@@ -1608,16 +1611,83 @@ export class LevelScene extends QuestScene {
     const dist = Math.abs(x - this.hero.x);
     if (dist < 1) return;
     const plan = planWalk(dist / TILE);
-    if (plan.pop) await this.popTo(x - Math.sign(x - this.hero.x) * plan.tiles * TILE);
+    const dir = Math.sign(x - this.hero.x);
+    // Play mode's physics owns his pose; and with reduced motion he only gets the still drop.
+    const panic = this.playing ? 0 : plan.panic;
+    const wild = panic > 0 && !reducedMotion();
+    if (plan.pop) {
+      // The sudden realisation: a burst of sweat as he blinks out.
+      if (wild && this.hero.visible) for (let i = 0; i < 5; i++) this.sweat(panic, dir);
+      await this.popTo(x - dir * plan.tiles * TILE);
+    }
     const fast = hurry || plan.pop || plan.pace > 1;
     this.follow(fast);
-    this.hero.setFlipX(x < this.hero.x);
+    this.hero.setFlipX(dir < 0);
     this.hero.play(heroWalk(this.app.heroId));
     this.hero.anims.timeScale = plan.pace;
-    await this.tween({ targets: this.hero, x, duration: plan.ms });
+    const drop = panic > 0.3 ? this.add.image(0, 0, 'sweat-big').setDepth(41) : undefined;
+    const baseY = this.hero.y;
+    const start = this.time.now;
+    let nextDrip = 0;
+    await this.tween({
+      targets: this.hero,
+      x,
+      duration: plan.ms,
+      onUpdate: () => {
+        if (!panic) return;
+        const h = this.hero;
+        const t = this.time.now - start;
+        if (wild) {
+          // Leaning in and bouncing on his toes, harder the faster he goes.
+          h.setAngle(dir * 10 * panic);
+          h.y = baseY - Math.round(Math.abs(Math.sin(t / 30)) * 2 * panic);
+          if (t >= nextDrip) {
+            this.sweat(panic, dir);
+            nextDrip = t + 160 - 100 * panic;
+          }
+        }
+        drop?.setPosition(h.x + (dir > 0 ? 3 : h.width - 3), h.y - 13).setScale(wild ? 1 + 0.15 * Math.sin(t / 40) : 1);
+      },
+    });
+    drop?.destroy();
+    this.hero.setAngle(0).setY(baseY);
     if (fast && this.following) this.follow();
     this.hero.setFlipX(false);
     this.idle();
+  }
+
+  /**
+   * One drip of sweat flung off a panicking hero (#22): it flies back over his
+   * shoulder, tumbles and splats on the ground. Wilder the more he panics.
+   */
+  private sweat(panic: number, dir: number) {
+    if (isCatchingUp()) return;
+    const h = this.hero;
+    const x0 = h.x + h.width / 2 - dir * 3;
+    const y0 = h.y - 13;
+    const big = panic > 0.6 && Math.random() < 0.35;
+    const d = this.add.image(x0, y0, 'sweat').setScale(big ? 1.5 : 1);
+    this.fx.add(d);
+    const vx = -dir * Phaser.Math.Between(20, 40 + 60 * panic) + Phaser.Math.Between(-10, 10);
+    const vy = -Phaser.Math.Between(50, 70 + 70 * panic);
+    const spin = Phaser.Math.Between(-720, 720) * panic;
+    // When it lands: y0 + vy·t + g·t²/2 = the ground.
+    const fall = GROUND_Y - 1 - y0;
+    const land = (-vy + Math.sqrt(vy * vy + 2 * SWEAT_GRAVITY * fall)) / SWEAT_GRAVITY;
+    this.tweens.addCounter({
+      from: 0,
+      to: land,
+      duration: land * 1000,
+      onUpdate: (tw) => {
+        const t = tw.getValue() ?? 0;
+        d.setPosition(x0 + vx * t, y0 + vy * t + (SWEAT_GRAVITY * t * t) / 2).setAngle(spin * t);
+      },
+      onComplete: () => {
+        // Splat.
+        d.setAngle(0).setY(GROUND_Y - 1).setScale(big ? 2.4 : 1.8, 0.5);
+        this.tweens.add({ targets: d, alpha: 0, delay: 120, duration: 180, onComplete: () => d.destroy() });
+      },
+    });
   }
 
   /**
