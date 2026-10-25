@@ -483,13 +483,13 @@ Stats (§5.13).
 
 The HUD shows the QUEST LOG title, XP/coins/stars totals, the streak flame (grey when out; opens
 Stats (§5.13), and stays visible on phones), the sync status pill, **TODAY**,
-**INBOX** (count), **REVIEW** (when due), **AI SKILL**, ⚙ Settings, ⇪ Publish (Docker editor
+**INBOX** (count), **REVIEW** (when due), **FIND** (search, §5.14), **AI SKILL**, ⚙ Settings, ⇪ Publish (Docker editor
 only) and a "DEMO · NOT SAVED" badge in the demo. On desktop, floating game-nav buttons over the
 canvas give ▲ up, ◀ ▶ prev/next and Play.
 
 ### 5.8 Mobile
 
-- Bottom **tab bar**: Projects / Map / Next / Today / Inbox / Warp / Settings, pinned to the
+- Bottom **tab bar**: Today / Inbox / Find / Projects / Map / Next / Warp / Settings, pinned to the
   bottom edge and clear of the home indicator.
 - DOM screens: project list, island maps, and a horizontally scrolling **level strip** image
   (stairs included) above the panel.
@@ -718,6 +718,26 @@ history and the deep scan read it exactly as they read a repo. The demo takes it
 it's ready at once; only in demo mode, the first open of the page pretends to build it for about
 1.2 seconds. Demo history caches live in memory, like the rest of the demo. The example
 data's own stamps follow dependency order.
+
+### 5.14 Search and filter (#19)
+
+- `/` (desktop), **FIND** in the HUD or **Find** in the phone tab bar opens a search window over
+  every project, world, level, item, dependency step and inbox idea. It works read-only too.
+- Results update as you type. Each shows its type or kind icon, status and path
+  (`Project › World › Level › Item`). A match found only in notes, a deliverable or criteria
+  shows a snippet of it. ↑ ↓ move, Enter or a click goes there: an item or step opens with its
+  bubble open (a step inside its dependency's sub-level), and an inbox idea opens the Inbox page.
+- Matching (`shared/src/search.ts`): every word must appear (case and accents ignored). Title
+  hits count most, then the path, then the notes. Finished games rank lower. Archived games are
+  left out unless the **Archived games** chip is on.
+- Filter chips combine with the text and with each other: item type, status, **Blocking** (open
+  must-do items), **Overdue levels** (past their time-box, and everything in them) and **Over
+  budget** (only when a project has budgets on; overspending rolls up to the level and world).
+  Filters stay set between searches until reload.
+- A level's item list (and a sub-level's steps) has the same type, status, blocking and budget
+  chips under a folded **Filter** line, cleared when you move to another level.
+- Analytics get `search_open {via}` and `search_go {kind, results_bucket, filtered}`. Search
+  terms never leave the browser.
 
 ## 6. Onboarding (#61)
 
@@ -1024,7 +1044,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #22 Faster long walks.
 
 **Productivity:**
-- #19 Search/filter (`/`)
 - #26 A "good enough" moment
 - #27 WIP-limit warning
 - #29 World-level time-box

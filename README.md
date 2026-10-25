@@ -27,6 +27,11 @@ world map, or **Add to this level** on a level. On Android, sharing a link or te
 installed app drops it straight in the inbox (iOS doesn't let web apps receive shares). Ideas live
 in `data/inbox.json` until they're placed.
 
+**Search** (`/`, the FIND button, or Find on phones) finds anything by name or notes: projects,
+worlds, levels, items, steps inside dependencies and inbox ideas. Filter by type, status,
+blocking, overdue levels or over budget, with or without words. Enter jumps straight there with
+the item open. A level's item list has the same filters.
+
 Once a week (Friday afternoon by default; Monday morning, Sunday evening or off in **⚙ Settings**)
 a **REVIEW** button appears in the top bar. The **Weekly review** (`w`, or `#/review`) is the
 pad's third page:

@@ -10,6 +10,7 @@ import { h, icon, mount } from './ui/dom';
 import { renderHud, repaintSyncStatus } from './ui/hud';
 import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
+import { openSearch } from './ui/search';
 import { settingsDialog } from './ui/settings';
 import { mountPadOverlay } from './ui/today';
 import { mountRecords } from './ui/records';
@@ -169,6 +170,7 @@ function renderNav(app: App, nav: HTMLElement) {
     nav,
     h('a', { href: href(togglePad(app.route, 'today')), class: `tab-pad${app.route.pad === 'today' ? ' on' : ''}` }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
     h('a', { href: href(togglePad(app.route, 'inbox')), class: `tab-pad${app.route.pad === 'inbox' ? ' on' : ''}` }, h('span', { class: 'gear' }, '✉'), h('span', null, 'Inbox')),
+    h('button', { type: 'button', onclick: () => openSearch(app, 'button') }, h('span', { class: 'gear' }, '⌕'), h('span', null, 'Find')),
     h('a', { href: href({ view: 'projects' }), class: app.route.view === 'projects' ? 'on' : '' }, icon('node-clear', 'grass', 'icon sm'), h('span', null, 'Projects')),
     pid &&
       h('a', { href: href({ view: 'overworld', projectId: pid }), class: app.route.view === 'overworld' ? 'on' : '' }, icon('node', 'grass', 'icon sm'), h('span', null, 'Map')),

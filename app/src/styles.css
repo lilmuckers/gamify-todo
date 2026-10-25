@@ -4532,3 +4532,105 @@ button.heat:focus-visible,
     font-size: max(16px, 1em) !important;
   }
 }
+
+/* ---------- Search (/) and filter chips ---------- */
+.search-input {
+  width: 100%;
+  font: 15px var(--body);
+  padding: 8px 10px;
+  background: var(--ink);
+  color: var(--paper);
+  border: 2px solid var(--line);
+}
+.filter-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.chip.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--body);
+}
+.chip.filter .icon {
+  width: 12px;
+  height: 12px;
+}
+.chip.filter.on {
+  border-color: var(--gold);
+  color: var(--gold-hi);
+  background: rgba(254, 174, 52, 0.15);
+}
+.search-status:empty {
+  display: none;
+}
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.search-hit a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--paper);
+  text-decoration: none;
+  border: 2px solid transparent;
+}
+.search-hit.active a {
+  border-color: var(--gold);
+  background: rgba(254, 174, 52, 0.12);
+}
+.search-hit.finished {
+  opacity: 0.7;
+}
+.search-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.search-title,
+.search-path,
+.search-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-path,
+.search-snippet {
+  color: var(--muted);
+  font-size: 11px;
+}
+.search-snippet {
+  font-style: italic;
+}
+.search-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.item-filter {
+  margin: 6px 0;
+}
+.item-filter summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+}
+.item-filter .filter-chips {
+  margin: 6px 0 4px;
+}
+/* On a phone the kind label crowds the title: the icon says enough. */
+@media (max-width: 520px) {
+  .search-tags small {
+    display: none;
+  }
+}

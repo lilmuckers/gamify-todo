@@ -37,7 +37,12 @@ export function openModal(title: string, body: Node, actions: ModalAction[] = [{
     setOpen(-1);
     opts.onClose?.();
   };
-  const onKey = (e: KeyboardEvent) => dismissable && e.key === 'Escape' && close();
+  const onKey = (e: KeyboardEvent) => {
+    if (!dismissable || e.key !== 'Escape') return;
+    // Handled: the nav keys mustn't also take this Esc as "go up a screen".
+    e.preventDefault();
+    close();
+  };
   const buttons = actions.map((a) =>
     h(
       'button',

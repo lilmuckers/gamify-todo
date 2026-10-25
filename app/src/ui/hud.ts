@@ -7,6 +7,7 @@ import { track } from '../analytics';
 import { navFor } from '../nav';
 import { heroKey } from '../sprites/heroes';
 import { demoNotice, settingsDialog } from './settings';
+import { openSearch } from './search';
 import { skillHelpDialog } from './skill-help';
 import { inboxCount } from './inbox';
 import { todayCount } from './today';
@@ -186,6 +187,7 @@ export function renderHud(app: App, el: HTMLElement) {
         'REVIEW',
         badge(app.reviewDue ? '!' : 0),
       ),
+    h('button', { class: 'btn sm hud-search', type: 'button', title: 'Search everything (/)', onclick: () => openSearch(app, 'button') }, 'FIND'),
     h('button', { class: 'btn sm hud-ai', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
     h('button', { class: 'btn ghost gear-btn', type: 'button', title: 'Settings', 'aria-label': 'Settings', onclick: () => settingsDialog(app) }, '⚙'),
   );
