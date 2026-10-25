@@ -88,16 +88,19 @@ let filters: SearchFilters = {};
  * Search terms never leave the browser: analytics gets only a result-count bucket.
  */
 export function openSearch(app: App, via: 'key' | 'button') {
-  const ws = app.workspace;
-  if (!ws) return;
   track('search_open', { via });
-  const index = buildSearchIndex(ws);
-  const projects = Object.values(ws.projects);
-  const opts: ChipOptions = {
-    overdue: true,
-    budgets: projects.some((p) => budgetPrefs(p)),
-    archived: projects.some(isProjectArchived),
+  // Opened while the projects are still loading: show the window now and fill it in once they're here.
+  let index: SearchEntry[] | undefined;
+  let opts: ChipOptions = { overdue: true };
+  const load = () => {
+    const ws = app.workspace;
+    if (index || !ws) return false;
+    index = buildSearchIndex(ws);
+    const projects = Object.values(ws.projects);
+    opts = { overdue: true, budgets: projects.some((p) => budgetPrefs(p)), archived: projects.some(isProjectArchived) };
+    return true;
   };
+  load();
   let hits: SearchHit[] = [];
   let active = 0;
 
@@ -171,13 +174,19 @@ export function openSearch(app: App, via: 'key' | 'button') {
   };
 
   const render = () => {
-    hits = search(index, input.value, filters);
+    hits = index ? search(index, input.value, filters) : [];
     active = 0;
     mount(list, hits.map(row));
     if (hits.length) input.setAttribute('aria-activedescendant', 'search-hit-0');
     else input.removeAttribute('aria-activedescendant');
     const asked = input.value.trim() || hasFilters(filters);
-    status.textContent = !asked ? 'Type to search, or pick a filter.' : hits.length ? '' : 'Nothing found. Try fewer words or filters.';
+    status.textContent = !index
+      ? 'Loading your projects…'
+      : !asked
+        ? 'Type to search, or pick a filter.'
+        : hits.length
+          ? ''
+          : 'Nothing found. Try fewer words or filters.';
     mount(chipsBox, filterChips(filters, opts, (f) => {
       filters = f;
       render();
@@ -198,5 +207,6 @@ export function openSearch(app: App, via: 'key' | 'button') {
   });
 
   render();
-  const close = openModal('Search', h('div', { class: 'search' }, input, chipsBox, status, list), [{ label: 'Close' }]);
+  const stop = index ? undefined : app.subscribe(() => load() && render());
+  const close = openModal('Search', h('div', { class: 'search' }, input, chipsBox, status, list), [{ label: 'Close' }], { onClose: stop });
 }
