@@ -924,14 +924,19 @@ a:focus-visible {
 }
 
 /* ---------- Mobile ---------- */
+/* The gear is the tab bar's Settings; the warp pipe stays (it's not in the tab bar). */
 .is-mobile .hud .hud-stat,
-.is-mobile .hud .hud-warp,
 .is-mobile .hud .btn.ghost {
   display: none;
 }
 
 .is-mobile .hud .hud-streak {
   display: flex;
+}
+
+/* The home icon is the way back to every project on phones: never squeeze it. */
+.is-mobile .hud-home {
+  flex-shrink: 0;
 }
 
 .is-mobile .hud-home span {
@@ -1034,6 +1039,21 @@ a:focus-visible {
 
 .tabbar > :disabled {
   opacity: 0.4;
+}
+
+.tabbar > * {
+  position: relative;
+}
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 6px);
+  min-width: 14px;
+  padding: 2px 3px;
+  background: var(--red);
+  color: #fff;
+  font: 7px/1 var(--pixel);
+  border-radius: 7px;
 }
 
 .tabbar .gear {

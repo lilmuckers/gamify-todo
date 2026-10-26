@@ -525,8 +525,13 @@ canvas give ▲ up, ◀ ▶ prev/next and Play.
 
 ### 5.8 Mobile
 
-- Bottom **tab bar**: Today / Inbox / Find / Projects / Map / Next / Warp / Settings, pinned to the
-  bottom edge and clear of the home indicator.
+- Bottom **tab bar**, five tabs at most: Today / Inbox (each with its count) / Map (Projects
+  when you're not in a project) / Find / Settings, pinned to the bottom edge and clear of the
+  home indicator.
+- Nothing is in both bars. The top bar drops TODAY, INBOX, FIND and the gear, and AI SKILL moves
+  into Settings. What's left up there: the home icon (all projects, never squeezed), where you
+  are, the level clock, the streak, the sync pill, REVIEW when due and the warp pipe. The next
+  level is the project map's big **Next** button.
 - DOM screens: project list, island maps, and a horizontally scrolling **level strip** image
   (stairs included) above the panel.
 - Fields are ≥16px on touch (no iOS zoom). Overlays respect safe-area insets (notch, Dynamic
