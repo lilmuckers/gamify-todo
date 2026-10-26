@@ -38,6 +38,7 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   nav_shortcut: ['key'],
   search_open: ['via'],
   search_go: ['kind', 'results_bucket', 'filtered'],
+  good_enough: ['action', 'count_bucket'],
   play_mode: ['on'],
   sound_toggle: ['on'],
   play_complete: ['how'],

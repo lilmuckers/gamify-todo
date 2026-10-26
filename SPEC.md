@@ -201,6 +201,15 @@ Defined in `shared/src/scoring.ts`.
   Editing a cleared level, adding scope after clearing, or editing a done item more than 3 times
   costs points. A toast says "Perfectionism detected 🐢". **Scope cuts never count**: deleting
   items or criteria, dropping an item, or parking a level.
+- **Good enough** (#26): when an edit clears a level and optional items (stretch or non-MVP) are
+  still open, the hero gives a grudging thumbs up (the "reacting" portrait, a meh emote and a
+  thumb in their skin colour) with one of ~40 deadpan "you did enough" lines, never the same one
+  twice in a row (`app/src/ui/good-enough-lines.ts`). It offers **Drop the rest** (one batch of
+  `dropped`, saying how much it banks when budgets are on), **Keep for later** (each item goes to
+  the inbox and leaves the level) or **Leave them**. Both are scope cuts, so no polish. It shows
+  once per level per browser (`localStorage['quest.good-enough']`), only when you can edit: on
+  desktop after the finale, after the summary in play mode, at once on phones or from the pad. A
+  level cleared with nothing optional left (perfection) just gets the plain fireworks.
 - **Nudges** (shown in the level panel): win; still polishing extras; time-box blown → names up
   to 3 optional items to drop; under 25% left; all critical items done → tick the criteria;
   more than 5 MVP criteria ("which 3 truly matter?"); more than 15 MVP items ("split it?").
@@ -269,7 +278,8 @@ Android share-target params are `share-title`, `share-text` and `share-url`.
 ### 5.2 Project select: the bedroom floor
 
 A top-down bedroom with a carpet, a console at a jaunty angle, a controller, a TV on the wall,
-and **cartridges** for each project. Each cartridge label shows totals. There are also a purple
+and **cartridges** for each project. Each cartridge label shows totals, and the label art carries a
+star badge (★ won/max, gold once every star is won: a trophy on finished games, #23). There are also a purple
 **Warp Zone** cartridge (with its PR count) and a **Blank cartridge** (new project). The project
 you last opened sits just right of the console. Picking a cartridge inserts it, the console boots
 and the camera pans up to the TV.
@@ -372,6 +382,25 @@ goal (left blank, it is the title) and two tabs.
   prerequisite, with an edge per dependency.
 - **World map:** the levels in `levelOrder` as nodes showing cleared/in-progress/open/locked
   state and stars.
+- **A livelier map (#23):**
+  - The **hero waits** on the map: at the suggested next world or level, else the first one left
+    to clear, else the last island (overworld) or the castle (world map). Clicking an island or a
+    node **walks him along the paths** there first (the fewest hops, either way along an edge,
+    `app/src/game/map-life.ts`), at the level's pace and never much over a second (#22), then goes
+    in. With no path between two islands he blinks out and pops up there. Under reduced motion,
+    clicks go straight in.
+  - **Locked worlds** wear a padlock. Hovering shows a tooltip naming the worlds still to clear
+    ("Locked: Clear World 2 (Platform) first"). Clicking shakes the padlock with a buzz and shows
+    it; a second click while it's up peeks inside anyway. Phones list the same reason under the
+    island.
+  - The suggested next stop **twinkles** (a sparkle by its island or node).
+  - The first time a world is cleared, its map plays a **world-clear fanfare**: a WORLD CLEAR!
+    banner and fireworks over the island or the castle (just the banner under reduced motion).
+    `localStorage['quest.fanfares']` remembers which have played, once each, after they finish.
+    It also records when this browser started keeping track, so worlds cleared before then
+    (old data, finished games) stay quiet.
+  - The walk and fanfare are promise chains on `QuestScene.tween()`/`wait()`, so catch-up finishes
+    them after a hidden tab.
 - `[` / `]` step to the previous/next world or level, and Esc goes up.
 
 ### 5.4 Level
@@ -502,8 +531,13 @@ canvas give ▲ up, ◀ ▶ prev/next and Play.
 
 ### 5.8 Mobile
 
-- Bottom **tab bar**: Today / Inbox / Find / Projects / Map / Next / Warp / Settings, pinned to the
-  bottom edge and clear of the home indicator.
+- Bottom **tab bar**, five tabs at most: Today / Inbox (each with its count) / Map (Projects
+  when you're not in a project) / Find / Settings, pinned to the bottom edge and clear of the
+  home indicator.
+- Nothing is in both bars. The top bar drops TODAY, INBOX, FIND and the gear, and AI SKILL moves
+  into Settings. What's left up there: the home icon (all projects, never squeezed), where you
+  are, the level clock, the streak, the sync pill, REVIEW when due and the warp pipe. The next
+  level is the project map's big **Next** button.
 - DOM screens: project list, island maps, and a horizontally scrolling **level strip** image
   (stairs included) above the panel.
 - Fields are ≥16px on touch (no iOS zoom). Overlays respect safe-area insets (notch, Dynamic
@@ -600,7 +634,8 @@ to add a hero: the art, the voice and every line they need.
   Play mode: jump, hurt, bonk (flagpole whack); play on/off chimes.
 - Bedroom: cartridge slot clunk, power-on hum, QUEST-16 boot jingle, PRESS START, junk TV static
   and switch-off, and a sound per junk sound word. Typewriter dialogue ticks, pitched per hero.
-  Picking an island or a level node blips.
+  Picking an island or a level node blips. A locked island's padlock buzzes, and a world-clear
+  fanfare plays the clear jingle with firework pops.
 - DOM: edit rejected (buzz), perfectionism penalty (wah-wah), budget alerts, undo, pad page
   flicks, pen stroke on a Today tick, inbox jot/scratch, the weekly review stamp, the time-box
   tipping into hurry or overdue while watched, and a chime for other good news.
@@ -1103,10 +1138,8 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #57 Secret cartridge: about 15% of visits hide a seeded sandbox level (`#/sandbox/<seed>`)
   under the clutter. It never touches data.
 - #24 Hero idle/victory animations.
-- #23 A livelier world map.
 
 **Productivity:**
-- #26 A "good enough" moment
 - #27 WIP-limit warning
 - #29 World-level time-box
 - #31 Better conflict resolution

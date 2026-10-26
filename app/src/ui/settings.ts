@@ -13,6 +13,7 @@ import { openHeroSelect } from './hero-select';
 import { confirmDialog, openModal } from './modal';
 import { openRepoPicker } from './repo-picker';
 import { beginSignIn } from './sign-in';
+import { skillHelpDialog } from './skill-help';
 import { toast } from './toast';
 
 export function settingsDialog(app: App) {
@@ -29,6 +30,14 @@ export function settingsDialog(app: App) {
     if (signInAvailable()) body.append(...signInSection(app, () => closeAll()));
     body.append(...tokenSection(app, signInAvailable()));
   }
+
+  // Phones have no room for the top bar's AI SKILL button: it lives here instead.
+  if (app.compact)
+    body.append(
+      h('h3', null, 'AI skill'),
+      h('p', null, 'Plan and update your quests with Claude or ChatGPT.'),
+      h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => (closeAll(), skillHelpDialog()) }, 'Use Quest Log with AI')),
+    );
 
   body.append(
     h('h3', null, 'New here?'),

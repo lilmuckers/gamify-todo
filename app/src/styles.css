@@ -927,14 +927,19 @@ a:focus-visible {
 }
 
 /* ---------- Mobile ---------- */
+/* The gear is the tab bar's Settings; the warp pipe stays (it's not in the tab bar). */
 .is-mobile .hud .hud-stat,
-.is-mobile .hud .hud-warp,
 .is-mobile .hud .btn.ghost {
   display: none;
 }
 
 .is-mobile .hud .hud-streak {
   display: flex;
+}
+
+/* The home icon is the way back to every project on phones: never squeeze it. */
+.is-mobile .hud-home {
+  flex-shrink: 0;
 }
 
 .is-mobile .hud-home span {
@@ -1037,6 +1042,21 @@ a:focus-visible {
 
 .tabbar > :disabled {
   opacity: 0.4;
+}
+
+.tabbar > * {
+  position: relative;
+}
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 6px);
+  min-width: 14px;
+  padding: 2px 3px;
+  background: var(--red);
+  color: #fff;
+  font: 7px/1 var(--pixel);
+  border-radius: 7px;
 }
 
 .tabbar .gear {
@@ -4636,4 +4656,45 @@ button.heat:focus-visible,
   .search-tags small {
     display: none;
   }
+}
+
+/* ---------- Good enough (#26): a grudging thumbs up ---------- */
+.ge-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.ge-face {
+  position: relative;
+}
+.ge-portrait {
+  width: 96px;
+  height: 96px;
+  border: 3px solid var(--ink);
+  background: var(--panel-2);
+}
+.ge-emote {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 14px;
+  height: 14px;
+}
+.ge-thumb {
+  width: 48px;
+  height: 56px;
+  transform-origin: 50% 100%;
+  animation: ge-thumb 1.6s steps(2) infinite;
+}
+@keyframes ge-thumb {
+  50% {
+    transform: translateY(-3px) rotate(-6deg);
+  }
+}
+.ge-line {
+  text-align: center;
+  font: 11px/1.8 var(--pixel);
+  color: var(--gold-hi);
 }

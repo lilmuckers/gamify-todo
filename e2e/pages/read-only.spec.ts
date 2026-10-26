@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bubbleItem, clickItem, clickLocator, hash, inScene, skipWelcome } from '../helpers';
+import { bubbleItem, clickItem, clickLocator, clickSpot, hash, inScene, settled, skipWelcome } from '../helpers';
 
 test.beforeEach(({ page }) => skipWelcome(page));
 
@@ -34,6 +34,45 @@ test('browse from the project floor to an item, and deep-link to it', async ({ p
   await inScene(page, 'level');
   await expect.poll(() => bubbleItem(page)).toBe(itemId);
   await expect(page.locator(`#item-${itemId}`)).toHaveClass(/selected/);
+});
+
+test('the hero walks the map paths, and a locked world says why', async ({ page }) => {
+  await page.goto('./#/p/customer-portal');
+  await inScene(page, 'overworld');
+  const map = (key: 'overworld' | 'world') =>
+    page.evaluate((k) => {
+      const s = window.__questGame!.scene.getScene(k) as unknown as {
+        layer: { list: { type: string; visible: boolean; text?: string; texture?: { key: string }; x: number }[] };
+      };
+      const list = s.layer.list;
+      return {
+        tips: list.filter((o) => o.type === 'Text' && o.visible && o.text!.startsWith('Locked')).map((o) => o.text),
+        locks: list.filter((o) => o.texture?.key === 'padlock').length,
+        heroX: list.find((o) => o.type === 'Sprite')?.x,
+      };
+    }, key);
+
+  // Features waits on Platform: a padlock, and a click explains instead of going in.
+  expect((await map('overworld')).locks).toBe(2);
+  await page.mouse.move(0, 0);
+  await clickSpot(page, 'overworld', 'features');
+  await expect.poll(async () => (await map('overworld')).tips).toEqual(['Locked: Clear World 2 (Platform) first']);
+  expect(await hash(page)).toBe('#/p/customer-portal');
+
+  // The hero waits at Platform (next up) and walks back along the path to Discovery.
+  const from = (await map('overworld')).heroX!;
+  await clickSpot(page, 'overworld', 'discovery');
+  await expect.poll(async () => (await map('overworld')).heroX!).toBeLessThan(from - 8);
+  await inScene(page, 'world');
+  expect(await hash(page)).toBe('#/p/customer-portal/discovery');
+
+  // Discovery is all clear: the hero waits by the castle, and walks back to level 1 to go in.
+  const castle = (await map('world')).heroX!;
+  await clickSpot(page, 'world', 'research');
+  await expect.poll(async () => (await map('world')).heroX!).toBeLessThan(castle - 8);
+  await inScene(page, 'level');
+  expect(await hash(page)).toBe('#/p/customer-portal/discovery/research');
+  await settled(page);
 });
 
 test('ride a cloud to the level a dependency waits on, and back again', async ({ page }) => {

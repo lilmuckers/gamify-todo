@@ -54,6 +54,28 @@ export async function clickLocator(page: Page, name: string) {
   await page.mouse.click(x, y);
 }
 
+/** Clicks an island on the overworld or a level node on the world map, by world or level id. */
+export async function clickSpot(page: Page, scene: 'overworld' | 'world', key: string) {
+  await settled(page);
+  const r = await page.evaluate(
+    ([k, id]) => {
+      const s = window.__questGame!.scene.getScene(k) as unknown as {
+        spots: Map<string, { x: number; y: number; displayWidth: number; displayHeight: number }>;
+        toScreen(r: { x: number; y: number; w: number; h: number }): DOMRect;
+      };
+      const img = s.spots.get(id);
+      if (!img) return undefined;
+      // Images are centred on their position; aim a little low, clear of labels above.
+      const b = s.toScreen({ x: img.x - 4, y: img.y - 2, w: 8, h: 8 });
+      return { x: b.x, y: b.y, width: b.width, height: b.height };
+    },
+    [scene, key] as const,
+  );
+  expect(r, `${scene} spot ${key}`).toBeTruthy();
+  const { x, y } = centre(r!);
+  await page.mouse.click(x, y);
+}
+
 /** Clicks an item drawn in the level, by id (scrolling the camera to it first). */
 export async function clickItem(page: Page, itemId: string) {
   const r = await page.evaluate((id) => {

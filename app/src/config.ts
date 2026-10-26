@@ -26,6 +26,8 @@ const UI_KEY = 'quest.ui';
 const HERO_KEY = 'quest.hero';
 const REVIEW_KEY = 'quest.review';
 const ONBOARDED_KEY = 'quest.onboarded';
+const FANFARE_KEY = 'quest.fanfares';
+const GOOD_ENOUGH_KEY = 'quest.good-enough';
 
 /** Keys that mean this browser has used Quest Log before (the welcome screen skips them). */
 export const VISIT_KEYS = [TOKEN_KEY, REPO_KEY, BRANCH_KEY, UI_KEY, HERO_KEY, ONBOARDED_KEY];
@@ -224,6 +226,45 @@ export function isFirstVisit(storage: Pick<Storage, 'getItem'> | undefined = glo
     return false;
   }
 }
+
+/**
+ * World-clear fanfares already played in this browser (#23). The first read starts the log, so
+ * worlds cleared before then never fanfare.
+ */
+export const fanfareStore = {
+  get(): { since: string; seen: string[] } {
+    try {
+      const log = JSON.parse(read(FANFARE_KEY) ?? 'null') as { since?: string; seen?: string[] } | null;
+      if (log?.since) return { since: log.since, seen: log.seen ?? [] };
+    } catch {
+      /* start again */
+    }
+    const fresh = { since: new Date().toISOString(), seen: [] };
+    write(FANFARE_KEY, JSON.stringify(fresh));
+    return fresh;
+  },
+  see(key: string) {
+    const log = fanfareStore.get();
+    if (!log.seen.includes(key)) write(FANFARE_KEY, JSON.stringify({ ...log, seen: [...log.seen, key] }));
+  },
+};
+
+/** Levels whose "you did enough" moment (#26) this browser has shown, and the last line said. */
+export const goodEnoughStore = {
+  get(): { seen: string[]; last?: string } {
+    try {
+      const log = JSON.parse(read(GOOD_ENOUGH_KEY) ?? 'null') as { seen?: string[]; last?: string } | null;
+      return { seen: log?.seen ?? [], last: log?.last };
+    } catch {
+      return { seen: [] };
+    }
+  },
+  see(key: string, line: string) {
+    const log = goodEnoughStore.get();
+    // The newest few hundred are plenty to never ask twice.
+    write(GOOD_ENOUGH_KEY, JSON.stringify({ seen: [...log.seen.filter((k) => k !== key), key].slice(-300), last: line }));
+  },
+};
 
 /** The welcome screen has been seen (or skipped): don't show it again. */
 export const onboardedStore = {

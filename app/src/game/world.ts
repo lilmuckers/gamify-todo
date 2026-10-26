@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
-import { levelNodeState, scoreLevel, suggestNext, type Level, type LevelDiff, type World } from '@quest/shared';
+import { isWorldCleared, levelNodeState, scoreLevel, suggestNext, type Level, type LevelDiff, type World } from '@quest/shared';
+import { fanfareStore } from '../config';
 import { pullLookup } from '../data/source';
 import { play as sfx } from '../audio';
 import { go } from '../router';
 import { DIFF_COLOR, NODE_SPRITE, THEMES } from '../sprites/pixels';
 import { TILE, type ThemeKey } from '../sprites/render';
-import { GROUND_Y, QuestScene, tex } from './common';
+import { GROUND_Y, QuestScene, reducedMotion, tex } from './common';
+import { dueFanfares, fanfareKey } from './map-life';
 
 export interface WorldParams {
   projectId?: string;
@@ -33,6 +35,9 @@ export class WorldScene extends QuestScene {
   private layer?: Phaser.GameObjects.Container;
   private skyGfx?: Phaser.GameObjects.Graphics;
   private sig = '';
+  /** Each level node, by key: where tests click. */
+  private spots = new Map<string, Phaser.GameObjects.Image>();
+  private walking = false;
 
   constructor() {
     super('world');
@@ -43,6 +48,8 @@ export class WorldScene extends QuestScene {
     this.params = params;
     this.layer = undefined;
     this.sig = '';
+    this.spots = new Map();
+    this.walking = false;
   }
 
   create() {
@@ -57,7 +64,11 @@ export class WorldScene extends QuestScene {
     this.render();
   }
 
-  private nodes(): { theme: ThemeKey; nodes: Node[]; empty?: string } | undefined {
+  /**
+   * `heroAt`: the node the hero stands on (`nodes.length` = by the castle), or none in the Warp
+   * Zone. `cleared`: the world's name, when its world-clear fanfare is due.
+   */
+  private nodes(): { theme: ThemeKey; nodes: Node[]; empty?: string; heroAt?: number; cleared?: string } | undefined {
     const p = this.params;
     if (p.prs) {
       const pulls = this.app.pulls;
@@ -100,8 +111,14 @@ export class WorldScene extends QuestScene {
     if (!state || !w) return;
     const next = suggestNext(state);
     const active = w.levels.find((l) => l.startedAt && !scoreLevel(l).cleared)?.id ?? (next?.worldId === w.id ? next.levelId : undefined);
+    // Off the suggested path, the hero waits at the first level left to do, or by the castle.
+    const open = w.levels.findIndex((l) => !scoreLevel(l).cleared);
+    const heroAt = active ? w.levels.findIndex((l) => l.id === active) : open < 0 ? w.levels.length : open;
+    const due = isWorldCleared(w) && dueFanfares(p.projectId!, [w], fanfareStore.get()).length > 0;
     return {
       theme: w.theme,
+      heroAt: w.levels.length ? heroAt : undefined,
+      cleared: due ? w.name : undefined,
       nodes: w.levels.map((l, i) => {
         const sc = scoreLevel(l);
         return {
@@ -119,7 +136,8 @@ export class WorldScene extends QuestScene {
   private render() {
     const data = this.nodes();
     if (!data) return;
-    const sig = JSON.stringify([data.empty, data.nodes.map((n) => [n.key, n.name, n.sprite, n.stars, n.change, n.here])]);
+    const p = this.params;
+    const sig = JSON.stringify([data.empty, data.heroAt, data.nodes.map((n) => [n.key, n.name, n.sprite, n.stars, n.change, n.here])]);
     if (sig === this.sig) return;
     this.sig = sig;
     const { theme, nodes } = data;
@@ -131,6 +149,7 @@ export class WorldScene extends QuestScene {
     this.skyGfx = this.sky(colors.sky, colors.skyLow);
     this.layer?.destroy();
     const layer = (this.layer = this.add.container(0, 0));
+    this.spots = new Map();
     const W = Math.max(width, this.viewWidth + TILE);
 
     layer.add(this.add.tileSprite(0, GROUND_Y, W, TILE, tex('ground-top', theme)).setOrigin(0, 0));
@@ -156,12 +175,37 @@ export class WorldScene extends QuestScene {
         this.text(this.viewWidth / 2, 80, data.empty ?? 'No levels yet', 6, '#ffffff', this.viewWidth - 40).setOrigin(0.5),
       );
 
+    // The hero stands on top of a node, or on the ground by the castle.
+    const stand = (i: number) => (i < nodes.length ? { x: all[i].x, y: all[i].y - 12 } : { x: endX - 18, y: GROUND_Y });
+    let hero: Phaser.GameObjects.Sprite | undefined;
+    if (data.heroAt !== undefined) {
+      const at = stand(data.heroAt);
+      hero = this.add.sprite(at.x, at.y, this.heroTex()).setOrigin(0.5, 1);
+      layer.add(hero);
+      this.tweens.add({ targets: hero, y: at.y - 4, yoyo: true, repeat: -1, duration: 400 });
+    }
+    // Walk the path to a level, node by node, then go in (#23).
+    const enter = async (i: number, n: Node) => {
+      if (this.walking) return;
+      if (!hero || data.heroAt === undefined || data.heroAt === i || reducedMotion()) return n.onClick();
+      this.walking = true;
+      const from = data.heroAt;
+      const step = i > from ? 1 : -1;
+      const points = [{ x: hero.x, y: stand(from).y }];
+      for (let k = from + step; k !== i + step; k += step) points.push(stand(k));
+      await this.walkAlong(hero, points);
+      await this.wait(80);
+      this.walking = false;
+      n.onClick();
+    };
+
     nodes.forEach((n, i) => {
       const { x, y } = pos[i];
       const img = this.add.image(x, y, n.sprite).setScale(1.5);
+      this.spots.set(n.key, img);
       this.clickable(img, () => {
         sfx('select');
-        n.onClick();
+        void enter(i, n);
       });
       img.on('pointerover', () => img.setScale(1.8));
       img.on('pointerout', () => img.setScale(1.5));
@@ -174,13 +218,12 @@ export class WorldScene extends QuestScene {
       if (n.change) {
         layer.add(this.text(x, y + 30, n.change.toUpperCase(), 4, DIFF_COLOR[n.change]).setOrigin(0.5, 0));
       }
-      if (n.here) {
-        const hero = this.add.image(x, y - 12, this.heroTex()).setOrigin(0.5, 1);
-        layer.add(hero);
-        this.tweens.add({ targets: hero, y: y - 16, yoyo: true, repeat: -1, duration: 400 });
-      }
+      if (n.here) layer.add(this.twinkle(x + 11, y - 9));
     });
-    const focus = pos[Math.max(0, nodes.findIndex((n) => n.here))];
+    // In front of the nodes he walks past.
+    if (hero) layer.bringToTop(hero);
+    const focus = data.heroAt !== undefined ? all[data.heroAt] : pos[0];
     if (focus) this.cameras.main.centerOnX(Math.max(focus.x, this.viewWidth / 2));
+    if (data.cleared) void this.fanfare(fanfareKey(p.projectId!, p.worldId!), endX + 8, 120, data.cleared);
   }
 }
