@@ -9,6 +9,7 @@ import {
   isResolved,
   layoutLevel,
   levelRefTarget,
+  repeatSummary,
   savedLabel,
   scoreLevel,
   type Item,
@@ -867,6 +868,19 @@ export class LevelScene extends QuestScene {
         break;
     }
     if (dropped) root.setAlpha(0.3);
+    // A repeating chore: a little ↻ badge on its top-left corner, drawn (fonts lack the glyph).
+    if (item.repeat) {
+      const col = done ? 0xc0cbdc : 0x8fd3ff;
+      const [cx, cy, r, end] = [-1, -3, 3, -Math.PI / 3];
+      const [ex, ey] = [cx + r * Math.cos(end), cy + r * Math.sin(end)];
+      // Arrowhead along the clockwise tangent at the arc's end.
+      const [tx, ty, px, py] = [-Math.sin(end), Math.cos(end), Math.cos(end), Math.sin(end)];
+      const g = this.add.graphics();
+      g.fillStyle(0x1a1c2c, 1).fillCircle(cx, cy, 5.5);
+      g.lineStyle(1.5, col, 1).beginPath().arc(cx, cy, r, end - (5 * Math.PI) / 3, end).strokePath();
+      g.fillStyle(col, 1).fillTriangle(ex + tx * 2, ey + ty * 2, ex + px * 1.8, ey + py * 1.8, ex - px * 1.8, ey - py * 1.8);
+      root.add(g);
+    }
     if (item.status === 'doing') {
       const sp = this.add.image(e.w * TILE - 4, -6, 'sparkle').setOrigin(0, 0);
       root.add(sp);
@@ -913,7 +927,8 @@ export class LevelScene extends QuestScene {
 
   private showTooltip(v: View) {
     const { entity: e, item } = v;
-    const text = `${item.title}\n${item.type.toUpperCase()} · ${item.status.toUpperCase()}${item.type !== 'stretch' && item.mvp === false ? ' · OPTIONAL' : ''}`;
+    const optional = item.type === 'stretch' || item.mvp === false || !!item.repeat;
+    const text = `${item.title}\n${item.type.toUpperCase()} · ${item.status.toUpperCase()}${item.type !== 'stretch' && optional ? ' · OPTIONAL' : ''}`;
     const cx = e.x * TILE + (e.w * TILE) / 2;
     const w = this.showTip(text, cx, GROUND_Y - (e.y + e.h) * TILE - 18, 110, 0.9);
     // Keep it inside the view.
@@ -1055,9 +1070,11 @@ export class LevelScene extends QuestScene {
     if (!v) return;
     const { item, entity: e } = v;
     const info = TYPE_INFO[item.type];
-    const optional = item.type === 'stretch' || item.mvp === false;
+    const optional = item.type === 'stretch' || item.mvp === false || !!item.repeat;
     spec.title = item.title;
     spec.lines.push({ text: `${info.label.toUpperCase()} · ${STATUS_LABEL[item.status].toUpperCase()}${optional ? ' · OPTIONAL' : ''}`, size: 3.5, muted: true });
+    const every = repeatSummary(item);
+    if (every) spec.lines.push({ text: every.toUpperCase(), size: 3.5, muted: true });
     // Playing: just the name and status, so the bubble hides less of the level.
     if (item.notes && !this.playing) spec.lines.push({ text: truncate(item.notes, 160, '...'), size: 4 });
     const cash = itemCost(item);

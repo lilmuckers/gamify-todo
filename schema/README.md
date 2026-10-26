@@ -53,6 +53,11 @@ Checked by `npm run validate`, the app, and CI:
   code, GBP when unset; `alerts`; `alertAt`, the heads-up percentage). Then `budget` and `spent` go
   on items and steps, and `budget` on levels and worlds. Amounts are plain numbers ≥ 0. A level or
   world without its own `budget` adds up what's inside it. Without `budgets` the app ignores them.
+- `repeat` makes an item a repeating chore (`every` + `unit`, optional `from`/`start`); never on
+  dependencies. Once the next one is due, the app shows it as to do again without writing
+  anything; the file keeps `status: "done"` until it's done again. Doing it appends a local
+  `YYYY-MM-DD` day to `completions` (in date order, one per day) and moves the item's `spent` into
+  that entry, so each occurrence has its own budget. Repeating items are never MVP.
 
 ## Generating data with an LLM
 

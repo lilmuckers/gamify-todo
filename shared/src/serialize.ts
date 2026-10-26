@@ -47,6 +47,8 @@ const KEY_ORDER = [
   'type',
   'status',
   'doneAt',
+  'repeat',
+  'completions',
   'mvp',
   'text',
   'done',
@@ -72,6 +74,12 @@ const KEY_ORDER = [
   'successCriteria',
   'items',
   'stats',
+  // A repeat rule reads "every 6 months, from…"; a completion "on…, spent…".
+  'every',
+  'unit',
+  'from',
+  'start',
+  'on',
 ];
 const rank = new Map(KEY_ORDER.map((k, i) => [k, i]));
 

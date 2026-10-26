@@ -1,6 +1,7 @@
 import type { GameState, Item, Level, Workspace } from './model';
 import { activeProjects, dependencyMode, isProjectArchived, isResolved, orderedProjects, orderedWorlds, subLevel } from './model';
 import { layoutLevel } from './layout';
+import { nextDue } from './repeat';
 import { isCleared, levelTimer, suggestNext, type TimerPhase } from './scoring';
 
 /** Where a Today entry lives, plus a "cheat code" like 3-2 (world 3, level 2). */
@@ -47,6 +48,13 @@ export interface TodayList {
   doing: TodayItem[];
   /** Where the hero is waiting in each active level, or where to start. */
   next: TodayItem[];
+  /** Repeating chores that have come round again, most overdue first (cleared levels too). */
+  chores: TodayChore[];
+}
+
+export interface TodayChore extends TodayItem {
+  /** The day it fell due (local YYYY-MM-DD); undefined if it's never been done. */
+  due?: string;
 }
 
 const PHASE_RANK: Record<TimerPhase, number> = { overdue: 0, hurry: 1, 'on-track': 2, 'not-started': 3, cleared: 4 };
@@ -110,9 +118,14 @@ export function todayList(ws: Workspace, now = Date.now(), focus: string[] = [])
   const doing: (TodayItem & { urgency: number })[] = [];
   const next: (TodayItem & { urgency: number })[] = [];
   const focusLevels: TodayFocus[] = [];
+  const chores: TodayChore[] = [];
   const focused = new Set(focus);
 
   for (const { level, ref, state } of levelsOf(ws)) {
+    // Chores come round whatever state their level is in, even cleared.
+    if (!level.someday && !isProjectArchived(state))
+      for (const item of level.items)
+        if (item.repeat && item.status === 'todo') chores.push({ ...ref, item, phase: levelTimer(level, now).phase, due: nextDue(item) });
     // Parked on the someday shelf, or the whole game archived: not today's problem.
     if (isCleared(level) || level.someday || isProjectArchived(state)) continue;
     const timer = levelTimer(level, now);
@@ -171,5 +184,7 @@ export function todayList(ws: Workspace, now = Date.now(), focus: string[] = [])
       .filter((n) => !doingIds.has(`${n.projectId}/${n.worldId}/${n.levelId}/${n.subId ?? ''}/${n.item.id}`))
       .sort((a, b) => Number(!!a.suggested) - Number(!!b.suggested) || byUrgency(a, b))
       .map(strip),
+    // Never-done chores (no due day) go last.
+    chores: chores.sort((a, b) => (a.due ?? '~').localeCompare(b.due ?? '~') || a.item.title.localeCompare(b.item.title)),
   };
 }

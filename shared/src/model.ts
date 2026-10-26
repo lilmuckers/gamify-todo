@@ -107,8 +107,9 @@ export function isResolved(item: Item): boolean {
   return item.status === 'done' || item.status === 'dropped';
 }
 
+/** On the critical path: not a stretch goal, not a repeating chore, and not marked optional. */
 export function isMvpItem(item: Item): boolean {
-  return item.type !== 'stretch' && item.mvp !== false;
+  return item.type !== 'stretch' && !item.repeat && item.mvp !== false;
 }
 
 export function orderedWorlds(state: GameState): World[] {

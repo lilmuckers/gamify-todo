@@ -1,4 +1,4 @@
-import { seeded, todayList, type TodayFocus, type TodayItem, type TodayLevel } from '@quest/shared';
+import { dayKey, dayStart, seeded, todayList, type TodayChore, type TodayFocus, type TodayItem, type TodayLevel } from '@quest/shared';
 import { HEROES } from '../sprites/heroes';
 import { PALETTE } from '../sprites/pixels';
 import type { App } from '../app';
@@ -29,7 +29,15 @@ function svg(viewBox: string, cls: string, paths: string[]) {
   return el;
 }
 
-const where = (r: { code: string; projectTitle: string }) => h('span', { class: 'pad-where' }, `${r.code} · ${r.projectTitle}`);
+const where = (r: { code: string; projectTitle: string }, note?: string) =>
+  h('span', { class: 'pad-where' }, `${note ? `${note} · ` : ''}${r.code} · ${r.projectTitle}`);
+
+/** "due today", "due 3 Apr", or "never done" for a chore that hasn't been done yet. */
+export function dueNote(due: string | undefined, today = dayKey(Date.now())): string {
+  if (!due) return 'never done';
+  if (due === today) return 'due today';
+  return `due ${new Date(dayStart(due)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}
 const code = (c: string, red = false) => h('span', { class: `pad-code${red ? ' red' : ''}` }, c);
 
 function itemHref(r: TodayItem) {
@@ -43,7 +51,7 @@ function itemHref(r: TodayItem) {
  */
 function todaySheet(app: App) {
   const ws = app.workspace;
-  const list = ws ? todayList(ws, Date.now(), app.review.focus) : { focus: [], overdue: [], doing: [], next: [] };
+  const list = ws ? todayList(ws, Date.now(), app.review.focus) : { focus: [], overdue: [], doing: [], next: [], chores: [] };
   const edit = app.caps.canEdit;
   const today = new Date();
 
@@ -68,7 +76,7 @@ function todaySheet(app: App) {
     setTimeout(run, 420);
   };
 
-  const itemLine = (r: TodayItem) => {
+  const itemLine = (r: TodayItem, note?: string) => {
     // Assigned below; the click handlers only run after that.
     let line!: HTMLElement;
     const box = h(
@@ -91,7 +99,7 @@ function todaySheet(app: App) {
       { class: `pad-line${r.phase === 'overdue' ? ' late' : ''}${r.focus ? ' focus' : ''}` },
       box,
       h('a', { class: 'pad-link', href: itemHref(r) }, ...label),
-      r.suggested ? h('span', { class: 'pad-where' }, r.projectTitle) : where(r),
+      r.suggested ? h('span', { class: 'pad-where' }, r.projectTitle) : where(r, note),
       edit &&
         r.item.status === 'todo' &&
         h('button', { class: 'pad-start', type: 'button', title: 'Start it', 'aria-label': `Start "${r.item.title}"`, onclick: () => setStatus(r, 'doing', line) }, '▶'),
@@ -144,14 +152,17 @@ function todaySheet(app: App) {
         )
       : null;
 
-  const empty = !list.overdue.length && !list.doing.length && !list.next.length;
+  const choreLine = (r: TodayChore) => itemLine(r, dueNote(r.due));
+
+  const empty = !list.overdue.length && !list.doing.length && !list.next.length && !list.chores.length;
   return [
     h('div', { class: 'pad-date' }, today.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })),
     h('h2', { class: 'pad-title' }, "TODAY'S QUESTS"),
     section("THIS WEEK'S FOCUS ★", 'focus', list.focus.map(focusLine)),
     section('RUNNING OUT!!', 'late', list.overdue.map(levelLine)),
-    section('DOING', 'doing', list.doing.map(itemLine)),
-    section('NEXT UP', 'next', list.next.map(itemLine)),
+    section('DOING', 'doing', list.doing.map((r) => itemLine(r))),
+    section('NEXT UP', 'next', list.next.map((r) => itemLine(r))),
+    section('CHORES ↻', 'chores', list.chores.map(choreLine)),
     empty && h('p', { class: 'pad-empty' }, 'Nothing on the go… pick a cartridge! ', h('span', { class: 'pad-arrow', 'aria-hidden': 'true' }, '↙')),
     !ws && h('p', { class: 'pad-empty' }, 'Loading…'),
   ];
@@ -294,10 +305,10 @@ export function mountPadOverlay(app: App, host: HTMLElement) {
   render();
 }
 
-/** Overdue levels plus items in progress: the HUD badge count. */
+/** Overdue levels, items in progress and chores come round again: the HUD badge count. */
 export function todayCount(app: App): number {
   const ws = app.workspace;
   if (!ws) return 0;
   const t = todayList(ws);
-  return t.overdue.length + t.doing.length;
+  return t.overdue.length + t.doing.length + t.chores.length;
 }

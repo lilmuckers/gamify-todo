@@ -3,7 +3,7 @@ import type { Item, Workspace } from './model';
 import { isResolved } from './model';
 import type { ChangeEvent } from './scan';
 import { isCleared } from './scoring';
-import { dayKey } from './stats';
+import { dayKey, dayStart } from './repeat';
 import { levelsOf } from './today';
 
 export interface MoneyMonth {
@@ -118,18 +118,30 @@ export function moneyStats(ws: Workspace, opts: { now?: number; months?: number;
       ...(item.subtasks ?? []).map((s) => ({ item: s as Item, subject: `${s.title} (in ${item.title})` })),
     ]);
     for (const { item, subject } of things) {
+      // A repeating chore: each completion is its own envelope, dated by its day.
+      for (const c of item.repeat ? (item.completions ?? []) : []) {
+        const at = dayStart(c.on);
+        if (c.spent) spends.push({ at, amount: c.spent });
+        if (item.budget === undefined) continue;
+        const line = { title: `${subject} (${c.on})`, levelName: level.name, project: ref.projectId, budget: item.budget, spent: c.spent ?? 0 };
+        if (level.budget === undefined) settles.push({ at, budget: item.budget });
+        if (item.budget > 0) ratios.push(line.spent / item.budget);
+        if (line.spent > item.budget) overruns.push({ ...line, over: roundMoney(line.spent - item.budget) });
+        else if (line.spent < item.budget) savings.push({ ...line, saved: roundMoney(item.budget - line.spent), dropped: false });
+      }
       const spent = item.spent ?? 0;
       const when = t(item.doneAt) ?? fallback;
       // History first; whatever it doesn't account for is dated by the item.
       let rest = spent;
-      for (const l of logged.get(`${key}|${subject}`) ?? []) {
+      // A chore's past spends are in its completions already: history would count them twice.
+      for (const l of item.repeat ? [] : (logged.get(`${key}|${subject}`) ?? [])) {
         spends.push(l);
         rest = roundMoney(rest - l.amount);
         fromHistory = true;
       }
       if (rest) spends.push({ at: when, amount: rest });
 
-      if (item.budget === undefined || !isResolved(item)) continue;
+      if (item.budget === undefined || !isResolved(item) || item.repeat) continue;
       const line = { title: subject, levelName: level.name, project: ref.projectId, budget: item.budget, spent: itemCost(item).spent };
       if (item.status === 'dropped') {
         // A level with its own budget is one envelope: its items' budgets don't add to it.

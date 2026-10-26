@@ -68,6 +68,31 @@
       "status": "dropped",
       "notes": "Not worth it: only two trees nearby.",
       "budget": 45
+    },
+    {
+      "id": "clear-the-gutters-every-autumn",
+      "title": "Clear the gutters every autumn",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2026-09-02T09:00:00Z",
+      "repeat": {
+        "every": 1,
+        "unit": "years",
+        "from": "fixed",
+        "start": "2025-09-01"
+      },
+      "completions": [
+        {
+          "on": "2025-09-14",
+          "spent": 12
+        },
+        {
+          "on": "2026-09-02",
+          "spent": 8.5
+        }
+      ],
+      "notes": "Ladder hire or a favour from Sam, plus bin bags.",
+      "budget": 15
     }
   ]
 }

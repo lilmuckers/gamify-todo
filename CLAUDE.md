@@ -59,6 +59,7 @@ shared/   Pure TS domain, used by app and server (no DOM, no Phaser)
   src/layout.ts     level layout in tiles (items by dependsOn rank, stairs, flag): shared by scene, play physics, mobile strip
   src/worldmap.ts   project map layout from unlocksAfter
   src/today.ts      Today list;  src/review.ts weekly review selectors + schedule
+  src/repeat.ts     repeating chores: due-date maths, completions, dueView (what App.workspace shows); SPEC §5.15
   src/stats.ts      streaks, calendar, time-box accuracy, XP by week;  src/history.ts commit messages → events
   src/scan.ts       commit diffs → change events;  src/detailed.ts the detailed stats page's numbers
   src/serialize.ts  files <-> Workspace, changedFiles, path rules;  src/validate.ts schema + semantic rules, revalidate

@@ -422,6 +422,9 @@ p {
 .tag.hero {
   background: var(--blue);
 }
+.tag.repeat {
+  background: var(--purple);
+}
 
 .pill.todo {
   background: var(--line);

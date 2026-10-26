@@ -17,6 +17,7 @@ import {
   type ItemType,
   type BudgetPrefs,
   type Level,
+  type Repeat,
   type World,
 } from '@quest/shared';
 import { itemAddr, type App, type LevelView } from '../app';
@@ -157,6 +158,60 @@ function costRow(prefs: BudgetPrefs | undefined, budget: HTMLInputElement, spent
   );
 }
 
+/**
+ * "Repeats every…": a number and a unit, counted from the last time it was
+ * done or kept to a schedule. `read` gives the rule, undefined when it doesn't
+ * repeat, or null after reporting a bad value.
+ */
+function repeatControl(r: Repeat | undefined, onToggle: () => void) {
+  const on = h('input', { type: 'checkbox', checked: !!r });
+  const every = h('input', { type: 'number', min: 1, max: 999, step: 1, inputMode: 'numeric', required: true, value: String(r?.every ?? 6) });
+  const unit = select(
+    (['days', 'weeks', 'months', 'years'] as const).map((u) => ({ value: u, label: u })),
+    r?.unit ?? 'months',
+  );
+  const from = select(
+    [
+      { value: 'done', label: 'after the last time it was done' },
+      { value: 'fixed', label: 'on a fixed schedule' },
+    ],
+    r?.from ?? 'done',
+  );
+  const start = h('input', { type: 'date', value: r?.start ?? '' });
+  const startRow = field('Starting', start, 'The first due day. Blank: the first time you do it.');
+  const details = h(
+    'div',
+    null,
+    h('div', { class: 'field-row' }, field('Every', every), field('Unit', unit)),
+    h('div', { class: 'field-row' }, field('Counted', from), startRow),
+  );
+  const sync = () => {
+    details.hidden = !on.checked;
+    startRow.hidden = from.value !== 'fixed';
+    onToggle();
+  };
+  on.addEventListener('change', sync);
+  from.addEventListener('change', sync);
+  const row = h(
+    'div',
+    { class: 'field' },
+    h('label', { class: 'check' }, on, h('span', null, 'Repeats ↻')),
+    h('small', null, 'A chore that comes back: once done, it shows as to do again when the next one is due. Always optional.'),
+    details,
+  );
+  const read = (): Repeat | undefined | null => {
+    if (!on.checked) return undefined;
+    const n = Number(every.value);
+    if (!every.checkValidity() || !Number.isInteger(n)) {
+      every.reportValidity();
+      return null;
+    }
+    const fixed = from.value === 'fixed';
+    return { every: n, unit: unit.value as Repeat['unit'], ...(fixed ? { from: 'fixed' as const } : {}), ...(fixed && start.value ? { start: start.value } : {}) };
+  };
+  return { row, sync, read, isOn: () => on.checked };
+}
+
 /** Currencies offered for a project; any other ISO code in the data is kept. */
 const CURRENCIES = ['GBP', 'EUR', 'USD', 'CAD', 'AUD', 'NZD', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'JPY', 'INR', 'ZAR'];
 
@@ -224,12 +279,15 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
       ? `It has ${stepCount} step${stepCount === 1 ? '' : 's'} of its own (a warp pipe), so it can't also point at a level.`
       : 'Shown as a cloud that carries the hero to that level. Leave empty to give it steps of its own instead (ADD STEPS on its bubble).',
   );
+  // Steps and dependencies don't repeat; a repeating item is never on the critical path.
+  const repeat = repeatControl(item?.repeat ?? preset?.repeat, () => sync());
   const sync = () => {
-    mvpRow.hidden = type.value === 'stretch';
+    repeat.row.hidden = inSub || type.value === 'dependency';
+    mvpRow.hidden = type.value === 'stretch' || (!repeat.row.hidden && repeat.isOn());
     refRow.hidden = inSub || type.value !== 'dependency';
   };
   type.addEventListener('change', sync);
-  sync();
+  repeat.sync();
 
   const body = h(
     'div',
@@ -239,6 +297,7 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
     field('Status', status),
     mvpRow,
     refRow,
+    repeat.row,
     others.length
       ? field(
           'Waits for',
@@ -265,6 +324,8 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
       return false;
     }
     const t = type.value as ItemType;
+    const rule = repeat.row.hidden ? undefined : repeat.read();
+    if (rule === null) return false;
     if (item?.subtasks?.length && t !== 'dependency') {
       type.setCustomValidity('Only dependencies can have steps: delete its steps first.');
       type.reportValidity();
@@ -275,7 +336,8 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
       title: title.value.trim(),
       type: t,
       status: status.value as Item['status'],
-      mvp: t === 'stretch' || mvp.checked ? undefined : false,
+      mvp: t === 'stretch' || rule || mvp.checked ? undefined : false,
+      repeat: rule,
       dependsOn: orUndef(checked(deps)),
       levelRef: t === 'dependency' && !inSub && !stepCount ? trimOrUndef(levelRef.value) : undefined,
       // Budgets off: leave whatever cost data the item has alone.
@@ -283,6 +345,8 @@ export function itemForm(app: App, cur: LevelView, item?: Item, preset?: Partial
       link: trimOrUndef(link.value),
       notes: trimOrUndef(notes.value),
     };
+    // Status only goes in when it changed: a chore that's due again shows as to do, but the file says done.
+    if (item && values.status === item.status) delete (values as Partial<Item>).status;
     const at = itemAddr(cur);
     const r = item
       ? app.dispatch({ kind: 'updateItem', ...at, itemId: item.id, patch: values })

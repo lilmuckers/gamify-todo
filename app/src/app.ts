@@ -3,6 +3,7 @@ import {
   budgetAlerts,
   budgetPrefs,
   diffWorkspaces,
+  dueView,
   findLevel,
   findLevelAt,
   HERO_IDS,
@@ -260,8 +261,13 @@ export class App {
     return change;
   }
 
+  /**
+   * The workspace as shown: repeating chores that are due again read as to do.
+   * Edits still go to the store's raw state; this view never syncs.
+   */
   get workspace(): Workspace | undefined {
-    return this.store.state;
+    const ws = this.store.state;
+    return ws && dueView(ws);
   }
 
   /** Project the current route is inside. */
@@ -272,7 +278,7 @@ export class App {
   /** State of the current project (undefined on the project list or while loading). */
   get state(): GameState | undefined {
     const id = this.projectId;
-    return id ? this.store.state?.projects[id] : undefined;
+    return id ? this.workspace?.projects[id] : undefined;
   }
 
   get caps() {
@@ -315,8 +321,10 @@ export class App {
   /** Applies an edit. `meta` adds analytics context (e.g. which screen it came from). */
   dispatch(body: OpBody, meta?: Params): DispatchResult {
     const before = this.store.state;
+    // Events and sounds compare what was shown (a chore due again reads as to do), undo the stored data.
+    const shown = this.workspace;
     const r = this.store.dispatch(body);
-    if (r.ok) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, { ...e.params, ...meta });
+    if (r.ok) for (const e of eventsForOp(body, shown, this.workspace)) track(e.name, { ...e.params, ...meta });
     if (r.ok && r.op && before && !meta?.undo && UNDOABLE.has(r.op.kind)) this.offerUndo(r.op, before);
     if (!r.ok) track('edit_rejected', { reason: rejectReason(r.error) });
     if (r.polish && r.polish > 0) track('polish_penalty', { points: r.polish });
@@ -327,7 +335,7 @@ export class App {
       sfx('polish');
       toast('Perfectionism detected 🐢 — this level is already clear. Move on!', 'warn', 5000);
     } else if (!meta?.undo && (this.compact || !sceneShows(this.route, body))) {
-      const sound = soundForOp(body, before, this.store.state);
+      const sound = soundForOp(body, shown, this.workspace);
       if (sound) sfx(sound);
     }
     if (r.ok && before && !meta?.undo) this.alertBudgets(body, before);
@@ -354,7 +362,7 @@ export class App {
    * commit. No undo toast: these are deliberate scope cuts.
    */
   dispatchBatch(bodies: OpBody[], meta?: Params): boolean {
-    const before = this.store.state;
+    const before = this.workspace;
     const r = this.store.dispatchBatch(bodies);
     if (!r.ok) {
       track('edit_rejected', { reason: rejectReason(r.error) });
@@ -362,7 +370,7 @@ export class App {
       toast(r.error ?? 'Edit rejected', 'alert', 5000);
       return false;
     }
-    for (const body of bodies) for (const e of eventsForOp(body, before, this.store.state)) track(e.name, { ...e.params, ...meta });
+    for (const body of bodies) for (const e of eventsForOp(body, before, this.workspace)) track(e.name, { ...e.params, ...meta });
     return true;
   }
 

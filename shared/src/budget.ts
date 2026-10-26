@@ -52,8 +52,25 @@ function rollup(own: { budget?: number; spent?: number }, settled: boolean, kids
   return { budgeted, capped, budget, planned, spent, left: roundMoney(budget - spent), saved, settled };
 }
 
+/**
+ * A repeating chore's cash: `budget` is per occurrence, so every completion is
+ * its own settled envelope (its `spent` logged with it), plus the open one
+ * while it's due again.
+ */
+function choreCost(item: Item): Cost {
+  const done = item.completions ?? [];
+  const open = !isResolved(item);
+  const capped = item.budget !== undefined;
+  const per = item.budget ?? 0;
+  const budget = roundMoney(per * (done.length + (open || !done.length ? 1 : 0)));
+  const spent = sum([item.spent ?? 0, ...done.map((c) => c.spent ?? 0)]);
+  const saved = capped ? sum(done.map((c) => per - (c.spent ?? 0))) : 0;
+  return { budgeted: capped, capped, budget, planned: 0, spent, left: roundMoney(budget - spent), saved, settled: !open };
+}
+
 /** An item's cash, including its steps when it's a dependency with a warp pipe. */
 export function itemCost(item: Item | Subtask): Cost {
+  if ('repeat' in item && item.repeat) return choreCost(item as Item);
   const steps = 'subtasks' in item ? (item.subtasks ?? []) : [];
   return rollup(item, isResolved(item as Item), steps.map(itemCost));
 }
