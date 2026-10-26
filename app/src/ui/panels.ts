@@ -10,6 +10,8 @@ import {
   itemCost,
   levelCost,
   projectCost,
+  cadenceLabel,
+  repeatSummary,
   savedLabel,
   worldCost,
   type BudgetPrefs,
@@ -474,7 +476,8 @@ function levelPanel(app: App) {
   const itemCard = (item: Item) => {
     const d = diff?.items[item.id];
     const selected = sel?.kind === 'item' && sel.id === item.id;
-    const optional = item.type === 'stretch' || item.mvp === false;
+    const optional = item.type === 'stretch' || item.mvp === false || !!item.repeat;
+    const every = repeatSummary(item);
     const cash = itemCost(item);
     const saved = cur.budgets && cash.settled ? savedLabel(cash, cur.budgets.currency) : undefined;
     const quick = (status: Item['status'], label: string) =>
@@ -496,6 +499,7 @@ function levelPanel(app: App) {
         icon(TYPE_INFO[item.type].sprite, 'grass', 'icon'),
         h('span', { class: 'item-title' }, item.title),
         heroAt === item.id && h('span', { class: 'tag hero', title: 'The hero is waiting here' }, 'NEXT'),
+        item.repeat && h('span', { class: 'tag repeat', title: every }, cadenceLabel(item.repeat)),
         badge(d?.change),
       ),
       h(
@@ -513,6 +517,7 @@ function levelPanel(app: App) {
           'div',
           { class: 'detail' },
           item.notes && h('p', { class: 'notes' }, item.notes),
+          every && h('small', null, every),
           saved && h('small', { class: cash.saved > 0 ? 'win-text' : 'warn-text' }, cash.saved > 0 ? `💰 ${saved} on this one` : `💰 ${saved} budget`),
           item.dependsOn?.length &&
             h('small', null, 'After: ', item.dependsOn.map((id) => level.items.find((i) => i.id === id)?.title ?? id).join(', ')),

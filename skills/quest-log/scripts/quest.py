@@ -30,7 +30,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 5
+SKILL_VERSION = 6
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -485,6 +485,11 @@ def validate_files(files, registry, by_name):
                         issues.append((lf, f'/items/{n}/levelRef', f'unknown level "{ref}" in this project'))
                     elif ref and tuple(ref.split('/', 1)) == (w, lv):
                         issues.append((lf, f'/items/{n}/levelRef', 'a level cannot depend on itself'))
+                    if item.get('repeat') and item['type'] == 'dependency':
+                        issues.append((lf, f'/items/{n}/repeat', 'dependency items cannot repeat'))
+                    days = [c['on'] for c in item.get('completions', [])]
+                    if any(a >= b for a, b in zip(days, days[1:])):
+                        issues.append((lf, f'/items/{n}/completions', 'completions must be in date order, one per day'))
                     subs = item.get('subtasks')
                     if subs is not None:
                         issues += subtask_issues(lf, f'/items/{n}', item, subs)

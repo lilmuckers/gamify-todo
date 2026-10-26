@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 5**
+**Skill version: 6**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -444,7 +444,9 @@ Item:
 | `title` | ✓ | ≤120, imperative for tasks |
 | `status` | ✓ | `todo` \| `doing` \| `done` \| `dropped` |
 | `doneAt` | | ISO date-time: when it was marked `done` (see §5). Only on done items. |
-| `mvp` | | default `true` (on the critical path). Set `false` for optional items. Omit for `stretch`. |
+| `mvp` | | default `true` (on the critical path). Set `false` for optional items. Omit for `stretch` and repeating items. |
+| `repeat` | | makes it a repeating chore: `{"every": 6, "unit": "months"}` (see below). Not on dependencies. |
+| `completions` | | repeating items only: every time it was done, `[{"on": "2026-04-03", "spent"?: 12.5}]`, oldest first (see §5). |
 | `dependsOn` | | ids of items **in the same level** that come first; no cycles |
 | `levelRef` | | dependency items only: `"<world-id>/<level-id>"` in the **same project**, not the item's own level |
 | `subtasks` | | dependency items only: the steps to get it (see below). Not together with `levelRef`. |
@@ -457,6 +459,20 @@ Item types: `task` (work you do), `deliverable` (milestone inside the level), `b
 stopping progress), `dependency` (needed from elsewhere), `risk` (might go wrong; `done` =
 mitigated/accepted), `decision` (open question), `stretch` (nice-to-have; never blocks, never
 earns stars). `dropped` is a good status: cutting scope is encouraged.
+
+**Repeating chores** (test the smoke alarms, clean the gutters) get `repeat`: `every` (a whole
+number) and `unit` (`days` | `weeks` | `months` | `years`). By default the next one is due `every`
+units after the last time it was done; `"from": "fixed"` keeps to a calendar instead, anchored on
+`start` (a `YYYY-MM-DD` day) or the first completion. Once due, the app shows it as to do again
+without changing the file, so leave `status` as `done`. Repeating items are always optional,
+never block the hero and never un-clear a level, so put them in whichever level they belong to,
+or a standing "Chores" level.
+
+```json
+{ "id": "test-smoke-alarms", "type": "task", "title": "Test the smoke alarms", "status": "done",
+  "doneAt": "2026-04-03T10:15:00Z", "repeat": { "every": 6, "unit": "months" },
+  "completions": [{ "on": "2025-10-04" }, { "on": "2026-04-03" }] }
+```
 
 **Dependencies come in three shapes.** Pick the one that matches what the user has to do:
 
@@ -577,6 +593,8 @@ minimum, and keep the rest byte-for-byte. See "Parallel changes".
 | Start work | Set item `status` to `doing`. If the level has no `startedAt`, set it to the current UTC time. |
 | Finish work | Set item `status` to `done` and `doneAt` to the current UTC time (or `status` `dropped` to cut it, no `doneAt`). |
 | Reopen work | Set `status` back to `todo`/`doing` and remove `doneAt`. |
+| Do a repeating chore | Set `status` to `done` and `doneAt` to now (even if it already says `done`), and append `{ "on": "<today, user's local date>" }` to `completions` (create it if missing; at most one entry per day). If the item has `spent`, move it into that entry and remove it from the item. |
+| Make something repeat | Add `repeat` (`every`, `unit`, optional `from`/`start`) and remove `mvp`. Not on dependencies. |
 | Add a step to a dependency | Append to that item's `subtasks` (create the array if missing) with a new id unique among its steps. Never on an item with `levelRef`. |
 | Finish a step | Set the step's `status` inside `subtasks` (and `doneAt` when it's `done`, as for items). The dependency's own `status` is separate. |
 | Track money in a project | Add `"budgets": {}` to `project.json` (with `"currency": "EUR"` etc. if not GBP). Remove it to hide money again; leave the costs in place. |
@@ -871,6 +889,7 @@ files over (§6.6) rather than committing them:
 - [ ] `dependsOn` only names items in the same level, with no cycles.
 - [ ] `levelRef` and `goalIds` / `unlocksAfter` point at things in the same project.
 - [ ] `subtasks` only on dependencies without `levelRef`; no dependency steps; step `dependsOn` names sibling steps.
+- [ ] `repeat` never on dependencies; `completions` are `YYYY-MM-DD` days in date order, one per day.
 - [ ] Inbox ideas have only `id`, `type`, `title`, `notes`, `link`, `addedAt`, with unique ids; a placed idea is removed from `data/inbox.json` in the same commit.
 - [ ] `budget` / `spent` are plain non-negative numbers (`49.99`, not `"£49.99"`); costs only in projects with `budgets`, whose `currency` is a 3-letter code like `EUR`.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).

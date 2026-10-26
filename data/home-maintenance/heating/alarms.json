@@ -29,7 +29,42 @@
       "type": "task",
       "status": "done",
       "doneAt": "2026-09-28T17:44:00Z",
+      "repeat": {
+        "every": 6,
+        "unit": "months"
+      },
+      "completions": [
+        {
+          "on": "2026-03-29"
+        },
+        {
+          "on": "2026-09-28"
+        }
+      ],
       "notes": "Three of four fine."
+    },
+    {
+      "id": "press-the-test-buttons",
+      "title": "Press the test button on every alarm",
+      "type": "task",
+      "status": "done",
+      "doneAt": "2026-09-27T18:05:00Z",
+      "repeat": {
+        "every": 4,
+        "unit": "weeks"
+      },
+      "completions": [
+        {
+          "on": "2026-08-02"
+        },
+        {
+          "on": "2026-08-30"
+        },
+        {
+          "on": "2026-09-27"
+        }
+      ],
+      "notes": "Every four weeks, all four plus the CO alarm."
     },
     {
       "id": "replace-the-hallway-alarm",

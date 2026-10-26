@@ -214,6 +214,13 @@ export interface Item {
    * When this item was last marked done. Set automatically when status becomes 'done' and removed when it changes away from done. Feeds the weekly review's "shipped this week". Optional: older data won't have it.
    */
   doneAt?: string;
+  repeat?: Repeat;
+  /**
+   * Every time this repeating item was done, oldest first, one entry per day at most. Maintained by the app: tools marking a repeating item done should append today's date (and move 'spent' into the entry), as well as setting status and doneAt.
+   *
+   * @maxItems 5000
+   */
+  completions?: Completion[];
   /**
    * true (default) = on the critical path: the hero stops here until it is done or dropped. false = optional. Ignored for 'stretch' (never MVP).
    */
@@ -245,6 +252,40 @@ export interface Item {
    */
   link?: string;
   notes?: Notes;
+}
+/**
+ * Optional: makes this a repeating chore. Not for 'dependency' items. A repeating item is always optional: 'mvp' is ignored.
+ */
+export interface Repeat {
+  /**
+   * How many units between repeats, e.g. 6 with unit 'months'.
+   */
+  every: number;
+  /**
+   * The unit 'every' counts in. Months and years past the end of a shorter month land on its last day (31 Jan + 1 month = 28 or 29 Feb).
+   */
+  unit: "days" | "weeks" | "months" | "years";
+  /**
+   * What the next one is counted from. Omit for 'done'.
+   */
+  from?: "done" | "fixed";
+  /**
+   * For from 'fixed': the first due day, which anchors the schedule. Optional; without it the first completion anchors it.
+   */
+  start?: string;
+}
+/**
+ * One time a repeating item was done.
+ */
+export interface Completion {
+  /**
+   * The day it was done, in the user's own time zone.
+   */
+  on: string;
+  /**
+   * Cash spent on that occurrence. Moved here from the item's 'spent' when it was done, so each occurrence has its own budget.
+   */
+  spent?: number;
 }
 /**
  * A step inside a dependency's sub-level. Like an item, but it can't be a dependency itself.

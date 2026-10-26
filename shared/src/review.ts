@@ -2,6 +2,7 @@ import type { InboxItem, Item, Level, LevelAt, Workspace } from './model';
 import { activeProjects, isMvpItem, isProjectArchived, isResolved, uniqueId } from './model';
 import { itemCost, roundMoney } from './budget';
 import type { OpBody } from './ops';
+import { completionTimes } from './repeat';
 import { isCleared, levelTimer, scoreLevel, suggestNext, type TimerPhase } from './scoring';
 import { levelsOf, type LevelRef } from './today';
 
@@ -111,7 +112,11 @@ export function weeklyReview(ws: Workspace, now = Date.now()): WeeklyReview {
       review.shipped.stars += s.stars;
     }
     for (const item of level.items) {
-      if (item.status === 'done' && inWindow(item.doneAt)) review.shipped.items.push({ ...ref, item, doneAt: item.doneAt! });
+      // A repeating chore ships every time it's done (a weekly one can show twice in a window).
+      if (item.completions?.length) {
+        for (const t of completionTimes(item))
+          if (t >= since && t <= now) review.shipped.items.push({ ...ref, item, doneAt: new Date(t).toISOString() });
+      } else if (item.status === 'done' && inWindow(item.doneAt)) review.shipped.items.push({ ...ref, item, doneAt: item.doneAt! });
       for (const step of item.subtasks ?? [])
         if (step.status === 'done' && inWindow(step.doneAt))
           review.shipped.items.push({ ...ref, item: step as Item, doneAt: step.doneAt!, subId: item.id, depTitle: item.title });

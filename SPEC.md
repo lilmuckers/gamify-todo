@@ -160,6 +160,9 @@ These are enforced by `shared/src/validate.ts`, `npm run validate`, the server, 
 - `doneAt` is present only on done items and steps and on ticked criteria. Tools set it when
   marking something done (or ticking it) and remove it on reopen.
 - `someday: true` means no `startedAt`, and is never set on a cleared level.
+- **Repeating items (#34):** `repeat` never goes on a dependency, and `completions` are local
+  `YYYY-MM-DD` days in date order, one per day. A repeating item is never MVP (`mvp` is ignored).
+  See §5.15.
 - **Archiving (#32):** `archivedAt` on a project freezes its clocks at that moment (`clockNow`).
   It drops out of Today, the weekly review's overdue/stale/focus lists, the HUD hurry sound and
   the nudges. What it shipped still counts in the review and the stats. Unarchiving
@@ -482,10 +485,13 @@ is the first thing you see.
 3. **In progress**: every `doing` item and step.
 4. **Next up**: where the hero is waiting in each started or focus level, plus a suggested
    starting point for projects with nothing on the go.
+5. **Chores ↻**: repeating items that have come round again, most overdue first, from any
+   level that isn't parked, cleared ones included (§5.15).
 
 Lists are sorted by focus, timer phase, time left, then project. Each line shows its level's
 cheat code circled and deep-links to the item or step, and its checkbox marks it done. Someday
-and cleared levels are excluded.
+and cleared levels are excluded, except for chores. The HUD TODAY count adds overdue levels,
+items in progress and chores due.
 
 **Inbox** (`i`; `n` opens it ready to write). This is quick capture with no decision about where
 things go.
@@ -781,6 +787,55 @@ data's own stamps follow dependency order.
   chips under a folded **Filter** line, cleared when you move to another level.
 - Analytics get `search_open {via}` and `search_go {kind, results_bucket, filtered}`. Search
   terms never leave the browser.
+
+### 5.15 Repeating items (#34)
+
+Chores that come back (test the smoke alarms every 6 months, clear the gutters every autumn).
+The rule lives in the item's JSON; there is never a copy of the item per cycle.
+
+- **Data** (`shared/src/repeat.ts`):
+  ```json
+  "repeat": { "every": 6, "unit": "months" },
+  "completions": [{ "on": "2026-04-03" }, { "on": "2026-10-02", "spent": 12.5 }]
+  ```
+  - `unit` is `days` / `weeks` / `months` / `years`; `every` is 1–999. Months and years clamp
+    to the end of a shorter month (31 Jan + 1 month = 28/29 Feb), and a fixed schedule is
+    always counted from its anchor, so the clamping never drifts.
+  - `from`: `done` (the default) is due `every` units after the last completion; `fixed` keeps
+    to the calendar from `start` (or the first completion), and a completion covers the period
+    it falls in, however late.
+  - `completions` is every time it was done, as local days: cycles follow the user's calendar,
+    and a UTC stamp at 23:30 BST would land on the wrong day. Hand-written data with only a
+    `doneAt` still works (`doneAt`'s local day counts as the last completion).
+- **Due again, without writing.** `App.workspace` is `dueView(store.state)`: a done repeating
+  item whose next one has come round reads as `todo` (`isDueAgain` / `effectiveStatus`). The
+  view is copy-on-write and memoised per level, world, project and day, so unchanged things
+  keep their identity for the views. The store, validation and sync work on the raw data, so a
+  chore coming back never makes a commit; only doing it again does.
+- **Doing it again.** `setItemStatus` (or `updateItem` with `status: "done"` when it was due
+  again) appends the user's local day to `completions` (`on`, fixed in `makeOp` when the edit
+  is made, so replaying it elsewhere can't shift it), restamps `doneAt` even though the file
+  already said done, and moves the item's `spent` into that entry. A second tick on the same day
+  merges into the same entry. Undo puts the old `completions` and `spent` back.
+- **Levels.** Repeating items are always optional (`isMvpItem` is false), so the hero walks past
+  them and they never un-clear a level. Doing, adding or adjusting a chore is upkeep, never
+  polish, even in a cleared level, so a standing "Chores" level stays useful.
+- **Stats and the review** count every completion (`completionTimes`): the latest at its exact
+  `doneAt`, older ones at local midnight. So streaks, the calendar and "shipped this week" see
+  every repeat without needing commit history.
+- **Money is per occurrence.** `budget` is the cost of one cycle. Each completion is a settled
+  envelope that banks `budget - spent`; while it's due again there's one more open envelope.
+  The money stats date each completion's spend by its day and ignore history spend events for
+  chores (they'd count twice).
+- **UI.** A purple `↻ 6 mo` tag on the item row; a drawn ↻ badge on the item's top-left corner
+  in the level (blue while due, grey when done); "↻ every 6 months · next due 3 Apr" (or "due
+  since…", "due today", "not done yet") in the bubble and the row's details. The item form has a
+  **Repeats ↻** tick with Every, Unit, Counted (after the last time / on a fixed schedule) and
+  Starting. It's hidden for dependencies and steps, and ticking it hides the MVP box. The form
+  only sends `status` when you change it, so editing a chore that's due again doesn't write
+  `todo` over the file's `done`.
+- **Not yet:** Quest Markdown syntax for repeats, and the calendar feed (#33), which can emit
+  `nextDue` as an `RRULE`. No push notifications.
 
 ## 6. Onboarding (#61)
 
@@ -1090,55 +1145,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #31 Better conflict resolution
 - #32 Archive finished projects
 - #33 Due dates and a calendar feed
-- **#34 Repeating items** (test the smoke alarms every 6 months). A rule in the item's JSON, not
-  a copy of the item for each cycle. Whether the item is due again is worked out when it's read
-  (issue option a). Nothing is written when an item comes back; only completing it writes, so
-  there are no churn commits and no duplicate reopen commits from two devices.
-  - **Data,** on `Item`:
-    ```json
-    "repeat": { "every": 6, "unit": "months" },
-    "completions": [{ "on": "2026-04-03" }, { "on": "2026-10-02", "spent": 12.5 }]
-    ```
-    - `unit` is `days` / `weeks` / `months` / `years`; `every` is a whole number ≥ 1.
-    - Optional `from`: `done` (the default: due `every` units after the last completion) or
-      `fixed` (due on the calendar, counted from the first completion or `start`, so a late tick
-      doesn't push the next one back). Optional `start`, a local date, anchors `fixed` before the
-      first completion.
-    - Month maths clamps to the month's last day (31 Jan + 1 month = 28/29 Feb), and years
-      handle 29 Feb the same way.
-    - `completions` logs every completion, oldest first. `on` is a **local `YYYY-MM-DD` date**,
-      not a UTC `Timestamp`: cycles follow the user's calendar, and a UTC stamp at 23:30 BST
-      lands on the wrong day. Keep the whole log: a weekly chore adds about 52 entries a year.
-  - **Status.** `effectiveStatus(item, now)` in `shared/src/model.ts` returns `todo` when
-    `repeat` is set and the next due date has passed, otherwise the stored `status`. Layout,
-    scoring, Today, search and the review use it, never `status` directly. Completing the item
-    appends `{ on: today }` to `completions` and sets `status: "done"` and `doneAt = now` as
-    today. Undo removes that entry. The file keeps saying `done` while the item is shown as due
-    again; nothing writes until the user acts.
-  - **Stats.** `stampEvents` (`shared/src/stats.ts`) and `review.ts` count every entry in
-    `completions`. That way streaks and the calendar count every repeat without relying on
-    commit history (`mergeHistory` only has it when history is available, and `doneAt` is
-    overwritten each time).
-  - **Budgets are per occurrence.** `budget` is the cost of one cycle. Completing moves the
-    cycle's `spent` into that `completions` entry and clears `spent` on the item. Money totals
-    add `spent` across `completions`, so lifetime spend stays visible; savings are banked per
-    cycle.
-  - **Levels.** A repeating item can't be `mvp: true`. When it comes back it doesn't un-clear
-    the level and costs no polish; it shows as a **maintenance stop** in a cleared level. Success
-    criteria don't reset (the issue's "start simple: items only").
-  - **Missed cycles** don't stack up: there is only ever the current cycle. The item is just
-    overdue, with "Due since 3 Apr".
-  - **UI.** A ↻ badge with the cadence ("↻ 6 mo") on the stage and in lists. The bubble and panel
-    show "Next due: 3 Apr" and the last completion. The item form gets a "Repeats every…"
-    control (number + unit, plus a "from the last time / on a schedule" toggle).
-  - **Validation:** `completions` sorted, no duplicate dates, none in the future; `repeat` never
-    on `dependency` items or steps, never with `mvp: true`. Schema change in all five places
-    (schema, `schema:gen`, SKILL.md, `schema/README.md`, `quest.py`) plus `npm run skill:version`.
-  - **Example data:** smoke alarms (6 months) and gutters (1 year) in `data/home-maintenance`.
-  - **Tests:** interval maths (month ends, leap years, `done` vs `fixed`), `effectiveStatus`,
-    per-occurrence budgets, stats counting every completion, undo.
-  - **With #33:** the next due date comes from the rule, and the calendar feed emits it.
-    Push notifications are out of scope.
 - #35 Lazy-load levels for large repos
 - #37 `quest.py review` scope-cut suggestions
 

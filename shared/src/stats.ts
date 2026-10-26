@@ -1,5 +1,6 @@
 import type { HistoryEvent } from './history';
 import type { Workspace } from './model';
+import { completionTimes, dayKey } from './repeat';
 import { isCleared, scoreLevel } from './scoring';
 import { levelsOf } from './today';
 
@@ -101,13 +102,6 @@ export interface ProgressStats {
   undone: number;
 }
 
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-/** The local calendar day of a moment, YYYY-MM-DD. */
-export function dayKey(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
 
 const parseDay = (day: string) => {
   const [y, m, d] = day.split('-').map(Number);
@@ -128,7 +122,8 @@ export function weekStart(day: string): string {
 
 /**
  * Progress from the done stamps in the data: items and steps (`doneAt`),
- * criteria (`doneAt`) and level clears (`clearedAt`). Reopening something
+ * criteria (`doneAt`), level clears (`clearedAt`) and every completion of a
+ * repeating chore (`completions`). Reopening something
  * removes its stamp, so this only sees what is still done.
  */
 export function stampEvents(ws: Workspace): ProgressEvent[] {
@@ -140,7 +135,9 @@ export function stampEvents(ws: Workspace): ProgressEvent[] {
       if (!Number.isNaN(t)) out.push({ at: t, kind, level: key, subject });
     };
     for (const item of level.items) {
-      if (item.status === 'done') add(item.doneAt, 'done', item.title);
+      // A repeating chore counts every time it was done, not just the latest.
+      if (item.completions?.length) for (const t of completionTimes(item)) out.push({ at: t, kind: 'done', level: key, subject: item.title });
+      else if (item.status === 'done') add(item.doneAt, 'done', item.title);
       for (const step of item.subtasks ?? [])
         if (step.status === 'done') add(step.doneAt, 'done', `${step.title} (in ${item.title})`);
     }

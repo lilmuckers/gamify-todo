@@ -106,6 +106,10 @@ export function semanticIssues(projectId: string, state: GameState): Issue[] {
           else if (ref.worldId === key && ref.levelId === level.id)
             issues.push({ file: lfile, path: `${ip}/levelRef`, message: 'a level cannot depend on itself' });
         }
+        if (item.repeat && item.type === 'dependency')
+          issues.push({ file: lfile, path: `${ip}/repeat`, message: 'dependency items cannot repeat' });
+        if (item.completions?.some((c, ci) => ci > 0 && c.on <= item.completions![ci - 1].on))
+          issues.push({ file: lfile, path: `${ip}/completions`, message: 'completions must be in date order, one per day' });
         if (item.subtasks) {
           if (item.type !== 'dependency')
             issues.push({ file: lfile, path: `${ip}/subtasks`, message: 'only dependency items can have subtasks' });

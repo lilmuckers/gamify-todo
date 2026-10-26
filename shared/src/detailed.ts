@@ -1,12 +1,12 @@
 import type { HistoryEvent } from './history';
 import type { ItemType, Workspace } from './model';
 import { moneyStats, type MoneyStats } from './money';
+import { dayKey } from './repeat';
 import { changesAsHistory, type ChangeEvent } from './scan';
 import { isCleared, POLISH_XP_COST, polishPoints, scoreLevel } from './scoring';
 import {
   activityByDay,
   addDays,
-  dayKey,
   heatmap,
   progressEvents,
   streaks,

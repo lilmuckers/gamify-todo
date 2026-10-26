@@ -1,6 +1,7 @@
 import type { Criterion, GameState, Goal, InboxItem, Item, ItemStatus, Level, Project, Settings, World, Workspace } from './model';
 import { clone, findLevelAt, uniqueId } from './model';
 import { COST_FIELDS } from './budget';
+import { dayKey, isDueAgain, logCompletion } from './repeat';
 import { isCleared } from './scoring';
 import { stringify } from './serialize';
 
@@ -29,6 +30,11 @@ type ProjectOpBody =
       status: ItemStatus;
       /** Undo only: the done stamp to put back (null = none), instead of stamping now. */
       doneAt?: string | null;
+      /** The user's local day when it was done: a repeating item logs it as a completion. */
+      on?: string;
+      /** Undo only: a repeating item's completions and spent to put back (null = none), instead of logging one. */
+      completions?: Item['completions'] | null;
+      spent?: number | null;
     } & ItemAddr)
   | ({
       kind: 'addItem';
@@ -38,7 +44,7 @@ type ProjectOpBody =
       /** Siblings that wait for this item again (when undoing a delete). */
       dependents?: string[];
     } & ItemAddr)
-  | ({ kind: 'updateItem'; itemId: string; patch: ItemPatch } & ItemAddr)
+  | ({ kind: 'updateItem'; itemId: string; patch: ItemPatch; on?: string } & ItemAddr)
   | ({ kind: 'deleteItem'; itemId: string } & ItemAddr)
   | ({
       kind: 'setCriterion';
@@ -106,7 +112,10 @@ export function makeOp(body: OpBody, now = new Date()): Op {
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `${Date.now().toString(36)}-${(counter++).toString(36)}`;
-  return { ...body, opId: rand, at: now.toISOString() } as Op;
+  // Repeats follow the user's calendar: the local day is fixed when the edit is made, not when it's replayed.
+  const done = (body.kind === 'setItemStatus' && body.status === 'done') || (body.kind === 'updateItem' && body.patch.status === 'done');
+  const on = done && !('on' in body && body.on) ? { on: dayKey(now.getTime()) } : {};
+  return { ...body, ...on, opId: rand, at: now.toISOString() } as Op;
 }
 
 // Scope cuts are always welcome, even after clearing.
@@ -189,7 +198,12 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
 
   const bookkeeping =
     (op.kind === 'updateItem' && onlyCosts(list().find((i) => i.id === op.itemId), op.patch)) ||
-    (op.kind === 'updateLevel' && onlyCosts(level, op.patch));
+    (op.kind === 'updateLevel' && onlyCosts(level, op.patch)) ||
+    // Repeating chores are upkeep, not polish, even in a cleared level: doing one
+    // again, adding one, or adjusting it (a standing "Chores" level stays useful).
+    (op.kind === 'setItemStatus' && !!list().find((i) => i.id === op.itemId)?.repeat) ||
+    (op.kind === 'updateItem' && !!(list().find((i) => i.id === op.itemId)?.repeat || op.patch.repeat)) ||
+    (op.kind === 'addItem' && !!op.item.repeat);
 
   if (wasCleared && op.kind !== 'startLevel' && !isScopeCut(op) && !bookkeeping)
     bump(op.kind === 'addItem' ? 'itemsAddedAfterClear' : 'editsAfterClear');
@@ -197,10 +211,16 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
   switch (op.kind) {
     case 'setItemStatus': {
       const item = findItem(op.itemId);
-      if (!wasCleared && item.status === 'done' && op.status !== 'dropped') bumpItem(statKey(item.id));
+      if (!wasCleared && item.status === 'done' && op.status !== 'dropped' && !bookkeeping) bumpItem(statKey(item.id));
       const wasDone = item.status === 'done';
       item.status = op.status;
       stampDone(item, wasDone, op.at);
+      if (op.completions !== undefined) {
+        if (op.completions) item.completions = clone(op.completions);
+        else delete item.completions;
+        if (op.spent != null) item.spent = op.spent;
+        else delete item.spent;
+      } else if (op.status === 'done') logCompletion(item, op.on ?? dayKey(Date.parse(op.at)), op.at);
       if (op.status === 'done' && op.doneAt !== undefined) {
         if (op.doneAt) item.doneAt = op.doneAt;
         else delete item.doneAt;
@@ -222,9 +242,14 @@ function applyLevelOp(level: Level, op: ProjectOp & LevelAddr) {
       const item = findItem(op.itemId);
       if (!wasCleared && item.status === 'done' && op.patch.status !== 'dropped' && !bookkeeping) bumpItem(statKey(item.id));
       const wasDone = item.status === 'done';
+      const day = op.on ?? dayKey(Date.parse(op.at));
+      // Shown as to do again: marking it done is a new completion, though the file already says done.
+      const fresh = !wasDone || isDueAgain(item, day);
       Object.assign(item, clone(op.patch));
       for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (item as any)[k];
       if (op.patch.status !== undefined) stampDone(item, wasDone, op.at);
+      // Marking a repeating item done from the form logs a completion too (unless it already said done).
+      if (op.patch.status === 'done' && fresh && !('completions' in op.patch)) logCompletion(item, day, op.at);
       break;
     }
     case 'deleteItem': {
@@ -546,7 +571,9 @@ export function inverseOp(op: OpBody, before: Workspace): OpBody | undefined {
       if (!prev) return;
       // Reopening a done item and undoing it keeps the original done stamp.
       const stamp = prev.status === 'done' ? { doneAt: prev.doneAt ?? null } : {};
-      return { kind: 'setItemStatus', ...at, itemId: op.itemId, status: prev.status, ...stamp };
+      // A repeating chore's log goes back to how it was, rather than logging another completion.
+      const log = prev.repeat ? { completions: clone(prev.completions) ?? null, spent: prev.spent ?? null } : {};
+      return { kind: 'setItemStatus', ...at, itemId: op.itemId, status: prev.status, ...stamp, ...log };
     }
     case 'setCriterion': {
       const prev = level.successCriteria.find((c) => c.id === op.criterionId);
@@ -556,7 +583,9 @@ export function inverseOp(op: OpBody, before: Workspace): OpBody | undefined {
     case 'updateItem': {
       const prev = list.find((i) => i.id === op.itemId) as Record<string, unknown> | undefined;
       if (!prev) return;
-      const patch = Object.fromEntries(Object.keys(op.patch).map((k) => [k, clone(prev[k])]));
+      // A repeating chore's log and spend go back too, when the edit could have logged a completion.
+      const keys = [...Object.keys(op.patch), ...(prev.repeat && op.patch.status ? ['completions', 'spent', 'doneAt'] : [])];
+      const patch = Object.fromEntries([...new Set(keys)].map((k) => [k, clone(prev[k])]));
       return { kind: 'updateItem', ...at, itemId: op.itemId, patch };
     }
     case 'addItem':
