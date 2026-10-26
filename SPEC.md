@@ -1090,7 +1090,55 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 - #31 Better conflict resolution
 - #32 Archive finished projects
 - #33 Due dates and a calendar feed
-- #34 Repeating items
+- **#34 Repeating items** (test the smoke alarms every 6 months). A rule in the item's JSON, not
+  a copy of the item for each cycle. Whether the item is due again is worked out when it's read
+  (issue option a). Nothing is written when an item comes back; only completing it writes, so
+  there are no churn commits and no duplicate reopen commits from two devices.
+  - **Data,** on `Item`:
+    ```json
+    "repeat": { "every": 6, "unit": "months" },
+    "completions": [{ "on": "2026-04-03" }, { "on": "2026-10-02", "spent": 12.5 }]
+    ```
+    - `unit` is `days` / `weeks` / `months` / `years`; `every` is a whole number ≥ 1.
+    - Optional `from`: `done` (the default: due `every` units after the last completion) or
+      `fixed` (due on the calendar, counted from the first completion or `start`, so a late tick
+      doesn't push the next one back). Optional `start`, a local date, anchors `fixed` before the
+      first completion.
+    - Month maths clamps to the month's last day (31 Jan + 1 month = 28/29 Feb), and years
+      handle 29 Feb the same way.
+    - `completions` logs every completion, oldest first. `on` is a **local `YYYY-MM-DD` date**,
+      not a UTC `Timestamp`: cycles follow the user's calendar, and a UTC stamp at 23:30 BST
+      lands on the wrong day. Keep the whole log: a weekly chore adds about 52 entries a year.
+  - **Status.** `effectiveStatus(item, now)` in `shared/src/model.ts` returns `todo` when
+    `repeat` is set and the next due date has passed, otherwise the stored `status`. Layout,
+    scoring, Today, search and the review use it, never `status` directly. Completing the item
+    appends `{ on: today }` to `completions` and sets `status: "done"` and `doneAt = now` as
+    today. Undo removes that entry. The file keeps saying `done` while the item is shown as due
+    again; nothing writes until the user acts.
+  - **Stats.** `stampEvents` (`shared/src/stats.ts`) and `review.ts` count every entry in
+    `completions`. That way streaks and the calendar count every repeat without relying on
+    commit history (`mergeHistory` only has it when history is available, and `doneAt` is
+    overwritten each time).
+  - **Budgets are per occurrence.** `budget` is the cost of one cycle. Completing moves the
+    cycle's `spent` into that `completions` entry and clears `spent` on the item. Money totals
+    add `spent` across `completions`, so lifetime spend stays visible; savings are banked per
+    cycle.
+  - **Levels.** A repeating item can't be `mvp: true`. When it comes back it doesn't un-clear
+    the level and costs no polish; it shows as a **maintenance stop** in a cleared level. Success
+    criteria don't reset (the issue's "start simple: items only").
+  - **Missed cycles** don't stack up: there is only ever the current cycle. The item is just
+    overdue, with "Due since 3 Apr".
+  - **UI.** A ↻ badge with the cadence ("↻ 6 mo") on the stage and in lists. The bubble and panel
+    show "Next due: 3 Apr" and the last completion. The item form gets a "Repeats every…"
+    control (number + unit, plus a "from the last time / on a schedule" toggle).
+  - **Validation:** `completions` sorted, no duplicate dates, none in the future; `repeat` never
+    on `dependency` items or steps, never with `mvp: true`. Schema change in all five places
+    (schema, `schema:gen`, SKILL.md, `schema/README.md`, `quest.py`) plus `npm run skill:version`.
+  - **Example data:** smoke alarms (6 months) and gutters (1 year) in `data/home-maintenance`.
+  - **Tests:** interval maths (month ends, leap years, `done` vs `fixed`), `effectiveStatus`,
+    per-occurrence budgets, stats counting every completion, undo.
+  - **With #33:** the next due date comes from the rule, and the calendar feed emits it.
+    Push notifications are out of scope.
 - #35 Lazy-load levels for large repos
 - #37 `quest.py review` scope-cut suggestions
 
