@@ -1,6 +1,6 @@
 import { orderedProjects, orderedWorlds, seeded, shelfKind, suggestNext, totals, worldTotals, type GameState } from '@quest/shared';
 import type { App } from './app';
-import { go, href, togglePad } from './router';
+import { href, togglePad, type Route } from './router';
 import { canvasUrl, island } from './sprites/render';
 import { drawStrip } from './sprites/strip';
 import { lockReason } from './game/map-life';
@@ -13,7 +13,8 @@ import { renderPanel } from './ui/panels';
 import { scheduler } from './ui/render-loop';
 import { openSearch } from './ui/search';
 import { settingsDialog } from './ui/settings';
-import { mountPadOverlay } from './ui/today';
+import { mountPadOverlay, todayCount } from './ui/today';
+import { inboxCount } from './ui/inbox';
 import { mountRecords } from './ui/records';
 
 /** Compact, touch-first layout for phones: DOM screens plus a static level strip. */
@@ -166,26 +167,30 @@ function renderVisual(app: App, scroll?: number): HTMLElement | null {
   return null;
 }
 
+/** A count on a tab, when there's anything to count (the top bar's TODAY and INBOX counts live here on phones). */
+const tabBadge = (n: number) => (n ? h('b', { class: 'tab-badge' }, n) : null);
+
+/**
+ * The tab bar: five tabs at most. Whatever is here is left out of the top bar
+ * (see renderHud). All projects is the top bar's home icon, the Warp Zone its
+ * warp pipe, and the next level is the project map's big button.
+ */
 function renderNav(app: App, nav: HTMLElement) {
-  const state = app.state;
+  const r = app.route;
   const pid = app.projectId;
-  const next = state && suggestNext(state);
+  // Inside a project the map; outside one, the project list.
+  const home: Route = pid ? { view: 'overworld', projectId: pid } : { view: 'projects' };
   mount(
     nav,
-    h('a', { href: href(togglePad(app.route, 'today')), class: `tab-pad${app.route.pad === 'today' ? ' on' : ''}` }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today')),
-    h('a', { href: href(togglePad(app.route, 'inbox')), class: `tab-pad${app.route.pad === 'inbox' ? ' on' : ''}` }, h('span', { class: 'gear' }, '✉'), h('span', null, 'Inbox')),
-    h('button', { type: 'button', onclick: () => openSearch(app, 'button') }, h('span', { class: 'gear' }, '⌕'), h('span', null, 'Find')),
-    h('a', { href: href({ view: 'projects' }), class: app.route.view === 'projects' ? 'on' : '' }, icon('node-clear', 'grass', 'icon sm'), h('span', null, 'Projects')),
-    pid &&
-      h('a', { href: href({ view: 'overworld', projectId: pid }), class: app.route.view === 'overworld' ? 'on' : '' }, icon('node', 'grass', 'icon sm'), h('span', null, 'Map')),
+    h('a', { href: href(togglePad(r, 'today')), class: `tab-pad${r.pad === 'today' ? ' on' : ''}` }, h('span', { class: 'gear' }, '✎'), h('span', null, 'Today'), tabBadge(todayCount(app))),
+    h('a', { href: href(togglePad(r, 'inbox')), class: `tab-pad${r.pad === 'inbox' ? ' on' : ''}` }, h('span', { class: 'gear' }, '✉'), h('span', null, 'Inbox'), tabBadge(inboxCount(app))),
     h(
-      'button',
-      { type: 'button', disabled: !next, onclick: () => next && pid && go({ view: 'level', projectId: pid, ...next }) },
-      icon(heroKey(app.heroId), 'grass', 'icon sm'),
-      h('span', null, 'Next'),
+      'a',
+      { href: href(home), class: !r.pad && r.view === home.view ? 'on' : '' },
+      icon(pid ? 'node' : 'node-clear', 'grass', 'icon sm'),
+      h('span', null, pid ? 'Map' : 'Projects'),
     ),
-    app.caps.canReviewPRs &&
-      h('a', { href: href({ view: 'prs' }), class: app.route.view.startsWith('pr') ? 'on' : '' }, icon('warp-pipe', 'grass', 'icon sm'), h('span', null, 'Warp')),
+    h('button', { type: 'button', onclick: () => openSearch(app, 'button') }, h('span', { class: 'gear' }, '⌕'), h('span', null, 'Find')),
     h('button', { type: 'button', onclick: () => settingsDialog(app) }, h('span', { class: 'gear' }, '⚙'), h('span', null, 'Settings')),
   );
 }

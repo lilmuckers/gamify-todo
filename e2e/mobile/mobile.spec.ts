@@ -15,7 +15,12 @@ test('phones get the tab bar, cartridges, islands and the level strip', async ({
   // skip Playwright's wait for it to stop moving (the entrance is over).
   await page.getByRole('link', { name: 'Put the pad away' }).click({ force: true });
   await expect(page).toHaveURL(/#\/$/);
-  for (const name of ['Today', 'Inbox', 'Projects', 'Next', 'Settings']) await expect(tabs.getByText(name, { exact: true })).toBeVisible();
+  // Five tabs at most, and nothing in the tab bar is repeated in the top bar.
+  await expect(tabs.locator('> *')).toHaveCount(5);
+  for (const name of ['Today', 'Inbox', 'Projects', 'Find', 'Settings']) await expect(tabs.getByText(name, { exact: true })).toBeVisible();
+  const hud = page.locator('header.hud');
+  for (const name of ['TODAY', 'INBOX', 'FIND']) await expect(hud.getByText(name, { exact: true })).toHaveCount(0);
+  await expect(hud.getByRole('button', { name: 'Settings' })).toBeHidden();
 
   await tabs.getByRole('link', { name: 'Projects' }).click();
   const cart = page.locator('.cart-floor a.cart').first();
@@ -29,8 +34,10 @@ test('phones get the tab bar, cartridges, islands and the level strip', async ({
   await island.click();
   await expect(page).toHaveURL(/#\/p\/[\w-]+\/[\w-]+$/);
 
-  // Next: straight into the suggested level, drawn as a strip above its items.
-  await tabs.getByRole('button', { name: 'Next' }).click();
+  // Back to the map, whose big button goes straight into the suggested level, drawn as a strip above its items.
+  await tabs.getByRole('link', { name: 'Map' }).click();
+  await expect(page).toHaveURL(/#\/p\/[\w-]+$/);
+  await page.locator('.mobile-body a.btn.primary').first().click();
   await expect(page).toHaveURL(/#\/p\/[\w-]+\/[\w-]+\/[\w-]+$/);
   const strip = page.locator('.strip canvas');
   await expect(strip).toBeVisible();

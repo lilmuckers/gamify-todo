@@ -167,18 +167,21 @@ export function renderHud(app: App, el: HTMLElement) {
       ),
     publish,
     syncPill(app),
-    h(
-      'a',
-      { class: `btn sm hud-today${r.pad === 'today' ? ' on' : ''}`, href: href(togglePad(r, 'today')), title: "Today's plan (T)" },
-      'TODAY',
-      badge(todayCount(app)),
-    ),
-    h(
-      'a',
-      { class: `btn sm hud-today${r.pad === 'inbox' ? ' on' : ''}`, href: href(togglePad(r, 'inbox')), title: 'Inbox: jot ideas down, sort them later (I, or N to write)' },
-      'INBOX',
-      badge(inboxCount(app)),
-    ),
+    // Phones have Today, Inbox, Find and Settings in the tab bar instead (and AI SKILL in Settings).
+    !app.compact && [
+      h(
+        'a',
+        { class: `btn sm hud-today${r.pad === 'today' ? ' on' : ''}`, href: href(togglePad(r, 'today')), title: "Today's plan (T)" },
+        'TODAY',
+        badge(todayCount(app)),
+      ),
+      h(
+        'a',
+        { class: `btn sm hud-today${r.pad === 'inbox' ? ' on' : ''}`, href: href(togglePad(r, 'inbox')), title: 'Inbox: jot ideas down, sort them later (I, or N to write)' },
+        'INBOX',
+        badge(inboxCount(app)),
+      ),
+    ],
     // Once a week the review asks for a few minutes; otherwise it waits on the pad (W).
     (app.reviewDue || r.pad === 'review') &&
       h(
@@ -187,8 +190,8 @@ export function renderHud(app: App, el: HTMLElement) {
         'REVIEW',
         badge(app.reviewDue ? '!' : 0),
       ),
-    h('button', { class: 'btn sm hud-search', type: 'button', title: 'Search everything (/)', onclick: () => openSearch(app, 'button') }, 'FIND'),
-    h('button', { class: 'btn sm hud-ai', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
+    !app.compact && h('button', { class: 'btn sm hud-search', type: 'button', title: 'Search everything (/)', onclick: () => openSearch(app, 'button') }, 'FIND'),
+    !app.compact && h('button', { class: 'btn sm hud-ai', type: 'button', title: 'Use Quest Log with Claude or ChatGPT', onclick: () => skillHelpDialog() }, 'AI SKILL'),
     h('button', { class: 'btn ghost gear-btn', type: 'button', title: 'Settings', 'aria-label': 'Settings', onclick: () => settingsDialog(app) }, '⚙'),
   );
 }
