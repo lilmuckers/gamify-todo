@@ -1,6 +1,6 @@
 ---
 name: quest-log
-description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repository the user chooses — usually their own data repo, not the Quest Log app repo. First check the published skill version and reload the skill if it is newer. Use your own GitHub integration if you have one (ChatGPT's GitHub connector or Codex, Claude's GitHub integration, Claude Code with git), otherwise the bundled quest.py or the GitHub REST API with a personal access token. Hard gate: never write to GitHub (commit, push, branch or pull request) unless quest.py validate has exited 0 on the complete resulting data tree in the same operation; with no way to run it, hand the files over instead of committing. Branches are updated from the base branch before a pull request is opened or added to. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, capture a quick idea or to-do (into the inbox when it's unclear where it belongs), say what to work on next, or open a pull request with Quest Log changes.
+description: Read, create and update Quest Log project data (a gamified project tracker) stored as JSON files in any GitHub repo the user chooses, usually their own data repo. First check the published skill version and reload if newer. Use your own GitHub integration if you have one, otherwise the bundled quest.py or the GitHub REST API with a token. Hard gate: never commit, push, branch or open a pull request unless quest.py validate exited 0 on the complete resulting data tree in the same operation; if you can't run it, hand the files over instead. Update branches from the base branch before opening or adding to a pull request. Use when asked to plan a project into worlds/levels/tasks, add or update projects, worlds, levels or tasks, mark work done, capture a quick idea or to-do (into the inbox when it's unclear where it belongs), say what to work on next, or open a pull request with Quest Log changes.
 ---
 
 # Quest Log data skill
@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 6**
+**Skill version: 7**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
