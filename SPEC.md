@@ -986,6 +986,21 @@ Security:
   the schemas (`app/src/ui/zip.ts`).
 - The skill and schemas are published at `https://tasks.patrick-mckinley.com/skills/...` and
   `/schema/...`.
+- `validate --json` prints `{ ok, files, skillVersion, validator, issues: [{ file, pointer, message }] }`
+  and `changes --json` prints `{ added, changed, removed, unapprovedRemovals }`, with the same exit
+  codes as the text output. The Quest Log action reads these for check-run annotations and the PR
+  comment.
+- **Core releases.** `quest.py` plus `schema/` is the *core*: the data-rules contract the Quest Log
+  action (`lilmuckers/quest-log-actions`) runs in each data repo. The `core` job in `pages.yml`
+  compares the core files with the last `core-v*` tag. If they changed, it picks a semver bump
+  (`shared/scripts/core-bump.mjs`: removed property/def/enum value, newly required field or tightened
+  constraint → major; new optional property/def/enum value or quest.py command/flag → minor; else
+  patch), raises it with the highest `core: major|minor|patch` label on the PRs merged since the tag
+  (`core: force-minor` overrules a false major), and creates the GitHub Release `core-vX.Y.Z` with
+  `quest.py`, `schema.tar.gz`, `core.json` and `SHA256SUMS`. The `build` job then writes
+  `core/v<major>.json` into the site, so the pointer and the app go live in one deploy. Each major
+  keeps its own pointer: after a `2.0.0`, `core/v1.json` stays on the last `1.x`. `core-pin.json`
+  (`{ "v1": "core-v1.2.0" }`) pins a major to an older release for a rollback.
 
 ---
 

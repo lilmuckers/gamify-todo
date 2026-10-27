@@ -15,10 +15,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Cuts a core release (quest.py + schema/) when they changed since the last core-v* tag.
+  # The Quest Log action resolves it through the core/v<major>.json pointer written by `build`.
+  core:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      changed: ${{ steps.plan.outputs.changed }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Plan the core release
+        id: plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          npm run -s core:plan -- --json > core-plan.json
+          cat core-plan.json
+          echo "changed=$(jq -r .changed core-plan.json)" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq -r .version core-plan.json)" >> "$GITHUB_OUTPUT"
+      - name: Release core-v${{ steps.plan.outputs.version }}
+        if: steps.plan.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          npm run -s core:build -- --plan core-plan.json --out dist/core
+          gh release create "core-v$VERSION" --target "$GITHUB_SHA" --title "Core $VERSION" \
+            --notes-file dist/core/NOTES.md \
+            dist/core/quest.py dist/core/schema.tar.gz dist/core/core.json dist/core/SHA256SUMS
+
   build:
+    needs: core
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -34,6 +76,9 @@ jobs:
           VITE_AUTH_URL: ${{ vars.QUEST_AUTH_URL }}
           VITE_GITHUB_APP_CLIENT_ID: ${{ vars.QUEST_APP_CLIENT_ID }}
           VITE_GITHUB_APP_SLUG: ${{ vars.QUEST_APP_SLUG }}
+      # Same deploy as the app, so the app never writes a field the live core can't validate.
+      - name: Write the core pointers
+        run: npx tsx shared/scripts/core-release.mjs pointer --out app/dist/core
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist

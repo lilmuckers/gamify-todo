@@ -12,6 +12,8 @@
     "schema:check": "node shared/scripts/gen.mjs --check",
     "skill:version": "node shared/scripts/skill-version.mjs --bump",
     "skill:check": "node shared/scripts/skill-version.mjs --check",
+    "core:plan": "tsx shared/scripts/core-release.mjs plan",
+    "core:build": "tsx shared/scripts/core-release.mjs build",
     "validate": "tsx shared/scripts/validate-data.ts",
     "test": "vitest run",
     "typecheck": "tsc -p shared && tsc -p app && tsc -p server && tsc -p worker && tsc -p e2e",
