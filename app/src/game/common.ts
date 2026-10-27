@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { App } from '../app';
 import { SPRITES } from '../sprites/pixels';
 import { HERO_IDS } from '@quest/shared';
-import { heroKey, type HeroFrame } from '../sprites/heroes';
+import { HERO_FRAMES, heroKey, type HeroFrame } from '../sprites/heroes';
 import { island, sprite, TILE, type ThemeKey } from '../sprites/render';
 import { isTyping } from '../ui/dom';
 import { play as sfx } from '../audio';
@@ -31,7 +31,7 @@ export function registerTextures(scene: Phaser.Scene) {
   for (const name of [...Object.keys(SPRITES), 'castle']) if (!THEMED.has(name)) add(name, sprite(name));
   for (const theme of THEME_KEYS) for (const name of THEMED) add(tex(name, theme), sprite(name, theme));
   for (const id of HERO_IDS) {
-    for (const frame of ['stand', 'walk', 'jump'] as const) add(heroKey(id, frame), sprite(heroKey(id, frame)));
+    for (const frame of HERO_FRAMES) add(heroKey(id, frame), sprite(heroKey(id, frame)));
     if (!scene.anims.exists(heroWalk(id)))
       scene.anims.create({
         key: heroWalk(id),
@@ -39,11 +39,25 @@ export function registerTextures(scene: Phaser.Scene) {
         frameRate: 8,
         repeat: -1,
       });
+    // Two taps of the foot, then a few seconds standing still, over and over.
+    if (!scene.anims.exists(heroIdle(id)))
+      scene.anims.create({
+        key: heroIdle(id),
+        frames: [{ key: heroKey(id, 'idle') }, { key: heroKey(id) }, { key: heroKey(id, 'idle') }, { key: heroKey(id) }],
+        frameRate: 5,
+        repeat: -1,
+        repeatDelay: IDLE_GAP_MS,
+      });
   }
 }
 
 /** Walk animation key for a hero. */
 export const heroWalk = (id: string) => `walk@${id}`;
+/** Idle (foot tap) animation key for a hero (#24). */
+export const heroIdle = (id: string) => `idle@${id}`;
+/** How long a hero stands still before fidgeting, and the rest between taps. */
+const IDLE_AFTER_MS = 4000;
+const IDLE_GAP_MS = 3000;
 
 export function islandTexture(scene: Phaser.Scene, theme: ThemeKey, locked: boolean) {
   const key = `island@${theme}@${locked}`;
@@ -61,6 +75,8 @@ export abstract class QuestScene extends Phaser.Scene {
   private unsub?: () => void;
   /** World-clear fanfares started in this run of the scene. */
   private fanfares = new Set<string>();
+  /** Waits for the hero to have stood still long enough to fidget. */
+  private fidgetTimer?: Phaser.Time.TimerEvent;
 
   init(_params?: object) {
     this.app = this.registry.get('app') as App;
@@ -73,6 +89,39 @@ export abstract class QuestScene extends Phaser.Scene {
   /** Texture of the player's chosen hero. */
   protected heroTex(frame: HeroFrame = 'stand') {
     return heroKey(this.app.heroId, frame);
+  }
+
+  /**
+   * Starts the idle foot tap once `hero` has stood still for IDLE_AFTER_MS
+   * (#24). Call it whenever the hero comes to rest; moving it ends the tap.
+   * Not under reduced motion.
+   */
+  protected fidget(hero: Phaser.GameObjects.Sprite) {
+    this.fidgetTimer?.remove();
+    if (reducedMotion()) return;
+    const { x, y } = hero;
+    const key = heroIdle(this.app.heroId);
+    const moved = () => !hero.active || hero.x !== x || hero.y !== y;
+    this.fidgetTimer = this.time.delayedCall(IDLE_AFTER_MS, () => {
+      if (moved() || !hero.visible || hero.anims.isPlaying || hero.texture.key !== this.heroTex()) return;
+      hero.play(key);
+      const check = () => {
+        const tapping = hero.active && this.fidgeting(hero);
+        if (tapping && !moved()) return;
+        this.events.off('update', check);
+        // Moved without a new pose (a tween, a pipe): back to standing.
+        if (tapping) {
+          hero.anims.stop();
+          hero.setTexture(this.heroTex());
+        }
+      };
+      this.events.on('update', check);
+    });
+  }
+
+  /** Whether `hero` is playing the idle foot tap. */
+  protected fidgeting(hero: Phaser.GameObjects.Sprite) {
+    return hero.anims.isPlaying && hero.anims.currentAnim?.key === heroIdle(this.app.heroId);
   }
 
   get zoom() {

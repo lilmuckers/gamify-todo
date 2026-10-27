@@ -7,7 +7,10 @@ import type { HeroId } from '@quest/shared';
  * 'classic' uses the original hero sprites in pixels.ts. Every hero also needs
  * dialogue portraits (portraits.ts) and lines (game/junk-lines.ts); tests check.
  */
-export type HeroFrame = 'stand' | 'walk' | 'jump';
+export type HeroFrame = 'stand' | 'walk' | 'jump' | 'idle' | 'win';
+
+/** Every hero frame, in texture-registration order. */
+export const HERO_FRAMES: readonly HeroFrame[] = ['stand', 'walk', 'jump', 'idle', 'win'];
 
 export interface HeroDef {
   label: string;
@@ -30,12 +33,63 @@ function poses(stand: string[]): Record<HeroFrame, string[]> {
   const leg = r13.slice(5, 7);
   const shoe = r14.slice(4, 7);
   const top = stand.slice(0, 10);
-  return {
+  return more({
     stand,
     walk: [...top, `${r10.slice(0, 12)}k3k.`, `${r11.slice(0, 11)}kk...`, stand[12], `...k${leg}k..k${leg}kk..`, `..k${shoe}k...k${shoe}k.`, '..kkkk.....kkkk.'],
     jump: [...top, `${r11.slice(1)}.`, `${r10.slice(0, 2)}k${r10.slice(3, 13)}k${r10.slice(14)}`, stand[12], `...k${leg}k..k${leg}k...`, `..k${shoe}k..k${shoe}k..`, '..kkkk....kkkk..'],
-  };
+  });
 }
+
+/** Adds the idle and win frames (#24) to hand-drawn stand, walk and jump frames. */
+function more(frames: Record<'stand' | 'walk' | 'jump', string[]>, idle = tap(frames.stand)): Record<HeroFrame, string[]> {
+  return { ...frames, idle, win: cheer(frames.stand) };
+}
+
+/** Idle: the right foot comes up off the ground. Swapped with the stand frame, it taps. */
+function tap(stand: string[]): string[] {
+  const shoe = stand[14].slice(10, 13);
+  return [...stand.slice(0, 13), `${stand[13].slice(0, 9)}k${shoe}k..`, `${stand[14].slice(0, 9)}.kkkk..`, `${stand[15].slice(0, 9)}.......`];
+}
+
+/**
+ * Victory: both arms straight up beside the head, hands (skin, slot 3) at row 6
+ * and sleeves in the top's colour (the commonest one across the chest, so long
+ * hair doesn't win). The hands at the hips are filled with the top.
+ */
+function cheer(stand: string[]): string[] {
+  const rows = stand.map((r) => [...r]);
+  const chest = [...stand[10].slice(4, 12)].filter((ch) => ch !== 'k');
+  const count = (ch: string) => chest.filter((x) => x === ch).length;
+  const sleeve = chest.reduce((a, ch) => (count(ch) > count(a) ? ch : a));
+  rows[11] = rows[11].map((ch, c) => (ch === '3' && c > 1 && c < 14 ? stand[11][c < 8 ? c + 1 : c - 1] : ch));
+  // Arm columns, and which way the shoulder is.
+  for (const [c, to] of [[1, 1], [14, -1]]) {
+    rows[5][c] = 'k';
+    for (let r = 6; r <= 9; r++) [rows[r][c - 1], rows[r][c], rows[r][c + 1]] = ['k', r === 6 ? '3' : sleeve, 'k'];
+    [rows[10][c], rows[10][c + to], rows[10][c + 2 * to]] = ['k', sleeve, sleeve];
+  }
+  return rows.map((r) => r.join(''));
+}
+
+/** Drag glam's gown hides the legs: the hem swings and one heel lifts instead. */
+const DRAG_IDLE = [
+  '...kkkkkkkkkk...',
+  '..k1111111111k..',
+  '.k111211112111k.',
+  '.k111333333111k.',
+  '.k11k3k33k3k11k.',
+  '.k113333333311k.',
+  '.k111333rr3111k.',
+  '..k11k3333k11k..',
+  '...kk5u55u5kk...',
+  '....k555555k....',
+  '...k55u55555k...',
+  '..k3555555u53k..',
+  '...k55555555k...',
+  '..k555u5555555k.',
+  '...kkkk9kkkkkkk.',
+  '.......9........',
+];
 
 export const HEROES: Record<HeroId, HeroDef> = {
   classic: {
@@ -50,7 +104,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     bio: 'Has seen it all and ticked most of it. Brings a dry remark and a finished task to every meeting.',
     quote: "Well. That's done, then.",
     colors: { '1': '#7a4a2a', '2': '#5a3420', '3': '#f0c8a8', '4': '#d9a07c', '5': '#5a6988', '6': '#3a4466', '7': '#3b6ea8', '8': '#2a5080', '9': '#f4f4f4', '0': '#c0cbdc' },
-    frames: {
+    frames: more({
       stand: [
         '................',
         '.....kkkkkk.....',
@@ -105,7 +159,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
         '..k990k..k990k..',
         '..kkkk....kkkk..',
       ],
-    },
+    }),
   },
   redhead: {
     label: 'Long red hair',
@@ -113,7 +167,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     bio: 'Breezy about deadlines, oddly brilliant under pressure. Likes a little chaos and makes it look easy.',
     quote: 'Honestly? Lovely. No stress.',
     colors: { '1': '#c8521f', '2': '#8f3415', '3': '#f6d6c1', '4': '#e0b096', '5': '#2ca39a', '6': '#1d7a73', '7': '#3b6ea8', '8': '#2a5080', '9': '#743f39', '0': '#4a2824' },
-    frames: {
+    frames: more({
       stand: [
         '................',
         '.....kkkkkk.....',
@@ -168,7 +222,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
         '..k990k..k990k..',
         '..kkkk....kkkk..',
       ],
-    },
+    }),
   },
   'mustard-jumper': {
     label: 'Mustard jumper',
@@ -176,7 +230,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     bio: 'Reads the manual first, the FAQ second and the warranty for fun. Every box ticked exactly to spec.',
     quote: 'To be clear, that was in the spec.',
     colors: { '1': '#2b1d16', '2': '#4a3226', '3': '#7a4a2a', '4': '#5a3420', '5': '#e8a23a', '6': '#b97a1c', '7': '#262b44', '8': '#1a1c2c', '9': '#f4f4f4', '0': '#c0cbdc' },
-    frames: {
+    frames: more({
       stand: [
         '......kkkk......',
         '.....k1221k.....',
@@ -231,7 +285,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
         '..k990k..k990k..',
         '..kkkk....kkkk..',
       ],
-    },
+    }),
   },
   'denim-jacket': {
     label: 'Denim jacket',
@@ -239,7 +293,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     bio: 'Art school never really ended. Every level is an installation and every task a brushstroke.',
     quote: "It's less a to-do list, more a medium.",
     colors: { '1': '#9b4fb0', '2': '#5e2d70', '3': '#f0c79c', '4': '#d9a66f', '5': '#4a7fc1', '6': '#2f5a94', '7': '#262b44', '8': '#1a1c2c', '9': '#1a1c2c', '0': '#5a6988' },
-    frames: {
+    frames: more({
       stand: [
         '................',
         '....kkkkkkk.....',
@@ -294,7 +348,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
         '..k990k..k990k..',
         '..kkkk....kkkk..',
       ],
-    },
+    }),
   },
   hoodie: {
     label: 'Hoodie',
@@ -302,7 +356,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     bio: 'Speedrunner. Knows every shortcut, counts every frame and has the splits to prove it.',
     quote: 'Any% or bust. GG.',
     colors: { '1': '#2b1d16', '2': '#4a3226', '3': '#b5793f', '4': '#8f5a2b', '5': '#3e8948', '6': '#265c42', '7': '#b39a62', '8': '#8a7444', '9': '#e43b44', '0': '#f4f4f4' },
-    frames: {
+    frames: more({
       stand: [
         '................',
         '.....kkkkkk.....',
@@ -357,7 +411,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
         '..k990k..k990k..',
         '..kkkk....kkkk..',
       ],
-    },
+    }),
   },
   emo: {
     label: "Emo fringe",
@@ -540,7 +594,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     bio: 'Theatrical, iconic and always serving. Turns a weekly review into a runway show.',
     quote: 'Darling, that task? Scandalous. Done.',
     colors: { '1': '#feae34', '2': '#fee761', '3': '#c68a5e', '4': '#a06a42', '5': '#f6757a', '6': '#fee761', '7': '#f6757a', '8': '#d0505a', '9': '#e43b44', '0': '#a22633' },
-    frames: {
+    frames: more({
       stand: [
         '...kkkkkkkkkk...',
         '..k1111111111k..',
@@ -595,7 +649,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
         '...kkk9kkkk9kk..',
         '......9....9....',
       ],
-    },
+    }, DRAG_IDLE),
   },
   'nb-beanie': {
     label: "Striped beanie",
@@ -706,7 +760,7 @@ export function heroKey(id: HeroId, frame: HeroFrame = 'stand'): string {
 
 /** Splits a name made by heroKey. */
 export function parseHeroKey(name: string): { id: HeroId; frame: HeroFrame } | undefined {
-  const m = /^hero(?:-(walk|jump))?@(.+)$/.exec(name);
+  const m = /^hero(?:-(walk|jump|idle|win))?@(.+)$/.exec(name);
   if (!m || !(m[2] in HEROES)) return;
   return { id: m[2] as HeroId, frame: (m[1] as HeroFrame | undefined) ?? 'stand' };
 }

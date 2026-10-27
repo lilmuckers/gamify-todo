@@ -422,8 +422,12 @@ mobile strip all share.
   steps are grey until ticked, then lit. Bonus steps are pink and see-through. Labels sit in the
   dirt. Past 8 criteria the climb spreads out instead of getting taller. Clicking a step opens a
   **TICK! / UNTICK** bubble, and the hero hops onto it. Ticking the last must-do step sends him
-  leaping onto the pole at his current height; he slides down as the flag rises and runs into
-  the castle.
+  leaping onto the pole at his current height; he slides down as the flag rises, runs to the
+  castle door and throws his arms up (the `win` frame) for the fireworks, then goes in. Under
+  reduced motion he just stands at the door in that pose for a moment.
+- **Idle (#24):** after about 4 s standing still in a level (play mode too) the hero taps a foot
+  twice every few seconds (`stand` and `idle` frames). Any move or new pose stops it. Not under
+  reduced motion.
 - **Money:** the level panel shows a 💰 box (spent of budget, a bar, what's left and saved) under
   the timer, and item rows carry a cost tag. The bubble adds a line such as "£35 OF £40 · £5 SAVED".
   World, project map and project list panels show the same roll-up. Budgets are set in the item,
@@ -583,7 +587,7 @@ emo, goth, punk, rainbow-tee, trans-flag-hair, trans-pin, bi-bomber, drag-glam, 
 hijab-skater, silver-locs and flannel. They cover mixed skin tones, genders and ages.
 
 Each hero has:
-- walk and jump sprites (`sprites/heroes.ts`; `poses()` derives the frames);
+- stand, walk, jump, idle and win sprites (`sprites/heroes.ts`; `poses()` derives the frames);
 - 32×32 portraits, neutral and reacting (`sprites/portraits.ts`), composed from a shared head
   plus per-hero hair, clothes and accessories;
 - a 48×64 fighting-game pose with four idle frames and a victory frame (`sprites/fighters.ts`),
@@ -1137,7 +1141,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
 **Play and delight:**
 - #57 Secret cartridge: about 15% of visits hide a seeded sandbox level (`#/sandbox/<seed>`)
   under the clutter. It never touches data.
-- #24 Hero idle/victory animations.
 
 **Productivity:**
 - #27 WIP-limit warning
@@ -1223,8 +1226,8 @@ Don't add new palette letters for one hero. Use the colour slots instead.
 | `4` | Skin shade | `9` | Shoes |
 | `5` | Top | `0` | Shoe accent |
 
-**Sprite frames: 16×16, three of them.** `stand`, `walk` and `jump` each have exactly 16 rows of
-16 characters. Keep to 16×16. The small size is the retro look, and `heroes.test.ts` enforces
+**Sprite frames: 16×16, five of them.** `stand`, `walk`, `jump`, `idle` and `win` each have
+exactly 16 rows of 16 characters. Keep to 16×16. The small size is the retro look, and `heroes.test.ts` enforces
 it.
 
 - Draw on the **common body** so heroes line up: the head in rows 1–8, the top in rows 9–11
@@ -1233,10 +1236,13 @@ it.
   and the mouth is `qq`.
 - Usually you draw only `stand` and wrap it in `poses([...])`. That derives `walk` (arms swing,
   legs stride) and `jump` (arms up, legs tucked), copying leg and shoe colours so stripes and
-  checks carry over.
-- Draw the three frames by hand only when the body breaks the template. `drag-glam`'s gown is
-  the example.
-- `classic` is the exception: its frames live in `pixels.ts` as the original hero.
+  checks carry over. It also derives `idle` (the right foot lifted, for the foot tap) and `win`
+  (both arms straight up beside the head, sleeves in the top's colour).
+- Draw `stand`, `walk` and `jump` by hand only when the body breaks the template, and wrap them
+  in `more({...})` for `idle` and `win`. Pass your own `idle` too if the legs don't show:
+  `drag-glam`'s gown is the example.
+- `classic` is the exception: its frames live in `pixels.ts` as the original hero (`hero`,
+  `hero-walk`, `hero-jump`, `hero-idle`, `hero-win`).
 - Give the hero one or two **signature details** that read at 16px: a hat, glasses, a beanie
   stripe, a pin, a mohawk. Mixed skin tones, genders, ages and styles are the point of the
   roster.
@@ -1396,7 +1402,7 @@ are hero-neutral.
 8. **Check:** `npm run typecheck` (the `Record<HeroId, …>` maps fail on a missing entry),
    `npm test` (`heroes`, `fighters`, `portraits`, `junk-lines` and `tour` tests),
    `npm run schema:check`. Then look at the hero in the app: the character select
-   (Settings → CHANGE HERO: pose, bio, portrait, the shrink when picked), a level (walk, jump, play mode), the
+   (Settings → CHANGE HERO: pose, bio, portrait, the shrink when picked), a level (walk, jump, the foot tap after 4 s still, the arms-up pose at the castle, play mode), the
    tour (`?welcome` → Take the tour, after picking the hero), the console egg on the bedroom
    floor, and a phone-width window. Check that the sprite reads against every world theme and
    that the portrait matches it.

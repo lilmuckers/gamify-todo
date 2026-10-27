@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HERO_IDS } from '@quest/shared';
-import { HEROES } from '../src/sprites/heroes';
+import { HERO_FRAMES, HEROES, heroKey, parseHeroKey } from '../src/sprites/heroes';
 import { PALETTE } from '../src/sprites/pixels';
 
 describe('heroes', () => {
@@ -17,6 +17,22 @@ describe('heroes', () => {
         }
       }
     }
+  });
+});
+
+describe('hero frames', () => {
+  it('gives every drawn hero every frame, with idle and win differing from stand (#24)', () => {
+    for (const id of HERO_IDS) {
+      const { frames } = HEROES[id];
+      if (!frames) continue;
+      expect(Object.keys(frames).sort(), id).toEqual([...HERO_FRAMES].sort());
+      expect(frames.idle, `${id} idle`).not.toEqual(frames.stand);
+      expect(frames.win, `${id} win`).not.toEqual(frames.stand);
+    }
+  });
+
+  it('round-trips every frame through heroKey', () => {
+    for (const id of HERO_IDS) for (const frame of HERO_FRAMES) expect(parseHeroKey(heroKey(id, frame))).toEqual({ id, frame });
   });
 });
 
