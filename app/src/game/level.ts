@@ -21,6 +21,7 @@ import {
   type World,
 } from '@quest/shared';
 import { DIFF_COLOR, THEMES } from '../sprites/pixels';
+import type { HeroFrame } from '../sprites/heroes';
 import { TILE, type ThemeKey } from '../sprites/render';
 import { isTyping, truncate } from '../ui/dom';
 import { toast } from '../ui/toast';
@@ -91,6 +92,8 @@ interface PoleView {
 }
 
 const POLE_H = 9;
+/** How long the hero holds the victory pose at the castle door (#24). */
+const WIN_MS = 700;
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Camera lerp while the hero walks himself about, and while he hurries or pops in (#22). */
@@ -266,7 +269,7 @@ export class LevelScene extends QuestScene {
       this.following = false;
       this.cameras.main.stopFollow();
     });
-    this.idle();
+    this.standStill();
     this.controls = new PlayControls(this);
     this.watch(() => this.refresh());
     this.registerLocators();
@@ -1300,7 +1303,7 @@ export class LevelScene extends QuestScene {
     this.perch = undefined;
     this.onPipe = false;
     this.hero.setVisible(true).setAlpha(1).setDepth(40).setPosition(x, y);
-    this.idle();
+    this.standStill();
     this.body = newBody(x + HITBOX.offX, GROUND_Y);
     this.body.y = y - this.body.h;
     this.rebuildWorld();
@@ -1413,7 +1416,7 @@ export class LevelScene extends QuestScene {
     } else if (Math.abs(body.vx) > 8) {
       if (h.anims.currentAnim?.key !== walk || !h.anims.isPlaying) h.play(walk);
       h.anims.timeScale = Math.max(0.6, Math.abs(body.vx) / TUNING.walk);
-    } else if (h.anims.isPlaying || h.texture.key !== this.heroTex()) this.idle();
+    } else if (!this.fidgeting(h) && (h.anims.isPlaying || h.texture.key !== this.heroTex())) this.standStill();
     // Flicker while recovering from a hit.
     h.setAlpha(body.invuln > 0 && Math.floor(body.invuln * 12) % 2 ? 0.25 : 1);
   }
@@ -1612,10 +1615,17 @@ export class LevelScene extends QuestScene {
 
   // ---- Animation ----
 
-  private idle() {
-    this.hero.anims.stop();
+  /** The hero at rest: standing, and fidgeting after a while (#24). */
+  private standStill() {
+    this.pose('stand');
     this.hero.anims.timeScale = 1;
-    this.hero.setTexture(this.heroTex());
+    this.fidget(this.hero);
+  }
+
+  /** Shows one frame of the hero, ending any walk or idle animation. */
+  private pose(frame: HeroFrame) {
+    this.hero.anims.stop();
+    return this.hero.setTexture(this.heroTex(frame));
   }
 
   /**
@@ -1670,7 +1680,7 @@ export class LevelScene extends QuestScene {
     this.hero.setAngle(0).setY(baseY);
     if (fast && this.following) this.follow();
     this.hero.setFlipX(false);
-    this.idle();
+    this.standStill();
   }
 
   /**
@@ -1732,9 +1742,9 @@ export class LevelScene extends QuestScene {
   }
 
   private async jump(height = 22): Promise<void> {
-    this.hero.setTexture(this.heroTex('jump'));
+    this.pose('jump');
     await this.tween({ targets: this.hero, y: GROUND_Y - height, duration: 180, yoyo: true, ease: 'Quad.out' });
-    this.idle();
+    this.standStill();
   }
 
   private async animate(level: Level, changed: Item[], crit: Level['successCriteria'] = []) {
@@ -1914,7 +1924,7 @@ export class LevelScene extends QuestScene {
   /** Hops from the ground onto a platform whose top is at `y`, landing at `x`. */
   private hopTo(x: number, y: number, duration = 320): Promise<void> {
     return new Promise((resolve) => {
-      this.hero.setTexture(this.heroTex('jump'));
+      this.pose('jump');
       const startY = this.hero.y;
       const peak = Math.min(startY, y) - 18;
       this.tweens.add({ targets: this.hero, x, duration, ease: 'Linear' });
@@ -1930,7 +1940,7 @@ export class LevelScene extends QuestScene {
         },
         onComplete: () => {
           this.hero.y = y;
-          this.idle();
+          this.standStill();
           resolve();
         },
       });
@@ -2039,7 +2049,7 @@ export class LevelScene extends QuestScene {
     if (this.playing && Math.abs(this.hero.y - top) < 4) {
       this.hero.y = top;
       await this.tween({ targets: this.hero, x, duration: 120 });
-      this.idle();
+      this.standStill();
       return;
     }
     await this.approach(from);
@@ -2064,9 +2074,9 @@ export class LevelScene extends QuestScene {
     const stopX = this.layout.hero.x * TILE;
     if (a.kind === 'pipe-down') {
       // Drop out of the ceiling pipe.
-      this.hero.setPosition(TILE + 8, 3 * TILE + 4).setTexture(this.heroTex('jump'));
+      this.pose('jump').setPosition(TILE + 8, 3 * TILE + 4);
       await this.tween({ targets: this.hero, y: GROUND_Y, duration: 520, ease: 'Bounce.out' });
-      this.idle();
+      this.standStill();
       // Playing: the player takes over where he landed.
       if (this.app.playing) return;
       if (this.wasCleared && !this.current()?.sub) return this.fadeHero();
@@ -2085,7 +2095,7 @@ export class LevelScene extends QuestScene {
       sfx('pipeUp', { delay: 0.2 });
       await this.tween({ targets: this.hero, y: mouth, duration: 600, delay: 200, ease: 'Linear' });
       this.hero.setDepth(40);
-      this.idle();
+      this.standStill();
       // Playing: the player takes over on top of the pipe.
       if (this.app.playing) {
         this.onPipe = true;
@@ -2193,8 +2203,11 @@ export class LevelScene extends QuestScene {
     this.perch = undefined;
     if (reducedMotion()) {
       if (pending?.img.active) pending.img.setY(pending.y);
-      this.hero.setVisible(false).setPosition(L.castleX * TILE + 32, GROUND_Y);
+      // The victory pose at the castle door, still, then in he goes.
+      this.pose('win').setFlipX(false).setVisible(true).setAlpha(1).setPosition(L.castleX * TILE + 32, GROUND_Y);
       this.fireworks(level);
+      await this.wait(WIN_MS);
+      this.hero.setVisible(false);
       return;
     }
     this.hero.setVisible(true).setAlpha(1);
@@ -2207,13 +2220,17 @@ export class LevelScene extends QuestScene {
     sfx('flagpole');
     if (pending?.img.active) this.tweens.add({ targets: pending.img, y: pending.y, duration: slide, ease: 'Quad.out' });
     await this.tween({ targets: this.hero, y: GROUND_Y, duration: slide, ease: 'Quad.in' });
-    this.idle();
+    this.standStill();
     await this.wait(120);
     // Hop off over the base block and run for the castle.
     await this.hopTo(fx + TILE + 4, GROUND_Y, 300);
     await this.walkTo(L.castleX * TILE + 32);
-    this.tweens.add({ targets: this.hero, alpha: 0, duration: 300, onComplete: () => this.hero.setVisible(false).setAlpha(1) });
+    // Arms up at the castle door for the fireworks, then in he goes.
+    this.pose('win');
     this.fireworks(level);
+    await this.tween({ targets: this.hero, y: GROUND_Y - 6, duration: 160, yoyo: true, ease: 'Quad.out' });
+    await this.wait(WIN_MS);
+    this.tweens.add({ targets: this.hero, alpha: 0, duration: 300, onComplete: () => this.hero.setVisible(false).setAlpha(1) });
   }
 
   private fireworks(level: Level) {

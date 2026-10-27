@@ -1,5 +1,5 @@
 import type { Theme } from '@quest/shared';
-import { HEROES, parseHeroKey } from './heroes';
+import { HEROES, parseHeroKey, type HeroFrame } from './heroes';
 import { canvas } from './canvas';
 import { PALETTE, SPRITES, THEMES, type ThemeColors } from './pixels';
 
@@ -45,7 +45,7 @@ export function sprite(name: string, theme: ThemeKey = 'grass'): HTMLCanvasEleme
 }
 
 /** A player character frame; 'classic' is the original hero art. */
-function heroCanvas(id: keyof typeof HEROES, frame: 'stand' | 'walk' | 'jump'): HTMLCanvasElement {
+function heroCanvas(id: keyof typeof HEROES, frame: HeroFrame): HTMLCanvasElement {
   const def = HEROES[id];
   if (!def.frames) return paint(SPRITES[frame === 'stand' ? 'hero' : `hero-${frame}`], PALETTE);
   return paint(def.frames[frame], { ...PALETTE, ...def.colors });
