@@ -185,8 +185,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,woff2,woff}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        // Opening a schema, data or skill file in a tab must show the file, not the app shell.
-        navigateFallbackDenylist: [/^\/api\//, /\/(data|schema|skills)\//],
+        // Opening a schema, data, skill or core pointer file in a tab must show the file, not the app shell.
+        navigateFallbackDenylist: [/^\/api\//, /\/(data|schema|skills|core)\//],
         runtimeCaching: [
           {
             // Static data: fresh when online, cached copy when offline.

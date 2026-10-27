@@ -43,6 +43,22 @@ function writeTree(files: Record<string, string>): string {
 }
 
 describe('quest.py validate', () => {
+  it('reports issues as JSON with file, pointer and message', async () => {
+    const files = toFiles(workspace());
+    const d = JSON.parse(files['data/p/w/lvl.json']);
+    d.items[0].status = 'nope';
+    files['data/p/w/lvl.json'] = JSON.stringify(d, null, 2);
+    const bad = await run(['validate', writeTree(files), '--json']);
+    expect(bad.code).toBe(1);
+    const out = JSON.parse(bad.out);
+    expect(out.ok).toBe(false);
+    expect(out.issues.length).toBeGreaterThan(0);
+    expect(out.issues[0]).toEqual({ file: 'data/p/w/lvl.json', pointer: expect.stringMatching(/^\/items\/0/), message: expect.any(String) });
+    const good = await run(['validate', '.', '--json']);
+    expect(good.code).toBe(0);
+    expect(JSON.parse(good.out)).toMatchObject({ ok: true, issues: [], skillVersion: expect.any(Number) });
+  });
+
   it('accepts the committed example data with both validators', async () => {
     for (const env of ENGINES) {
       const r = await run(['validate', '.'], env);
@@ -595,6 +611,19 @@ describe('quest.py changes', () => {
     expect((await run(['changes', writeTree(base()), writeTree(changed()), '--allow-delete', 'level:p/w/lvl'])).code).toBe(0);
     expect((await run(['changes', writeTree(changed()), writeTree(base()), '--allow-delete', 'level:p/w/two'])).code).toBe(5);
     expect((await run(['changes', writeTree(base()), writeTree(changed()), '--warn'])).code).toBe(0);
+  });
+
+  it('prints the same lists as JSON for CI', async () => {
+    const r = await run(['changes', writeTree(base()), writeTree(changed()), '--json']);
+    expect(r.code).toBe(5);
+    const out = JSON.parse(r.out);
+    expect(out.added).toEqual(expect.arrayContaining(['item:p/w/lvl/new', 'level:p/w/two']));
+    expect(out.changed).toContain('item:p/w/lvl/a');
+    expect(out.removed).toEqual(['item:p/w/lvl/c']);
+    expect(out.unapprovedRemovals).toEqual(['item:p/w/lvl/c']);
+    const warned = await run(['changes', writeTree(base()), writeTree(changed()), '--json', '--warn']);
+    expect(warned.code).toBe(0);
+    expect(JSON.parse(warned.out).unapprovedRemovals).toEqual(['item:p/w/lvl/c']);
   });
 
   it('compares a checkout with a git ref', async () => {

@@ -44,7 +44,9 @@ the real App's Client ID and slug). The App's callback URLs must include `http:/
 **Before pushing**, run `npm run typecheck`, `npm test` and `npm run validate`, plus
 `npm run e2e` if you changed a flow it covers (scenes, panels, pads, sync). If you touched
 `schema/`, also run `npm run schema:check`. If you touched `skills/quest-log/SKILL.md` or
-`quest.py`, run `npm run skill:version` (CI runs `skill:check`, which fails without the bump). CI (`.github/workflows/validate.yml`) runs all of
+`quest.py`, run `npm run skill:version` (CI runs `skill:check`, which fails without the bump). A PR that
+changes `quest.py` or `schema/` cuts a core release on merge (README "Core releases"): check
+`npm run core:plan`, and add a `core:` label if the detected bump is wrong. A major freezes `core/v1.json`. CI (`.github/workflows/validate.yml`) runs all of
 these on every PR. `pages.yml` deploys `main` to GitHub Pages.
 
 ## Layout

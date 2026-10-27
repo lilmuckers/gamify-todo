@@ -27,6 +27,11 @@ jobs:
         run: npm run schema:check
       - name: Skill version bumped with SKILL.md / quest.py
         run: npm run skill:check
+      - name: Core release builds (bump preview)
+        run: |
+          git fetch --tags --quiet origin || true
+          npm run -s core:plan
+          npm run -s core:build -- --version 0.0.0 --out "$RUNNER_TEMP/core"
 
   code:
     name: Typecheck & test

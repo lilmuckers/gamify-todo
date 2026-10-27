@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 7**
+**Skill version: 8**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -697,6 +697,7 @@ reach GitHub"); it's better than hand-written API calls.
 python3 scripts/quest.py update-check                 # 0 = up to date, 3 = newer skill published (§0), 4 = couldn't check
 python3 scripts/quest.py validate --refresh DIR       # DIR contains data/; exit 1 lists every issue
 python3 scripts/quest.py changes --git origin/main .  # added / changed / removed by id; exit 5 = unnamed removals
+                                                      # add --json to validate or changes for machine-readable output (CI)
 python3 scripts/quest.py info --repo OWNER/REPO       # default branch, can_push
 python3 scripts/quest.py pull --repo OWNER/REPO [--branch B] --dir quest-data
 python3 scripts/quest.py status --dir quest-data      # what changed since pull

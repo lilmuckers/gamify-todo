@@ -5,10 +5,10 @@ Standard library only (Python 3.8+), so it runs in Claude's code execution,
 ChatGPT's code interpreter, CI and a normal terminal.
 
     python3 quest.py update-check                 is this copy of the skill the latest? (exit 3 = outdated)
-    python3 quest.py validate [DIR] [--refresh]   check a data tree (DIR contains data/)
+    python3 quest.py validate [DIR] [--refresh] [--json]   check a data tree (DIR contains data/)
     python3 quest.py info --repo OWNER/REPO       default branch and whether the token can push
     python3 quest.py pull --repo OWNER/REPO [--branch B] [--dir DIR]
-    python3 quest.py changes BASE DIR | --git REF DIR   what DIR adds, changes and removes vs BASE (exit 5 = removals)
+    python3 quest.py changes BASE DIR | --git REF DIR [--json]   what DIR adds, changes and removes vs BASE (exit 5 = removals)
     python3 quest.py push [--dir DIR] -m MESSAGE [--pr TITLE] [--allow-delete KEY ...]
                                                  updates from the branch (and a PR's base) first
     python3 quest.py schemas [--refresh]          where the schemas come from (download or bundled)
@@ -30,7 +30,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 7
+SKILL_VERSION = 8
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -634,6 +634,13 @@ def cmd_validate(args):
     files = read_tree(args.dir)
     issues = validate_files(files, registry, by_name)
     _, engine = make_checker(registry)
+    if args.json:
+        # Machine-readable for CI (the Quest Log action turns these into check-run annotations).
+        print(json.dumps({
+            'ok': not issues, 'files': len(files), 'skillVersion': SKILL_VERSION, 'validator': engine,
+            'issues': [{'file': f, 'pointer': at, 'message': msg} for f, at, msg in issues],
+        }, indent=2))
+        return 1 if issues else 0
     if issues:
         for f, at, msg in issues:
             print(f'{f}{at}: {msg}')
@@ -766,12 +773,15 @@ def cmd_changes(args):
     else:
         raise QuestError('Give BASE and DIR, or --git REF and DIR.')
     added, changed, removed = diff_trees(before, read_tree(after_dir))
+    bad = [k for k in removed if not allowed(k, args.allow_delete or [])]
+    if args.json:
+        print(json.dumps({'added': added, 'changed': changed, 'removed': removed, 'unapprovedRemovals': bad}, indent=2))
+        return 5 if bad and not args.warn else 0
     for label, keys in (('added', added), ('changed', changed), ('removed', removed)):
         for k in keys:
             print(f'{label:8} {k}')
     if not (added or changed or removed):
         print('no changes')
-    bad = [k for k in removed if not allowed(k, args.allow_delete or [])]
     if bad and not args.warn:
         print(f'\n✗ {len(bad)} removal(s) not named with --allow-delete', file=sys.stderr)
         return 5
@@ -860,6 +870,7 @@ def main(argv=None):
     p = sub.add_parser('validate', help='validate a data tree')
     p.add_argument('dir', nargs='?', default='.', help='folder containing data/ (default: .)')
     p.add_argument('--refresh', action='store_true', help='download the latest schemas first and check for a newer skill')
+    p.add_argument('--json', action='store_true', help='print { ok, files, issues: [{ file, pointer, message }] } instead of text')
     p.set_defaults(run=cmd_validate)
 
     p = sub.add_parser('info', help='repo default branch and push access')
@@ -890,6 +901,7 @@ def main(argv=None):
     p.add_argument('--git', metavar='REF', help='compare the checkout in DIR with this git ref, e.g. origin/main')
     p.add_argument('--allow-delete', action='append', metavar='KEY', help='a removal you mean to make (repeat)')
     p.add_argument('--warn', action='store_true', help='list removals but exit 0 (for CI)')
+    p.add_argument('--json', action='store_true', help='print { added, changed, removed, unapprovedRemovals } instead of text')
     p.set_defaults(run=cmd_changes)
 
     p = sub.add_parser('schemas', help='show where schemas are loaded from')

@@ -330,6 +330,23 @@ published with the site, and assistants compare it with their copy before touchi
 outdated copy loads the latest skill and asks you to reinstall. After editing `SKILL.md` or
 `quest.py`, run `npm run skill:version` (CI fails until you do).
 
+### Core releases (for the Quest Log action)
+
+`quest.py` and `schema/` together are the *core*: the rules the
+[Quest Log action](https://github.com/lilmuckers/quest-log-actions) runs in each data repo. When a
+push to `main` changes them, `pages.yml` releases a new `core-vX.Y.Z` and publishes a pointer at
+`https://tasks.patrick-mckinley.com/core/v1.json` in the same deploy. The action reads that
+pointer on every run, downloads the release and checks its sha256s, so rule changes reach every
+data repo without an action release.
+
+- The bump is picked from the schema diff and quest.py's commands and flags. Add a
+  `core: major`, `core: minor` or `core: patch` label to a PR to raise it, or `core: force-minor`
+  when a change was wrongly detected as breaking. `npm run core:plan` shows what the next release
+  would be.
+- A major release (`2.0.0`) leaves `core/v1.json` on the last `1.x`, so action `v1` keeps working.
+- **Rollback:** commit a `core-pin.json` such as `{ "v1": "core-v1.2.0" }` and let Pages deploy.
+  Delete it to follow the newest release again.
+
 
 [`schema/quest.schema.json`](schema/quest.schema.json) is the contract: JSON Schema 2020-12,
 `additionalProperties: false` throughout, a description on every field and enum value. Data files
