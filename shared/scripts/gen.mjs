@@ -36,6 +36,7 @@ const validators =
     validateSettings: `${id}#/$defs/Settings`,
     validateInbox: `${id}#/$defs/Inbox`,
     validateAutomation: `${id}#/$defs/Automation`,
+    validateAttachment: `${id}#/$defs/AttachmentSidecar`,
   });
 
 // Ajv's "esm" output still require()s runtime helpers; point them at our ESM shim.
@@ -58,6 +59,7 @@ const perFile = [
   ['settings', 'settings.schema.json', null, 'data/settings.json'],
   ['inbox', 'inbox.schema.json', null, 'data/inbox.json'],
   ['automation', 'automation.schema.json', null, 'data/automation.json'],
+  ['attachment', 'attachment.schema.json', null, 'data/attachments/<id>.json'],
 ];
 const base = id.slice(0, id.lastIndexOf('/') + 1);
 const manifest = {

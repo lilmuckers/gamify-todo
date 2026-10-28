@@ -2,6 +2,7 @@ import { classifyPath } from './serialize';
 import type { HistoryCommit } from './history';
 import type { CommitChanges, HistoryPage } from './scan';
 import { isDataPath } from './serialize';
+import { isAttachmentPath } from './attachments';
 import { STUB_PATH } from './stub';
 
 export interface RepoRef {
@@ -439,7 +440,7 @@ export class GitHubClient {
           'GET',
           `/pulls/${p.number}/files?per_page=100`,
         );
-        return { ...summarize(p), dataFiles: files.map((f) => f.filename).filter(isDataPath) };
+        return { ...summarize(p), dataFiles: files.map((f) => f.filename).filter(isPullDataPath) };
       }),
     );
     return out.filter((p) => p.dataFiles.length > 0);
@@ -472,7 +473,7 @@ export class GitHubClient {
     ]);
     return {
       ...summarize(p),
-      dataFiles: files.map((f) => f.filename).filter(isDataPath),
+      dataFiles: files.map((f) => f.filename).filter(isPullDataPath),
       body: p.body ?? '',
       mergeable: p.mergeable,
       mergeableState: p.mergeable_state,
@@ -488,6 +489,9 @@ export class GitHubClient {
     await this.request('POST', `/pulls/${number}/reviews`, { event, body: body || undefined });
   }
 }
+
+/** Files a data PR lists: data files plus attachment files, which are named but never read. */
+const isPullDataPath = (path: string) => isDataPath(path) || isAttachmentPath(path);
 
 function summarize(p: any): Omit<PullSummary, 'dataFiles'> {
   return {

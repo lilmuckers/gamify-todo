@@ -11,3 +11,4 @@ export const validateLevel: CompiledValidator;
 export const validateSettings: CompiledValidator;
 export const validateInbox: CompiledValidator;
 export const validateAutomation: CompiledValidator;
+export const validateAttachment: CompiledValidator;

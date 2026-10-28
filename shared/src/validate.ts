@@ -1,6 +1,7 @@
-import { validateAutomation, validateInbox, validateLevel, validateProject, validateSettings, validateWorld } from './validators.gen.js';
+import { validateAttachment, validateAutomation, validateInbox, validateLevel, validateProject, validateSettings, validateWorld } from './validators.gen.js';
 import type { GameState, Level, Workspace } from './model';
 import { parseLevelRef } from './model';
+import { ATTACHMENT_EXTENSIONS, ATTACHMENTS_DIR, attachmentFileId, attachmentSidecarPath, isAttachmentFile } from './attachments';
 import { AUTOMATION_PATH, classifyPath, DATA_ROOT, type DataFile, fromFiles, INBOX_PATH, levelPath, projectFiles, projectPath, SETTINGS_PATH, toFiles, worldPath } from './serialize';
 
 export interface Issue {
@@ -19,6 +20,7 @@ const VALIDATORS: Record<DataFile['kind'], Compiled> = {
   settings: validateSettings,
   inbox: validateInbox,
   automation: validateAutomation,
+  attachment: validateAttachment,
 };
 
 /**
@@ -46,6 +48,31 @@ function automationIssues(data: unknown, file: string): Issue[] {
     if (typeof d?.timezone === 'string' && !isTimeZone(d.timezone))
       issues.push({ file, path: `/notify/devices/${i}/timezone`, message: `unknown timezone "${d.timezone}"` });
   });
+  return issues;
+}
+
+/**
+ * Every attachment file needs a sidecar and every sidecar one file. `sidecars` are the ids of
+ * the sidecars in the tree; `paths` lists the tree's other paths, whose contents are never read.
+ */
+function attachmentPairIssues(sidecars: Set<string>, paths: string[]): Issue[] {
+  const issues: Issue[] = [];
+  const filed = new Map<string, string[]>();
+  for (const path of paths.filter(isAttachmentFile).sort()) {
+    const id = attachmentFileId(path);
+    if (!id) {
+      issues.push({ file: path, path: '/', message: `unexpected attachment file: use ${ATTACHMENTS_DIR}/<id>.<${ATTACHMENT_EXTENSIONS.join('|')}> with a sidecar ${ATTACHMENTS_DIR}/<id>.json` });
+      continue;
+    }
+    (filed.get(id) ?? filed.set(id, []).get(id)!).push(path);
+  }
+  for (const [id, files] of filed) {
+    if (files.length > 1)
+      for (const path of files.slice(1)) issues.push({ file: path, path: '/', message: `attachment "${id}" already has a file (${files[0]}); keep one` });
+    if (!sidecars.has(id)) issues.push({ file: files[0], path: '/', message: `attachment file has no sidecar: add ${attachmentSidecarPath(id)}` });
+  }
+  for (const id of [...sidecars].sort())
+    if (!filed.has(id)) issues.push({ file: attachmentSidecarPath(id), path: '/', message: `attachment sidecar has no file: add ${ATTACHMENTS_DIR}/${id}.<${ATTACHMENT_EXTENSIONS.join('|')}> or remove the sidecar` });
   return issues;
 }
 
@@ -169,21 +196,25 @@ export function semanticIssues(projectId: string, state: GameState): Issue[] {
 /**
  * Full validation of a data tree: JSON syntax, schema per file type, folder
  * structure (ids match paths, order lists name existing files), then semantic rules.
+ * `paths` lists the tree's binary files (attachments), which are never read: given, each
+ * attachment file and sidecar must pair up; left out (the app's in-memory checks), they aren't paired.
  */
-export function validateFiles(files: Record<string, string>): Issue[] {
+export function validateFiles(files: Record<string, string>, paths?: string[]): Issue[] {
   const issues: Issue[] = [];
   const parsed: Record<string, unknown> = {};
   const projects = new Set<string>();
   const worlds = new Map<string, Set<string>>(); // project → world ids with world.json
   const levels = new Map<string, Set<string>>(); // "p/w" → level ids with files
+  const sidecars = new Set<string>();
 
   for (const [path, text] of Object.entries(files)) {
     const f = classifyPath(path);
     if (!f) {
       if (path.startsWith(`${DATA_ROOT}/`) && path.endsWith('.json'))
-        issues.push({ file: path, path: '/', message: `unexpected file: use ${DATA_ROOT}/<project>/project.json, ${DATA_ROOT}/<project>/<world>/world.json, ${DATA_ROOT}/<project>/<world>/<level>.json, ${DATA_ROOT}/settings.json, ${DATA_ROOT}/inbox.json or ${DATA_ROOT}/automation.json` });
+        issues.push({ file: path, path: '/', message: `unexpected file: use ${DATA_ROOT}/<project>/project.json, ${DATA_ROOT}/<project>/<world>/world.json, ${DATA_ROOT}/<project>/<world>/<level>.json, ${DATA_ROOT}/settings.json, ${DATA_ROOT}/inbox.json, ${DATA_ROOT}/automation.json or ${ATTACHMENTS_DIR}/<id>.json` });
       continue;
     }
+    if (f.kind === 'attachment') sidecars.add(f.id);
     try {
       parsed[path] = JSON.parse(text);
     } catch (err) {
@@ -204,7 +235,7 @@ export function validateFiles(files: Record<string, string>): Issue[] {
           issues.push({ file: path, path: '/items', message: `duplicate inbox item id "${id}"` });
       continue;
     }
-    const expected = f.kind === 'project' ? f.projectId : f.kind === 'world' ? f.worldId : f.levelId;
+    const expected = f.kind === 'project' ? f.projectId : f.kind === 'world' ? f.worldId : f.kind === 'level' ? f.levelId : f.id;
     if (data && typeof data === 'object' && data.id !== expected)
       issues.push({ file: path, path: '/id', message: `id "${String(data.id)}" must match its ${f.kind === 'project' ? 'folder' : f.kind === 'world' ? 'folder' : 'file name'} "${expected}"` });
     if (f.kind === 'project') projects.add(f.projectId);
@@ -243,6 +274,8 @@ export function validateFiles(files: Record<string, string>): Issue[] {
     }
   }
 
+  if (paths) issues.push(...attachmentPairIssues(sidecars, paths));
+
   // Semantic checks assume structurally valid data.
   if (issues.length) return issues;
   const ws = fromFiles(files);
@@ -252,6 +285,8 @@ export function validateFiles(files: Record<string, string>): Issue[] {
 
 /** Every issue in one project: its files, plus ids that don't match their keys in memory. */
 function projectIssues(pid: string, state: GameState): Issue[] {
+  // A project called "attachments" would be written where attachments live.
+  if (pid === 'attachments') return [{ file: projectPath(pid), path: '/id', message: 'project id "attachments" is reserved' }];
   // A level called "world" would overwrite world.json when serialized.
   for (const [wid, w] of Object.entries(state.worlds))
     if (w.levels.some((l) => l.id === 'world'))

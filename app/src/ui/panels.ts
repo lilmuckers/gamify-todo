@@ -1,4 +1,5 @@
 import {
+  attachmentNames,
   alertLevel,
   budgetPrefs,
   clockNow,
@@ -796,6 +797,8 @@ export function pullPanel(app: App, n: number) {
   const projectOf = find.project;
   const worldName = (pid: string, wid: string) => find.world(pid, wid)?.name ?? wid;
   const levelName = (pid: string, wid: string, lid: string) => find.level({ projectId: pid, worldId: wid, levelId: lid })?.name ?? lid;
+  // Attachments are binary: the PR's file list names them, and nothing reads them.
+  const attachments = attachmentNames(detail.dataFiles);
   return wrap(
     h('h2', null, `#${detail.number} ${detail.title}`),
     h('p', { class: 'muted' }, `${detail.author} wants to merge ${detail.headRef} → ${detail.baseRef}`),
@@ -813,7 +816,7 @@ export function pullPanel(app: App, n: number) {
     ),
     !valid && h('ul', { class: 'fielddiff' }, v.issues!.slice(0, 8).map((i) => h('li', null, `${i.file}${i.path}: ${i.message}`))),
     section(
-      `Changes · ${d.count}`,
+      `Changes · ${d.count + attachments.length}`,
       null,
       h(
         'ul',
@@ -859,6 +862,13 @@ export function pullPanel(app: App, n: number) {
             h('ul', { class: 'fielddiff' }, d.automation.map((f) =>
               h('li', null, h('code', null, f.field), ': ', h('del', null, JSON.stringify(f.before) ?? '—'), ' → ', h('ins', null, JSON.stringify(f.after) ?? '—')),
             )),
+          ),
+        attachments.length > 0 &&
+          h(
+            'li',
+            null,
+            h('div', { class: 'row' }, h('strong', null, 'Attachments')),
+            h('ul', { class: 'fielddiff' }, attachments.map((name) => h('li', null, h('code', null, name)))),
           ),
       ),
     ),

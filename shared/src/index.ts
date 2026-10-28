@@ -21,3 +21,4 @@ export * from './search';
 export * from './repeat';
 export * from './automation';
 export * from './stub';
+export * from './attachments';
