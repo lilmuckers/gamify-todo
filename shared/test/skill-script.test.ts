@@ -6,7 +6,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { toFiles, validateFiles } from '../src/index';
-import { automationExample, level, workspace } from './fixtures';
+import type { Item, Level, Workspace } from '../src/model';
+import { isCleared, isProjectArchived, levelsOf, levelTimer, nudges } from '../src/index';
+import { dayKey, dueView } from '../src/repeat';
+import { REVIEW_SLOTS, focusCandidates, weeklyReview } from '../src/review';
+import { automationExample, level, state, workspace } from './fixtures';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const SCRIPT = join(ROOT, 'skills/quest-log/scripts/quest.py');
@@ -668,6 +672,163 @@ describe('quest.py changes', () => {
     const r = await run(['changes', '--git', 'main', dir]);
     expect(r.code, r.out).toBe(5);
     expect(r.out).toMatch(/removed +item:p\/w\/lvl\/c/);
+  });
+});
+
+describe('quest.py timers', () => {
+  const DAY = 86_400_000;
+  const NOW = Date.parse('2026-10-28T12:00:00Z');
+  const ago = (days: number) => new Date(NOW - days * DAY).toISOString();
+  const done = (id: string): Level['successCriteria'][number] => ({ id, text: id, mvp: true, done: true });
+  const chore = (id: string, on: string): Item => ({
+    id, type: 'task', title: `Chore ${id}`, status: 'done', doneAt: `${on}T09:00:00Z`,
+    repeat: { every: 1, unit: 'weeks' }, completions: [{ on }],
+  });
+  const optional: Item[] = [
+    { id: 'gone', type: 'stretch', title: 'Dropped', status: 'dropped' },
+    { id: 'shipped', type: 'stretch', title: 'Shipped', status: 'done', doneAt: ago(1) },
+    chore('weekly', '2026-10-27'),
+    chore('stale', '2026-10-01'),
+    { id: 'side', type: 'task', title: 'Side quest', status: 'doing', mvp: false },
+    { id: 'shine', type: 'stretch', title: 'Shine', status: 'todo' },
+    { id: 'extra', type: 'stretch', title: 'Fourth', status: 'todo' },
+  ];
+
+  /** Levels in every state the clock can be in, plus the ones it must leave out. */
+  function clocks(): Workspace {
+    const lv = (id: string, o: Partial<Level>) => level({ id, name: `Level ${id}`, ...o });
+    const p = state(lv('fresh', { startedAt: ago(1) }));
+    p.worlds.w.levels.push(
+      lv('hurry', { startedAt: ago(8) }),
+      lv('late', { startedAt: ago(12), items: [...level().items, ...optional] }),
+      lv('late-bare', { startedAt: ago(30), timeboxDays: 5, items: [{ id: 'a', type: 'task', title: 'A', status: 'todo' }] }),
+      // Overdue against the original 10 days, but the review added 4: on track again.
+      lv('extended', { startedAt: ago(9), timeboxDays: 14, stats: { timeboxExtendedDays: 4 } }),
+      lv('paused', { startedAt: ago(11), pausedDays: 2.5 }),
+      lv('odd-times', { startedAt: '2026-10-20T10:00:00.5+01:00', timeboxDays: 9 }),
+      lv('someday', { startedAt: ago(20), someday: true }),
+      lv('won', { startedAt: ago(5), clearedAt: ago(1), successCriteria: [done('m')] }),
+      lv('flag-only', { startedAt: ago(20), clearedAt: ago(15) }),
+      lv('idle', {}),
+    );
+    const archived = state(lv('frozen', { startedAt: ago(40) }));
+    archived.overworld = { ...archived.overworld, id: 'old', title: 'Old', archivedAt: ago(30) };
+    return { projects: { p, old: archived } };
+  }
+
+  /** What the app shows for each running clock: levelTimer, the clock line of nudges(), the review's lists. */
+  function appClocks(ws: Workspace, now: number) {
+    const view = dueView(ws, dayKey(now));
+    const out: Record<string, unknown> = {};
+    for (const { level: l, ref, state: s } of levelsOf(view)) {
+      if (l.someday || !l.startedAt || isProjectArchived(s) || isCleared(l)) continue;
+      const t = levelTimer(l, now);
+      if (t.phase === 'cleared') continue;
+      out[`level:${ref.projectId}/${ref.worldId}/${ref.levelId}`] = {
+        scope: 'level', project: ref.projectId, world: ref.worldId, level: ref.levelId, title: l.name,
+        phase: { 'on-track': 'ok', hurry: 'hurry', overdue: 'overdue' }[t.phase as string],
+        endsAt: new Date(t.deadline!).toISOString(),
+        startedAt: new Date(Date.parse(l.startedAt)).toISOString(),
+        timeboxDays: l.timeboxDays,
+        extendedDays: l.stats?.timeboxExtendedDays ?? 0,
+        pausedDays: l.pausedDays ?? 0,
+        remainingMs: t.remainingMs,
+        remainingFraction: t.remainingFraction,
+        nudge: nudges(l, now).find((n) => /^(Hurry up!|Under 25%)/.test(n.text)) ?? null,
+      };
+    }
+    return out;
+  }
+
+  const tz: Record<string, string> = process.env.TZ ? { TZ: process.env.TZ } : {};
+  async function timers(ws: Workspace, now: number | string, env: Record<string, string> = tz) {
+    const at = typeof now === 'number' ? new Date(now).toISOString() : now;
+    const r = await run(['timers', writeTree(toFiles(ws)), '--now', at, '--json'], env);
+    expect(r.code, r.out).toBe(0);
+    return JSON.parse(r.out);
+  }
+
+  it('matches levelTimer and nudges for every running level, and leaves out the rest', async () => {
+    const ws = clocks();
+    const out = await timers(ws, NOW);
+    const want = appClocks(ws, NOW);
+    const got = Object.fromEntries(out.timers.map(({ key, phaseSince: _, ...c }: any) => [key, c]));
+    expect(got).toEqual(want);
+    expect(Object.keys(got).sort()).toEqual(
+      ['extended', 'fresh', 'hurry', 'late', 'late-bare', 'odd-times', 'paused'].map((l) => `level:p/w/${l}`),
+    );
+    const byKey = (k: string) => out.timers.find((c: any) => c.key === `level:p/w/${k}`);
+    expect(byKey('extended').phase).toBe('ok');
+    expect(byKey('late').nudge.text).toBe('Hurry up! Time-box blown. Drop: C, Chore stale, Side quest.');
+    expect(byKey('late-bare').nudge.text).toMatch(/Cut an MVP criterion/);
+    expect(byKey('fresh').nudge).toBeNull();
+  });
+
+  it('lists clocks most pressing first, like the weekly review', async () => {
+    const ws = clocks();
+    const out = await timers(ws, NOW);
+    const review = weeklyReview(dueView(ws, dayKey(NOW)), NOW);
+    const started = focusCandidates(ws, NOW).filter((c) => !c.suggested && c.phase !== 'cleared');
+    expect(out.timers.map((c: any) => `${c.project}/${c.world}/${c.level}`)).toEqual(
+      started.map((c) => `${c.projectId}/${c.worldId}/${c.levelId}`),
+    );
+    expect(out.timers.filter((c: any) => c.phase === 'overdue').map((c: any) => c.level).sort()).toEqual(
+      review.overdue.map((o) => o.levelId).sort(),
+    );
+  });
+
+  it('dates each phase from the moment the app would switch to it', async () => {
+    const ws = clocks();
+    const out = await timers(ws, NOW);
+    const levels = Object.fromEntries(levelsOf(ws).map(({ level: l, ref }) => [`level:${ref.projectId}/${ref.worldId}/${ref.levelId}`, l]));
+    const name = { 'on-track': 'ok', hurry: 'hurry', overdue: 'overdue' } as Record<string, string>;
+    for (const c of out.timers) {
+      const since = Date.parse(c.phaseSince);
+      if (c.phase === 'ok') expect(c.phaseSince).toBe(c.startedAt);
+      else {
+        // The boundary is the last moment of the phase before; one ms later the app has switched.
+        expect(name[levelTimer(levels[c.key], since).phase]).not.toBe(c.phase);
+        expect(name[levelTimer(levels[c.key], since + 1).phase]).toBe(c.phase);
+      }
+    }
+  });
+
+  it('agrees with the app at the exact hurry and overdue boundaries', async () => {
+    const ws = workspace(level({ startedAt: '2026-10-01T09:00:00Z' }));
+    const deadline = Date.parse('2026-10-11T09:00:00Z');
+    const hurryAt = deadline - 0.25 * 10 * DAY;
+    for (const now of [hurryAt, hurryAt + 1, deadline, deadline + 1]) {
+      const [c] = (await timers(ws, now)).timers;
+      expect(c).toMatchObject(appClocks(ws, now)['level:p/w/lvl'] as object);
+    }
+  });
+
+  it('counts days as 24 hours across a clock change, in any timezone', async () => {
+    // Europe/London and New York both change clocks inside this time-box.
+    const ws = workspace(level({ startedAt: '2026-03-25T09:00:00Z', timeboxDays: 7 }));
+    const now = Date.parse('2026-03-30T12:00:00Z');
+    const outs = await Promise.all(['Europe/London', 'America/New_York', 'UTC'].map((TZ) => timers(ws, now, { TZ })));
+    for (const out of outs) expect(out).toEqual(outs[0]);
+    expect(outs[0].timers[0]).toMatchObject({ endsAt: '2026-04-01T09:00:00.000Z', ...(appClocks(ws, now)['level:p/w/lvl'] as object) });
+  });
+
+  it('gives the review slots, versions and the moment it used', async () => {
+    const at = '2026-10-28T09:00:00+01:00';
+    const out = await timers(workspace(), at);
+    expect(out).toMatchObject({ schemaVersion: 1, skillVersion: expect.any(Number), now: '2026-10-28T08:00:00.000Z', timers: [], lastReviewAt: null });
+    expect(out.reviewSlots).toEqual(REVIEW_SLOTS);
+    expect(await timers(workspace(), at)).toEqual(out);
+  });
+
+  it('prints running-late levels as text and refuses a bad --now', async () => {
+    const dir = writeTree(toFiles(clocks()));
+    const text = await run(['timers', dir, '--now', new Date(NOW).toISOString()], tz);
+    expect(text.code).toBe(0);
+    expect(text.out).toMatch(/overdue +p\/w\/late +Level late/);
+    expect(text.out).toMatch(/5 level\(s\) running late, 2 on track/);
+    const bad = await run(['timers', dir, '--now', 'tuesday']);
+    expect(bad.code).toBe(2);
+    expect(bad.out).toMatch(/not an ISO date-time/);
   });
 });
 

@@ -11,6 +11,7 @@ ChatGPT's code interpreter, CI and a normal terminal.
     python3 quest.py changes BASE DIR | --git REF DIR [--json]   what DIR adds, changes and removes vs BASE (exit 5 = removals)
     python3 quest.py push [--dir DIR] -m MESSAGE [--pr TITLE] [--allow-delete KEY ...]
                                                  updates from the branch (and a PR's base) first
+    python3 quest.py timers [DIR] [--now ISO] [--json]   running time-boxes (ok, hurry, overdue) and review slots
     python3 quest.py schemas [--refresh]          where the schemas come from (download or bundled)
 
 GitHub commands read the token from GITHUB_TOKEN (or GH_TOKEN). It is only
@@ -20,6 +21,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -30,7 +32,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 9
+SKILL_VERSION = 10
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -899,6 +901,247 @@ def cmd_schemas(args):
     return 0
 
 
+# ---------------------------------------------------------------- clocks: time-boxes and review slots
+# Ports of shared/src/scoring.ts (levelTimer, the clock part of nudges), review.ts (REVIEW_SLOTS)
+# and repeat.ts (effectiveStatus). shared/test/skill-script.test.ts keeps them in step with the app.
+
+DAY_MS = 86_400_000
+HURRY_FRACTION = 0.25
+# Bump only when the `timers` output changes incompatibly; new keys and scopes don't count.
+TIMERS_SCHEMA_VERSION = 1
+# When the weekly review falls due, in the device's local time (weekday: 0 = Sunday).
+REVIEW_SLOTS = {
+    'fri': {'weekday': 5, 'hour': 14, 'label': 'Friday afternoon'},
+    'mon': {'weekday': 1, 'hour': 9, 'label': 'Monday morning'},
+    'sun': {'weekday': 0, 'hour': 18, 'label': 'Sunday evening'},
+}
+ISO_RE = re.compile(r'^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(Z|[+-]\d{2}:?\d{2})?)?$')
+_EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+
+
+def parse_ms(text):
+    """Date.parse: ms since the epoch, or None. A date-time without an offset is local time, like JS."""
+    m = ISO_RE.match(text) if isinstance(text, str) else None
+    if not m:
+        return None
+    y, mo, d, hh, mi, ss, frac, off = m.groups()
+    try:
+        if hh is None:  # date only: UTC midnight
+            at = datetime.datetime(int(y), int(mo), int(d), tzinfo=datetime.timezone.utc)
+        else:
+            at = datetime.datetime(int(y), int(mo), int(d), int(hh), int(mi), int(ss or 0))
+            if off == 'Z':
+                at = at.replace(tzinfo=datetime.timezone.utc)
+            elif off:
+                sign = -1 if off[0] == '-' else 1
+                hours, mins = int(off[1:3]), int(off[-2:])
+                at = at.replace(tzinfo=datetime.timezone(sign * datetime.timedelta(hours=hours, minutes=mins)))
+            else:
+                at = at.astimezone()
+    except ValueError:
+        return None
+    return (at - _EPOCH) // datetime.timedelta(milliseconds=1) + int((frac or '0')[:3].ljust(3, '0'))
+
+
+def iso_ms(ms):
+    """Date#toISOString: always UTC with milliseconds."""
+    at = _EPOCH + datetime.timedelta(milliseconds=math.trunc(ms))
+    return at.strftime('%Y-%m-%dT%H:%M:%S.') + f'{at.microsecond // 1000:03d}Z'
+
+
+def _num(x):
+    """A JS number as JSON prints it: 2, not 2.0."""
+    return int(x) if isinstance(x, float) and x.is_integer() else x
+
+
+def day_key(ms):
+    """The local calendar day of a moment, YYYY-MM-DD (repeat.ts dayKey)."""
+    return datetime.datetime.fromtimestamp(ms / 1000).strftime('%Y-%m-%d')
+
+
+def add_units(day, n, unit):
+    """`day` plus `n` days, weeks, months or years; months clamp to the last day (repeat.ts addUnits)."""
+    y, m, d = (int(p) for p in day.split('-'))
+    if unit in ('days', 'weeks'):
+        return (datetime.date(y, m, d) + datetime.timedelta(days=n * (7 if unit == 'weeks' else 1))).isoformat()
+    months = m - 1 + n * (12 if unit == 'years' else 1)
+    y2, m2 = y + months // 12, months % 12 + 1
+    last = (datetime.date(y2 + m2 // 12, m2 % 12 + 1, 1) - datetime.timedelta(days=1)).day
+    return f'{y2:04d}-{m2:02d}-{min(d, last):02d}'
+
+
+def _done_days(item):
+    if item.get('completions'):
+        return [c.get('on') for c in item['completions']]
+    t = parse_ms(item.get('doneAt'))
+    return [day_key(t)] if item.get('status') == 'done' and t is not None else []
+
+
+def next_due(item):
+    """When a repeating item is next due, as a local day, or None (repeat.ts nextDue)."""
+    r = item.get('repeat')
+    if not r:
+        return None
+    days = _done_days(item)
+    last = days[-1] if days else None
+    if r.get('from') != 'fixed':
+        return add_units(last, r['every'], r['unit']) if last else r.get('start')
+    anchor = r.get('start') or (days[0] if days else None)
+    if not anchor or not last:
+        return anchor
+    k, due = 0, anchor
+    while due <= last:
+        k += 1
+        due = add_units(anchor, k * r['every'], r['unit'])
+    return due
+
+
+def effective_status(item, today):
+    """A done repeating item whose next one has come round counts as todo again (repeat.ts effectiveStatus)."""
+    if item.get('repeat') and item.get('status') == 'done':
+        due = next_due(item)
+        if due and due <= today:
+            return 'todo'
+    return item.get('status')
+
+
+def is_mvp_item(item):
+    return item.get('type') != 'stretch' and not item.get('repeat') and item.get('mvp') is not False
+
+
+def is_cleared(level):
+    mvp = [c for c in level.get('successCriteria') or [] if c.get('mvp')]
+    return bool(mvp) and all(c.get('done') for c in mvp)
+
+
+def level_timer(level, now):
+    """scoring.ts levelTimer: { phase, deadline, remainingMs, remainingFraction, total } (ms)."""
+    start = parse_ms(level.get('startedAt'))
+    if start is None:
+        return {'phase': 'not-started'}
+    total = level['timeboxDays'] * DAY_MS
+    deadline = start + total + (level.get('pausedDays') or 0) * DAY_MS
+    cleared = parse_ms(level.get('clearedAt')) if level.get('clearedAt') else None
+    remaining = deadline - (cleared if cleared is not None else now)
+    fraction = remaining / total
+    phase = ('cleared' if level.get('clearedAt') else 'overdue' if remaining < 0
+             else 'hurry' if fraction < HURRY_FRACTION else 'on-track')
+    return {'phase': phase, 'start': start, 'total': total, 'deadline': deadline, 'remainingMs': remaining, 'remainingFraction': fraction}
+
+
+def clock_nudge(level, phase, today):
+    """The time-box line of scoring.ts nudges(): what the app says when a level is in a hurry or overdue."""
+    if phase == 'overdue':
+        optional = [i for i in level.get('items') or []
+                    if not is_mvp_item(i) and effective_status(i, today) not in ('done', 'dropped')]
+        cut = [i.get('title') for i in optional][:3]
+        return {'tone': 'alert', 'text': 'Hurry up! Time-box blown.' +
+                (f' Drop: {", ".join(cut)}.' if cut else ' Cut an MVP criterion or ship what you have.')}
+    if phase == 'hurry':
+        return {'tone': 'warn', 'text': 'Under 25% of time left — ship the MVP or cut scope.'}
+    return None
+
+
+def load_workspace(files):
+    """{project id: {'project': doc, 'worlds': {world id: {'world': doc, 'levels': {level id: doc}}}}}."""
+    ws = {}
+    for path in sorted(files):
+        c = classify(path)
+        if not c or c[0] in ('settings', 'inbox', 'automation'):
+            continue
+        try:
+            d = json.loads(files[path])
+        except ValueError as e:
+            raise QuestError(f'{path}: not valid JSON ({e})')
+        kind, p, w, lv = c
+        proj = ws.setdefault(p, {'project': {}, 'worlds': {}})
+        if kind == 'project':
+            proj['project'] = d
+            continue
+        world = proj['worlds'].setdefault(w, {'world': {}, 'levels': {}})
+        if kind == 'world':
+            world['world'] = d
+        else:
+            world['levels'][lv] = d
+    return ws
+
+
+def levels_of(ws):
+    """(project id, world id, level id, project, level) for every level, ordered by path."""
+    for p, proj in sorted(ws.items()):
+        for w, world in sorted(proj['worlds'].items()):
+            for lv, level in sorted(world['levels'].items()):
+                yield p, w, lv, proj['project'], level
+
+
+_PHASE_NAME = {'on-track': 'ok', 'hurry': 'hurry', 'overdue': 'overdue'}
+_PHASE_RANK = {'overdue': 0, 'hurry': 1, 'ok': 2}
+
+
+def level_clock(p, w, lv, level, now):
+    """One running level's time-box, or None when its clock isn't running (not started or cleared)."""
+    t = level_timer(level, now)
+    if t['phase'] not in _PHASE_NAME or is_cleared(level):
+        return None
+    phase = _PHASE_NAME[t['phase']]
+    # When the current phase began: start, the 25%-left mark, or the deadline.
+    since = {'ok': t['start'], 'hurry': t['deadline'] - HURRY_FRACTION * t['total'], 'overdue': t['deadline']}[phase]
+    stats = level.get('stats') or {}
+    return {
+        'key': f'level:{p}/{w}/{lv}', 'scope': 'level', 'project': p, 'world': w, 'level': lv, 'title': level.get('name'),
+        'phase': phase, 'phaseSince': iso_ms(since), 'endsAt': iso_ms(t['deadline']),
+        'startedAt': iso_ms(t['start']), 'timeboxDays': level['timeboxDays'],
+        'extendedDays': stats.get('timeboxExtendedDays') or 0, 'pausedDays': _num(level.get('pausedDays') or 0),
+        'remainingMs': _num(t['remainingMs']), 'remainingFraction': _num(t['remainingFraction']),
+        'nudge': clock_nudge(level, t['phase'], day_key(now)),
+    }
+
+
+def timers(files, now):
+    """Running time-boxes, most pressing first, plus the review slots: what `quest.py timers` prints.
+
+    Each clock has a `scope` and a unique `key`. Levels are the only scope today; world
+    time-boxes (#29) add `scope: 'world'` entries, and due dates (#33) and repeating items (#34)
+    add sibling lists, so readers should skip scopes and keys they don't know.
+    """
+    ws = load_workspace(files)
+    clocks = []
+    for p, w, lv, project, level in levels_of(ws):
+        # The someday shelf is parked, and an archived game's clocks are frozen (review.ts weeklyReview).
+        if level.get('someday') or not level.get('startedAt') or project.get('archivedAt'):
+            continue
+        c = level_clock(p, w, lv, level, now)
+        if c:
+            clocks.append(c)
+    clocks.sort(key=lambda c: (_PHASE_RANK[c['phase']], c['remainingFraction'], c['key']))
+    return {
+        'schemaVersion': TIMERS_SCHEMA_VERSION, 'skillVersion': SKILL_VERSION, 'now': iso_ms(now),
+        'timers': clocks,
+        'reviewSlots': REVIEW_SLOTS,
+        # The app keeps the last review in the browser, so the data never holds it (yet).
+        'lastReviewAt': None,
+    }
+
+
+def cmd_timers(args):
+    if args.now:
+        now = parse_ms(args.now)
+        if now is None:
+            raise QuestError(f'--now {args.now!r} is not an ISO date-time, e.g. 2026-10-28T09:00:00Z')
+    else:
+        now = int(time.time() * 1000)
+    out = timers(read_tree(args.dir), now)
+    if args.json:
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        return 0
+    late = [c for c in out['timers'] if c['phase'] != 'ok']
+    for c in late:
+        print(f'{c["phase"]:8} {c["project"]}/{c["world"]}/{c["level"]}  {c["title"]}  (ends {c["endsAt"][:16]}Z)')
+    on_track = len(out['timers']) - len(late)
+    print(f'{len(late)} level(s) running late, {on_track} on track' if out['timers'] else 'no time-boxes running')
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog='quest.py', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--schemas', help='directory with index.json and the schema files (default: bundled, repo, cache or download)')
@@ -943,6 +1186,12 @@ def main(argv=None):
     p.add_argument('--warn', action='store_true', help='list removals but exit 0 (for CI)')
     p.add_argument('--json', action='store_true', help='print { added, changed, removed, unapprovedRemovals } instead of text')
     p.set_defaults(run=cmd_changes)
+
+    p = sub.add_parser('timers', help="running time-boxes (ok, hurry, overdue) and the weekly review slots")
+    p.add_argument('dir', nargs='?', default='.', help='folder containing data/ (default: .)')
+    p.add_argument('--now', metavar='ISO', help='work out the clocks at this moment instead of now, e.g. 2026-10-28T09:00:00Z')
+    p.add_argument('--json', action='store_true', help='print { timers: [{ key, scope, phase, phaseSince, endsAt, … }], reviewSlots, … }')
+    p.set_defaults(run=cmd_timers)
 
     p = sub.add_parser('schemas', help='show where schemas are loaded from')
     p.add_argument('--refresh', action='store_true')
