@@ -100,7 +100,7 @@ data/     eight example projects: five in play (customer-portal, home-maintenanc
 - **Store** (`app/src/data/store.ts`): ops are applied optimistically and queued in an IndexedDB
   outbox. Sync loads remote, replays the outbox on top, validates and commits the changed files
   once. On `ConflictError` it reloads and retries (max 3). Ops whose target is gone become
-  conflicts and are listed in Settings → Sync. `retract()` takes back an unsynced op with no
+  conflicts and are listed in Settings → GitHub & sync. `retract()` takes back an unsynced op with no
   commit and no polish. `hold()`/`release()` is used by play mode.
 - **DataSource** (`app/src/data/source.ts`): `StaticSource` (read-only Pages), `GitHubSource`
   (token, atomic commits via Git Data API), `LocalApiSource` (Docker `/api`), `DemoSource`

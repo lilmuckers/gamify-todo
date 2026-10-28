@@ -24,6 +24,8 @@ export interface ModalOptions {
   onClose?: () => void;
   /** A wider dialog, for screens rather than forms (the character select). */
   wide?: boolean;
+  /** Extra class on the dialog, for one modal's own layout (Settings' tabs). */
+  className?: string;
 }
 
 export function openModal(title: string, body: Node, actions: ModalAction[] = [{ label: 'Close' }], opts: ModalOptions = {}) {
@@ -60,7 +62,7 @@ export function openModal(title: string, body: Node, actions: ModalAction[] = [{
   );
   const dialog = h(
     'form',
-    { class: `modal${opts.wide ? ' wide' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+    { class: `modal${opts.wide ? ' wide' : ''}${opts.className ? ` ${opts.className}` : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
     h('h2', null, title),
     h('div', { class: 'modal-body' }, body),
     h('div', { class: 'modal-actions' }, buttons),

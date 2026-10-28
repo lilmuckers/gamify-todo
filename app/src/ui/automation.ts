@@ -35,8 +35,9 @@ const STATE_TEXT: Record<StubState, { note: string; tone: 'win' | 'warn' | 'aler
 /**
  * Settings → Automation: the Quest Log workflow in the data repo (install, update, drift), its
  * settings in data/automation.json, its secrets and its latest run. GitHub repos only.
+ * `onAttention` hears, after each check, whether the workflow needs something done.
  */
-export function automationSection(app: App): Node[] {
+export function automationSection(app: App, onAttention?: (on: boolean) => void): Node[] {
   const provider = app.store.source.automation;
   if (!provider || !app.caps.canAutomate) return [];
   const root = h('div', { class: 'automation', 'aria-busy': 'true' });
@@ -59,6 +60,7 @@ export function automationSection(app: App): Node[] {
     secrets = k.status === 'fulfilled' ? k.value : undefined;
     root.removeAttribute('aria-busy');
     render();
+    onAttention?.(!!stubError || (!!stub && stub !== 'current'));
   };
 
   const unsubscribe = app.store.subscribe(() => {
@@ -184,7 +186,7 @@ export function automationSection(app: App): Node[] {
 
   render();
   void load();
-  return [h('h3', null, 'Automation'), root];
+  return [root];
 }
 
 /** The latest run: when, why, what ran and on which core. */

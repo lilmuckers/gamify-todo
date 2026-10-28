@@ -15,44 +15,75 @@ import { confirmDialog, openModal } from './modal';
 import { openRepoPicker } from './repo-picker';
 import { beginSignIn } from './sign-in';
 import { skillHelpDialog } from './skill-help';
+import { tabs, type TabSpec } from './tabs';
 import { toast } from './toast';
 
-export function settingsDialog(app: App) {
+export type SettingsTab = 'game' | 'github' | 'automation' | 'help';
+
+const TAB_KEY = 'quest:settings-tab';
+
+/**
+ * Settings, in tabs so each view stays short. Opens on `tab`, else on a tab that needs
+ * attention, else where you left it this session.
+ */
+export function settingsDialog(app: App, tab?: SettingsTab) {
   const s = app.store;
-  const body = h('div', { class: 'settings' });
-  body.append(
-    h('h3', null, 'Your hero'),
-    heroCard(app),
-  );
+  const closeSettings = () => closeAll();
+  const pane = (...nodes: Node[]) => h('div', { class: 'settings-pane' }, nodes);
 
-  if (s.source.id === 'demo') {
-    body.append(h('h3', null, 'Demo'), ...demoNotice(app));
-  } else if (TARGET === 'pages') {
-    if (signInAvailable()) body.append(...signInSection(app, () => closeAll()));
-    body.append(...tokenSection(app, signInAvailable()));
+  const github: Node[] = [];
+  if (s.source.id === 'demo') github.push(h('h3', null, 'Demo'), ...demoNotice(app));
+  else if (TARGET === 'pages') {
+    if (signInAvailable()) github.push(...signInSection(app, closeSettings));
+    github.push(...tokenSection(app, signInAvailable()));
   }
-  body.append(...automationSection(app));
+  github.push(...syncSection(app));
 
-  // Phones have no room for the top bar's AI SKILL button: it lives here instead.
-  if (app.compact)
-    body.append(
-      h('h3', null, 'AI skill'),
-      h('p', null, 'Plan and update your quests with Claude or ChatGPT.'),
-      h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => (closeAll(), skillHelpDialog()) }, 'Use Quest Log with AI')),
-    );
+  let markAutomation = (_on: boolean) => {};
+  const automation = automationSection(app, (on) => markAutomation(on));
 
-  body.append(
-    h('h3', null, 'New here?'),
-    h(
-      'div',
-      { class: 'actions' },
-      h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.showWelcome(app))) }, 'Show the welcome screen'),
-      h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.beginTour(app))) }, 'Take the tour'),
-      s.source.id !== 'demo' &&
-        h('button', { class: 'btn sm', type: 'button', onclick: () => void import('./onboarding').then((m) => (closeAll(), m.beginSetup(app))) }, 'Set-up guide'),
-    ),
-  );
+  const list: TabSpec<SettingsTab>[] = [
+    { id: 'game', label: 'Game', pane: pane(h('h3', null, 'Your hero'), heroCard(app), ...displaySection(), ...reviewSection(app), ...privacySection()) },
+    { id: 'github', label: 'GitHub & sync', pane: pane(...github) },
+  ];
+  if (automation.length) list.push({ id: 'automation', label: 'Automation', pane: pane(...automation) });
+  list.push({ id: 'help', label: 'Help', pane: pane(...helpSection(app, closeSettings)) });
 
+  const syncTrouble = !!(s.error || s.conflicts.length || s.issues.length || s.needsSignIn || needsSignIn(tokenStore.session()));
+  const has = (id?: string | null): id is SettingsTab => list.some((t) => t.id === id);
+  const last = (() => {
+    try {
+      return sessionStorage.getItem(TAB_KEY);
+    } catch {
+      return null;
+    }
+  })();
+  const selected = has(tab) ? tab : syncTrouble ? 'github' : has(last) ? last : 'game';
+  const t = tabs(list, {
+    class: 'settings-tabs',
+    vertical: !app.compact,
+    selected,
+    onSelect: (id) => {
+      try {
+        sessionStorage.setItem(TAB_KEY, id);
+      } catch {
+        // Private mode: it just opens on Game next time.
+      }
+    },
+  });
+  const dot = (id: SettingsTab, on: boolean) => {
+    if (has(id)) t.button(id).classList.toggle('attention', on);
+  };
+  dot('github', syncTrouble);
+  markAutomation = (on) => dot('automation', on);
+
+  const body = h('div', { class: 'settings' }, t.strip, list.map((x) => x.pane));
+  const closeAll = openModal('Settings', body, undefined, { className: 'settings-modal' });
+  // Not the first field: that may sit in a hidden tab.
+  t.button(selected).focus();
+}
+
+function displaySection(): Node[] {
   const mode = h(
     'select',
     {
@@ -78,7 +109,7 @@ export function settingsDialog(app: App) {
     },
   });
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  body.append(
+  return [
     h('h3', null, 'Display'),
     h('label', { class: 'field' }, h('span', null, 'Layout'), mode),
     h('label', { class: 'check' }, sound, 'Sound effects'),
@@ -87,8 +118,10 @@ export function settingsDialog(app: App) {
       { class: 'muted' },
       `Short retro blips, made in the browser. Off by default.${calm ? ' Your system asks for reduced motion, so they stay off unless you turn them on.' : ''}`,
     ),
-  );
+  ];
+}
 
+function reviewSection(app: App): Node[] {
   const reviewDay = h(
     'select',
     { onchange: (e: Event) => app.setReview({ day: (e.target as HTMLSelectElement).value as ReviewDay }) },
@@ -97,41 +130,42 @@ export function settingsDialog(app: App) {
       ['off', 'No reminder (W still opens it)'],
     ].map(([v, l]) => h('option', { value: v, selected: app.review.day === v }, l)),
   );
-  body.append(
+  return [
     h('h3', null, 'Weekly review'),
     h('label', { class: 'field' }, h('span', null, 'Remind me'), reviewDay),
     h('small', { class: 'muted' }, 'A REVIEW button appears in the top bar when it’s due. Kept in this browser.'),
-  );
+  ];
+}
 
-  if (analyticsAvailable()) {
-    const toggle = h('input', {
-      type: 'checkbox',
-      checked: analyticsAllowed(),
-      onchange: (e: Event) => {
-        const on = (e.target as HTMLInputElement).checked;
-        setAnalyticsAllowed(on);
-        toast(on ? 'Analytics on from the next reload' : 'Analytics off', 'win');
-      },
-    });
-    body.append(
-      h('h3', null, 'Privacy'),
-      h('label', { class: 'check' }, toggle, 'Usage analytics (Google Analytics)'),
-      h(
-        'small',
-        { class: 'muted' },
-        'Counts which screens and actions get used, by type only: no project, level or item titles or ids, no repo names, no tokens. Off by default if your browser sends Global Privacy Control.',
-      ),
-    );
-  }
+function privacySection(): Node[] {
+  if (!analyticsAvailable()) return [];
+  const toggle = h('input', {
+    type: 'checkbox',
+    checked: analyticsAllowed(),
+    onchange: (e: Event) => {
+      const on = (e.target as HTMLInputElement).checked;
+      setAnalyticsAllowed(on);
+      toast(on ? 'Analytics on from the next reload' : 'Analytics off', 'win');
+    },
+  });
+  return [
+    h('h3', null, 'Privacy'),
+    h('label', { class: 'check' }, toggle, 'Usage analytics (Google Analytics)'),
+    h(
+      'small',
+      { class: 'muted' },
+      'Counts which screens and actions get used, by type only: no project, level or item titles or ids, no repo names, no tokens. Off by default if your browser sends Global Privacy Control.',
+    ),
+  ];
+}
 
-  body.append(h('h3', null, 'Sync'));
-  body.append(
-
-    h('p', null, `Source: ${s.source.label} · status: ${s.status} · last synced ${relTime(s.lastSyncedAt)}`),
-  );
-  if (s.error) body.append(h('p', { class: 'note alert' }, s.error));
+/** Sync status, queued edits, conflicts, data issues and publishing. */
+function syncSection(app: App): Node[] {
+  const s = app.store;
+  const out: Node[] = [h('h3', null, 'Sync'), h('p', null, `Source: ${s.source.label} · status: ${s.status} · last synced ${relTime(s.lastSyncedAt)}`)];
+  if (s.error) out.push(h('p', { class: 'note alert' }, s.error));
   if (s.outbox.length)
-    body.append(
+    out.push(
       h('p', null, `${s.outbox.length} queued edit(s):`),
       h('ul', { class: 'list compact' }, s.outbox.slice(-20).map((op) => h('li', null, h('small', null, describeOp(op, s.base))))),
       h(
@@ -152,22 +186,37 @@ export function settingsDialog(app: App) {
       ),
     );
   if (s.conflicts.length)
-    body.append(
+    out.push(
       h('p', { class: 'note warn' }, `${s.conflicts.length} offline edit(s) could not be applied because their target changed remotely:`),
       h('ul', { class: 'list compact' }, s.conflicts.map((c) => h('li', null, h('small', null, `${describeOp(c.op)} — ${c.message}`)))),
       h('button', { class: 'btn sm', type: 'button', onclick: () => s.dismissConflicts() }, 'Dismiss'),
     );
   if (s.issues.length)
-    body.append(
+    out.push(
       h('h3', null, 'Data issues'),
       h('ul', { class: 'list compact' }, s.issues.slice(0, 20).map((i) => h('li', null, h('small', null, `${i.file}${i.path}: ${i.message}`)))),
     );
   if (s.source.publish)
-    body.append(
-      h('h3', null, 'Publish'),
-      h('p', { class: 'muted' }, 'Edits are committed locally. Publishing pushes them so GitHub Pages redeploys.'),
-    );
-  const closeAll = openModal('Settings', body);
+    out.push(h('h3', null, 'Publish'), h('p', { class: 'muted' }, 'Edits are committed locally. Publishing pushes them so GitHub Pages redeploys.'));
+  return out;
+}
+
+/** The AI skill and the ways back into the welcome, tour and set-up guide. */
+function helpSection(app: App, closeSettings: () => void): Node[] {
+  const onboarding = (run: (m: typeof import('./onboarding')) => void) => () => void import('./onboarding').then((m) => (closeSettings(), run(m)));
+  return [
+    h('h3', null, 'AI skill'),
+    h('p', null, 'Plan and update your quests with Claude or ChatGPT.'),
+    h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => (closeSettings(), skillHelpDialog()) }, 'Use Quest Log with AI')),
+    h('h3', null, 'New here?'),
+    h(
+      'div',
+      { class: 'actions' },
+      h('button', { class: 'btn sm', type: 'button', onclick: onboarding((m) => m.showWelcome(app)) }, 'Show the welcome screen'),
+      h('button', { class: 'btn sm', type: 'button', onclick: onboarding((m) => m.beginTour(app)) }, 'Take the tour'),
+      app.store.source.id !== 'demo' && h('button', { class: 'btn sm', type: 'button', onclick: onboarding((m) => m.beginSetup(app)) }, 'Set-up guide'),
+    ),
+  ];
 }
 
 /** Pasting a fine-grained token: the way in without sign-in, and what AI assistants still use. */
@@ -249,7 +298,7 @@ function tokenSection(app: App, fallback: boolean): Node[] {
       '). The token is stored in this browser’s localStorage and the app sends it only to api.github.com. Anyone with access to this browser profile can read it.',
       fallback && ' AI assistants that edit your quests use a token like this too.',
       analyticsAvailable() &&
-        ' This page also loads Google Analytics (no titles, ids or repo names are sent); you can switch it off under Privacy below.',
+        ' This page also loads Google Analytics (no titles, ids or repo names are sent); you can switch it off under Game → Privacy.',
     ),
     h('label', { class: 'field' }, h('span', null, 'Repository'), repo),
     h('label', { class: 'field' }, h('span', null, 'Branch (optional)'), branch),
