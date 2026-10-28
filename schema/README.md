@@ -11,6 +11,7 @@ repo of your own. Files are validated by the JSON Schemas here (draft 2020-12,
 | `data/<project-id>/<world-id>/<level-id>.json` | [`level.schema.json`](level.schema.json) |
 | `data/settings.json` (optional) | [`settings.schema.json`](settings.schema.json) |
 | `data/inbox.json` (optional) | [`inbox.schema.json`](inbox.schema.json) |
+| `data/automation.json` (optional) | [`automation.schema.json`](automation.schema.json) |
 
 All of them reference the definitions in [`quest.schema.json`](quest.schema.json). They are published
 at `https://tasks.patrick-mckinley.com/schema/`, and data files point there with `$schema`, so
@@ -58,6 +59,12 @@ Checked by `npm run validate`, the app, and CI:
   anything; the file keeps `status: "done"` until it's done again. Doing it appends a local
   `YYYY-MM-DD` day to `completions` (in date order, one per day) and moves the item's `spent` into
   that entry, so each occurrence has its own budget. Repeating items are never MVP.
+- `data/automation.json` configures the Quest Log GitHub Action (`channel`, `schedule.every`,
+  `validate`, `notify`). Every block is optional; a missing file means validation on and
+  everything else off. Push device ids are unique and each `timezone` is an IANA name. The app
+  writes this file in the same commit as `.github/workflows/quest.yml`, which it renders from it
+  (`shared/src/stub.ts`); the workflow only has a `schedule:` while some device wants a time-box
+  or review notification. Tools must leave `notify.devices` and the workflow to the app.
 
 ## Generating data with an LLM
 

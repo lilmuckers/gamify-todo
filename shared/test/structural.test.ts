@@ -11,7 +11,7 @@ import {
   type OpBody,
   type Workspace,
 } from '../src/index';
-import { level } from './fixtures';
+import { automationExample, device, level } from './fixtures';
 
 /** Two projects; "p" has two worlds of two levels, with a cloud from w2 back to w1. */
 function rich(): Workspace {
@@ -37,7 +37,7 @@ function rich(): Workspace {
     overworld: { id: 'q', title: 'Q', goals: [{ id: 'g', title: 'Goal' }], worldOrder: ['w'] },
     worlds: { w: { id: 'w', name: 'W', theme: 'grass', goalIds: ['g'], levels: [lvl('lvl')] } },
   };
-  return { projects: { p, q }, settings: { hero: 'classic' }, inbox: [{ id: 'idea', type: 'task', title: 'Idea' }] };
+  return { projects: { p, q }, settings: { hero: 'classic' }, inbox: [{ id: 'idea', type: 'task', title: 'Idea' }], automation: automationExample() };
 }
 
 function deepFreeze<T>(o: T): T {
@@ -85,6 +85,10 @@ const OPS: OpBody[] = [
   { kind: 'inboxUpdate', id: 'idea', patch: { title: 'Better idea' } },
   { kind: 'inboxRemove', ids: ['idea'] },
   { kind: 'inboxPlace', ids: ['idea'], ...p1 },
+  { kind: 'updateAutomation', patch: { channel: 'beta', schedule: { every: '1h' }, notify: { enabled: false } } },
+  { kind: 'addDevice', device: device({ id: 'tablet', label: 'Tablet' }) },
+  { kind: 'addDevice', device: device({ label: 'Renamed' }) },
+  { kind: 'removeDevice', id: 'pixel-7' },
 ] as OpBody[];
 
 describe('ops copy only what they change', () => {
@@ -103,6 +107,7 @@ describe('ops copy only what they change', () => {
     expect(next.projects.p.worlds.w1.levels[1]).toBe(ws.projects.p.worlds.w1.levels[1]);
     expect(next.projects.p.worlds.w1.levels[0]).not.toBe(ws.projects.p.worlds.w1.levels[0]);
     expect(next.settings).toBe(ws.settings);
+    expect(next.automation).toBe(ws.automation);
   });
 
   it('copies only the levels whose cloud points at a deleted level', () => {

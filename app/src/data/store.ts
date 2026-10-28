@@ -77,7 +77,8 @@ export function keepUnchanged(prev: Workspace | undefined, next: Workspace): Wor
   const out: Workspace = { ...next, projects };
   if (next.settings && same(prev.settings, next.settings)) out.settings = prev.settings;
   if (next.inbox && same(prev.inbox, next.inbox)) out.inbox = prev.inbox;
-  changed ||= out.settings !== prev.settings || out.inbox !== prev.inbox;
+  if (next.automation && same(prev.automation, next.automation)) out.automation = prev.automation;
+  changed ||= out.settings !== prev.settings || out.inbox !== prev.inbox || out.automation !== prev.automation;
   return changed ? out : prev;
 }
 

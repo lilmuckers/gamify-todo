@@ -1,4 +1,4 @@
-import type { GameState, InboxItem, Level, Project, Settings, World, WorldFile, Workspace } from './model';
+import type { Automation, GameState, InboxItem, Level, Project, Settings, World, WorldFile, Workspace } from './model';
 
 export const DATA_ROOT = 'data';
 /** Published schema location; data files point here so they validate anywhere. */
@@ -16,18 +16,22 @@ export const levelPath = (p: string, w: string, l: string) => `${DATA_ROOT}/${p}
 export const SETTINGS_PATH = `${DATA_ROOT}/settings.json`;
 /** Optional repo-wide inbox of captured ideas. */
 export const INBOX_PATH = `${DATA_ROOT}/inbox.json`;
+/** Optional settings for the Quest Log GitHub Action (schedule, push devices). */
+export const AUTOMATION_PATH = `${DATA_ROOT}/automation.json`;
 
 export type DataFile =
   | { kind: 'project'; projectId: string }
   | { kind: 'world'; projectId: string; worldId: string }
   | { kind: 'level'; projectId: string; worldId: string; levelId: string }
   | { kind: 'settings' }
-  | { kind: 'inbox' };
+  | { kind: 'inbox' }
+  | { kind: 'automation' };
 
 /** What a repo path holds, or undefined if it isn't a Quest Log data file. */
 export function classifyPath(path: string): DataFile | undefined {
   if (path === SETTINGS_PATH) return { kind: 'settings' };
   if (path === INBOX_PATH) return { kind: 'inbox' };
+  if (path === AUTOMATION_PATH) return { kind: 'automation' };
   let m = PROJECT_RE.exec(path);
   if (m) return { kind: 'project', projectId: m[1] };
   m = WORLD_RE.exec(path);
@@ -80,6 +84,20 @@ const KEY_ORDER = [
   'from',
   'start',
   'on',
+  // automation.json: channel, schedule, validate, notify; a device reads id, label, where, what, how.
+  'channel',
+  'schedule',
+  'validate',
+  'notify',
+  'enabled',
+  'vapidPublicKey',
+  'devices',
+  'label',
+  'timezone',
+  'events',
+  'subscription',
+  'endpoint',
+  'p256dh',
 ];
 const rank = new Map(KEY_ORDER.map((k, i) => [k, i]));
 
@@ -104,7 +122,7 @@ export function stringify(value: unknown): string {
   return JSON.stringify(canonical(value), null, 2) + '\n';
 }
 
-const schemaRef = (kind: 'project' | 'world' | 'level' | 'settings' | 'inbox') => `${SCHEMA_BASE}${kind}.schema.json`;
+const schemaRef = (kind: DataFile['kind']) => `${SCHEMA_BASE}${kind}.schema.json`;
 
 /** Files for one project. */
 export function projectFiles(projectId: string, state: GameState): Record<string, string> {
@@ -128,6 +146,8 @@ export function toFiles(ws: Workspace): Record<string, string> {
   if (ws.settings && Object.keys(ws.settings).length)
     files[SETTINGS_PATH] = stringify({ ...ws.settings, $schema: schemaRef('settings') });
   if (ws.inbox?.length) files[INBOX_PATH] = stringify({ $schema: schemaRef('inbox'), items: ws.inbox });
+  if (ws.automation && Object.keys(ws.automation).length)
+    files[AUTOMATION_PATH] = stringify({ ...ws.automation, $schema: schemaRef('automation') });
   return files;
 }
 
@@ -175,6 +195,7 @@ export function fromFiles(files: Record<string, string>): Workspace {
   const projects: Record<string, GameState> = {};
   let settings: Workspace['settings'];
   let inbox: InboxItem[] | undefined;
+  let automation: Workspace['automation'];
   const worldFiles = table<Record<string, WorldFile>>();
   const levels = table<Record<string, Record<string, Level>>>();
   for (const path of Object.keys(files)) {
@@ -186,6 +207,9 @@ export function fromFiles(files: Record<string, string>): Workspace {
     } else if (f.kind === 'settings') {
       const s = parse<Settings>(path);
       if (s && typeof s === 'object') settings = strip(s);
+    } else if (f.kind === 'automation') {
+      const a = parse<Automation>(path);
+      if (a && typeof a === 'object' && !Array.isArray(a)) automation = strip(a);
     } else if (f.kind === 'project') {
       const p = parse<Project>(path);
       if (p) projects[f.projectId] = { overworld: strip(p) as Project, worlds: {} };
@@ -213,5 +237,5 @@ export function fromFiles(files: Record<string, string>): Workspace {
     const unlisted = Object.keys(state.worlds).filter((w) => !listed.includes(w)).sort();
     if (unlisted.length) state.overworld = { ...state.overworld, worldOrder: [...listed, ...unlisted] };
   }
-  return { projects, ...(settings ? { settings } : {}), ...(inbox ? { inbox } : {}) };
+  return { projects, ...(settings ? { settings } : {}), ...(inbox ? { inbox } : {}), ...(automation ? { automation } : {}) };
 }

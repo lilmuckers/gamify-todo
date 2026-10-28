@@ -1,6 +1,6 @@
-import type { Project, World as WorldFile, Level, Item, Criterion, Goal, Subtask, Settings, InboxItem } from './types.gen';
+import type { Project, World as WorldFile, Level, Item, Criterion, Goal, Subtask, Settings, InboxItem, Automation, PushDevice } from './types.gen';
 
-export type { Project, WorldFile, Level, Item, Criterion, Goal, Subtask, Settings, InboxItem };
+export type { Project, WorldFile, Level, Item, Criterion, Goal, Subtask, Settings, InboxItem, Automation, PushDevice };
 export type HeroId = NonNullable<Settings['hero']>;
 /** The project file is what the overworld map shows. */
 export type Overworld = Project;
@@ -24,6 +24,8 @@ export interface Workspace {
   settings?: Omit<Settings, '$schema'>;
   /** data/inbox.json: captured ideas not yet placed in a level. */
   inbox?: InboxItem[];
+  /** data/automation.json: the GitHub Action's settings, when the repo has them. */
+  automation?: Omit<Automation, '$schema'>;
 }
 
 export const HERO_IDS: HeroId[] = [
