@@ -101,6 +101,24 @@ export function parseStub(text: string): ParsedStub {
   return { kind: 'foreign' };
 }
 
+/**
+ * How the workflow in a repo compares with what the app would write now:
+ * - `missing`: no workflow yet; `legacy`: the old copy-paste one; `foreign`: someone else's file
+ * - `older`: an older `quest-stub` (e.g. it lacks a newer secret name); `newer`: written by a newer app
+ * - `drift`: ours, but edited by hand or out of step with automation.json; `current`: as rendered
+ */
+export type StubState = 'missing' | 'legacy' | 'foreign' | 'older' | 'newer' | 'drift' | 'current';
+
+export function stubState(text: string | undefined, automation: AutomationConfig | undefined, defaultBranch = 'main'): StubState {
+  if (text === undefined) return 'missing';
+  const parsed = parseStub(text);
+  if (parsed.kind !== 'stub') return parsed.kind;
+  if (parsed.version < STUB_VERSION) return 'older';
+  if (parsed.version > STUB_VERSION) return 'newer';
+  // Comparing the whole text also catches a hand edit that left the quest-config line alone.
+  return text.replace(/\r\n/g, '\n') === renderStub(automation, defaultBranch).text ? 'current' : 'drift';
+}
+
 /** A rendered stub for core.json (notify on, default schedule), so the action's CI can check the contract. */
 export function stubSample(): string {
   return renderStub({

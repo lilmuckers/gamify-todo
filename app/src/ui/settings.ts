@@ -1,6 +1,7 @@
 import { describeOp, GitHubClient, parseRepo, REVIEW_SLOTS, type ReviewDay } from '@quest/shared';
 import { analyticsAllowed, analyticsAvailable, setAnalyticsAllowed, track } from '../analytics';
 import type { App } from '../app';
+import { automationSection } from './automation';
 import { setSoundOn, soundOn } from '../audio';
 import { needsSignIn } from '../auth/session';
 import { REVOKE_URL, signInAvailable, signOut } from '../auth/signin';
@@ -30,6 +31,7 @@ export function settingsDialog(app: App) {
     if (signInAvailable()) body.append(...signInSection(app, () => closeAll()));
     body.append(...tokenSection(app, signInAvailable()));
   }
+  body.append(...automationSection(app));
 
   // Phones have no room for the top bar's AI SKILL button: it lives here instead.
   if (app.compact)
@@ -242,7 +244,7 @@ function tokenSection(app: App, fallback: boolean): Node[] {
       h('b', null, 'Pull requests: read & write'),
       ' and ',
       h('b', null, 'Checks: read'),
-      '. Data goes in data/<project>/… (see the ',
+      ' (for Automation, also Workflows and Secrets: read & write, and Actions: read). Data goes in data/<project>/… (see the ',
       h('a', { href: 'skills/quest-log/SKILL.md', target: '_blank', class: 'link' }, 'skill guide'),
       '). The token is stored in this browser’s localStorage and the app sends it only to api.github.com. Anyone with access to this browser profile can read it.',
       fallback && ' AI assistants that edit your quests use a token like this too.',

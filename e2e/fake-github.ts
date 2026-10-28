@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import type { Page, Route } from '@playwright/test';
+import { zip } from '../app/src/ui/zip';
 
 /**
  * Stand-ins for GitHub and the sign-in Worker, for Sign in with GitHub tests. The Pages e2e
@@ -11,6 +12,7 @@ import type { Page, Route } from '@playwright/test';
  */
 
 export const AUTH_URL = 'https://auth.quest.test';
+
 const API = 'https://api.github.com';
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -38,10 +40,24 @@ interface Commit {
   auth?: string;
 }
 
+export interface FakeRun {
+  id: number;
+  event: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion: string | null;
+  created_at: string;
+  /** The run's quest-status artifact (status.json), if it uploaded one. */
+  status_json?: unknown;
+}
+
 class FakeRepo {
   trees = new Map<string, Record<string, string>>();
   commits = new Map<string, Commit>();
   head: string;
+  /** Quest Log workflow runs, newest first. */
+  runs: FakeRun[] = [];
+  /** Names of Actions secrets that are set. */
+  secrets = new Set<string>();
 
   constructor(
     public owner: string,
@@ -61,6 +77,25 @@ class FakeRepo {
 
   files(sha = this.head) {
     return this.trees.get(this.commits.get(sha)!.tree)!;
+  }
+
+  /** Replaces files in one commit, as someone pushing outside the app would. */
+  push(files: Record<string, string | null>, message = 'Push from elsewhere') {
+    const next = { ...this.files() };
+    for (const [p, c] of Object.entries(files)) {
+      if (c === null) delete next[p];
+      else next[p] = c;
+    }
+    const sha = sha1(`${this.head}:${message}:${JSON.stringify(next)}`);
+    this.commits.set(sha, { tree: this.addTree(next), message, parent: this.head });
+    this.head = sha;
+  }
+
+  /** Paths a commit changed against its parent. */
+  changed(c: Commit) {
+    const before = c.parent ? this.trees.get(this.commits.get(c.parent)!.tree)! : {};
+    const after = this.trees.get(c.tree)!;
+    return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((p) => before[p] !== after[p]).sort();
   }
 
   /** Commits made by the app, oldest first. */
@@ -223,6 +258,38 @@ export class FakeGitHub {
     if (rest === '') return json(200, { default_branch: 'main', permissions: { push: true } });
     if (rest === '/commits') return json(200, [{ sha: repo.head }]);
     if (rest === '/pulls') return json(200, []);
+    if (rest.startsWith('/contents/') && (req.headers().accept ?? '').includes('raw')) {
+      const ref = url.searchParams.get('ref');
+      const files = repo.files(ref && repo.commits.has(ref) ? ref : repo.head);
+      const text = files[decodeURIComponent(rest.slice('/contents/'.length))];
+      return text === undefined ? json(404, { message: 'Not Found' }) : route.fulfill({ status: 200, contentType: 'application/vnd.github.raw+json', body: text });
+    }
+    if (rest === '/actions/workflows/quest.yml/runs') {
+      if (!repo.files()['.github/workflows/quest.yml']) return json(404, { message: 'Not Found' });
+      return json(200, {
+        total_count: repo.runs.length,
+        workflow_runs: repo.runs.slice(0, Number(url.searchParams.get('per_page') ?? 30)).map((r) => ({
+          ...r,
+          run_started_at: r.created_at,
+          html_url: `https://github.com/${m![1]}/actions/runs/${r.id}`,
+        })),
+      });
+    }
+    let a = /^\/actions\/runs\/(\d+)\/artifacts$/.exec(rest);
+    if (a) {
+      const run = repo.runs.find((r) => r.id === Number(a![1]));
+      const artifacts = run?.status_json ? [{ id: run.id, name: 'quest-status', expired: false, archive_download_url: `${API}/repos/${m![1]}/actions/artifacts/${run.id}/zip` }] : [];
+      return json(200, { total_count: artifacts.length, artifacts });
+    }
+    a = /^\/actions\/artifacts\/(\d+)\/zip$/.exec(rest);
+    if (a) {
+      // GitHub answers 302 to Azure blob storage. Playwright can't route a redirect's next hop
+      // (the browser would reach the real host), so the fake hands the zip over directly.
+      const run = repo.runs.find((r) => r.id === Number(a![1]));
+      if (!run?.status_json) return json(404, { message: 'Not Found' });
+      return route.fulfill({ status: 200, contentType: 'application/zip', body: Buffer.from(zip({ 'status.json': JSON.stringify(run.status_json, null, 2) })) });
+    }
+    if (rest === '/actions/secrets') return json(200, { total_count: repo.secrets.size, secrets: [...repo.secrets].map((name) => ({ name })) });
     if (rest.startsWith('/contents/')) {
       const dir = rest.slice('/contents/'.length);
       const files = Object.keys(repo.files());

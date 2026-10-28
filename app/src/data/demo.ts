@@ -22,7 +22,7 @@ export function exampleData(): StaticSource {
 export class DemoSource implements DataSource {
   id = 'demo';
   label = 'Demo (not saved)';
-  caps = { canEdit: true, canReviewPRs: false, canPublish: false };
+  caps = { canEdit: true, canReviewPRs: false, canPublish: false, canAutomate: false };
   private files?: Record<string, string>;
   private version = 0;
 

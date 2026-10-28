@@ -106,7 +106,9 @@ function repoData(): Plugin {
 
 /** Strict CSP for production builds (dev needs inline HMR scripts). */
 function csp(): Plugin {
-  const connect = target === 'pages' ? `'self' https://api.github.com${authOrigin ? ` ${authOrigin}` : ''}` : "'self'";
+  // Actions artifact downloads (the quest-status zip) redirect from api.github.com to Azure blob storage.
+  const connect =
+    target === 'pages' ? `'self' https://api.github.com https://*.blob.core.windows.net${authOrigin ? ` ${authOrigin}` : ''}` : "'self'";
   const ga = (sources: string) => (gaId ? ` ${sources}` : '');
   const policy = [
     "default-src 'self'",

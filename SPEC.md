@@ -568,6 +568,7 @@ canvas give ▲ up, ◀ ▶ prev/next and Play.
   discard outbox.
 - **Data issues:** validation problems in the loaded data.
 - **Publish** (Docker): branch, ahead/behind, last commit.
+- **Automation** (GitHub repos only): see §5.16.
 
 ### 5.10 Warp Zone: PR review
 
@@ -841,6 +842,40 @@ The rule lives in the item's JSON; there is never a copy of the item per cycle.
 - **Not yet:** Quest Markdown syntax for repeats, and the calendar feed (#33), which can emit
   `nextDue` as an `RRULE`. No push notifications.
 
+### 5.16 Automation (Settings)
+
+The Quest Log workflow in the user's own repo (`lilmuckers/quest-log-actions`), managed from
+Settings. Shown only when the source can automate (`caps.canAutomate`: `GitHubSource`); hidden for
+the demo, the read-only Pages data and the Docker editor. Controls are disabled without push
+rights.
+
+- **The stub** is rendered only by `shared/src/stub.ts` (`renderStub(automation, branch)`) and
+  committed by the app. `stubState(text, automation, branch)` compares the repo's
+  `.github/workflows/quest.yml` with a fresh render: `missing`, `legacy` (the old copy-paste
+  "Quest data" workflow), `foreign` (someone else's file: replacing it asks first), `older` /
+  `newer` (`quest-stub: N`), `drift` (any other difference, such as a hand-edited cron or a
+  config changed elsewhere) or `current`. A banner offers Install / Replace / Update /
+  Re-write.
+- **Install / Re-write** (`AutomationProvider.writeWorkflow`) makes one commit on the branch head
+  with the workflow and, when the repo has none, a starter `data/automation.json` (stable, every
+  3h, validate and comments on). Queued edits sync first. Retries on a moved branch.
+- **Settings** are `updateAutomation` ops like any edit. When a sync commits
+  `data/automation.json` and the workflow there is ours (`quest-stub` ≤ the app's), the source
+  re-renders it into the same commit; a missing, legacy, foreign or newer file is never touched.
+  Without the Workflows permission the settings still commit, alone, and the banner shows drift.
+- **Toggles:** validate, PR comment, notifications; **channel** stable (`@v1`) / beta (`@main`);
+  **schedule** `6h | 3h | 1h | off` (default 3h), disabled while no device wants a time-box or
+  review push (`hasScheduledEvent`), with an Actions-minutes estimate (30 × 24 ÷ hours: 3h ≈ 240 a
+  month on private repos) and a late-start note.
+- **Secrets** are listed by name (`SECRET_NAMES`, set or not). Writing one seals it in the browser
+  (`app/src/push/sealed-box.ts`: libsodium's `crypto_box_seal` built from lazy-loaded `tweetnacl`
+  plus `blakejs`, tested against `libsodium-wrappers`) for the repo's public key.
+- **Last run:** the newest run of `quest.yml` (Actions API), then its `quest-status` artifact
+  (zip → `status.json`): when, event, result, core version and each module's reason.
+- A 403 names the missing permission (Workflows, Secrets, Actions, …).
+- Analytics: `automation_toggle { module }` (the block changed, never values) and
+  `automation_install { from }` (the stub state it replaced).
+
 ## 6. Onboarding (#61)
 
 A browser with no Quest Log keys in `localStorage` gets a **welcome screen** styled like a
@@ -982,6 +1017,8 @@ Security:
   (`level:p/w/l`, `item:p/w/l/i`, `inbox:i`…) against another tree or a git ref, and exits 5 on
   removals not named with `--allow-delete`; `push` applies the same guard against the branch it
   commits to, so a stale or hand-rewritten file can't silently delete other people's work.
+- SKILL §8 tells assistants to leave the workflow and secrets alone and to send users to
+  Settings → Automation (§5.16) to turn the checks on.
 - The in-app **AI SKILL** button explains this and downloads a zip of the skill, the script and
   the schemas (`app/src/ui/zip.ts`).
 - The skill and schemas are published at `https://tasks.patrick-mckinley.com/skills/...` and
@@ -1018,13 +1055,18 @@ Security:
 ## 12. Security
 
 - **CSP** (meta tag injected at build): `default-src 'self'`; `connect-src` is self +
-  `api.github.com` (+ the sign-in Worker's origin, + GA); fonts are same-origin only (never inlined); `object-src 'none'`;
+  `api.github.com` + `https://*.blob.core.windows.net` (Actions artifact downloads redirect there;
+  the token isn't sent across the redirect) (+ the sign-in Worker's origin, + GA); fonts are same-origin only (never inlined); `object-src 'none'`;
   `form-action 'none'`.
 - The token lives in `localStorage` and is only ever sent as an Authorization header to
   `api.github.com`. Users are told to scope it to one repo:
   - Contents: read & write
   - Pull requests: read & write
   - Checks: read
+  - for Settings → Automation (§5.16): Workflows: read & write, Secrets: read & write, Actions: read.
+    The GitHub App has the same; existing installs re-approve (`worker/README.md`).
+- The app writes only `data/` and `.github/workflows/quest.yml` (`commitFiles` refuses anything
+  else). Actions secrets are sealed in the browser and never read back.
 - On iOS, the installed PWA has its own storage, so the token must be connected again there.
 - **Sign in with GitHub** (#30, #92; Pages builds with `VITE_AUTH_URL`,
   `VITE_GITHUB_APP_CLIENT_ID` and `VITE_GITHUB_APP_SLUG`):

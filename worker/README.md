@@ -48,10 +48,41 @@ GitHub → **Settings → Developer settings → GitHub Apps → New GitHub App*
 | Expire user authorization tokens | On (8-hour tokens plus a refresh token) |
 | Request user authorization (OAuth) during installation | On |
 | Webhook → Active | Off |
-| Repository permissions | Contents: Read & write · Pull requests: Read & write · Checks: Read · Metadata: Read |
+| Repository permissions | Contents: Read & write · Pull requests: Read & write · Checks: Read · Workflows: Read & write · Secrets: Read & write · Actions: Read · Metadata: Read |
 | Where can it be installed | Any account |
 
 Then copy the **Client ID** and generate a **client secret**. No private key is needed.
+
+What each permission is for:
+
+| Permission | Used by |
+|---|---|
+| Contents: Read & write | Reading `data/` and committing edits |
+| Pull requests: Read & write | The Warp Zone: listing, reviewing and merging data PRs |
+| Checks: Read | Check results on those PRs |
+| Workflows: Read & write | Settings → Automation writing `.github/workflows/quest.yml` (and nothing else under `.github/`) |
+| Secrets: Read & write | Setting `QUEST_*` Actions secrets, sealed in the browser. GitHub never hands values back |
+| Actions: Read | The latest Quest Log run and its `quest-status` artifact |
+
+People who paste a fine-grained token instead need the same repository permissions on it.
+
+#### Adding permissions to an App that's already installed
+
+Changing permissions is done on GitHub by the App's owner, not from this repo. The Automation
+permissions (Workflows, Secrets, Actions) were added for Settings → Automation:
+
+1. GitHub → **Settings → Developer settings → GitHub Apps → Quest Log → Permissions & events**.
+2. Under **Repository permissions** set **Actions: Read-only**, **Secrets: Read and write** and
+   **Workflows: Read and write**. Leave the others as they are.
+3. **Save changes**. GitHub asks every installation to accept the new permissions; until someone
+   does, that install keeps the old ones.
+4. Each user accepts on **Settings → Applications → Installed GitHub Apps → Quest Log** (GitHub
+   also emails the account owner). Their sign-in tokens pick up the new permissions on the next
+   refresh, or at once after signing out and in again.
+
+Until an install is approved, Settings → Automation names the missing permission on a 403, and
+automation changes still save to `automation.json` without rewriting the workflow (the banner
+then offers **Re-write workflow**).
 
 ### 2. Configure and deploy
 

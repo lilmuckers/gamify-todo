@@ -127,7 +127,7 @@ data/     eight example projects: five in play (customer-portal, home-maintenanc
   skill first, validate the whole tree before anything is committed or handed over, and update
   from the base branch before opening or adding to a PR. Keep them when editing the skill.
 - **Security.** The Pages build has a strict CSP (`app/vite.config.ts` `csp()`): connect only to
-  self + `api.github.com` (+ GA). The token lives in `localStorage` and is only sent to
+  self + `api.github.com` + `*.blob.core.windows.net` (Actions artifacts) (+ GA). The token lives in `localStorage` and is only sent to
   `api.github.com`. The server listens on loopback, checks `Host` (`ALLOWED_HOSTS`), requires
   `X-Quest-Client: 1` plus a same-origin `Origin` on writes, and only writes `data/` paths.
 - **Analytics** (`app/src/analytics.ts`): every event parameter goes through an allow-list.

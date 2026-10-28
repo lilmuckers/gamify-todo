@@ -8,12 +8,16 @@ import {
   type PullDetail,
   type PullSummary,
   type ReviewEvent,
+  type StubState,
+  type WorkflowRun,
 } from '@quest/shared';
 
 export interface Capabilities {
   canEdit: boolean;
   canReviewPRs: boolean;
   canPublish: boolean;
+  /** Can install the Quest Log workflow and manage its secrets (GitHub repos only). */
+  canAutomate: boolean;
 }
 
 export interface Loaded {
@@ -47,6 +51,43 @@ export interface PullProvider {
   review(number: number, event: ReviewEvent, body: string): Promise<void>;
 }
 
+/** The `quest-status` artifact every run uploads (quest-log-actions src/status.ts, plans D13). */
+export interface QuestStatus {
+  version: number;
+  ranAt: string;
+  event: string;
+  core: { version: string };
+  modules: Record<string, { ran: boolean; reason: string; ok?: boolean }>;
+  sent?: Record<string, number>;
+  expiredDevices?: string[];
+  error?: string;
+}
+
+/** The newest workflow run, with its status artifact when it could be read. */
+export interface LatestRun {
+  run: WorkflowRun;
+  status?: QuestStatus;
+  /** Why the status couldn't be read (expired, still running, a download error). */
+  statusMissing?: string;
+}
+
+/** The workflow, its secrets and its runs in the data repo (Settings → Automation). */
+export interface AutomationProvider {
+  /** How the workflow in the repo compares with what the app would write now. */
+  stub(): Promise<{ state: StubState; text?: string }>;
+  /**
+   * Writes the workflow and automation.json in one commit on the branch's head: installs,
+   * replaces a legacy one, upgrades an older one or undoes a hand edit. Returns the commit.
+   */
+  writeWorkflow(): Promise<string>;
+  /** Names of the repo's secrets (never values). */
+  secrets(): Promise<string[]>;
+  /** Sets a secret, sealed in this browser for the repo's key. */
+  setSecret(name: string, value: string): Promise<void>;
+  deleteSecret(name: string): Promise<void>;
+  latestRun(): Promise<LatestRun | undefined>;
+}
+
 /** A slice of history to read: commits after `since` and up to `until` (both ISO). */
 export interface HistoryRange {
   since?: string;
@@ -74,6 +115,7 @@ export interface DataSource {
   /** Writes (string) / deletes (null) files in one commit on top of `baseVersion`. Throws ConflictError. */
   commit?(changes: Record<string, string | null>, message: string, baseVersion: string): Promise<string>;
   pulls?: PullProvider;
+  automation?: AutomationProvider;
   publish?(): Promise<string>;
   /** Commits that touched data/, newest first; only newer than `since` (ISO) when given. */
   history?(since?: string): Promise<HistoryCommit[]>;

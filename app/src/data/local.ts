@@ -27,7 +27,7 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
 export class LocalApiSource implements DataSource {
   id = 'local';
   label = 'Local repo';
-  caps = { canEdit: true, canReviewPRs: false, canPublish: true };
+  caps = { canEdit: true, canReviewPRs: false, canPublish: true, canAutomate: false };
 
   async init(): Promise<this> {
     try {

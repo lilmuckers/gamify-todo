@@ -21,6 +21,8 @@ import {
   SECRET_NAMES,
   sha256,
   stubSample,
+  stubState,
+  STUB_VERSION,
   toFiles,
   UNDOABLE,
   validateFiles,
@@ -308,6 +310,37 @@ describe('parseStub', () => {
     expect(parseStub("name: 'Quest data'\non: push\n")).toEqual({ kind: 'legacy' });
     expect(parseStub('name: CI\non: push\n')).toEqual({ kind: 'foreign' });
     expect(parseStub('')).toEqual({ kind: 'foreign' });
+  });
+});
+
+describe('stubState', () => {
+  const notify: AutomationConfig = automationExample();
+
+  it('tells missing, legacy and foreign files apart', () => {
+    expect(stubState(undefined, undefined)).toBe('missing');
+    expect(stubState('name: Quest data\non: [push]\n', undefined)).toBe('legacy');
+    expect(stubState('name: CI\non: push\n', undefined)).toBe('foreign');
+  });
+
+  it('is current only when the text is exactly what the app would write', () => {
+    const { text } = renderStub(notify, 'trunk');
+    expect(stubState(text, notify, 'trunk')).toBe('current');
+    expect(stubState(text.replace(/\n/g, '\r\n'), notify, 'trunk')).toBe('current');
+    // A config change made elsewhere (an assistant, another browser) leaves the stub behind.
+    expect(stubState(text, { ...notify, channel: 'beta' }, 'trunk')).toBe('drift');
+    expect(stubState(text, notify, 'main')).toBe('drift');
+  });
+
+  it('spots a hand-edited cron even when the quest-config line is untouched', () => {
+    const { text } = renderStub(notify);
+    expect(text).toContain("cron: '17 */3 * * *'");
+    expect(stubState(text.replace("cron: '17 */3 * * *'", "cron: '0 9 * * *'"), notify)).toBe('drift');
+  });
+
+  it('offers an update for an older stub and leaves a newer one alone', () => {
+    const { text } = renderStub(undefined);
+    expect(stubState(text.replace(`quest-stub: ${STUB_VERSION}`, `quest-stub: ${STUB_VERSION - 1}`), undefined)).toBe('older');
+    expect(stubState(text.replace(`quest-stub: ${STUB_VERSION}`, `quest-stub: ${STUB_VERSION + 1}`), undefined)).toBe('newer');
   });
 });
 

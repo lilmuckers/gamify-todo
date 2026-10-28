@@ -48,6 +48,11 @@ describe('sanitize', () => {
   it('sends only whether sound was turned on', () => {
     expect(sanitize(EVENT_PARAMS.sound_toggle, { on: true, hero: 'goth' })).toEqual({ on: true });
   });
+
+  it('sends which automation block changed, and where an install came from, never repo details', () => {
+    expect(sanitize(EVENT_PARAMS.automation_toggle, { module: 'schedule', every: '1h', repo: 'me/quests' })).toEqual({ module: 'schedule' });
+    expect(sanitize(EVENT_PARAMS.automation_install, { from: 'missing', repo: 'me/quests', secret: 'x' })).toEqual({ from: 'missing' });
+  });
 });
 
 describe('routeType', () => {
@@ -98,6 +103,12 @@ describe('eventsForOp', () => {
     expect(events[4].params).toEqual({ done: true, mvp: false });
     const sent = JSON.stringify(events.map((e) => sanitize(EVENT_PARAMS[e.name], e.params)));
     for (const leak of ['secret', 'Secret', 'Renamed', '"a"', 'bonus', 'lvl']) expect(sent).not.toContain(leak);
+  });
+
+  it('reports an automation change by block only', () => {
+    const ws = workspace();
+    expect(run(ws, { kind: 'updateAutomation', patch: { schedule: { every: '1h' } } })).toEqual([{ name: 'automation_toggle', params: { module: 'schedule' } }]);
+    expect(run(ws, { kind: 'updateAutomation', patch: { validate: { comment: false } } })[0].params).toEqual({ module: 'validate' });
   });
 
   it('reports dependency mode and sub-level steps', () => {

@@ -619,6 +619,26 @@ p {
   background: rgba(99, 199, 77, 0.15);
 }
 
+/* Settings → Automation */
+.automation .stub-state p {
+  margin: 0 0 6px;
+}
+.automation .stub-state p:last-child {
+  margin-bottom: 0;
+}
+.automation .secrets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 8px 0;
+}
+.automation .secrets code.unset {
+  opacity: 0.7;
+}
+.automation .last-run p {
+  margin: 8px 0 4px;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

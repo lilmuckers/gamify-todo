@@ -2,6 +2,7 @@ import { classifyPath } from './serialize';
 import type { HistoryCommit } from './history';
 import type { CommitChanges, HistoryPage } from './scan';
 import { isDataPath } from './serialize';
+import { STUB_PATH } from './stub';
 
 export interface RepoRef {
   owner: string;
@@ -46,6 +47,23 @@ export class ConflictError extends Error {
     super(message);
     this.name = 'ConflictError';
   }
+}
+
+/** The token may push data but not workflows: the GitHub App or PAT lacks Workflows: read & write. */
+export class WorkflowPermissionError extends GitHubError {
+  constructor(message: string) {
+    super(`${message} (Quest Log needs the "Workflows: read & write" permission on this repo)`, 403);
+    this.name = 'WorkflowPermissionError';
+  }
+}
+
+export interface WorkflowRun {
+  id: number;
+  event: string;
+  status: string;
+  conclusion: string | null;
+  createdAt: string;
+  url: string;
 }
 
 export interface PullSummary {
@@ -97,6 +115,13 @@ export class GitHubClient {
     body?: unknown,
     accept = 'application/vnd.github+json',
   ): Promise<T> {
+    const res = await this.send(method, url, body, accept);
+    if (res.status === 204) return undefined as T;
+    return (accept.includes('raw') ? await res.text() : await res.json()) as T;
+  }
+
+  /** A successful response, after one token refresh if GitHub said 401. Throws GitHubError otherwise. */
+  private async send(method: string, url: string, body: unknown, accept: string): Promise<Response> {
     const provider = typeof this.token === 'object' ? this.token : undefined;
     let token = provider ? await provider.get() : (this.token as string | undefined);
     const send = (token: string | undefined) => {
@@ -126,10 +151,13 @@ export class GitHubClient {
       } catch {
         /* non-JSON error body */
       }
-      throw new GitHubError(`GitHub ${method} ${url}: ${res.status} ${message}`, res.status);
+      const missing = res.status === 403 && !/rate limit/i.test(message) ? permissionFor(url) : undefined;
+      throw new GitHubError(
+        `GitHub ${method} ${url}: ${res.status} ${message}${missing ? ` (Quest Log needs the "${missing}" permission on this repo)` : ''}`,
+        res.status,
+      );
     }
-    if (res.status === 204) return undefined as T;
-    return (accept.includes('raw') ? await res.text() : await res.json()) as T;
+    return res;
   }
 
   /** Checks the token works and can see the repo. */
@@ -295,6 +323,9 @@ export class GitHubClient {
     message: string,
     parentSha: string,
   ): Promise<string> {
+    // The app only ever writes data/ and its own workflow (plans §3.1).
+    const stray = Object.keys(changes).find((p) => !isDataPath(p) && p !== STUB_PATH);
+    if (stray) throw new Error(`Quest Log doesn't write ${stray}`);
     const parent = await this.request<{ tree: { sha: string } }>('GET', `/git/commits/${parentSha}`);
     const tree = await this.request<{ sha: string }>('POST', '/git/trees', {
       base_tree: parent.tree.sha,
@@ -315,10 +346,82 @@ export class GitHubClient {
         force: false,
       });
     } catch (err) {
+      // GitHub refuses a commit touching .github/workflows without the Workflows permission, also as a 422.
+      if (err instanceof GitHubError && err.status === 422 && /workflow/i.test(err.message))
+        throw new WorkflowPermissionError(err.message);
       if (err instanceof GitHubError && err.status === 422) throw new ConflictError();
       throw err;
     }
     return commit.sha;
+  }
+
+  /** A file's text at `ref` (default: the branch), or undefined when it isn't there. */
+  async readFile(path: string, ref = this.repo.branch): Promise<string | undefined> {
+    try {
+      const enc = path.split('/').map(encodeURIComponent).join('/');
+      return await this.request<string>('GET', `/contents/${enc}?ref=${encodeURIComponent(ref)}`, undefined, 'application/vnd.github.raw+json');
+    } catch (err) {
+      if (err instanceof GitHubError && err.status === 404) return undefined;
+      throw err;
+    }
+  }
+
+  /** Writes the Quest Log workflow, alone or beside data/ files, in one commit on `parentSha`. */
+  putWorkflow(text: string, message: string, parentSha: string, data: Record<string, string | null> = {}): Promise<string> {
+    return this.commitFiles({ ...data, [STUB_PATH]: text }, message, parentSha);
+  }
+
+  /** The repo's key for sealing Actions secrets (libsodium sealed box). */
+  secretsPublicKey(): Promise<{ key_id: string; key: string }> {
+    return this.request('GET', '/actions/secrets/public-key');
+  }
+
+  /** Sets an Actions secret. `encrypted` is the base64 sealed box made with `secretsPublicKey`. */
+  async putSecret(name: string, encrypted: string, keyId: string): Promise<void> {
+    await this.request('PUT', `/actions/secrets/${encodeURIComponent(name)}`, { encrypted_value: encrypted, key_id: keyId });
+  }
+
+  /** Names of the repo's Actions secrets. GitHub never hands values back. */
+  async listSecrets(): Promise<string[]> {
+    const res = await this.request<{ secrets: { name: string }[] }>('GET', '/actions/secrets?per_page=100');
+    return res.secrets.map((s) => s.name);
+  }
+
+  async deleteSecret(name: string): Promise<void> {
+    await this.request('DELETE', `/actions/secrets/${encodeURIComponent(name)}`);
+  }
+
+  /** The newest runs of the Quest Log workflow, newest first (none when it isn't installed). */
+  async latestRuns(count = 1): Promise<WorkflowRun[]> {
+    const file = encodeURIComponent(STUB_PATH.split('/').pop()!);
+    try {
+      const res = await this.request<{ workflow_runs: any[] }>('GET', `/actions/workflows/${file}/runs?per_page=${count}`);
+      return res.workflow_runs.map((r) => ({
+        id: r.id as number,
+        event: r.event as string,
+        status: r.status as string,
+        conclusion: (r.conclusion ?? null) as string | null,
+        createdAt: (r.run_started_at ?? r.created_at) as string,
+        url: r.html_url as string,
+      }));
+    } catch (err) {
+      if (err instanceof GitHubError && err.status === 404) return [];
+      throw err;
+    }
+  }
+
+  /**
+   * A run's artifact as zip bytes, or undefined when it has none by that name (or it expired).
+   * The download redirects to Azure blob storage, which the CSP must allow (plans D13).
+   */
+  async runArtifact(runId: number, name: string): Promise<Uint8Array | undefined> {
+    const res = await this.request<{ artifacts: { name: string; expired: boolean; archive_download_url: string }[] }>(
+      'GET',
+      `/actions/runs/${runId}/artifacts?name=${encodeURIComponent(name)}`,
+    );
+    const artifact = res.artifacts.find((a) => a.name === name && !a.expired);
+    if (!artifact) return undefined;
+    return new Uint8Array(await (await this.send('GET', artifact.archive_download_url, undefined, 'application/vnd.github+json')).arrayBuffer());
   }
 
   async listDataPulls(): Promise<PullSummary[]> {
@@ -395,6 +498,16 @@ function summarize(p: any): Omit<PullSummary, 'dataFiles'> {
     headRepo: p.head.repo?.full_name ?? '',
     baseRef: p.base.ref,
   };
+}
+
+/** The fine-grained permission an endpoint needs, to name it when GitHub says 403. */
+function permissionFor(url: string): string | undefined {
+  if (url.includes('/actions/secrets')) return 'Secrets: read & write';
+  if (url.includes('/actions/')) return 'Actions: read';
+  if (url.includes('/check-runs')) return 'Checks: read';
+  if (url.includes('/pulls')) return 'Pull requests: read & write';
+  if (/\/(git|contents|commits)\b/.test(url)) return 'Contents: read & write';
+  return undefined;
 }
 
 /** Parses "owner/repo" or a GitHub remote URL. */

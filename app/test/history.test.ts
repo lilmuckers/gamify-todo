@@ -16,7 +16,7 @@ function memoryKV(): KV & { data: Map<string, unknown> } {
 const c = (sha: string, date: string, message: string): HistoryCommit => ({ sha, date, message });
 
 function source(history?: (since?: string) => Promise<HistoryCommit[]>): DataSource {
-  return { id: 'gh:o/r', label: 'o/r@main', caps: { canEdit: true, canReviewPRs: false, canPublish: false }, load: async () => ({ state: { projects: {} }, version: 'v' }), history };
+  return { id: 'gh:o/r', label: 'o/r@main', caps: { canEdit: true, canReviewPRs: false, canPublish: false, canAutomate: false }, load: async () => ({ state: { projects: {} }, version: 'v' }), history };
 }
 
 describe('ProgressHistory', () => {

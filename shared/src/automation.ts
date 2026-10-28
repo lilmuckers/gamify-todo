@@ -32,3 +32,8 @@ export function hasScheduledEvent(automation: AutomationConfig | undefined): boo
     return e.timebox || e.review !== 'off';
   });
 }
+
+/** What Install writes when a repo has no automation.json yet (the template's default too). */
+export function starterAutomation(): AutomationConfig {
+  return { channel: 'stable', schedule: { every: '3h' }, validate: { enabled: true, comment: true } };
+}
