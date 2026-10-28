@@ -51,6 +51,13 @@
       "id": "https://tasks.patrick-mckinley.com/schema/automation.schema.json",
       "description": "Settings for the Quest Log GitHub Action (validation, schedule, push notifications), stored at data/automation.json (optional).",
       "appliesTo": "data/automation.json"
+    },
+    {
+      "name": "attachment",
+      "file": "attachment.schema.json",
+      "id": "https://tasks.patrick-mckinley.com/schema/attachment.schema.json",
+      "description": "What Quest Log knows about one attachment (a photo or document), stored at data/attachments/<id>.json next to the file data/attachments/<id>.<ext>.",
+      "appliesTo": "data/attachments/<id>.json"
     }
   ]
 }

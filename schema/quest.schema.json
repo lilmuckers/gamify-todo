@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tasks.patrick-mckinley.com/schema/quest.schema.json",
   "title": "Quest Log data",
-  "description": "Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings, an optional data/inbox.json holds captured ideas not yet placed in a level, and an optional data/automation.json holds settings for the Quest Log GitHub Action. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.",
+  "description": "Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings, an optional data/inbox.json holds captured ideas not yet placed in a level, an optional data/automation.json holds settings for the Quest Log GitHub Action, and data/attachments/ holds photos and documents (data/attachments/<id>.<ext>), each with a JSON sidecar at data/attachments/<id>.json. Tools must leave data/attachments/ alone. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.",
   "oneOf": [
     {
       "$ref": "#/$defs/Project"
@@ -21,6 +21,9 @@
     },
     {
       "$ref": "#/$defs/Automation"
+    },
+    {
+      "$ref": "#/$defs/AttachmentSidecar"
     }
   ],
   "$defs": {
@@ -1126,6 +1129,58 @@
               "description": "Devices that get notifications. Ids are unique."
             }
           }
+        }
+      }
+    },
+    "AttachmentVia": {
+      "description": "How the attachment reached Quest Log.",
+      "oneOf": [
+        {
+          "const": "button",
+          "description": "Picked or snapped with the app's 📷 button."
+        },
+        {
+          "const": "share",
+          "description": "Shared to the installed app from another app (the share sheet)."
+        },
+        {
+          "const": "paste",
+          "description": "Pasted or dropped into the app."
+        }
+      ]
+    },
+    "AttachmentSidecar": {
+      "type": "object",
+      "description": "What Quest Log knows about one attachment, stored at data/attachments/<id>.json next to the file itself (data/attachments/<id>.jpg, .jpeg, .png, .webp or .heic). Every file has exactly one sidecar and every sidecar one file. Written by the app when a photo is shared or snapped in; assistants and tools must not add, edit or remove attachments.",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "addedAt",
+        "via"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Optional pointer to this schema, for editor autocompletion."
+        },
+        "id": {
+          "$ref": "#/$defs/Id",
+          "description": "Attachment id. Must match the sidecar's and the file's name (without the extension)."
+        },
+        "addedAt": {
+          "$ref": "#/$defs/Timestamp",
+          "description": "When the attachment was captured."
+        },
+        "title": {
+          "$ref": "#/$defs/Title",
+          "description": "Optional short name, e.g. \"Boiler receipt\". The file name is shown when it is missing."
+        },
+        "text": {
+          "$ref": "#/$defs/Notes",
+          "description": "Optional text that came with it, e.g. what was shared alongside a photo."
+        },
+        "via": {
+          "$ref": "#/$defs/AttachmentVia"
         }
       }
     }

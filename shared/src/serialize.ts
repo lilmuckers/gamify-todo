@@ -1,3 +1,4 @@
+import { isAttachmentPath, sidecarId } from './attachments';
 import type { Automation, GameState, InboxItem, Level, Project, Settings, World, WorldFile, Workspace } from './model';
 
 export const DATA_ROOT = 'data';
@@ -25,10 +26,16 @@ export type DataFile =
   | { kind: 'level'; projectId: string; worldId: string; levelId: string }
   | { kind: 'settings' }
   | { kind: 'inbox' }
-  | { kind: 'automation' };
+  | { kind: 'automation' }
+  | { kind: 'attachment'; id: string };
 
 /** What a repo path holds, or undefined if it isn't a Quest Log data file. */
 export function classifyPath(path: string): DataFile | undefined {
+  // Only an attachment's sidecar is data; its file is binary and a project can't live here.
+  if (isAttachmentPath(path)) {
+    const id = sidecarId(path);
+    return id ? { kind: 'attachment', id } : undefined;
+  }
   if (path === SETTINGS_PATH) return { kind: 'settings' };
   if (path === INBOX_PATH) return { kind: 'inbox' };
   if (path === AUTOMATION_PATH) return { kind: 'automation' };
@@ -40,6 +47,7 @@ export function classifyPath(path: string): DataFile | undefined {
   if (m) return { kind: 'level', projectId: m[1], worldId: m[2], levelId: m[3] };
 }
 
+/** Whether a path is a JSON data file. Attachment files are binary, so they never are. */
 export const isDataPath = (path: string) => classifyPath(path) !== undefined;
 
 // Keys first in this order, remaining keys alphabetical — keeps diffs readable.
@@ -200,7 +208,7 @@ export function fromFiles(files: Record<string, string>): Workspace {
   const levels = table<Record<string, Record<string, Level>>>();
   for (const path of Object.keys(files)) {
     const f = classifyPath(path);
-    if (!f) continue;
+    if (!f || f.kind === 'attachment') continue;
     if (f.kind === 'inbox') {
       const b = parse<{ items?: InboxItem[] }>(path);
       if (b && Array.isArray(b.items) && b.items.length) inbox = b.items;

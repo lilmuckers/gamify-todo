@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, sep } from 'node:path';
 import { simpleGit, type SimpleGit } from 'simple-git';
-import { DATA_ROOT, isDataPath } from '@quest/shared';
+import { ATTACHMENTS_DIR, DATA_ROOT, isAttachmentFile, isDataPath } from '@quest/shared';
 
 export { isDataPath };
 
@@ -28,6 +28,21 @@ export class Repo {
     const root = join(this.dir, DATA_ROOT);
     if (existsSync(root)) await walk(root);
     return files;
+  }
+
+  /** Paths of the binary attachment files, so validation can pair them with sidecars without reading them. */
+  async attachmentFiles(): Promise<string[]> {
+    const out: string[] = [];
+    const walk = async (dir: string) => {
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        const abs = join(dir, entry.name);
+        if (entry.isDirectory()) await walk(abs);
+        else out.push(relative(this.dir, abs).split(sep).join('/'));
+      }
+    };
+    const root = join(this.dir, ATTACHMENTS_DIR);
+    if (existsSync(root)) await walk(root);
+    return out.filter(isAttachmentFile).sort();
   }
 
   /** Content hash of the data files; changes whenever anything touches them. */

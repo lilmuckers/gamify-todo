@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tasks.patrick-mckinley.com/schema/attachment.schema.json",
+  "title": "Quest Log attachment sidecar",
+  "description": "What Quest Log knows about one attachment (a photo or document), stored at data/attachments/<id>.json next to the file data/attachments/<id>.<ext>.",
+  "$ref": "quest.schema.json#/$defs/AttachmentSidecar"
+}

@@ -12,6 +12,7 @@ repo of your own. Files are validated by the JSON Schemas here (draft 2020-12,
 | `data/settings.json` (optional) | [`settings.schema.json`](settings.schema.json) |
 | `data/inbox.json` (optional) | [`inbox.schema.json`](inbox.schema.json) |
 | `data/automation.json` (optional) | [`automation.schema.json`](automation.schema.json) |
+| `data/attachments/<id>.json` (optional) | [`attachment.schema.json`](attachment.schema.json) |
 
 All of them reference the definitions in [`quest.schema.json`](quest.schema.json). They are published
 at `https://tasks.patrick-mckinley.com/schema/`, and data files point there with `$schema`, so
@@ -65,6 +66,11 @@ Checked by `npm run validate`, the app, and CI:
   writes this file in the same commit as `.github/workflows/quest.yml`, which it renders from it
   (`shared/src/stub.ts`); the workflow only has a `schedule:` while some device wants a time-box
   or review notification. Tools must leave `notify.devices` and the workflow to the app.
+- `data/attachments/` holds photos and documents: each file `<id>.<jpg|jpeg|png|webp|heic>` has a
+  sidecar `<id>.json` (`id`, `addedAt`, `via`, optional `title` and `text`), and each sidecar a
+  file. An unpaired file or sidecar, two files for one id, or another file type is an error. The
+  files are binary: validators list them and never read them, and the Warp Zone shows them by
+  name only. A project can't be called `attachments`. The app writes this folder; tools leave it alone.
 
 ## Generating data with an LLM
 

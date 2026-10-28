@@ -91,7 +91,7 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
           if (c === null) delete next[p];
           else next[p] = c;
         }
-        const issues = validateFiles(next);
+        const issues = validateFiles(next, await repo.attachmentFiles());
         if (issues.length)
           return reply.code(400).send({ error: `Invalid data: ${issues[0].file}${issues[0].path} ${issues[0].message}`, issues });
         await repo.write(changes);

@@ -10,7 +10,7 @@ import type { Item, Level, Workspace } from '../src/model';
 import { isCleared, isProjectArchived, levelsOf, levelTimer, nudges } from '../src/index';
 import { dayKey, dueView } from '../src/repeat';
 import { REVIEW_SLOTS, focusCandidates, weeklyReview } from '../src/review';
-import { automationExample, level, state, workspace } from './fixtures';
+import { automationExample, JPEG_BYTES, level, sidecar, state, workspace } from './fixtures';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const SCRIPT = join(ROOT, 'skills/quest-log/scripts/quest.py');
@@ -37,7 +37,7 @@ function run(
   });
 }
 
-function writeTree(files: Record<string, string>): string {
+function writeTree(files: Record<string, string | Buffer>): string {
   const dir = mkdtempSync(join(tmpdir(), 'quest-tree-'));
   for (const [p, c] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, p)), { recursive: true });
@@ -207,6 +207,47 @@ describe('quest.py validate', () => {
         expect(r.code, r.out).toBe(0);
       }
     }
+  });
+
+  describe('attachments', () => {
+    const SIDECAR = 'data/attachments/receipt-1.json';
+    const sc = (o = {}) => JSON.stringify(sidecar(o), null, 2);
+    /** The app's view of a tree: JSON files are read, attachment files only listed. */
+    const appIssues = (tree: Record<string, string | Buffer>) =>
+      validateFiles(
+        Object.fromEntries(Object.entries(tree).filter(([p]) => p.endsWith('.json'))) as Record<string, string>,
+        Object.keys(tree).filter((p) => !p.endsWith('.json')),
+      ).map((i) => `${i.file}${i.path}: ${i.message}`);
+
+    it('accepts paired attachments with both validators, without reading the files', async () => {
+      const tree = { ...good(), [SIDECAR]: sc(), 'data/attachments/receipt-1.jpg': JPEG_BYTES, 'data/attachments/scan.json': sc({ id: 'scan', via: 'paste' }), 'data/attachments/scan.heic': JPEG_BYTES };
+      expect(appIssues(tree)).toEqual([]);
+      for (const env of ENGINES) {
+        const r = await run(['validate', writeTree(tree)], env);
+        expect(r.code, r.out).toBe(0);
+      }
+    });
+
+    const attachmentCases: [string, Record<string, string | Buffer>, RegExp][] = [
+      ['sidecar without a file', { [SIDECAR]: sc() }, /data\/attachments\/receipt-1\.json\/: attachment sidecar has no file: add data\/attachments\/receipt-1\.<jpg\|jpeg\|png\|webp\|heic> or remove the sidecar/],
+      ['file without a sidecar', { 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /data\/attachments\/receipt-1\.jpg\/: attachment file has no sidecar: add data\/attachments\/receipt-1\.json/],
+      ['unsupported file type', { 'data/attachments/receipt-1.json': sc(), 'data/attachments/receipt-1.pdf': JPEG_BYTES }, /receipt-1\.pdf\/: unexpected attachment file: use data\/attachments\/<id>\.<jpg\|jpeg\|png\|webp\|heic> with a sidecar/],
+      ['two files for one attachment', { [SIDECAR]: sc(), 'data/attachments/receipt-1.jpg': JPEG_BYTES, 'data/attachments/receipt-1.png': JPEG_BYTES }, /receipt-1\.png\/: attachment "receipt-1" already has a file \(data\/attachments\/receipt-1\.jpg\); keep one/],
+      ['sidecar id not its file name', { [SIDECAR]: sc({ id: 'other' }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /id "other" must match its file name "receipt-1"/],
+      ['unknown via', { [SIDECAR]: sc({ via: 'email' as never }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /receipt-1\.json\/via/],
+      ['sidecar without addedAt', { [SIDECAR]: sc({ addedAt: undefined }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /addedAt/],
+      ['unexpected sidecar property', { [SIDECAR]: JSON.stringify({ ...sidecar(), extracted: {} }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /extracted/],
+    ];
+    for (const [name, extra, pattern] of attachmentCases)
+      it(`rejects: ${name} (agrees with the app)`, async () => {
+        const tree = { ...good(), ...extra };
+        expect(appIssues(tree).join('\n')).toMatch(pattern);
+        for (const env of ENGINES) {
+          const r = await run(['validate', writeTree(tree)], env);
+          expect(r.code, r.out).toBe(1);
+          expect(r.out).toMatch(pattern);
+        }
+      });
   });
 
   for (const [name, make, pattern] of cases)
@@ -434,6 +475,20 @@ describe('quest.py GitHub sync', () => {
 
     const again = await run(['push', '--dir', dir, '-m', 'noop'], env);
     expect(again.out).toMatch(/Nothing to push/);
+  });
+
+  it('leaves attachments to the app: pull skips them and push keeps them', async () => {
+    const jpeg = JPEG_BYTES.toString('latin1');
+    const attachments = { 'data/attachments/receipt-1.json': JSON.stringify(sidecar(), null, 2), 'data/attachments/receipt-1.jpg': jpeg };
+    gh.commitFiles('main', { ...gh.filesAt('main'), ...attachments });
+    const dir = fresh();
+    const pulled = await run(['pull', '--repo', 'o/r', '--dir', dir], env);
+    expect(pulled.code, pulled.out).toBe(0);
+    expect(existsSync(join(dir, 'data/attachments'))).toBe(false);
+    tick(dir, 1, 'todo');
+    const pushed = await run(['push', '--dir', dir, '-m', 'quest: B to do'], env);
+    expect(pushed.code, pushed.out).toBe(0);
+    expect(gh.filesAt('main')).toMatchObject(attachments);
   });
 
   it('commits on top of unrelated remote changes', async () => {
@@ -880,7 +935,7 @@ describe('quest.py schema loading', () => {
     mkdirSync(join(skill, 'quest-log/scripts'), { recursive: true });
     mkdirSync(join(skill, 'quest-log/schemas'));
     writeFileSync(join(skill, 'quest-log/scripts/quest.py'), readFileSync(SCRIPT));
-    for (const f of ['index.json', 'quest.schema.json', 'project.schema.json', 'world.schema.json', 'level.schema.json', 'settings.schema.json', 'inbox.schema.json', 'automation.schema.json'])
+    for (const f of ['index.json', 'quest.schema.json', 'project.schema.json', 'world.schema.json', 'level.schema.json', 'settings.schema.json', 'inbox.schema.json', 'automation.schema.json', 'attachment.schema.json'])
       writeFileSync(join(skill, 'quest-log/schemas', f), readFileSync(join(SCHEMAS, f)));
     const r = await run(['validate', ROOT], { QUEST_NO_JSONSCHEMA: '1' }, skill, join(skill, 'quest-log/scripts/quest.py'), []);
     expect(r.code, r.out).toBe(0);
@@ -922,7 +977,7 @@ describe('quest.py schema loading', () => {
 describe('schema manifest', () => {
   it('lists every published schema, and each file exists', () => {
     const manifest = JSON.parse(readFileSync(join(SCHEMAS, 'index.json'), 'utf8'));
-    expect(manifest.schemas.map((s: any) => s.name).sort()).toEqual(['automation', 'inbox', 'level', 'project', 'quest', 'settings', 'world']);
+    expect(manifest.schemas.map((s: any) => s.name).sort()).toEqual(['attachment', 'automation', 'inbox', 'level', 'project', 'quest', 'settings', 'world']);
     for (const s of manifest.schemas) {
       const doc = JSON.parse(readFileSync(join(SCHEMAS, s.file), 'utf8'));
       expect(doc.$id).toBe(s.id);
