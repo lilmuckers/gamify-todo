@@ -72,9 +72,9 @@ describe('core bump detection', () => {
     const base = { schemas: { 'a.json': {} }, script: SCRIPT };
     expect(detectBump(base, { ...base, schemas: { 'a.json': {}, 'b.json': {} } }).bump).toBe('minor');
     expect(detectBump(base, { ...base, schemas: {} }).bump).toBe('major');
-    const timers = SCRIPT.replace("    p = sub.add_parser('schemas'", "    p = sub.add_parser('timers')\n    p.add_argument('--now')\n    p = sub.add_parser('schemas'");
-    expect(detectBump(base, { ...base, script: timers })).toMatchObject({ bump: 'minor', reasons: expect.arrayContaining(['minor: quest.py: command timers added', 'minor: quest.py: flag timers --now added']) });
-    expect(detectBump({ ...base, script: timers }, base).bump).toBe('major');
+    const review = SCRIPT.replace("    p = sub.add_parser('schemas'", "    p = sub.add_parser('review')\n    p.add_argument('--now')\n    p = sub.add_parser('schemas'");
+    expect(detectBump(base, { ...base, script: review })).toMatchObject({ bump: 'minor', reasons: expect.arrayContaining(['minor: quest.py: command review added', 'minor: quest.py: flag review --now added']) });
+    expect(detectBump({ ...base, script: review }, base).bump).toBe('major');
   });
 
   it('reads the real quest.py interface', () => {

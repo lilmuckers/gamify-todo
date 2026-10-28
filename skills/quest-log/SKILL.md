@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 10**
+**Skill version: 11**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -673,6 +673,28 @@ Nudge towards finishing what's started and cutting scope (`dropped` is a fine an
 Skip levels with `"someday": true` and every project with `archivedAt` everywhere above. Deadlines
 are `startedAt + timeboxDays + pausedDays` (pausedDays defaults to 0).
 
+If you can run Python, `python3 scripts/quest.py timers DIR` works out step 1 for you with the
+app's own rules.
+
+### Answering "what's running late?"
+
+Run `python3 scripts/quest.py timers DIR` (add `--json` for the details). It lists every running
+time-box, most pressing first, with the same phases the app shows:
+
+- `ok`: more than 25% of the time-box left
+- `hurry`: under 25% left
+- `overdue`: past `startedAt + timeboxDays + pausedDays`
+
+Levels on the someday shelf, cleared levels and archived projects have no running clock, so
+they're left out. With `--json` each entry has a `key` (`level:<project>/<world>/<level>`),
+`scope` (`level`), `phase`, `phaseSince` (when that phase began), `endsAt` (the deadline), and
+`nudge`: the app's own line for a hurrying or overdue level (`null` when `ok`). An overdue level's
+nudge names up to three optional items to drop. `--now 2026-10-28T09:00:00Z` works the clocks
+out at another moment, and the same data and `--now` always give the same output. The JSON also
+carries `reviewSlots` (when the weekly review falls due: `fri` Friday 14:00, `mon` Monday 09:00,
+`sun` Sunday 18:00, in the user's local time). More scopes and lists may appear later; ignore any
+you don't know.
+
 ### Running a weekly review
 
 When asked for a weekly review (the app's **Review** page does the same):
@@ -721,7 +743,8 @@ reach GitHub"); it's better than hand-written API calls.
 python3 scripts/quest.py update-check                 # 0 = up to date, 3 = newer skill published (§0), 4 = couldn't check
 python3 scripts/quest.py validate --refresh DIR       # DIR contains data/; exit 1 lists every issue
 python3 scripts/quest.py changes --git origin/main .  # added / changed / removed by id; exit 5 = unnamed removals
-                                                      # add --json to validate or changes for machine-readable output (CI)
+python3 scripts/quest.py timers DIR [--now ISO]       # running time-boxes: ok, hurry, overdue; what's running late?
+                                                      # add --json to validate, changes or timers for machine-readable output (CI)
 python3 scripts/quest.py info --repo OWNER/REPO       # default branch, can_push
 python3 scripts/quest.py pull --repo OWNER/REPO [--branch B] --dir quest-data
 python3 scripts/quest.py status --dir quest-data      # what changed since pull
