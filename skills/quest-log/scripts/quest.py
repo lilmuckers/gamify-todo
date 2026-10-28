@@ -30,7 +30,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 8
+SKILL_VERSION = 9
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -239,6 +239,8 @@ def classify(path):
         return ('settings', None, None, None)
     if path == 'data/inbox.json':
         return ('inbox', None, None, None)
+    if path == 'data/automation.json':
+        return ('automation', None, None, None)
     m = PROJECT_RE.match(path)
     if m:
         return ('project', m.group(1), None, None)
@@ -291,7 +293,7 @@ def tree_keys(files):
                 put(f'inbox:{i.get("id")}', i)
             continue
         c = classify(path)
-        if not c or c[0] == 'settings' or c[0] == 'inbox':
+        if not c or c[0] in ('settings', 'inbox', 'automation'):
             continue
         kind, p, w, lv = c
         if kind == 'project':
@@ -388,6 +390,38 @@ def subtask_issues(lf, at, item, subs):
     return out
 
 
+def _time_zones():
+    """IANA names this Python knows, or None when it can't tell (no zoneinfo or no tz database)."""
+    global _ZONES
+    if _ZONES is False:
+        try:
+            import zoneinfo
+            _ZONES = zoneinfo.available_timezones() or None
+        except ImportError:
+            _ZONES = None
+    return _ZONES
+
+
+_ZONES = False
+
+
+def automation_issues(path, doc):
+    """Rules the schema can't express for data/automation.json: unique device ids, real timezones."""
+    devices = ((doc or {}).get('notify') or {}).get('devices') if isinstance(doc, dict) else None
+    if not isinstance(devices, list):
+        return []
+    out = []
+    ids = [str(d.get('id')) if isinstance(d, dict) else 'None' for d in devices]
+    for dup in sorted({i for i in ids if ids.count(i) > 1}):
+        out.append((path, '/notify/devices', f'duplicate device id "{dup}"'))
+    zones = _time_zones()
+    for i, d in enumerate(devices):
+        tz = d.get('timezone') if isinstance(d, dict) else None
+        if zones is not None and isinstance(tz, str) and tz not in zones:
+            out.append((path, f'/notify/devices/{i}/timezone', f'unknown timezone "{tz}"'))
+    return out
+
+
 def validate_files(files, registry, by_name):
     """Schema, folder structure, then cross-reference checks. Returns [(file, path, message)]."""
     check, _ = make_checker(registry)
@@ -399,7 +433,7 @@ def validate_files(files, registry, by_name):
             if path.startswith('data/') and path.endswith('.json'):
                 issues.append((path, '/', 'unexpected file: use data/<project>/project.json, '
                                           'data/<project>/<world>/world.json, data/<project>/<world>/<level>.json, '
-                                          'data/settings.json or data/inbox.json'))
+                                          'data/settings.json, data/inbox.json or data/automation.json'))
             continue
         try:
             doc = json.loads(text)
@@ -408,8 +442,14 @@ def validate_files(files, registry, by_name):
             continue
         parsed[path] = doc
         k, p, w, lv = kind
+        if k not in by_name:
+            issues.append((path, '/', f'the schemas in use have no "{k}" schema; run validate --refresh'))
+            continue
         issues += [(path, at, msg) for at, msg in check(doc, by_name[k])]
         if k == 'settings':
+            continue
+        if k == 'automation':
+            issues += automation_issues(path, doc)
             continue
         if k == 'inbox':
             ids = [i.get('id') for i in doc.get('items', []) if isinstance(i, dict)] if isinstance(doc, dict) else []

@@ -44,6 +44,13 @@
       "id": "https://tasks.patrick-mckinley.com/schema/inbox.schema.json",
       "description": "Captured ideas not yet placed in a level, stored at data/inbox.json (optional).",
       "appliesTo": "data/inbox.json"
+    },
+    {
+      "name": "automation",
+      "file": "automation.schema.json",
+      "id": "https://tasks.patrick-mckinley.com/schema/automation.schema.json",
+      "description": "Settings for the Quest Log GitHub Action (validation, schedule, push notifications), stored at data/automation.json (optional).",
+      "appliesTo": "data/automation.json"
     }
   ]
 }

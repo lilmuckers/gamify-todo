@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { toFiles, validateFiles } from '../src/index';
-import { level, workspace } from './fixtures';
+import { automationExample, level, workspace } from './fixtures';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const SCRIPT = join(ROOT, 'skills/quest-log/scripts/quest.py');
@@ -76,6 +76,11 @@ describe('quest.py validate', () => {
     files[path] = JSON.stringify(d, null, 2);
     return files;
   };
+  const withAutomation = (fn: (a: any) => void) => {
+    const a = automationExample();
+    fn(a);
+    return { ...good(), 'data/automation.json': JSON.stringify(a, null, 2) };
+  };
   const cases: [string, () => Record<string, string>, RegExp][] = [
     ['unexpected property', () => edit(good(), lvl, (d) => (d.items[0].priority = 'high')), /priority/],
     ['bad id', () => edit(good(), lvl, (d) => (d.items[0].id = 'Bad Id')), /must match|does not match/],
@@ -103,6 +108,17 @@ describe('quest.py validate', () => {
     ['negative pausedDays', () => edit(good(), lvl, (d) => (d.pausedDays = -2)), /minimum|>= 0|less than/],
     ['pausedDays as text', () => edit(good(), lvl, (d) => (d.pausedDays = 'three')), /number|type/],
     ['level depends on itself', () => edit(good(), lvl, (d) => ((d.items[0].type = 'dependency'), (d.items[0].levelRef = 'w/lvl'))), /cannot depend on itself/],
+    ['unknown automation channel', () => withAutomation((a) => (a.channel = 'nightly')), /one of|not valid/],
+    ['unknown schedule interval', () => withAutomation((a) => (a.schedule.every = '2h')), /one of|not valid/],
+    ['unknown review day', () => withAutomation((a) => (a.notify.devices[0].events.review = 'tue')), /one of|not valid/],
+    ['duplicate device ids', () => withAutomation((a) => a.notify.devices.push({ ...a.notify.devices[0], label: 'Again' })), /duplicate device id "pixel-7"/],
+    ['device id not kebab-case', () => withAutomation((a) => (a.notify.devices[0].id = 'Pixel 7')), /must match|does not match/],
+    ['unknown timezone', () => withAutomation((a) => (a.notify.devices[0].timezone = 'Mars/Olympus_Mons')), /unknown timezone "Mars\/Olympus_Mons"/],
+    ['lower-case timezone', () => withAutomation((a) => (a.notify.devices[0].timezone = 'europe/london')), /must match|does not match/],
+    ['device without a subscription', () => withAutomation((a) => delete a.notify.devices[0].subscription), /subscription/],
+    ['subscription endpoint not a URI', () => withAutomation((a) => (a.notify.devices[0].subscription.endpoint = 'not a url')), /URI|uri/],
+    ['unexpected automation property', () => withAutomation((a) => (a.notify.sound = 'mario')), /sound/],
+    ['unexpected event', () => withAutomation((a) => (a.notify.devices[0].events.daily = '08:00')), /daily/],
   ];
 
   it('accepts worlds and levels left out of the order lists, like the app', async () => {
@@ -170,6 +186,22 @@ describe('quest.py validate', () => {
     for (const env of ENGINES) {
       const r = await run(['validate', writeTree(files)], env);
       expect(r.code, r.out).toBe(0);
+    }
+  });
+
+  it('accepts an automation file, real timezones and a missing file with both validators', async () => {
+    const zones = ['Europe/London', 'America/Argentina/Buenos_Aires', 'America/Port-au-Prince', 'Etc/GMT+1', 'UTC'];
+    const files = withAutomation((a) => {
+      a.notify.devices.push(...zones.map((timezone, i) => ({ ...a.notify.devices[0], id: `d${i}`, timezone })));
+      a.notify.devices.push({ id: 'bare', label: 'Bare', addedAt: '2026-10-08T09:00:00Z', timezone: 'Asia/Tokyo', subscription: { endpoint: 'https://push.example.com/x', keys: { p256dh: 'k', auth: 'a' } } });
+    });
+    expect(validateFiles(files)).toEqual([]);
+    expect(validateFiles({ ...good(), 'data/automation.json': '{}' })).toEqual([]);
+    for (const env of ENGINES) {
+      for (const tree of [files, { ...good(), 'data/automation.json': '{}' }]) {
+        const r = await run(['validate', writeTree(tree)], env);
+        expect(r.code, r.out).toBe(0);
+      }
     }
   });
 
@@ -687,7 +719,7 @@ describe('quest.py schema loading', () => {
     mkdirSync(join(skill, 'quest-log/scripts'), { recursive: true });
     mkdirSync(join(skill, 'quest-log/schemas'));
     writeFileSync(join(skill, 'quest-log/scripts/quest.py'), readFileSync(SCRIPT));
-    for (const f of ['index.json', 'quest.schema.json', 'project.schema.json', 'world.schema.json', 'level.schema.json', 'settings.schema.json', 'inbox.schema.json'])
+    for (const f of ['index.json', 'quest.schema.json', 'project.schema.json', 'world.schema.json', 'level.schema.json', 'settings.schema.json', 'inbox.schema.json', 'automation.schema.json'])
       writeFileSync(join(skill, 'quest-log/schemas', f), readFileSync(join(SCHEMAS, f)));
     const r = await run(['validate', ROOT], { QUEST_NO_JSONSCHEMA: '1' }, skill, join(skill, 'quest-log/scripts/quest.py'), []);
     expect(r.code, r.out).toBe(0);
@@ -729,7 +761,7 @@ describe('quest.py schema loading', () => {
 describe('schema manifest', () => {
   it('lists every published schema, and each file exists', () => {
     const manifest = JSON.parse(readFileSync(join(SCHEMAS, 'index.json'), 'utf8'));
-    expect(manifest.schemas.map((s: any) => s.name).sort()).toEqual(['inbox', 'level', 'project', 'quest', 'settings', 'world']);
+    expect(manifest.schemas.map((s: any) => s.name).sort()).toEqual(['automation', 'inbox', 'level', 'project', 'quest', 'settings', 'world']);
     for (const s of manifest.schemas) {
       const doc = JSON.parse(readFileSync(join(SCHEMAS, s.file), 'utf8'));
       expect(doc.$id).toBe(s.id);

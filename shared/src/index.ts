@@ -19,3 +19,5 @@ export * from './budget';
 export * from './quest-text';
 export * from './search';
 export * from './repeat';
+export * from './automation';
+export * from './stub';

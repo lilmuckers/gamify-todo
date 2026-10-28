@@ -851,6 +851,15 @@ export function pullPanel(app: App, n: number) {
             ),
           ),
         ),
+        d.automation &&
+          h(
+            'li',
+            null,
+            h('div', { class: 'row' }, badge('modified'), h('strong', null, 'Automation')),
+            h('ul', { class: 'fielddiff' }, d.automation.map((f) =>
+              h('li', null, h('code', null, f.field), ': ', h('del', null, JSON.stringify(f.before) ?? '—'), ' → ', h('ins', null, JSON.stringify(f.after) ?? '—')),
+            )),
+          ),
       ),
     ),
     h(

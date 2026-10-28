@@ -1,4 +1,4 @@
-import type { Criterion, GameState, Goal, InboxItem, Item, ItemStatus, Level, Project, Settings, World, Workspace } from './model';
+import type { Criterion, GameState, Goal, InboxItem, Item, ItemStatus, Level, Project, PushDevice, Settings, World, Workspace } from './model';
 import { clone, findLevelAt, uniqueId } from './model';
 import { COST_FIELDS } from './budget';
 import { dayKey, isDueAgain, logCompletion } from './repeat';
@@ -89,7 +89,29 @@ export type OpBody =
   | { kind: 'inboxUpdate'; id: string; patch: Partial<Omit<InboxItem, 'id'>> }
   | { kind: 'inboxRemove'; ids: string[] }
   /** Moves inbox items into a level (or a dependency's steps) as to-do items. */
-  | ({ kind: 'inboxPlace'; ids: string[]; projectId: string } & ItemAddr);
+  | ({ kind: 'inboxPlace'; ids: string[]; projectId: string } & ItemAddr)
+  /** The GitHub Action's settings (data/automation.json). Devices have their own ops. */
+  | { kind: 'updateAutomation'; patch: AutomationPatch }
+  /** Adds a push device, or replaces the one with the same id (so re-subscribing is safe). */
+  | { kind: 'addDevice'; device: PushDevice; index?: number }
+  | { kind: 'removeDevice'; id: string };
+
+type AutomationFile = NonNullable<Workspace['automation']>;
+type Block<K extends 'schedule' | 'validate' | 'notify'> = NonNullable<AutomationFile[K]>;
+
+/**
+ * Fields to change in automation.json, block by block, so a patch to one field never
+ * overwrites another made elsewhere. Undefined values remove keys (back to the default).
+ */
+export interface AutomationPatch {
+  channel?: AutomationFile['channel'];
+  schedule?: Partial<Block<'schedule'>>;
+  validate?: Partial<Block<'validate'>>;
+  notify?: Partial<Omit<Block<'notify'>, 'devices'>>;
+}
+
+/** Most push devices one repo can hold (the schema's maxItems). */
+export const MAX_DEVICES = 20;
 
 type ProjectOp = ProjectOpBody & { projectId: string; opId: string; at: string };
 
@@ -338,6 +360,49 @@ function withInbox(ws: Workspace, inbox: InboxItem[]): Workspace {
   return inbox.length ? { ...rest, inbox } : rest;
 }
 
+/** Drops undefined values and empty blocks, and the file itself once nothing is left. */
+function withAutomation(ws: Workspace, automation: AutomationFile): Workspace {
+  const a = automation as Record<string, unknown>;
+  for (const [k, v] of Object.entries(a)) {
+    if (v === undefined) delete a[k];
+    else if (v && typeof v === 'object') {
+      for (const [f, x] of Object.entries(v)) if (x === undefined) delete (v as Record<string, unknown>)[f];
+      if (!Object.keys(v).length) delete a[k];
+    }
+  }
+  const { automation: _, ...rest } = ws;
+  return Object.keys(a).length ? { ...rest, automation } : rest;
+}
+
+function applyAutomationOp(ws: Workspace, op: Extract<Op, { kind: 'updateAutomation' | 'addDevice' | 'removeDevice' }>): Workspace {
+  const a: AutomationFile = { ...ws.automation };
+  if (op.kind === 'updateAutomation') {
+    const { channel, ...blocks } = op.patch;
+    if ('channel' in op.patch) a.channel = channel;
+    for (const k of ['schedule', 'validate', 'notify'] as const) {
+      const patch = blocks[k] as Record<string, unknown> | undefined;
+      if (!patch) continue;
+      const { devices: _, ...fields } = patch;
+      (a as Record<string, unknown>)[k] = { ...a[k], ...clone(fields) };
+    }
+    return withAutomation(ws, a);
+  }
+  const devices = [...(a.notify?.devices ?? [])];
+  if (op.kind === 'addDevice') {
+    const at = devices.findIndex((d) => d.id === op.device.id);
+    if (at >= 0) devices[at] = clone(op.device);
+    else if (devices.length >= MAX_DEVICES) throw new OpConflict(`a repo can have at most ${MAX_DEVICES} push devices`, op);
+    else devices.splice(Math.max(0, Math.min(op.index ?? devices.length, devices.length)), 0, clone(op.device));
+  } else {
+    // Removing a device that's already gone is fine: two browsers may both tidy up an expired one.
+    const at = devices.findIndex((d) => d.id === op.id);
+    if (at < 0) return ws;
+    devices.splice(at, 1);
+  }
+  a.notify = { ...a.notify, devices: devices.length ? devices : undefined };
+  return withAutomation(ws, a);
+}
+
 function applyInboxOp(ws: Workspace, op: Op & { kind: 'inboxAdd' | 'inboxUpdate' | 'inboxRemove' | 'inboxPlace' }): Workspace {
   const inbox = clone(ws.inbox ?? []);
   const find = (id: string) => need(inbox.find((i) => i.id === id), `inbox item "${id}"`, op);
@@ -388,6 +453,7 @@ function applyInboxOp(ws: Workspace, op: Op & { kind: 'inboxAdd' | 'inboxUpdate'
 export function applyOp(ws: Workspace, op: Op): Workspace {
   if (op.kind === 'inboxAdd' || op.kind === 'inboxUpdate' || op.kind === 'inboxRemove' || op.kind === 'inboxPlace')
     return applyInboxOp(ws, op);
+  if (op.kind === 'updateAutomation' || op.kind === 'addDevice' || op.kind === 'removeDevice') return applyAutomationOp(ws, op);
   if (op.kind === 'updateSettings') {
     const settings = { ...ws.settings, ...clone(op.patch) };
     for (const [k, v] of Object.entries(op.patch)) if (v === undefined) delete (settings as any)[k];
@@ -541,6 +607,9 @@ export const UNDOABLE = new Set<Op['kind']>([
   'inboxAdd',
   'inboxUpdate',
   'inboxRemove',
+  'updateAutomation',
+  'addDevice',
+  'removeDevice',
 ]);
 
 /**
@@ -549,6 +618,26 @@ export const UNDOABLE = new Set<Op['kind']>([
  */
 export function inverseOp(op: OpBody, before: Workspace): OpBody | undefined {
   const inbox = before.inbox ?? [];
+  const automation = before.automation ?? {};
+  const devices = automation.notify?.devices ?? [];
+  if (op.kind === 'updateAutomation') {
+    const patch: AutomationPatch = {};
+    if ('channel' in op.patch) patch.channel = automation.channel;
+    for (const k of ['schedule', 'validate', 'notify'] as const) {
+      const fields = op.patch[k];
+      const prev = (automation[k] ?? {}) as Record<string, unknown>;
+      if (fields) (patch as Record<string, unknown>)[k] = Object.fromEntries(Object.keys(fields).map((f) => [f, clone(prev[f])]));
+    }
+    return { kind: 'updateAutomation', patch };
+  }
+  if (op.kind === 'addDevice') {
+    const prev = devices.find((d) => d.id === op.device.id);
+    return prev ? { kind: 'addDevice', device: clone(prev) } : { kind: 'removeDevice', id: op.device.id };
+  }
+  if (op.kind === 'removeDevice') {
+    const index = devices.findIndex((d) => d.id === op.id);
+    return index < 0 ? undefined : { kind: 'addDevice', device: clone(devices[index]), index };
+  }
   if (op.kind === 'inboxAdd') return { kind: 'inboxRemove', ids: [op.item.id] };
   if (op.kind === 'inboxUpdate') {
     const prev = inbox.find((i) => i.id === op.id) as Record<string, unknown> | undefined;
@@ -640,6 +729,16 @@ export function describeOp(op: Op, state?: Workspace): string {
     return `place ${op.ids.length} inbox item${op.ids.length === 1 ? '' : 's'} in ${op.projectId}/${op.worldId}/${op.levelId}${op.parentId ? ` (steps of ${op.parentId})` : ''}`;
   if (op.kind === 'updateSettings')
     return `settings: ${Object.entries(op.patch).map(([k, v]) => `${k} = ${v ?? 'default'}`).join(', ')}`;
+  if (op.kind === 'updateAutomation') {
+    const fields = Object.entries(op.patch).flatMap(([k, v]) =>
+      k === 'channel' ? [[k, v]] : Object.entries((v ?? {}) as object).map(([f, x]) => [`${k}.${f}`, x]),
+    );
+    // The VAPID key is long and says nothing to a reader.
+    return `automation: ${fields.map(([k, v]) => `${k} = ${v === undefined ? 'default' : k === 'notify.vapidPublicKey' ? 'new key' : v}`).join(', ')}`;
+  }
+  if (op.kind === 'addDevice') return `automation: add device "${op.device.label}"`;
+  if (op.kind === 'removeDevice')
+    return `automation: remove device "${state?.automation?.notify?.devices?.find((d) => d.id === op.id)?.label ?? op.id}"`;
   const where = 'levelId' in op ? ` (${op.projectId}/${op.worldId}/${op.levelId})` : ` (${op.projectId})`;
   const title = (id: string) =>
     state && 'levelId' in op ? itemTitle(state, { ...op, itemId: id } as any) : id;

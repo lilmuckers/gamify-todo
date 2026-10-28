@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 8**
+**Skill version: 9**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -367,7 +367,7 @@ Rules:
 - `world.json` → `levelOrder` sets the play order. Every id in it must have a level file;
   levels left out go last, by id.
 - A level id may not be `world` (that name is the world file).
-- The only files directly in `data/` are the optional `settings.json` and `inbox.json`. No other `.json` files anywhere under `data/`.
+- The only files directly in `data/` are the optional `settings.json`, `inbox.json` and `automation.json`. No other `.json` files anywhere under `data/`.
 - Files are UTF-8 JSON, 2-space indent, trailing newline.
 
 ## 3. Schemas
@@ -381,6 +381,7 @@ Put the matching `$schema` URL at the top of every file:
 | `<level-id>.json` | `https://tasks.patrick-mckinley.com/schema/level.schema.json` |
 | `data/settings.json` | `https://tasks.patrick-mckinley.com/schema/settings.schema.json` |
 | `data/inbox.json` | `https://tasks.patrick-mckinley.com/schema/inbox.schema.json` |
+| `data/automation.json` | `https://tasks.patrick-mckinley.com/schema/automation.schema.json` |
 
 Full definitions (JSON Schema 2020-12, `additionalProperties: false` everywhere — **no extra
 fields**): https://tasks.patrick-mckinley.com/schema/quest.schema.json. Fetch it if unsure.
@@ -528,6 +529,29 @@ Repo-wide display settings; omit the file to use the defaults. Only change it wh
 ```json
 { "$schema": "https://tasks.patrick-mckinley.com/schema/settings.schema.json", "hero": "bearded" }
 ```
+
+### Automation (`data/automation.json`, optional)
+
+Settings for the Quest Log GitHub Action: which channel it runs, how often the scheduled run
+checks for notifications, pull request validation, and push notification devices. Without the
+file, validation is on and everything else is off. **The app writes this file** (Settings →
+Automation), together with `.github/workflows/quest.yml` to match. You may read it to answer
+questions, and change `channel`, `schedule` or `validate` only when the user asks, but **never add,
+edit or remove `notify.devices`** (they hold browser push subscriptions) and **never edit the
+workflow file**: tell the user to change it in Settings → Automation.
+
+```json
+{ "$schema": "https://tasks.patrick-mckinley.com/schema/automation.schema.json",
+  "channel": "stable", "schedule": { "every": "3h" }, "validate": { "enabled": true, "comment": true },
+  "notify": { "enabled": true, "vapidPublicKey": "B…", "devices": [ { "id": "pixel-7", "label": "Pixel", "…": "…" } ] } }
+```
+
+| Field | Notes |
+|---|---|
+| `channel` | `stable` (default, the released action) or `beta` (newest, may break) |
+| `schedule.every` | `6h`, `3h` (default), `1h` or `off`; only used while a device wants time-box or review pushes |
+| `validate.enabled`, `validate.comment` | check pull requests and pushes, and comment on problems (both default `true`) |
+| `notify.enabled`, `notify.vapidPublicKey`, `notify.devices` | app-managed: device ids are unique, `timezone` is an IANA name like `Europe/London` |
 
 ## 4. Example files
 
@@ -891,13 +915,16 @@ files over (§6.6) rather than committing them:
 - [ ] `levelRef` and `goalIds` / `unlocksAfter` point at things in the same project.
 - [ ] `subtasks` only on dependencies without `levelRef`; no dependency steps; step `dependsOn` names sibling steps.
 - [ ] `repeat` never on dependencies; `completions` are `YYYY-MM-DD` days in date order, one per day.
+- [ ] `data/automation.json` `notify.devices` and `.github/workflows/quest.yml` untouched (the app owns them).
 - [ ] Inbox ideas have only `id`, `type`, `title`, `notes`, `link`, `addedAt`, with unique ids; a placed idea is removed from `data/inbox.json` in the same commit.
 - [ ] `budget` / `spent` are plain non-negative numbers (`49.99`, not `"£49.99"`); costs only in projects with `budgets`, whose `currency` is a 3-letter code like `EUR`.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).
 
 ## 8. Optional: CI in the user's own repo
 
-To have GitHub check every change, the user can add `.github/workflows/quest.yml`:
+If `.github/workflows/quest.yml` starts with `# quest-stub:`, the Quest Log app wrote it: leave
+it alone, and point the user to Settings → Automation for any change. Otherwise, to have GitHub
+check every change, the user can add `.github/workflows/quest.yml`:
 
 ```yaml
 name: Quest data

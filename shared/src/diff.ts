@@ -133,7 +133,28 @@ export interface WorkspaceDiff {
   projects: Record<string, { change: Change; diff: StateDiff }>;
   /** Every changed level across projects. */
   levels: LevelDiff[];
+  /** data/automation.json fields that changed, when any did. */
+  automation?: FieldChange[];
   count: number;
+}
+
+/**
+ * automation.json as `block.field` → value. Devices show as their labels only: a
+ * subscription's endpoint and keys mean nothing to someone reviewing a PR.
+ */
+function automationFields(a: Workspace['automation']): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(a ?? {})) {
+    if (!v || typeof v !== 'object') out[k] = v;
+    else
+      for (const [f, x] of Object.entries(v))
+        out[`${k}.${f}`] = k === 'notify' && f === 'devices' && Array.isArray(x) ? x.map((d) => d?.label ?? d?.id) : x;
+  }
+  return out;
+}
+
+export function diffAutomation(base: Workspace['automation'], head: Workspace['automation']): FieldChange[] {
+  return fieldChanges(automationFields(base), automationFields(head));
 }
 
 const EMPTY: GameState = { overworld: { id: '', title: '', goals: [], worldOrder: [] }, worlds: {} };
@@ -149,6 +170,11 @@ export function diffWorkspaces(base: Workspace, head: Workspace): WorkspaceDiff 
     out.projects[id] = { change: !a ? 'added' : !b ? 'removed' : 'modified', diff };
     out.levels.push(...diff.levels);
     out.count += Math.max(1, diff.count);
+  }
+  const automation = diffAutomation(base.automation, head.automation);
+  if (automation.length) {
+    out.automation = automation;
+    out.count += automation.length;
   }
   return out;
 }

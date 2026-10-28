@@ -2,9 +2,9 @@
 // GENERATED from schema/quest.schema.json by `npm run schema:gen`. Do not edit.
 
 /**
- * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings, and an optional data/inbox.json holds captured ideas not yet placed in a level. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
+ * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings, an optional data/inbox.json holds captured ideas not yet placed in a level, and an optional data/automation.json holds settings for the Quest Log GitHub Action. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
  */
-export type QuestLogData = Project | World | Level | Settings | Inbox;
+export type QuestLogData = Project | World | Level | Settings | Inbox | Automation;
 /**
  * Short human-readable name. Imperative for tasks ('Write API docs'), noun phrase for deliverables ('Public beta').
  */
@@ -410,4 +410,118 @@ export interface InboxItem {
    * When it was captured.
    */
   addedAt?: string;
+}
+/**
+ * Settings for the Quest Log GitHub Action in this repo, stored at data/automation.json. Optional: without it validation runs and everything else is off. Written by the app (Settings → Automation), which also writes .github/workflows/quest.yml to match.
+ */
+export interface Automation {
+  /**
+   * Optional pointer to this schema, for editor autocompletion.
+   */
+  $schema?: string;
+  /**
+   * Action channel. Default stable.
+   */
+  channel?: "stable" | "beta";
+  /**
+   * Scheduled workflow runs. The workflow only has a schedule while a scheduled notification (timebox or review) is on for some device.
+   */
+  schedule?: {
+    /**
+     * Run interval. Default 3h.
+     */
+    every?: "6h" | "3h" | "1h" | "off";
+  };
+  /**
+   * Validation of data changes on pull requests and pushes.
+   */
+  validate?: {
+    /**
+     * Check every pull request and push. Default true.
+     */
+    enabled?: boolean;
+    /**
+     * Comment on the pull request when its data has problems. Default true.
+     */
+    comment?: boolean;
+  };
+  /**
+   * Push notifications sent by the action.
+   */
+  notify?: {
+    /**
+     * Send push notifications at all. Default false.
+     */
+    enabled?: boolean;
+    /**
+     * Public half of the VAPID key pair (base64url). The private half is the QUEST_VAPID_PRIVATE_KEY Actions secret.
+     */
+    vapidPublicKey?: string;
+    /**
+     * Devices that get notifications. Ids are unique.
+     *
+     * @maxItems 20
+     */
+    devices?: PushDevice[];
+  };
+}
+/**
+ * A browser or phone that receives push notifications. Written by the app when the user turns push on; assistants and tools must not add, edit or remove devices.
+ */
+export interface PushDevice {
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  id: string;
+  /**
+   * Name shown in Settings and the Warp Zone, e.g. "Pixel".
+   */
+  label: string;
+  /**
+   * When push was turned on for this device.
+   */
+  addedAt: string;
+  /**
+   * IANA timezone name the device lives in, e.g. Europe/London. Review slots are worked out in it.
+   */
+  timezone: string;
+  /**
+   * Which notifications this device gets. A missing key takes its default.
+   */
+  events?: {
+    /**
+     * Notify when a level's time-box is nearly up or overdue (needs the schedule). Default true.
+     */
+    timebox?: boolean;
+    /**
+     * Weekly review reminder slot (needs the schedule). Default fri.
+     */
+    review?: "fri" | "mon" | "sun" | "off";
+    /**
+     * Notify when a pull request with data changes opens, and when its validation passes or fails. Default true.
+     */
+    warpZone?: boolean;
+  };
+  /**
+   * The browser's Web Push subscription. Sending needs the VAPID private key, which stays an Actions secret.
+   */
+  subscription: {
+    /**
+     * Push service URL for this device.
+     */
+    endpoint: string;
+    /**
+     * Keys that encrypt the payload for this device.
+     */
+    keys: {
+      /**
+       * The device's P-256 public key (base64url).
+       */
+      p256dh: string;
+      /**
+       * The device's auth secret (base64url).
+       */
+      auth: string;
+    };
+  };
 }

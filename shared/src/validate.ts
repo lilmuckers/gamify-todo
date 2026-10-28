@@ -1,7 +1,7 @@
-import { validateInbox, validateLevel, validateProject, validateSettings, validateWorld } from './validators.gen.js';
+import { validateAutomation, validateInbox, validateLevel, validateProject, validateSettings, validateWorld } from './validators.gen.js';
 import type { GameState, Level, Workspace } from './model';
 import { parseLevelRef } from './model';
-import { classifyPath, DATA_ROOT, fromFiles, INBOX_PATH, levelPath, projectFiles, projectPath, SETTINGS_PATH, toFiles, worldPath } from './serialize';
+import { AUTOMATION_PATH, classifyPath, DATA_ROOT, type DataFile, fromFiles, INBOX_PATH, levelPath, projectFiles, projectPath, SETTINGS_PATH, toFiles, worldPath } from './serialize';
 
 export interface Issue {
   /** Repo file the issue is in. */
@@ -12,13 +12,42 @@ export interface Issue {
 }
 
 type Compiled = typeof validateWorld;
-const VALIDATORS: Record<'project' | 'world' | 'level' | 'settings' | 'inbox', Compiled> = {
+const VALIDATORS: Record<DataFile['kind'], Compiled> = {
   project: validateProject,
   world: validateWorld,
   level: validateLevel,
   settings: validateSettings,
   inbox: validateInbox,
+  automation: validateAutomation,
 };
+
+/**
+ * Whether `tz` is an IANA timezone this runtime knows. The schema's pattern has already
+ * checked its shape (segments start with a capital), so Intl's case-insensitive match
+ * can't let "europe/london" through; quest.py checks the same with zoneinfo.
+ */
+export function isTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Rules the schema can't express for data/automation.json: unique device ids, real timezones. */
+function automationIssues(data: unknown, file: string): Issue[] {
+  const devices = (data as { notify?: { devices?: unknown } })?.notify?.devices;
+  if (!Array.isArray(devices)) return [];
+  const issues: Issue[] = [];
+  for (const id of duplicates(devices.map((d) => String(d?.id))))
+    issues.push({ file, path: '/notify/devices', message: `duplicate device id "${id}"` });
+  devices.forEach((d, i) => {
+    if (typeof d?.timezone === 'string' && !isTimeZone(d.timezone))
+      issues.push({ file, path: `/notify/devices/${i}/timezone`, message: `unknown timezone "${d.timezone}"` });
+  });
+  return issues;
+}
 
 function schemaIssues(fn: Compiled, data: unknown, file: string): Issue[] {
   if (fn(data)) return [];
@@ -152,7 +181,7 @@ export function validateFiles(files: Record<string, string>): Issue[] {
     const f = classifyPath(path);
     if (!f) {
       if (path.startsWith(`${DATA_ROOT}/`) && path.endsWith('.json'))
-        issues.push({ file: path, path: '/', message: `unexpected file: use ${DATA_ROOT}/<project>/project.json, ${DATA_ROOT}/<project>/<world>/world.json, ${DATA_ROOT}/<project>/<world>/<level>.json, ${DATA_ROOT}/settings.json or ${DATA_ROOT}/inbox.json` });
+        issues.push({ file: path, path: '/', message: `unexpected file: use ${DATA_ROOT}/<project>/project.json, ${DATA_ROOT}/<project>/<world>/world.json, ${DATA_ROOT}/<project>/<world>/<level>.json, ${DATA_ROOT}/settings.json, ${DATA_ROOT}/inbox.json or ${DATA_ROOT}/automation.json` });
       continue;
     }
     try {
@@ -164,6 +193,10 @@ export function validateFiles(files: Record<string, string>): Issue[] {
     const data = parsed[path] as { id?: unknown };
     issues.push(...schemaIssues(VALIDATORS[f.kind], data, path));
     if (f.kind === 'settings') continue;
+    if (f.kind === 'automation') {
+      issues.push(...automationIssues(data, path));
+      continue;
+    }
     if (f.kind === 'inbox') {
       const items = (data as { items?: { id?: string }[] }).items;
       if (Array.isArray(items))
@@ -233,11 +266,11 @@ function projectIssues(pid: string, state: GameState): Issue[] {
 }
 
 const inProject = (pid: string) => (i: Issue) => i.file.startsWith(`${DATA_ROOT}/${pid}/`);
-const isShared = (i: Issue) => i.file === SETTINGS_PATH || i.file === INBOX_PATH;
+const isShared = (i: Issue) => i.file === SETTINGS_PATH || i.file === INBOX_PATH || i.file === AUTOMATION_PATH;
 
 /**
  * Validates `next`, re-checking only what changed since `prev` (whose issues
- * were `prevIssues`): projects, settings and the inbox are compared by
+ * were `prevIssues`): projects, settings, the inbox and automation are compared by
  * reference, and unchanged ones keep their issues. Ops copy only what they
  * change, so one edit re-checks one project instead of everything.
  */
@@ -245,12 +278,13 @@ export function revalidate(prev: Workspace | undefined, prevIssues: Issue[], nex
   const issues: Issue[] = [];
   for (const [pid, state] of Object.entries(next.projects))
     issues.push(...(prev?.projects[pid] === state ? prevIssues.filter(inProject(pid)) : projectIssues(pid, state)));
-  if (prev && prev.settings === next.settings && prev.inbox === next.inbox) issues.push(...prevIssues.filter(isShared));
-  else issues.push(...validateFiles(toFiles({ projects: {}, settings: next.settings, inbox: next.inbox })));
+  if (prev && prev.settings === next.settings && prev.inbox === next.inbox && prev.automation === next.automation)
+    issues.push(...prevIssues.filter(isShared));
+  else issues.push(...validateFiles(toFiles({ projects: {}, settings: next.settings, inbox: next.inbox, automation: next.automation })));
   return issues;
 }
 
-/** Every issue in the workspace: each project, then settings and the inbox. */
+/** Every issue in the workspace: each project, then settings, the inbox and automation. */
 export function validateWorkspace(ws: Workspace): Issue[] {
   return revalidate(undefined, [], ws);
 }
