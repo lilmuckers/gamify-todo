@@ -550,25 +550,39 @@ canvas give ▲ up, ◀ ▶ prev/next and Play.
 
 ### 5.9 Settings (⚙)
 
+One modal in tabs, so each view stays short: down the left on desktop, a strip along the top on
+phones. ←/→ (or ↑/↓) move between tabs. It opens on the tab you ask for (the sync pill opens
+**GitHub & sync**), else on GitHub & sync when sync needs you (an error, conflicts, data issues,
+an expired sign-in), else on the tab last used this session, else **Game**. A red dot marks a
+tab that needs something done: sync trouble, or a workflow to install or update.
+
+**Game**
 - **Your hero:** the hero's portrait, sprite, name and description, and **CHANGE HERO**, which
   opens the character select (§5.11) in a modal over Settings. The choice is kept in this browser. When the data is
   editable it is also saved to `data/settings.json` as everyone's default.
+- **Display:** layout auto (by screen size) / full game view / compact; sound effects on/off
+  (off by default, see §5.12).
+- **Weekly review:** Fri / Mon / Sun / off.
+- **Privacy:** analytics toggle.
+
+**GitHub & sync**
+- **Demo** (demo only): what the demo is, with the ways out.
 - **GitHub** (builds with sign-in): **Sign in with GitHub**; once signed in, the repo in use,
   **Change repo** (the repo picker), **Sign out** and a link to revoke the App on GitHub. An
   expired sign-in shows **Sign in again** and the number of edits it is holding.
 - **GitHub connection:** repo `owner/repo`, optional branch (blank = default branch) and a
   fine-grained token, with a read-only/editable status line. With sign-in available it folds
   into "Use a token instead".
-- **New here?:** reopen the welcome screen, tour or set-up guide.
-- **Display:** layout auto (by screen size) / full game view / compact; sound effects on/off
-  (off by default, see §5.12).
-- **Weekly review:** Fri / Mon / Sun / off.
-- **Privacy:** analytics toggle.
 - **Sync:** source, status, last synced, pending ops, conflicts (skipped queued edits),
   discard outbox.
 - **Data issues:** validation problems in the loaded data.
 - **Publish** (Docker): branch, ahead/behind, last commit.
-- **Automation** (GitHub repos only): see §5.16.
+
+**Automation** (GitHub repos only, no tab otherwise): see §5.16.
+
+**Help**
+- **AI skill:** opens the Use Quest Log with AI guide.
+- **New here?:** reopen the welcome screen, tour or set-up guide.
 
 ### 5.10 Warp Zone: PR review
 
@@ -623,7 +637,7 @@ to add a hero: the art, the voice and every line they need.
 
 ### 5.12 Sound effects (#20)
 
-- Off by default; a checkbox in Settings → Display, stored in `uiPrefs().sound`. Turning it on
+- Off by default; a checkbox in Settings → Game → Display, stored in `uiPrefs().sound`. Turning it on
   plays a coin as a preview. With reduced motion set, the hint says they stay off unless chosen.
 - Made at play time by a tiny WebAudio synth (`app/src/audio.ts`): pulse, triangle, sawtooth and
   filtered-noise notes with an envelope. Every sound is a short note table in `app/src/sfx.ts`.
@@ -941,7 +955,7 @@ Implemented in `app/src/data/store.ts`.
   4. compute `changedFiles`;
   5. make one commit with a generated message;
   6. on `ConflictError` (the branch moved), reload and retry, up to 3 times.
-- Ops whose target vanished remotely are skipped and listed as conflicts in Settings → Sync.
+- Ops whose target vanished remotely are skipped and listed as conflicts in Settings → GitHub & sync.
 - Status values: `loading`, `readonly`, `synced`, `pending`, `syncing`, `offline`, `error`.
 - A lagging GitHub ref (an ancestor of the known head) is ignored, so a reload never rolls back
   to an older head.

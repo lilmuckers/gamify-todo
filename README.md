@@ -115,7 +115,7 @@ Pick your **hero** from eighteen characters in **⚙ Settings**. The choice is k
 (next to the token). When the data is editable it is also saved to `data/settings.json` as the
 default for everyone; in read-only views your own choice wins over that default.
 
-**Sound effects** are off by default. Turn them on in **⚙ Settings → Display**: short retro blips
+**Sound effects** are off by default. Turn them on in **⚙ Settings → Game → Display**: short retro blips
 for coins, crumbling walls, pipes, the flagpole and the level-clear jingle, made in the browser
 with no audio files.
 
@@ -179,11 +179,11 @@ ways in:
   Builds without sign-in always use that route.
 
 Opening a shared link on a first visit shows that screen with a small "New here?" banner instead.
-Add `?welcome` to any URL (or use **⚙ Settings → New here?**) to see the welcome screen again.
+Add `?welcome` to any URL (or use **⚙ Settings → Help → New here?**) to see the welcome screen again.
 
 ### Sign in with GitHub
 
-**⚙ Settings → Sign in with GitHub** (or the first page of Get started) opens GitHub, where you
+**⚙ Settings → GitHub & sync → Sign in with GitHub** (or the first page of Get started) opens GitHub, where you
 authorise the Quest Log GitHub App and choose which repos it may use. On desktop GitHub opens in a
 small window over the app, which stays where it was and carries on when that window closes. On
 phones, in the installed app, or if the browser blocks the window, the page goes to GitHub and
@@ -242,7 +242,7 @@ browser profile, can read it, so keep the token scoped to this one repo.
 ### Analytics and privacy
 
 The Pages site uses Google Analytics 4 to see which screens and features get used. It is on by
-default and can be switched off in **⚙ Settings → Privacy**. It is also off by default for
+default and can be switched off in **⚙ Settings → Game → Privacy**. It is also off by default for
 browsers that send Global Privacy Control. Docker/local builds include no analytics unless you
 build with `VITE_GA_ID`; set `VITE_GA_ID=` (empty) to build the site without it.
 
@@ -262,7 +262,7 @@ Open the Pages site on your phone and use **Add to Home Screen**. The compact UI
 automatically on small screens (switch in Settings). Edits are applied instantly and queued in
 IndexedDB; the queue is replayed onto the latest remote data when the connection returns (on
 reconnect, when the app regains focus, and every 30 s). If a queued edit targets something that was
-deleted remotely it is skipped and listed under Settings → Sync.
+deleted remotely it is skipped and listed under Settings → GitHub & sync.
 
 On iOS, an installed app has its own storage separate from Safari, so sign in (or connect the
 token) once inside the installed app.

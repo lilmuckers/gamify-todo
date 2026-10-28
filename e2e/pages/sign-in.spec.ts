@@ -42,6 +42,7 @@ test('sign in, pick a repo, and edit it', async ({ page }) => {
   await inScene(page, 'projects');
 
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await page.getByRole('button', { name: 'Sign in with GitHub' }).click();
 
   // Back from GitHub: the code is gone from the address, and both Quest Log repos are offered.
@@ -69,6 +70,7 @@ test('one Quest Log repo connects straight away', async ({ page }) => {
   await page.goto('./#/');
   await inScene(page, 'projects');
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await page.getByRole('button', { name: 'Sign in with GitHub' }).click();
   await expect(page.locator('.toast', { hasText: 'Signed in. Playing player/quests.' })).toBeVisible();
   await expect(page.locator('.sync-pill.synced')).toBeVisible();
@@ -110,6 +112,7 @@ test('an expired sign-in keeps the edits and syncs them after signing in again',
   expect(gh.repo('player/quests').appCommits()).toHaveLength(0);
 
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await expect(page.getByText('Your GitHub sign-in has expired. 1 edit(s) are kept')).toBeVisible();
   // Signed in again in the window, the app reloads onto the repo. Wait for that reload, or the
   // old level scene passes inScene and the check after it runs mid-reload.
@@ -129,6 +132,7 @@ test('with no repo yet, the next steps tick off by themselves as the user sets u
   await page.goto('./#/');
   await inScene(page, 'projects');
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await page.getByRole('button', { name: 'Sign in with GitHub' }).click();
 
   const picker = page.getByRole('dialog', { name: 'Choose your repo' });
@@ -164,6 +168,7 @@ test('on desktop, GitHub opens in a small window and the app never leaves the pa
   await page.evaluate(() => ((window as unknown as { stayed: boolean }).stayed = true));
 
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Sign in with GitHub' }).click()]);
   await expect(page.getByRole('dialog', { name: 'Signing in…' })).toBeVisible();
   // The popup lands back on our page, hands over the code, and closes itself.
@@ -185,6 +190,7 @@ test('installing Quest Log in a window ticks the checklist off at once', async (
   await page.goto('./#/');
   await inScene(page, 'projects');
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await page.getByRole('button', { name: 'Choose a repo' }).click();
   const picker = page.getByRole('dialog', { name: 'Choose your repo' });
   await expect(picker.locator('.watch.live')).toContainText('checked');
@@ -203,6 +209,7 @@ test('if the window is blocked, sign-in goes to GitHub and back in this tab', as
   await page.goto('./#/');
   await inScene(page, 'projects');
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await page.getByRole('button', { name: 'Sign in with GitHub' }).click();
   const picker = page.getByRole('dialog', { name: 'Choose your repo' });
   await expect(picker.locator('.repo-pick.quest')).toHaveCount(2);
@@ -222,6 +229,7 @@ test('cancelling on GitHub changes nothing', async ({ page }) => {
   await page.goto('./#/');
   await inScene(page, 'projects');
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await page.getByRole('button', { name: 'Sign in with GitHub' }).click();
   await expect(page.locator('.toast', { hasText: 'Sign-in cancelled.' })).toBeVisible();
   expect(page.url()).not.toMatch(/error=/);

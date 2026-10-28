@@ -25,6 +25,7 @@ import { go } from '../router';
 import { h } from './dom';
 import { confirmDialog, openModal, type ModalAction } from './modal';
 import { questTextEditor } from './quest-text';
+import { tabs } from './tabs';
 
 export const TYPE_INFO: Record<ItemType, { label: string; sprite: string; hint: string }> = {
   task: { label: 'Task', sprite: 'qblock', hint: 'Work you do. A ? block; done pops a coin.' },
@@ -640,33 +641,22 @@ export function projectForm(app: App, create = false) {
     if (btn) btn.textContent = 'Create';
   };
   const plan = create ? questTextEditor(app, { title: () => title.value, budgets: () => track.checked, onEdit: unask }) : null;
-  const tab = (label: string, pane: HTMLElement, wide: boolean) => {
-    const btn = h(
-      'button',
-      {
-        type: 'button',
-        class: 'btn sm',
-        role: 'tab',
-        onclick: () => {
-          for (const t of tabs) {
-            t.btn.setAttribute('aria-selected', String(t === me));
-            t.pane.hidden = t !== me;
-          }
-          // The plan needs the room; the form doesn't.
-          body.closest('.modal')?.classList.toggle('wide', wide);
-          plan?.refresh();
+  const strip = plan
+    ? tabs(
+        [
+          { id: 'details', label: 'Details', pane: details },
+          { id: 'plan', label: 'Quest Markdown', pane: plan.el },
+        ],
+        {
+          class: 'qt-tabs',
+          onSelect: (id) => {
+            // The plan needs the room; the form doesn't.
+            body.closest('.modal')?.classList.toggle('wide', id === 'plan');
+            plan.refresh();
+          },
         },
-      },
-      label,
-    );
-    const me = { btn, pane };
-    return me;
-  };
-  const tabs = plan ? [tab('Details', details, false), tab('Quest Markdown', plan.el, true)] : [];
-  tabs.forEach((t, i) => {
-    t.btn.setAttribute('aria-selected', String(i === 0));
-    t.pane.hidden = i > 0;
-  });
+      ).strip
+    : null;
   title.addEventListener('input', () => plan?.refresh());
   track.addEventListener('change', () => plan?.refresh());
   const body = h(
@@ -675,7 +665,7 @@ export function projectForm(app: App, create = false) {
     create && h('p', { class: 'muted' }, 'A project is a completely separate effort — a house renovation, a furniture build, a work launch. It gets its own folder and map.'),
     field('Project title', title),
     goal && field('First key goal', goal, 'What does success look like? Left blank, it is the project title. You can add more later.'),
-    plan && h('div', { class: 'qt-tabs', role: 'tablist' }, tabs.map((t) => t.btn)),
+    strip,
     details,
     plan?.el,
   );

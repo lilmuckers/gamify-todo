@@ -43,6 +43,7 @@ async function openAutomation(page: Page, gh: FakeGitHub) {
   await inScene(page, 'projects');
   await expect(page.locator('.sync-pill.synced')).toBeVisible();
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'Automation' }).click();
   const section = page.locator('.automation');
   await expect(section).not.toHaveAttribute('aria-busy');
   return section;
@@ -201,12 +202,14 @@ test('is hidden without a GitHub repo', async ({ page }) => {
   await page.goto('./#/');
   await inScene(page, 'projects');
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await expect(page.getByRole('heading', { name: 'Sync' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Automation' })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'Automation' })).toHaveCount(0);
 
   await page.goto('./?demo#/');
   await inScene(page, 'projects');
   await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'GitHub & sync' }).click();
   await expect(page.getByRole('heading', { name: 'Demo' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Automation' })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'Automation' })).toHaveCount(0);
 });

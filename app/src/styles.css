@@ -2479,6 +2479,70 @@ button.heat:focus-visible,
   }
 }
 
+/* ---------- Settings: tabs down the left, one short pane at a time ---------- */
+/* One height for every tab, so the dialog doesn't jump as you switch. */
+.modal.settings-modal {
+  width: min(760px, 100%);
+  height: min(600px, calc(100% - 32px));
+}
+.settings-modal .modal-body {
+  flex: 1;
+}
+.settings {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.settings-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 0;
+}
+.settings-tabs .btn {
+  justify-content: space-between;
+  color: var(--muted);
+}
+.settings-tabs .btn[aria-selected='true'] {
+  background: var(--gold);
+  color: var(--ink);
+}
+/* Something in this tab wants doing (sync trouble, a workflow to install or update). */
+.settings-tabs .btn.attention::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--red);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+.settings-tabs[aria-orientation='horizontal'] {
+  flex-direction: row;
+  overflow-x: auto;
+  margin: -14px -14px 0;
+  padding: 10px 14px 8px;
+  background: var(--panel);
+  border-bottom: 2px solid var(--panel-2);
+  z-index: 1;
+}
+.settings-tabs[aria-orientation='horizontal'] .btn {
+  flex: none;
+}
+@media (max-width: 767px) {
+  .settings {
+    grid-template-columns: 1fr;
+  }
+  .settings-tabs {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .settings-tabs .btn {
+    flex: none;
+  }
+}
+
 /* ---------- Character select (Settings modal, set-up guide) ---------- */
 .modal.wide {
   width: min(980px, 100%);
