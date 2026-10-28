@@ -2,9 +2,9 @@
 // GENERATED from schema/quest.schema.json by `npm run schema:gen`. Do not edit.
 
 /**
- * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings, an optional data/inbox.json holds captured ideas not yet placed in a level, and an optional data/automation.json holds settings for the Quest Log GitHub Action. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
+ * Data format for Quest Log, a project tracker shown as a side-scrolling platformer game. Data lives in a folder tree under data/: one folder per PROJECT (completely unrelated efforts, e.g. 'house-renovation' vs 'work-launch'), holding project.json; one sub-folder per WORLD (a theme within the project) holding world.json; and one file per LEVEL (one key deliverable) in the world folder, named <level-id>.json. Paths: data/<project-id>/project.json, data/<project-id>/<world-id>/world.json, data/<project-id>/<world-id>/<level-id>.json. An optional data/settings.json holds repo-wide display settings, an optional data/inbox.json holds captured ideas not yet placed in a level, an optional data/automation.json holds settings for the Quest Log GitHub Action, and data/attachments/ holds photos and documents (data/attachments/<id>.<ext>), each with a JSON sidecar at data/attachments/<id>.json. Tools must leave data/attachments/ alone. Folder and file names must equal the ids inside. Design principle: 'good enough' beats perfect. Keep MVP criteria minimal; put nice-to-haves in 'stretch' items or non-MVP criteria.
  */
-export type QuestLogData = Project | World | Level | Settings | Inbox | Automation;
+export type QuestLogData = Project | World | Level | Settings | Inbox | Automation | AttachmentSidecar;
 /**
  * Short human-readable name. Imperative for tasks ('Write API docs'), noun phrase for deliverables ('Public beta').
  */
@@ -33,6 +33,10 @@ export type Status = "todo" | "doing" | "done" | "dropped";
  * Item types allowed inside a dependency's sub-level: any type except 'dependency' (sub-levels don't nest).
  */
 export type SubtaskType = "task" | "deliverable" | "blocker" | "risk" | "decision" | "stretch";
+/**
+ * How the attachment reached Quest Log.
+ */
+export type AttachmentVia = "button" | "share" | "paste";
 
 /**
  * A project: one self-contained effort, stored at data/<project-id>/project.json. Its map (the overworld) shows its key goals and its worlds in order. Projects never reference each other.
@@ -524,4 +528,30 @@ export interface PushDevice {
       auth: string;
     };
   };
+}
+/**
+ * What Quest Log knows about one attachment, stored at data/attachments/<id>.json next to the file itself (data/attachments/<id>.jpg, .jpeg, .png, .webp or .heic). Every file has exactly one sidecar and every sidecar one file. Written by the app when a photo is shared or snapped in; assistants and tools must not add, edit or remove attachments.
+ */
+export interface AttachmentSidecar {
+  /**
+   * Optional pointer to this schema, for editor autocompletion.
+   */
+  $schema?: string;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  id: string;
+  /**
+   * When the attachment was captured.
+   */
+  addedAt: string;
+  /**
+   * Short human-readable name. Imperative for tasks ('Write API docs'), noun phrase for deliverables ('Public beta').
+   */
+  title?: string;
+  /**
+   * Optional free-text detail. Markdown allowed.
+   */
+  text?: string;
+  via: AttachmentVia;
 }

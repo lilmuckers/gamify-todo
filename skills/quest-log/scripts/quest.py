@@ -32,7 +32,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 11
+SKILL_VERSION = 12
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -44,6 +44,14 @@ SLUG = r'[a-z0-9]+(?:-[a-z0-9]+)*'
 PROJECT_RE = re.compile(rf'^data/({SLUG})/project\.json$')
 WORLD_RE = re.compile(rf'^data/({SLUG})/({SLUG})/world\.json$')
 LEVEL_RE = re.compile(rf'^data/({SLUG})/({SLUG})/({SLUG})\.json$')
+# Photos and documents: data/attachments/<id>.<ext>, each with a <id>.json sidecar. The files
+# are binary, so they are only listed, never read; tools leave this folder to the app.
+ATTACHMENTS_DIR = 'data/attachments'
+ATTACHMENT_EXTENSIONS = ('jpg', 'jpeg', 'png', 'webp', 'heic')
+SIDECAR_RE = re.compile(rf'^{ATTACHMENTS_DIR}/({SLUG})\.json$')
+ATTACHMENT_FILE_RE = re.compile(rf'^{ATTACHMENTS_DIR}/({SLUG})\.(?:{"|".join(ATTACHMENT_EXTENSIONS)})$')
+# Data files that aren't part of a project tree.
+NOT_PROJECT = ('settings', 'inbox', 'automation', 'attachment')
 
 
 class QuestError(Exception):
@@ -236,7 +244,15 @@ def make_checker(registry):
 
 # ---------------------------------------------------------------- data tree
 
+def is_attachment_path(path):
+    return path.startswith(ATTACHMENTS_DIR + '/')
+
+
 def classify(path):
+    if is_attachment_path(path):
+        # Only a sidecar is data; the file is binary and a project can't live here.
+        m = SIDECAR_RE.match(path)
+        return ('attachment', m.group(1), None, None) if m else None
     if path == 'data/settings.json':
         return ('settings', None, None, None)
     if path == 'data/inbox.json':
@@ -271,6 +287,16 @@ def read_tree(root):
     return files
 
 
+def attachment_files(root):
+    """Paths of the binary files under ROOT/data/attachments: listed for pairing, never read."""
+    out = []
+    for dirpath, _, names in os.walk(os.path.join(root, *ATTACHMENTS_DIR.split('/'))):
+        for n in names:
+            if not n.endswith('.json'):
+                out.append(os.path.relpath(os.path.join(dirpath, n), root).replace(os.sep, '/'))
+    return sorted(out)
+
+
 # ---------------------------------------------------------------- what a change adds and removes
 
 def tree_keys(files):
@@ -295,7 +321,7 @@ def tree_keys(files):
                 put(f'inbox:{i.get("id")}', i)
             continue
         c = classify(path)
-        if not c or c[0] in ('settings', 'inbox', 'automation'):
+        if not c or c[0] in NOT_PROJECT:
             continue
         kind, p, w, lv = c
         if kind == 'project':
@@ -424,19 +450,47 @@ def automation_issues(path, doc):
     return out
 
 
-def validate_files(files, registry, by_name):
-    """Schema, folder structure, then cross-reference checks. Returns [(file, path, message)]."""
+def attachment_pair_issues(sidecars, paths):
+    """Every attachment file needs a sidecar and every sidecar one file. `paths` are never read."""
+    exts = '|'.join(ATTACHMENT_EXTENSIONS)
+    out, filed = [], {}
+    for path in sorted(p for p in paths if is_attachment_path(p) and not p.endswith('.json')):
+        m = ATTACHMENT_FILE_RE.match(path)
+        if not m:
+            out.append((path, '/', f'unexpected attachment file: use {ATTACHMENTS_DIR}/<id>.<{exts}> '
+                                   f'with a sidecar {ATTACHMENTS_DIR}/<id>.json'))
+            continue
+        filed.setdefault(m.group(1), []).append(path)
+    for i, fs in filed.items():
+        out += [(f, '/', f'attachment "{i}" already has a file ({fs[0]}); keep one') for f in fs[1:]]
+        if i not in sidecars:
+            out.append((fs[0], '/', f'attachment file has no sidecar: add {ATTACHMENTS_DIR}/{i}.json'))
+    for i in sorted(sidecars):
+        if i not in filed:
+            out.append((f'{ATTACHMENTS_DIR}/{i}.json', '/', f'attachment sidecar has no file: add '
+                                                           f'{ATTACHMENTS_DIR}/{i}.<{exts}> or remove the sidecar'))
+    return out
+
+
+def validate_files(files, registry, by_name, attachments=None):
+    """Schema, folder structure, then cross-reference checks. Returns [(file, path, message)].
+
+    `attachments` lists the tree's binary attachment files, which are never read: given, each
+    file and sidecar must pair up."""
     check, _ = make_checker(registry)
     issues, parsed = [], {}
-    projects, worlds, levels = set(), {}, {}
+    projects, worlds, levels, sidecars = set(), {}, {}, set()
     for path, text in sorted(files.items()):
         kind = classify(path)
         if not kind:
             if path.startswith('data/') and path.endswith('.json'):
                 issues.append((path, '/', 'unexpected file: use data/<project>/project.json, '
                                           'data/<project>/<world>/world.json, data/<project>/<world>/<level>.json, '
-                                          'data/settings.json, data/inbox.json or data/automation.json'))
+                                          'data/settings.json, data/inbox.json, data/automation.json '
+                                          f'or {ATTACHMENTS_DIR}/<id>.json'))
             continue
+        if kind[0] == 'attachment':
+            sidecars.add(kind[1])
         try:
             doc = json.loads(text)
         except json.JSONDecodeError as e:
@@ -458,9 +512,11 @@ def validate_files(files, registry, by_name):
             for dup in sorted({i for i in ids if ids.count(i) > 1}):
                 issues.append((path, '/items', f'duplicate inbox item id "{dup}"'))
             continue
-        expected = {'project': p, 'world': w, 'level': lv}[k]
+        expected = {'project': p, 'world': w, 'level': lv, 'attachment': p}[k]
         if isinstance(doc, dict) and doc.get('id') != expected:
-            issues.append((path, '/id', f'id "{doc.get("id")}" must match its {"file name" if k == "level" else "folder"} "{expected}"'))
+            issues.append((path, '/id', f'id "{doc.get("id")}" must match its {"file name" if k in ("level", "attachment") else "folder"} "{expected}"'))
+        if k == 'attachment':
+            continue
         if k == 'project':
             projects.add(p)
         elif k == 'world':
@@ -485,6 +541,8 @@ def validate_files(files, registry, by_name):
             lorder = (parsed.get(f'data/{p}/{w}/world.json') or {}).get('levelOrder') or []
             lp = levels.get((p, w), set())
             issues += [(f'data/{p}/{w}/world.json', f'/levelOrder/{i}', f'no data/{p}/{w}/{lv}.json') for i, lv in enumerate(lorder) if lv not in lp]
+    if attachments is not None:
+        issues += attachment_pair_issues(sidecars, attachments)
     if issues:
         return issues
 
@@ -601,9 +659,10 @@ class GitHub:
         return self.call('GET', f'/git/ref/heads/{urllib.parse.quote(branch)}')['object']['sha']
 
     def data_blobs(self, sha):
-        """{path: blob sha} for data files at a commit."""
+        """{path: blob sha} for data files at a commit. Attachments are the app's, so pull and push skip them."""
         tree = self.call('GET', f'/git/trees/{sha}?recursive=1')
-        return {e['path']: e['sha'] for e in tree['tree'] if e['type'] == 'blob' and classify(e['path'])}
+        return {e['path']: e['sha'] for e in tree['tree']
+                if e['type'] == 'blob' and classify(e['path']) and not is_attachment_path(e['path'])}
 
     def blob(self, sha):
         return self.call('GET', f'/git/blobs/{sha}', raw=True)
@@ -674,7 +733,7 @@ def cmd_update_check(args):
 def cmd_validate(args):
     registry, by_name, d = load_registry(args.schemas, args.refresh)
     files = read_tree(args.dir)
-    issues = validate_files(files, registry, by_name)
+    issues = validate_files(files, registry, by_name, attachment_files(args.dir))
     _, engine = make_checker(registry)
     if args.json:
         # Machine-readable for CI (the Quest Log action turns these into check-run annotations).
@@ -731,13 +790,14 @@ def cmd_pull(args):
 
 
 def write_tree(root, files):
-    """Replaces every data file under root/data with `files` ({path: text})."""
+    """Replaces every data file under root/data with `files` ({path: text}), leaving attachments alone."""
     data = os.path.join(root, 'data')
     if os.path.isdir(data):
         for dirpath, _, names in os.walk(data):
             for n in names:
-                if n.endswith('.json'):
-                    os.remove(os.path.join(dirpath, n))
+                full = os.path.join(dirpath, n)
+                if n.endswith('.json') and not is_attachment_path(os.path.relpath(full, root).replace(os.sep, '/')):
+                    os.remove(full)
     for path, text in sorted(files.items()):
         full = os.path.join(root, *path.split('/'))
         os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -750,7 +810,7 @@ def local_changes(root):
     if not os.path.exists(base_path):
         raise QuestError(f'No {BASE_FILE} in {root}: run pull first.')
     base = json.load(open(base_path))
-    local = read_tree(root)
+    local = {p: t for p, t in read_tree(root).items() if not is_attachment_path(p)}
     changes = {p: t for p, t in local.items() if base['files'].get(p) != git_blob_sha(t)}
     changes.update({p: None for p in base['files'] if p not in local})
     return base, local, changes
@@ -1047,7 +1107,7 @@ def load_workspace(files):
     ws = {}
     for path in sorted(files):
         c = classify(path)
-        if not c or c[0] in ('settings', 'inbox', 'automation'):
+        if not c or c[0] in NOT_PROJECT:
             continue
         try:
             d = json.loads(files[path])

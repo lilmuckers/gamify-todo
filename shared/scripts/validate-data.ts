@@ -1,9 +1,10 @@
 // Validates data/** against the JSON Schema, folder structure and semantic rules. Used by CI.
 import { formatIssues, validateFiles } from '../src/index';
-import { readDataDir } from './read-data';
+import { listAttachmentFiles, readDataDir } from './read-data';
 
-const files = readDataDir(process.argv[2] ?? process.cwd());
-const issues = validateFiles(files);
+const root = process.argv[2] ?? process.cwd();
+const files = readDataDir(root);
+const issues = validateFiles(files, listAttachmentFiles(root));
 if (issues.length) {
   console.error(`✗ ${issues.length} issue(s):\n${formatIssues(issues)}`);
   process.exit(1);

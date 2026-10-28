@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 11**
+**Skill version: 12**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -366,8 +366,10 @@ Rules:
   worlds left out go last, by id.
 - `world.json` → `levelOrder` sets the play order. Every id in it must have a level file;
   levels left out go last, by id.
-- A level id may not be `world` (that name is the world file).
-- The only files directly in `data/` are the optional `settings.json`, `inbox.json` and `automation.json`. No other `.json` files anywhere under `data/`.
+- A level id may not be `world` (that name is the world file), and a project id may not be
+  `attachments` (that folder holds attachments).
+- The only files directly in `data/` are the optional `settings.json`, `inbox.json` and `automation.json`. No other `.json` files anywhere under `data/`, except attachment sidecars.
+- `data/attachments/` belongs to the app: **never add, edit, move or delete anything in it** (see §3).
 - Files are UTF-8 JSON, 2-space indent, trailing newline.
 
 ## 3. Schemas
@@ -382,6 +384,7 @@ Put the matching `$schema` URL at the top of every file:
 | `data/settings.json` | `https://tasks.patrick-mckinley.com/schema/settings.schema.json` |
 | `data/inbox.json` | `https://tasks.patrick-mckinley.com/schema/inbox.schema.json` |
 | `data/automation.json` | `https://tasks.patrick-mckinley.com/schema/automation.schema.json` |
+| `data/attachments/<id>.json` | `https://tasks.patrick-mckinley.com/schema/attachment.schema.json` (app-written) |
 
 Full definitions (JSON Schema 2020-12, `additionalProperties: false` everywhere — **no extra
 fields**): https://tasks.patrick-mckinley.com/schema/quest.schema.json. Fetch it if unsure.
@@ -552,6 +555,16 @@ workflow file**: tell the user to change it in Settings → Automation.
 | `schedule.every` | `6h`, `3h` (default), `1h` or `off`; only used while a device wants time-box or review pushes |
 | `validate.enabled`, `validate.comment` | check pull requests and pushes, and comment on problems (both default `true`) |
 | `notify.enabled`, `notify.vapidPublicKey`, `notify.devices` | app-managed: device ids are unique, `timezone` is an IANA name like `Europe/London` |
+
+### Attachments (`data/attachments/`, app-managed)
+
+Photos and documents shared or snapped into the app. Each one is a file
+`data/attachments/<id>.<jpg|jpeg|png|webp|heic>` plus a sidecar `data/attachments/<id>.json`
+(`id`, `addedAt`, `via`: `button`, `share` or `paste`, and optional `title` and `text`).
+Validation fails if a file has no sidecar, a sidecar has no file, or a file has another type.
+**Leave the whole folder alone**: never read the files as JSON, and never add, edit or delete
+files or sidecars. `quest.py pull` and `push` skip it. You may mention an attachment by its
+sidecar `title`, or its file name when it has none.
 
 ## 4. Example files
 
@@ -820,7 +833,7 @@ data repo. Every step below works the same for any repo the token can access.
    that does have a commit. A 404 means a wrong `owner/repo` or a token without access to it.
 2. `GET R/git/ref/heads/<branch>` → `object.sha` = **HEAD**.
 3. `GET R/git/trees/<HEAD>?recursive=1` → keep `type: "blob"` entries whose `path` starts with
-   `data/` and ends with `.json`.
+   `data/` and ends with `.json`, skipping `data/attachments/` (the app's).
 4. For each: `GET R/git/blobs/<sha>` with header `Accept: application/vnd.github.raw+json` → file
    text.
 
@@ -938,7 +951,7 @@ files over (§6.6) rather than committing them:
 - [ ] `levelRef` and `goalIds` / `unlocksAfter` point at things in the same project.
 - [ ] `subtasks` only on dependencies without `levelRef`; no dependency steps; step `dependsOn` names sibling steps.
 - [ ] `repeat` never on dependencies; `completions` are `YYYY-MM-DD` days in date order, one per day.
-- [ ] `data/automation.json` `notify.devices` and `.github/workflows/quest.yml` untouched (the app owns them).
+- [ ] `data/automation.json` `notify.devices`, `.github/workflows/quest.yml` and `data/attachments/` untouched (the app owns them).
 - [ ] Inbox ideas have only `id`, `type`, `title`, `notes`, `link`, `addedAt`, with unique ids; a placed idea is removed from `data/inbox.json` in the same commit.
 - [ ] `budget` / `spent` are plain non-negative numbers (`49.99`, not `"£49.99"`); costs only in projects with `budgets`, whose `currency` is a 3-letter code like `EUR`.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).
