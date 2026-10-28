@@ -330,6 +330,15 @@ the workflow and `data/automation.json`, which holds its settings.
   `quest-status` artifact.
 - **Secrets** (`QUEST_*`) are sealed in the browser with the repo's public key before they're sent,
   and GitHub never hands them back.
+- **Push notifications:** press **Turn on for this device** in each browser you want them in.
+  The first device makes the repo's key pair: the private half becomes the
+  `QUEST_VAPID_PRIVATE_KEY` secret and the public half goes in `automation.json` with the device,
+  in one commit. Each device has its own name, timezone, time-box and Warp Zone switches and
+  review day. Clicking a notification opens its level, the weekly review or the pull request.
+  On iPhone and iPad they only work in the Home Screen app (Share → Add to Home Screen). When a
+  run finds a device that stopped receiving them, Settings offers to remove it. In a public repo
+  anyone can see the device addresses; nobody can send to them without the secret, so the risk is
+  low.
 
 Automation needs a GitHub repo, so it's hidden in the demo, the read-only site and the local
 editor. The GitHub App asks for Workflows (read & write), Secrets (read & write) and Actions (read)

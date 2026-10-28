@@ -14,8 +14,12 @@ function fakeFetch(route: Route) {
       ok: status < 300,
       status,
       statusText: String(status),
-      json: async () => r.json,
-      text: async () => r.text ?? JSON.stringify(r.json),
+      // Like fetch: an empty body isn't JSON (GitHub's 201 for a new secret has none).
+      json: async () => {
+        if (r.json === undefined) throw new SyntaxError('Unexpected end of JSON input');
+        return r.json;
+      },
+      text: async () => r.text ?? (r.json === undefined ? '' : JSON.stringify(r.json)),
       arrayBuffer: async () => (r.bytes ?? new Uint8Array()).slice().buffer,
     } as Response;
   }) as typeof fetch;

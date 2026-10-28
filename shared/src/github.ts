@@ -117,7 +117,10 @@ export class GitHubClient {
   ): Promise<T> {
     const res = await this.send(method, url, body, accept);
     if (res.status === 204) return undefined as T;
-    return (accept.includes('raw') ? await res.text() : await res.json()) as T;
+    const text = await res.text();
+    if (accept.includes('raw')) return text as T;
+    // Some writes (creating an Actions secret: 201) answer with no body at all.
+    return (text ? JSON.parse(text) : undefined) as T;
   }
 
   /** A successful response, after one token refresh if GitHub said 401. Throws GitHubError otherwise. */
@@ -161,10 +164,10 @@ export class GitHubClient {
   }
 
   /** Checks the token works and can see the repo. */
-  async whoami(): Promise<{ login: string; canPush: boolean; defaultBranch: string; empty: boolean }> {
+  async whoami(): Promise<{ login: string; canPush: boolean; defaultBranch: string; empty: boolean; private?: boolean }> {
     const [user, repo, hasCommits] = await Promise.all([
       this.request<{ login: string }>('GET', 'https://api.github.com/user'),
-      this.request<{ permissions?: { push?: boolean }; default_branch: string }>('GET', ''),
+      this.request<{ permissions?: { push?: boolean }; default_branch: string; private?: boolean }>('GET', ''),
       this.hasCommits(),
     ]);
     return {
@@ -172,6 +175,7 @@ export class GitHubClient {
       canPush: !!repo.permissions?.push,
       defaultBranch: repo.default_branch,
       empty: !hasCommits,
+      private: repo.private,
     };
   }
 

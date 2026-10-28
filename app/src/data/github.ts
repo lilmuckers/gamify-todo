@@ -42,6 +42,7 @@ export class GitHubSource implements DataSource {
       this.client.repo.branch = branch || info.defaultBranch;
       this.caps = { canEdit: info.canPush, canReviewPRs: true, canPublish: false, canAutomate: true };
       if (info.empty) this.empty = true;
+      this.public = info.private === false;
     } catch {
       // Offline: assume the saved branch and allow queued edits; sync sorts it out later.
       this.client.repo.branch = branch || this.client.repo.branch;
@@ -50,6 +51,9 @@ export class GitHubSource implements DataSource {
     this.label = `${this.client.repo.owner}/${this.client.repo.repo}@${this.client.repo.branch}`;
     return this;
   }
+
+  /** Anyone can read the repo, push device endpoints included. */
+  public = false;
 
   /** Repo has no commits yet; the first commit needs a README (see settings). */
   empty = false;
@@ -130,6 +134,7 @@ export class GitHubSource implements DataSource {
       }
       throw new ConflictError('The repo kept changing; try again');
     },
+    isPublic: () => this.public,
     secrets: () => this.client.listSecrets(),
     setSecret: async (name: string, value: string) => {
       const [{ sealSecret }, key] = await Promise.all([import('../push/sealed-box'), this.client.secretsPublicKey()]);

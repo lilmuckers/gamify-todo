@@ -14,6 +14,7 @@ import type { App } from '../app';
 import type { LatestRun } from '../data/source';
 import { h, relTime } from './dom';
 import { confirmDialog } from './modal';
+import { pushSection } from './push-devices';
 import { toast } from './toast';
 
 /** Rough Actions minutes a month for each schedule: one billed minute per run on private repos. */
@@ -63,8 +64,21 @@ export function automationSection(app: App, onAttention?: (on: boolean) => void)
     onAttention?.(!!stubError || (!!stub && stub !== 'current'));
   };
 
+  const push = pushSection(app, provider, {
+    secrets: () => secrets,
+    stub: () => stub,
+    expired: () => ({ ids: run?.status?.expiredDevices ?? [], runId: run?.run.id }),
+    reload: () => void load(),
+  });
+  let shown = app.store.state?.automation;
+
   const unsubscribe = app.store.subscribe(() => {
     if (!root.isConnected) return unsubscribe();
+    // Devices change from this tab, another device's sync or a refreshed subscription.
+    if (app.store.state?.automation !== shown) {
+      shown = app.store.state?.automation;
+      push.render();
+    }
     if (recheck && app.store.status === 'synced') {
       recheck = false;
       void load();
@@ -181,7 +195,9 @@ export function automationSection(app: App, onAttention?: (on: boolean) => void)
         : '',
       runView(run, runError),
       h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', disabled: busy, onclick: () => void load() }, 'Check again')),
+      push.root,
     );
+    push.render();
   };
 
   render();
