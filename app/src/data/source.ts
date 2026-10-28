@@ -80,6 +80,8 @@ export interface AutomationProvider {
    * replaces a legacy one, upgrades an older one or undoes a hand edit. Returns the commit.
    */
   writeWorkflow(): Promise<string>;
+  /** Anyone can read the repo, so its push device endpoints are public too. */
+  isPublic(): boolean;
   /** Names of the repo's secrets (never values). */
   secrets(): Promise<string[]>;
   /** Sets a secret, sealed in this browser for the repo's key. */

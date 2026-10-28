@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import type { Page, Route } from '@playwright/test';
@@ -17,6 +18,9 @@ const API = 'https://api.github.com';
 const ROOT = resolve(import.meta.dirname, '..');
 
 const sha1 = (s: string) => createHash('sha1').update(s).digest('hex');
+
+// The package's ESM build points at a file it doesn't ship: use the CommonJS one.
+const sodium: typeof import('libsodium-wrappers') = createRequire(import.meta.url)('libsodium-wrappers');
 
 /** Every file under data/, as repo paths. */
 function exampleFiles(): Record<string, string> {
@@ -58,6 +62,12 @@ class FakeRepo {
   runs: FakeRun[] = [];
   /** Names of Actions secrets that are set. */
   secrets = new Set<string>();
+  /** Secret values as the app sealed them, opened with the repo's key (GitHub never shows them). */
+  secretValues = new Map<string, string>();
+  /** Anyone can read it. */
+  public = false;
+  /** The repo's sealed-box key pair for Actions secrets. */
+  secretsKey?: { publicKey: Uint8Array; privateKey: Uint8Array };
 
   constructor(
     public owner: string,
@@ -227,7 +237,7 @@ export class FakeGitHub {
     return reply(404, { error: 'not_found' });
   }
 
-  private api(route: Route) {
+  private async api(route: Route) {
     const req = route.request();
     const url = new URL(req.url());
     const path = url.pathname;
@@ -255,7 +265,7 @@ export class FakeGitHub {
     const rest = m![2] ?? '';
     const method = req.method();
 
-    if (rest === '') return json(200, { default_branch: 'main', permissions: { push: true } });
+    if (rest === '') return json(200, { default_branch: 'main', permissions: { push: true }, private: !repo.public });
     if (rest === '/commits') return json(200, [{ sha: repo.head }]);
     if (rest === '/pulls') return json(200, []);
     if (rest.startsWith('/contents/') && (req.headers().accept ?? '').includes('raw')) {
@@ -288,6 +298,20 @@ export class FakeGitHub {
       const run = repo.runs.find((r) => r.id === Number(a![1]));
       if (!run?.status_json) return json(404, { message: 'Not Found' });
       return route.fulfill({ status: 200, contentType: 'application/zip', body: Buffer.from(zip({ 'status.json': JSON.stringify(run.status_json, null, 2) })) });
+    }
+    if (rest === '/actions/secrets/public-key') {
+      await sodium.ready;
+      repo.secretsKey ??= sodium.crypto_box_keypair();
+      return json(200, { key_id: 'key-1', key: sodium.to_base64(repo.secretsKey.publicKey, sodium.base64_variants.ORIGINAL) });
+    }
+    const secret = /^\/actions\/secrets\/([A-Z0-9_]+)$/.exec(rest);
+    if (secret && method === 'PUT') {
+      const { encrypted_value, key_id } = JSON.parse(req.postData() ?? '{}') as { encrypted_value: string; key_id: string };
+      if (!repo.secretsKey || key_id !== 'key-1') return json(422, { message: 'Bad key' });
+      const opened = sodium.crypto_box_seal_open(sodium.from_base64(encrypted_value, sodium.base64_variants.ORIGINAL), repo.secretsKey.publicKey, repo.secretsKey.privateKey);
+      repo.secrets.add(secret[1]);
+      repo.secretValues.set(secret[1], sodium.to_string(opened));
+      return route.fulfill({ status: 201, body: '' });
     }
     if (rest === '/actions/secrets') return json(200, { total_count: repo.secrets.size, secrets: [...repo.secrets].map((name) => ({ name })) });
     if (rest.startsWith('/contents/')) {

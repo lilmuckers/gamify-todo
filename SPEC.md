@@ -886,9 +886,37 @@ rights.
   plus `blakejs`, tested against `libsodium-wrappers`) for the repo's public key.
 - **Last run:** the newest run of `quest.yml` (Actions API), then its `quest-status` artifact
   (zip → `status.json`): when, event, result, core version and each module's reason.
+- **Push on this device** (`app/src/push/`, `app/src/ui/push-devices.ts`):
+  - `support()` is `unsupported | ios-needs-install | denied | ready`; iOS needs the Home Screen
+    app (16.4+).
+  - **Turn on** asks for permission first (iOS only asks inside the click), then, if the repo has
+    no `notify.vapidPublicKey` or no `QUEST_VAPID_PRIVATE_KEY` secret, makes a WebCrypto P-256
+    pair (`vapid.ts`, base64url raw point and scalar, as web-push wants), subscribes, seals the
+    private half as the secret and commits the public key, `notify.enabled` and the device
+    (`addDevice`) in one commit. A second device reuses the key. The device takes this
+    browser's timezone and its review day (from `reviewStore`).
+  - The device id lives next to the token (`quest.push.device`). A device whose id was lost is
+    found again by its endpoint.
+  - Every device shows its name, timezone, `timebox` / `warpZone` switches and review day, as
+    `addDevice` replacing by id. This browser's review day and the device's follow each other.
+    Other devices can be removed (asks first); this one turns off (unsubscribes, then removes).
+  - **Expired:** devices in the last run's `quest-status.expiredDevices` get "<label> stopped
+    receiving notifications. Remove it?" (Remove / Keep for that run). This device also gets
+    Subscribe again.
+  - **Refresh:** a registered device re-checks its subscription at boot, back in the
+    foreground and on the worker's `pushsubscriptionchange` note, and saves a changed one.
+  - A public repo shows the endpoint note (plans D3).
+- **Service worker add-on** `app/public/push-sw.js` (Workbox `importScripts`): `push` logs to
+  IndexedDB first (iOS may stop the worker once a notification is up), then `showNotification`
+  `{ title, body, tag, data.url }`, then tells pages through `clients.matchAll({ includeUncontrolled })`
+  and a `BroadcastChannel` (iOS doesn't always count the open app as controlled).
+  `notificationclick` focuses the app and posts the `#/…` route (only in-app routes), or opens a
+  window there. The page asks the worker for its log (`postMessage`) rather than reading its
+  IndexedDB, and again when it comes back to the foreground.
 - A 403 names the missing permission (Workflows, Secrets, Actions, …).
-- Analytics: `automation_toggle { module }` (the block changed, never values) and
-  `automation_install { from }` (the stub state it replaced).
+- Analytics: `automation_toggle { module }` (the block changed, never values),
+  `automation_install { from }` (the stub state it replaced), `push_enable { first_key, standalone }`
+  and `push_disable { this_device, expired }` (booleans only).
 
 ## 6. Onboarding (#61)
 

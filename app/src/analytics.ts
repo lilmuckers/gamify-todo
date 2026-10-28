@@ -74,6 +74,8 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   setup_done: ['first_game'],
   automation_toggle: ['module'],
   automation_install: ['from'],
+  push_enable: ['first_key', 'standalone'],
+  push_disable: ['this_device', 'expired'],
 };
 
 export const USER_PROPS = ['app_mode', 'layout', 'display', 'hero'] as const;

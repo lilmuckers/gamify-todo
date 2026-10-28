@@ -53,6 +53,13 @@ describe('sanitize', () => {
     expect(sanitize(EVENT_PARAMS.automation_toggle, { module: 'schedule', every: '1h', repo: 'me/quests' })).toEqual({ module: 'schedule' });
     expect(sanitize(EVENT_PARAMS.automation_install, { from: 'missing', repo: 'me/quests', secret: 'x' })).toEqual({ from: 'missing' });
   });
+
+  it('sends only booleans about turning push on and off, never endpoints, labels or keys', () => {
+    expect(
+      sanitize(EVENT_PARAMS.push_enable, { first_key: true, standalone: false, endpoint: 'https://push.example.com/x', label: 'Pixel', vapidPublicKey: 'B…' }),
+    ).toEqual({ first_key: true, standalone: false });
+    expect(sanitize(EVENT_PARAMS.push_disable, { this_device: false, expired: true, id: 'web-1234' })).toEqual({ this_device: false, expired: true });
+  });
 });
 
 describe('routeType', () => {

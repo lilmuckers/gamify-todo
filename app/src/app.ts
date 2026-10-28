@@ -33,6 +33,7 @@ import {
 import { pageView, track, type Params } from './analytics';
 import { eventsForOp } from './analytics-events';
 import { play as sfx } from './audio';
+import { followReviewDay } from './push/push';
 import { heroStore, patchUiPrefs, reviewStore, uiPrefs, type ReviewPrefs } from './config';
 import { pullLookup, type PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
@@ -419,8 +420,10 @@ export class App {
     return isReviewDue(r.day, r.lastAt);
   }
 
-  setReview(patch: Partial<ReviewPrefs>) {
+  /** `toDevice`: a new review day also goes to this browser's push device, if it has one. */
+  setReview(patch: Partial<ReviewPrefs>, toDevice = true) {
     reviewStore.set(patch);
+    if (toDevice && patch.day) followReviewDay(this, patch.day);
     this.emit();
   }
 

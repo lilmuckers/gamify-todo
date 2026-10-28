@@ -16,6 +16,7 @@ import type { DataSource } from './data/source';
 import { StaticSource } from './data/static';
 import { Store } from './data/store';
 import { startFreshness } from './pwa';
+import { startPush } from './push/push';
 import { prefillCapture } from './ui/inbox';
 import { beginSignIn } from './ui/sign-in';
 import { toast } from './ui/toast';
@@ -139,6 +140,8 @@ async function main() {
     dismissBoot();
   });
   if (signIn) reportSignIn(app, signIn);
+  // Notification clicks, and this device's push subscription kept current.
+  startPush(app);
   // The tab closed mid-game last time: ask about that session's edits now.
   if (store.held.size) app.reviewHeld('resumed');
 }
