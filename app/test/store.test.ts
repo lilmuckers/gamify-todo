@@ -22,7 +22,7 @@ function fakeRemote(initial: Workspace) {
   const source: DataSource = {
     id: 'fake',
     label: 'fake',
-    caps: { canEdit: true, canReviewPRs: false, canPublish: false },
+    caps: { canEdit: true, canReviewPRs: false, canPublish: false, canAutomate: false },
     load: async () => structuredClone(remote),
     commit: async (_changes, message, base) => {
       if (failNext > 0 || base !== remote.version) {

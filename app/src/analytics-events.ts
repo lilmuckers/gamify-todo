@@ -84,6 +84,10 @@ export function eventsForOp(op: Op | OpBody, before: Workspace | undefined, afte
     case 'inboxAdd':
       out.push({ name: 'inbox_add', params: { item_type: op.item.type } });
       break;
+    case 'updateAutomation':
+      // Which block changed (validate, notify, schedule, channel), never the values.
+      out.push({ name: 'automation_toggle', params: { module: Object.keys(op.patch)[0] } });
+      break;
     case 'inboxPlace':
       out.push({ name: 'inbox_place', params: { count: op.ids.length, target: op.parentId ? 'steps' : 'level' } });
       break;

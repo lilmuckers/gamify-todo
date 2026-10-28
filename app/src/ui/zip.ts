@@ -1,4 +1,4 @@
-// Minimal ZIP writer (stored, no compression): enough to package a skill folder.
+// Minimal ZIP writer (stored, no compression), enough to package a skill folder, and a reader for one file.
 
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
@@ -66,4 +66,36 @@ export function zip(files: Record<string, string | Uint8Array>): Uint8Array {
     at += p.length;
   }
   return out;
+}
+
+/**
+ * One file from a .zip (stored or deflated), found through the central directory because
+ * streamed archives (GitHub's artifacts) leave sizes out of the local headers. Undefined when
+ * the archive has no such file.
+ */
+export async function unzipFile(data: Uint8Array, name: string): Promise<Uint8Array | undefined> {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let end = data.length - 22;
+  while (end >= 0 && view.getUint32(end, true) !== 0x06054b50) end--;
+  if (end < 0) throw new Error('Not a zip file');
+  const entries = view.getUint16(end + 10, true);
+  const decoder = new TextDecoder();
+  for (let i = 0, at = view.getUint32(end + 16, true); i < entries; i++) {
+    if (view.getUint32(at, true) !== 0x02014b50) throw new Error('Broken zip directory');
+    const method = view.getUint16(at + 10, true);
+    const size = view.getUint32(at + 20, true);
+    const nameLen = view.getUint16(at + 28, true);
+    const skip = nameLen + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+    const local = view.getUint32(at + 42, true);
+    if (decoder.decode(data.subarray(at + 46, at + 46 + nameLen)) === name) {
+      const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+      const bytes = data.slice(start, start + size);
+      if (method === 0) return bytes;
+      if (method !== 8) throw new Error(`Unsupported zip compression (${method})`);
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    at += 46 + skip;
+  }
+  return undefined;
 }

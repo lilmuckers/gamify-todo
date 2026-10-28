@@ -310,6 +310,31 @@ request changes or merge (merge is disabled if the data is invalid or the PR isn
 [`validate.yml`](.github/workflows/validate.yml) runs on every PR, so data written by hand or by an
 LLM is checked before you look at it.
 
+## Automation
+
+A GitHub repo can run a small Quest Log workflow, `.github/workflows/quest.yml`, that checks every
+change to `data/` and comments on pull requests with what they add, change and remove. The app
+writes it for you: open **Settings → Automation** and press **Install workflow**. One commit adds
+the workflow and `data/automation.json`, which holds its settings.
+
+- **Toggles:** check every change, comment on pull requests, notifications.
+- **Channel:** *Stable* uses `lilmuckers/quest-log-actions@v1`; *Beta* uses `@main`.
+- **Schedule:** every 6, 3 or 1 hours, or off. It's only used for time-box and review
+  notifications, so the workflow has no `schedule:` (and costs nothing) until a device wants
+  them. On private repos every 3 hours is about 240 Actions minutes a month. GitHub often starts
+  scheduled runs late.
+- **Drift:** the app compares the workflow with what it would write. If it was edited by hand,
+  is the old copy-paste version or is from an older Quest Log, a banner offers to write it again.
+  Changing a setting re-writes it in the same commit.
+- **Last run:** when it ran, why, what it did and which rules version, read from the run's
+  `quest-status` artifact.
+- **Secrets** (`QUEST_*`) are sealed in the browser with the repo's public key before they're sent,
+  and GitHub never hands them back.
+
+Automation needs a GitHub repo, so it's hidden in the demo, the read-only site and the local
+editor. The GitHub App asks for Workflows (read & write), Secrets (read & write) and Actions (read)
+for it; a pasted token needs the same.
+
 ## Writing data with other tools and LLMs
 
 [`skills/quest-log/SKILL.md`](skills/quest-log/SKILL.md) (also served at

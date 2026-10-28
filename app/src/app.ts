@@ -261,7 +261,7 @@ export class App {
    */
   private storeChange(): Change {
     const { state, caps } = this.store;
-    const sig = `${caps.canEdit}${caps.canReviewPRs}${caps.canPublish}`;
+    const sig = `${caps.canEdit}${caps.canReviewPRs}${caps.canPublish}${caps.canAutomate}`;
     const change: Change = state && state === this.seen.state && sig === this.seen.caps ? 'sync' : 'all';
     this.seen = { state, caps: sig };
     return change;

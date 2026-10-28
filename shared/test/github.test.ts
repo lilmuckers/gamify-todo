@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ConflictError, GitHubClient, parseRepo } from '../src/index';
+import { ConflictError, GitHubClient, GitHubError, parseRepo, STUB_PATH, WorkflowPermissionError } from '../src/index';
 
-type Route = (url: string, init: RequestInit) => { status?: number; json?: unknown; text?: string } | undefined;
+type Route = (url: string, init: RequestInit) => { status?: number; json?: unknown; text?: string; bytes?: Uint8Array } | undefined;
 
 function fakeFetch(route: Route) {
   const calls: { url: string; method: string; body?: any; auth?: string }[] = [];
@@ -16,6 +16,7 @@ function fakeFetch(route: Route) {
       statusText: String(status),
       json: async () => r.json,
       text: async () => r.text ?? JSON.stringify(r.json),
+      arrayBuffer: async () => (r.bytes ?? new Uint8Array()).slice().buffer,
     } as Response;
   }) as typeof fetch;
   return { fn, calls };
@@ -136,6 +137,100 @@ describe('GitHubClient', () => {
     const list = await new GitHubClient('tok', repo, fn).listDataPulls();
     expect(list.map((p) => p.number)).toEqual([1]);
     expect(list[0].dataFiles).toEqual(['data/p/w/x.json']);
+  });
+
+  it('writes only data/ and the Quest Log workflow', async () => {
+    const { fn, calls } = fakeFetch((url, init) => {
+      if (url.endsWith('/git/commits/parent')) return { json: { tree: { sha: 'tree0' } } };
+      if (url.endsWith('/git/trees') && init.method === 'POST') return { json: { sha: 'tree1' } };
+      if (url.endsWith('/git/commits') && init.method === 'POST') return { json: { sha: 'c1' } };
+      if (url.endsWith('/git/refs/heads/main')) return { json: {} };
+    });
+    const gh = new GitHubClient('tok', repo, fn);
+    await expect(gh.commitFiles({ '.github/workflows/other.yml': 'x' }, 'msg', 'parent')).rejects.toThrow(/doesn't write \.github\/workflows\/other\.yml/);
+    await expect(gh.commitFiles({ 'README.md': 'x', 'data/automation.json': '{}' }, 'msg', 'parent')).rejects.toThrow(/README/);
+    expect(calls).toHaveLength(0);
+    await gh.putWorkflow('name: Quest Log\n', 'msg', 'parent', { 'data/automation.json': '{}' });
+    const tree = calls.find((c) => c.url.endsWith('/git/trees'))!.body;
+    expect(tree.tree.map((e: { path: string }) => e.path)).toEqual(['data/automation.json', STUB_PATH]);
+  });
+
+  it('says when a commit needs the Workflows permission, rather than calling it a conflict', async () => {
+    const { fn } = fakeFetch((url, init) => {
+      if (url.endsWith('/git/commits/parent')) return { json: { tree: { sha: 'tree0' } } };
+      if (init.method === 'POST') return { json: { sha: 'x' } };
+      if (url.endsWith('/git/refs/heads/main'))
+        return { status: 422, json: { message: 'refusing to allow a GitHub App to create or update workflow `.github/workflows/quest.yml` without `workflows` permission' } };
+    });
+    const err = await new GitHubClient('tok', repo, fn).putWorkflow('x', 'msg', 'parent').catch((e) => e);
+    expect(err).toBeInstanceOf(WorkflowPermissionError);
+    expect(err.message).toContain('"Workflows: read & write"');
+  });
+
+  it('names the missing permission on a 403, but not for rate limits', async () => {
+    let message = 'Resource not accessible by integration';
+    const { fn } = fakeFetch(() => ({ status: 403, json: { message } }));
+    const gh = new GitHubClient('tok', repo, fn);
+    await expect(gh.listSecrets()).rejects.toThrow(/needs the "Secrets: read & write" permission/);
+    await expect(gh.latestRuns()).rejects.toThrow(/needs the "Actions: read" permission/);
+    message = 'API rate limit exceeded';
+    const err = await gh.latestRuns().catch((e) => e);
+    expect(err).toBeInstanceOf(GitHubError);
+    expect(err.message).not.toContain('permission');
+  });
+
+  it('reads one file at a ref, or nothing when it is missing', async () => {
+    const { fn, calls } = fakeFetch((url) => {
+      if (url.endsWith('/contents/.github/workflows/quest.yml?ref=abc')) return { text: 'name: Quest Log\n' };
+    });
+    const gh = new GitHubClient('tok', repo, fn);
+    expect(await gh.readFile(STUB_PATH, 'abc')).toBe('name: Quest Log\n');
+    expect(await gh.readFile('data/automation.json', 'abc')).toBeUndefined();
+    expect(calls[0].url).toBe('https://api.github.com/repos/o/r/contents/.github/workflows/quest.yml?ref=abc');
+  });
+
+  it('sets, lists and deletes Actions secrets by name', async () => {
+    const { fn, calls } = fakeFetch((url, init) => {
+      if (url.endsWith('/actions/secrets/public-key')) return { json: { key_id: 'k1', key: 'AAAA' } };
+      if (url.endsWith('/actions/secrets?per_page=100')) return { json: { total_count: 1, secrets: [{ name: 'QUEST_VAPID_PRIVATE_KEY' }] } };
+      if (url.includes('/actions/secrets/QUEST_') && (init.method === 'PUT' || init.method === 'DELETE')) return { status: init.method === 'PUT' ? 201 : 204 };
+    });
+    const gh = new GitHubClient('tok', repo, fn);
+    expect(await gh.secretsPublicKey()).toEqual({ key_id: 'k1', key: 'AAAA' });
+    await gh.putSecret('QUEST_VAPID_PRIVATE_KEY', 'c2VhbGVk', 'k1');
+    expect(calls.at(-1)).toMatchObject({ method: 'PUT', body: { encrypted_value: 'c2VhbGVk', key_id: 'k1' } });
+    expect(await gh.listSecrets()).toEqual(['QUEST_VAPID_PRIVATE_KEY']);
+    await gh.deleteSecret('QUEST_VAPID_PRIVATE_KEY');
+    expect(calls.at(-1)).toMatchObject({ method: 'DELETE', url: 'https://api.github.com/repos/o/r/actions/secrets/QUEST_VAPID_PRIVATE_KEY' });
+  });
+
+  it('finds the newest Quest Log run and downloads its status artifact', async () => {
+    const zip = new Uint8Array([0x50, 0x4b, 5, 6]);
+    const { fn, calls } = fakeFetch((url) => {
+      if (url.endsWith('/actions/workflows/quest.yml/runs?per_page=1'))
+        return {
+          json: {
+            workflow_runs: [
+              { id: 7, event: 'push', status: 'completed', conclusion: 'success', created_at: '2026-10-28T09:00:00Z', run_started_at: '2026-10-28T09:00:05Z', html_url: 'https://github.com/o/r/actions/runs/7' },
+            ],
+          },
+        };
+      if (url.endsWith('/actions/runs/7/artifacts?name=quest-status'))
+        return { json: { artifacts: [{ name: 'quest-status', expired: false, archive_download_url: 'https://api.github.com/repos/o/r/actions/artifacts/9/zip' }] } };
+      if (url.endsWith('/actions/runs/8/artifacts?name=quest-status'))
+        return { json: { artifacts: [{ name: 'quest-status', expired: true, archive_download_url: 'https://api.github.com/x' }] } };
+      if (url.endsWith('/actions/artifacts/9/zip')) return { bytes: zip };
+    });
+    const gh = new GitHubClient('tok', repo, fn);
+    expect(await gh.latestRuns()).toEqual([
+      { id: 7, event: 'push', status: 'completed', conclusion: 'success', createdAt: '2026-10-28T09:00:05Z', url: 'https://github.com/o/r/actions/runs/7' },
+    ]);
+    expect(await gh.runArtifact(7, 'quest-status')).toEqual(zip);
+    expect(calls.at(-1)!.auth).toBe('Bearer tok');
+    expect(await gh.runArtifact(8, 'quest-status')).toBeUndefined();
+    // Not installed: GitHub has no such workflow.
+    const none = fakeFetch(() => undefined);
+    expect(await new GitHubClient('tok', repo, none.fn).latestRuns()).toEqual([]);
   });
 
   it('parses repo references', () => {

@@ -14,7 +14,7 @@ async function hash(s: string): Promise<string> {
 export class StaticSource implements DataSource {
   id = 'static';
   label = 'Read-only';
-  caps = { canEdit: false, canReviewPRs: false, canPublish: false };
+  caps = { canEdit: false, canReviewPRs: false, canPublish: false, canAutomate: false };
 
   /** `prefix`: where the data/ folder sits under the site ('examples/' in the Docker build). */
   constructor(private prefix = '') {}

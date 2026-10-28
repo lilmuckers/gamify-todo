@@ -53,6 +53,9 @@ test('the hero picker saves the hero to data/settings.json', async ({ page }) =>
   await inScene(page, 'projects');
   const before = repoJson('data/settings.json').hero;
   await page.getByRole('button', { name: 'Settings' }).click();
+  // The local editor has no Actions to manage: no Automation section.
+  await expect(page.getByRole('heading', { name: 'Sync' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Automation' })).toHaveCount(0);
   // The character select opens over Settings; pick a hero other than the repo's.
   await page.getByRole('button', { name: 'CHANGE HERO' }).click();
   const pick = before === 'goth' ? 'Punk' : 'Goth';

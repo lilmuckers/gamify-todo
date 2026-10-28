@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 10**
+**Skill version: 11**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -154,7 +154,7 @@ fetch https://tasks.patrick-mckinley.com/schema/quest.schema.json and check ever
 or changed field by field against it (required fields, types, enums, patterns, lengths, **no
 extra fields**), then go through every box in the checklist in §7. Tell the user: *"I couldn't
 run the validator, so I checked by hand and haven't committed anything. Please commit these
-files yourself; the app (and CI, if you have it, §8) will flag anything I missed."*
+files yourself; the app (and the repo's checks, if they're on, §8) will flag anything I missed."*
 
 ## How to reach GitHub
 
@@ -206,8 +206,8 @@ work on the same repo.
   projects, worlds and levels, adding or changing tasks and other items, ticking criteria, and
   opening pull requests all use the same files and API calls. Only `<owner>/<repo>` and the
   branch change.
-- **No app code is needed in the data repo**, only the `data/` folder, plus the optional CI from
-  §8. Don't copy the Quest Log source, workflows or settings into it.
+- **No app code is needed in the data repo**, only the `data/` folder, plus the workflow the app
+  installs (§8). Don't copy the Quest Log source, workflows or settings into it.
 - **A new data repo** just needs one commit, such as a README created on GitHub. If it has no
   `data/` folder yet, create `data/<project-id>/project.json` and go from there.
 - **One repo is one set of projects.** The app shows one repo at a time, and different repos are
@@ -943,29 +943,15 @@ files over (§6.6) rather than committing them:
 - [ ] `budget` / `spent` are plain non-negative numbers (`49.99`, not `"£49.99"`); costs only in projects with `budgets`, whose `currency` is a 3-letter code like `EUR`.
 - [ ] `stats` untouched; timestamps are UTC ISO 8601 (`2026-10-01T09:00:00Z`).
 
-## 8. Optional: CI in the user's own repo
+## 8. Checks in the user's own repo: Settings → Automation
 
-If `.github/workflows/quest.yml` starts with `# quest-stub:`, the Quest Log app wrote it: leave
-it alone, and point the user to Settings → Automation for any change. Otherwise, to have GitHub
-check every change, the user can add `.github/workflows/quest.yml`:
+The Quest Log app installs a small workflow, `.github/workflows/quest.yml`, that checks every
+change and comments on pull requests. To turn it on, the user opens **Settings → Automation** in
+the app and presses **Install workflow**. Don't write a workflow yourself.
 
-```yaml
-name: Quest data
-on: [push, pull_request]
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: curl -sfo quest.py https://tasks.patrick-mckinley.com/skills/quest-log/scripts/quest.py
-      - run: python3 quest.py validate .
-      - name: What this pull request removes
-        if: github.event_name == 'pull_request'
-        run: |
-          git fetch --depth=1 origin "${{ github.base_ref }}"
-          python3 quest.py changes --git "origin/${{ github.base_ref }}" . --warn
-```
-
-It downloads the schemas through the manifest and runs the same schema, folder and
-cross-reference checks as the app. On pull requests it also lists everything the change adds,
-changes and removes, so a reviewer can spot an accidental deletion.
+- A file that starts with `# quest-stub:` was written by the app: leave it alone. Its settings
+  live in `data/automation.json`, which the app edits too (see §3). Point the user to
+  Settings → Automation for any change.
+- An older hand-made `quest.yml` named `Quest data` still works. Settings → Automation offers to
+  replace it with the managed one.
+- Never read, write or ask for the repo's Actions secrets.

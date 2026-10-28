@@ -39,7 +39,7 @@ function source(commits: () => CommitChanges[], opts: { id?: string; fail?: () =
   const src: DataSource = {
     id: opts.id ?? 'local',
     label: 'repo@main',
-    caps: { canEdit: true, canReviewPRs: false, canPublish: false },
+    caps: { canEdit: true, canReviewPRs: false, canPublish: false, canAutomate: false },
     load: async () => ({ state: { projects: {} }, version: 'v' }),
     async changesPage(range) {
       asked.push(range);
