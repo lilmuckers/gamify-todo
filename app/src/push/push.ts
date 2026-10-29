@@ -3,7 +3,7 @@ import { track } from '../analytics';
 import type { App } from '../app';
 import type { AutomationProvider } from '../data/source';
 import { fromBase64Url, generateVapidKeys } from './vapid';
-import { listenToWorker } from './worker';
+import { listenToWorker, workerHasPush } from './worker';
 
 /**
  * Web Push on this device (plans G4): subscribe the browser, register it in automation.json's
@@ -39,6 +39,8 @@ export interface PushEnv {
   requestPermission(): Promise<NotificationPermission>;
   pushManager(): Promise<PushManagerLike>;
   timezone(): string;
+  /** Whether the active service worker can show pushes (absent: assume it can). */
+  pushWorker?(): Promise<boolean>;
   storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 }
 
@@ -54,6 +56,7 @@ export function browserEnv(): PushEnv {
     requestPermission: () => Notification.requestPermission(),
     pushManager: async () => (await navigator.serviceWorker.ready).pushManager as unknown as PushManagerLike,
     timezone: () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    pushWorker: () => workerHasPush(),
     storage: safeStorage(),
   };
 }
@@ -147,6 +150,14 @@ async function synced(app: App) {
 }
 
 /**
+ * Refuses to subscribe while an older build's service worker is still in charge: the browser
+ * would accept pushes that it then never shows.
+ */
+export async function checkPushWorker(env: PushEnv): Promise<void> {
+  if (env.pushWorker && !(await env.pushWorker())) throw new Error('Quest Log is still updating on this device. Reload the page, then turn notifications on.');
+}
+
+/**
  * Turns push on for this device: asks for permission, makes the repo's VAPID keys the first time
  * (private half as a secret, public half in automation.json), subscribes, and adds the device.
  * Key, notify settings and device land in one commit. `secrets` is the repo's secret names, if
@@ -156,6 +167,7 @@ export async function enable(app: App, provider: AutomationProvider, env: PushEn
   // First, while we still have the click: iOS only asks from inside a user gesture.
   const permission = await env.requestPermission();
   if (permission !== 'granted') throw new Error(permission === 'denied' ? 'Notifications are blocked for this site. Allow them in the browser’s settings.' : 'Notifications weren’t allowed.');
+  await checkPushWorker(env);
   // Queued edits go first, so the commit below holds only this.
   if (app.store.outbox.length) await synced(app);
   const automation = app.store.state?.automation;

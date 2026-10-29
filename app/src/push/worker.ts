@@ -55,12 +55,25 @@ export function listenToWorker(handlers: WorkerHandlers): () => void {
 
 /** The worker's recent log, newest first (empty if there's no worker or it doesn't answer). */
 export async function workerLog(timeoutMs = 2000): Promise<WorkerLogEntry[]> {
-  if (!('serviceWorker' in navigator)) return [];
+  return (await askForLog(timeoutMs)) ?? [];
+}
+
+/**
+ * Whether the active worker has the push add-on. An older build's worker has no push handler,
+ * so pushes to this browser would arrive and show nothing until the new worker takes over.
+ */
+export async function workerHasPush(timeoutMs = 2000): Promise<boolean> {
+  return (await askForLog(timeoutMs)) !== undefined;
+}
+
+/** Asks the active worker for its log; undefined when there's no worker or it doesn't answer. */
+async function askForLog(timeoutMs: number): Promise<WorkerLogEntry[] | undefined> {
+  if (!('serviceWorker' in navigator)) return undefined;
   const reg = await Promise.race([navigator.serviceWorker.ready, wait(timeoutMs)]);
   const worker = reg?.active;
-  if (!worker) return [];
+  if (!worker) return undefined;
   return new Promise((resolve) => {
-    const done = (log: WorkerLogEntry[]) => {
+    const done = (log: WorkerLogEntry[] | undefined) => {
       clearTimeout(timer);
       navigator.serviceWorker.removeEventListener('message', onMessage);
       resolve(log);
@@ -69,7 +82,7 @@ export async function workerLog(timeoutMs = 2000): Promise<WorkerLogEntry[]> {
       const msg = event.data as Message | undefined;
       if (msg?.type === 'quest-push-log') done(Array.isArray(msg.log) ? msg.log.slice().reverse() : []);
     };
-    const timer = setTimeout(() => done([]), timeoutMs);
+    const timer = setTimeout(() => done(undefined), timeoutMs);
     navigator.serviceWorker.addEventListener('message', onMessage);
     worker.postMessage({ type: 'quest-push-log' });
   });

@@ -187,6 +187,11 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,woff2,woff}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        // autoUpdate only works if the new worker takes over by itself: the register client never
+        // sends SKIP_WAITING in that mode, so without these a new build waited until every tab
+        // closed. AppFreshness (src/pwa.ts) picks a safe moment to reload once it activates.
+        skipWaiting: true,
+        clientsClaim: true,
         // Service-worker add-ons from app/public (plans D16): push notifications.
         importScripts: ['push-sw.js'],
         // Opening a schema, data, skill or core pointer file in a tab must show the file, not the app shell.
