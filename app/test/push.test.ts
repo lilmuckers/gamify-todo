@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PushDevice } from '@quest/shared';
 import {
+  checkPushWorker,
   defaultLabel,
   findThisDevice,
   needsKeys,
@@ -154,6 +155,12 @@ describe('subscription', () => {
 });
 
 describe('safeRoute', () => {
+  it('refuses to subscribe while an older service worker without the push add-on is active', async () => {
+    await expect(checkPushWorker(env({ pushWorker: async () => false }))).rejects.toThrow(/Reload the page/);
+    await expect(checkPushWorker(env({ pushWorker: async () => true }))).resolves.toBeUndefined();
+    await expect(checkPushWorker(env())).resolves.toBeUndefined();
+  });
+
   it('lets only in-app hash routes through', () => {
     expect(safeRoute('#/pr/3')).toBe('#/pr/3');
     expect(safeRoute('#/p/house/kitchen/tiles')).toBe('#/p/house/kitchen/tiles');
