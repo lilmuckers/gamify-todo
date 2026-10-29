@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 12**
+**Skill version: 13**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -968,3 +968,7 @@ the app and presses **Install workflow**. Don't write a workflow yourself.
 - An older hand-made `quest.yml` named `Quest data` still works. Settings → Automation offers to
   replace it with the managed one.
 - Never read, write or ask for the repo's Actions secrets.
+- Push notifications are turned on per device, in the app: **Settings → Automation → Turn on
+  for this device** (on iPhone and iPad, from the Home Screen app). You can't do it for the
+  user, and you mustn't add devices or keys to `automation.json` by hand. If notifications don't
+  arrive, point them to the README's "Push notifications" section.

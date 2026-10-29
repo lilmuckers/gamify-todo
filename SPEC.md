@@ -562,7 +562,8 @@ tab that needs something done: sync trouble, or a workflow to install or update.
   editable it is also saved to `data/settings.json` as everyone's default.
 - **Display:** layout auto (by screen size) / full game view / compact; sound effects on/off
   (off by default, see §5.12).
-- **Weekly review:** Fri / Mon / Sun / off.
+- **Weekly review:** Fri / Mon / Sun / off. With push on, it is also this device's review day
+  for notifications (§5.16).
 - **Privacy:** analytics toggle.
 
 **GitHub & sync**
@@ -889,7 +890,10 @@ rights.
 - **Push on this device** (`app/src/push/`, `app/src/ui/push-devices.ts`):
   - `support()` is `unsupported | ios-needs-install | denied | ready`; iOS needs the Home Screen
     app (16.4+).
-  - **Turn on** asks for permission first (iOS only asks inside the click), then, if the repo has
+  - **Turn on** asks for permission first (iOS only asks inside the click), then checks that the
+    active service worker answers the add-on's log message (`workerHasPush`): an older build's
+    worker has no `push` handler, so it says to reload rather than save a device that would show
+    nothing. Then, if the repo has
     no `notify.vapidPublicKey` or no `QUEST_VAPID_PRIVATE_KEY` secret, makes a WebCrypto P-256
     pair (`vapid.ts`, base64url raw point and scalar, as web-push wants), subscribes, seals the
     private half as the secret and commits the public key, `notify.enabled` and the device
@@ -1145,13 +1149,16 @@ Security:
 ## 13. PWA and performance
 
 - `vite-plugin-pwa` (auto-update) provides the manifest, icons, Android share target and
-  standalone display. Workbox precaches the app shell, and data/schema JSON is `NetworkFirst`
-  with a 4 s timeout.
+  standalone display, plus the push add-on (`push-sw.js`, §5.16). Workbox precaches the app
+  shell, and data/schema JSON is `NetworkFirst` with a 4 s timeout.
 - The cached app expires after 3 hours while online (`app/src/pwa.ts`). `main.ts` registers the
   service worker and asks for a new build at boot, on focus, on reconnect and every 15 minutes
   once that age has passed. A new build reloads the page only when nobody would notice: during
   boot, or the next time the tab is hidden. Offline, the cached app keeps working as long as it
   needs to.
+- Workbox runs with `skipWaiting` and `clientsClaim`: in auto-update mode the register client
+  never sends `SKIP_WAITING`, so without them a new build waited until every tab closed (and a
+  push add-on shipped in it never ran).
 - A tab left open and visible re-pulls its data once its last sync is 3 hours old (the store
   already re-pulls on focus and reconnect).
 - The boot splash is inline in `index.html`, so it paints before any script. It uses CSS-only

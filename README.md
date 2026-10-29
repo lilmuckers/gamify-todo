@@ -330,15 +330,52 @@ the workflow and `data/automation.json`, which holds its settings.
   `quest-status` artifact.
 - **Secrets** (`QUEST_*`) are sealed in the browser with the repo's public key before they're sent,
   and GitHub never hands them back.
-- **Push notifications:** press **Turn on for this device** in each browser you want them in.
-  The first device makes the repo's key pair: the private half becomes the
-  `QUEST_VAPID_PRIVATE_KEY` secret and the public half goes in `automation.json` with the device,
-  in one commit. Each device has its own name, timezone, time-box and Warp Zone switches and
-  review day. Clicking a notification opens its level, the weekly review or the pull request.
-  On iPhone and iPad they only work in the Home Screen app (Share → Add to Home Screen). When a
-  run finds a device that stopped receiving them, Settings offers to remove it. In a public repo
-  anyone can see the device addresses; nobody can send to them without the secret, so the risk is
-  low.
+
+### Push notifications
+
+The workflow can also send notifications to your phone and computer. It runs in your own repo
+and sends them itself, so nothing goes through a Quest Log server.
+
+**Get your first notification:**
+1. In **Settings → Automation**, install the workflow if it isn't there yet, and turn on
+   **Notifications**.
+2. Press **Turn on for this device** and allow notifications when the browser asks. On iPhone
+   and iPad, add Quest Log to the Home Screen first (Share → Add to Home Screen; iOS 16.4 or
+   later), open it from there and turn them on in that app.
+3. That's it. The first device also makes the repo's key pair: the private half becomes the
+   `QUEST_VAPID_PRIVATE_KEY` Actions secret, and the public half goes in `automation.json` with
+   the device, in one commit. Repeat step 2 in each browser you want notifications in.
+
+**What you get:**
+
+| Notification | When | Opens |
+|---|---|---|
+| ⏳ *Level*: time's nearly up | A level's time-box drops under 25% | the level |
+| ⏰ *Level*: time-box blown | A level runs past its time-box | the level |
+| Weekly review | Your review day, at your local time | the weekly review |
+| New PR #n in the Warp Zone | A pull request that changes `data/` opens | the pull request |
+| ❌ PR #n failed its check | A pull request's data check fails | the pull request |
+| ✅ PR #n is ready in the Warp Zone | A failed pull request passes again | the pull request |
+
+Each device has its own name, timezone, time-box and Warp Zone switches, and review day. Time-box
+and review notifications come from scheduled runs, so they can arrive late (see **Schedule**
+above), and each is sent once per device. Pull request ones come straight from the PR's run.
+
+**Good to know:**
+- **Public repos:** anyone can see each device's push address in `data/automation.json`. Nobody
+  can send to it without the secret, and pushes are encrypted, so the risk is low. GitHub also
+  pauses scheduled workflows in a public repo after 60 days with no commits; any edit you make in
+  the app starts them again.
+- **A device that stops receiving** (uninstalled, or the browser dropped it) is reported by the
+  next run, and Settings offers to remove it.
+- **Nothing arrives?** In Settings, this device lists the last few notifications it got.
+  - *Listed but not shown:* the browser or the system is hiding them. Check the system's
+    notification settings for your browser, and Focus or Do Not Disturb.
+  - *Not listed:* reload the app once (it says so if it's mid-update), and keep the browser
+    running: desktop browsers only receive while they're open. Work networks sometimes block
+    the browser's push connection. In Chrome, `chrome://gcm-internals` shows whether pushes
+    reach it.
+  - *No run sent it:* the run's **Last run** line shows what notify did and why.
 
 Automation needs a GitHub repo, so it's hidden in the demo, the read-only site and the local
 editor. The GitHub App asks for Workflows (read & write), Secrets (read & write) and Actions (read)
