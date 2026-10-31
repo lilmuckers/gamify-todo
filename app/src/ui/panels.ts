@@ -238,8 +238,8 @@ function overworldPanel(app: App) {
     next &&
       h(
         'a',
-        { class: 'btn primary block', href: href({ view: 'level', projectId: pid, worldId: next.worldId, levelId: next.levelId }) },
-        `▶ Next: ${next.level.name}`,
+        { class: 'btn primary block', title: `Next: ${next.level.name}`, href: href({ view: 'level', projectId: pid, worldId: next.worldId, levelId: next.levelId }) },
+        h('span', { class: 'btn-label' }, `▶ Next: ${next.level.name}`),
       ),
     section(
       'Goals',
