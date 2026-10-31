@@ -732,6 +732,12 @@ p {
   width: 100%;
   padding: 10px;
 }
+/* A flex button's own text can't take an ellipsis; a label span can. */
+.btn .btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .link {
   color: var(--gold-hi);
