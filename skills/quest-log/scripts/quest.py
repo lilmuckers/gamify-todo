@@ -32,7 +32,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 15
+SKILL_VERSION = 18
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -50,6 +50,10 @@ ATTACHMENTS_DIR = 'data/attachments'
 ATTACHMENT_EXTENSIONS = ('jpg', 'jpeg', 'png', 'webp', 'heic')
 SIDECAR_RE = re.compile(rf'^{ATTACHMENTS_DIR}/({SLUG})\.json$')
 ATTACHMENT_FILE_RE = re.compile(rf'^{ATTACHMENTS_DIR}/({SLUG})\.(?:{"|".join(ATTACHMENT_EXTENSIONS)})$')
+# Pull requests for one photo each, and the labels saying where it is on its way to being read.
+ATTACHMENT_BRANCH_PREFIX = 'quest/attach/'
+READ_AUTO, READ_CLAUDE, READ_AGENT, READING, READ_DONE, READ_FAILED = (
+    'quest:read-auto', 'quest:read-claude', 'quest:read-agent', 'quest:reading', 'quest:read-done', 'quest:read-failed')
 # Data files that aren't part of a project tree.
 NOT_PROJECT = ('settings', 'inbox', 'automation', 'attachment')
 
@@ -619,7 +623,7 @@ class GitHub:
         self.token, self.repo = token, repo
         self.base = f'{API}/repos/{repo}'
 
-    def call(self, method, url, body=None, raw=False):
+    def call(self, method, url, body=None, raw=False, binary=False):
         url = url if url.startswith('http') else self.base + url
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, method=method, headers={
@@ -640,6 +644,8 @@ class GitHub:
             raise GitHubError(e.code, f'{method} {url.replace(API, "")}: {e.code} {msg}'.strip()) from None
         except urllib.error.URLError as e:
             raise QuestError(f'Cannot reach {API} ({e.reason}). If this sandbox has no internet, validate locally and hand the files to the user.')
+        if binary:
+            return payload
         if raw:
             return payload.decode('utf-8')
         return json.loads(payload) if payload else None
@@ -675,6 +681,26 @@ class GitHub:
         owner = self.repo.split('/')[0]
         pulls = self.call('GET', f'/pulls?state=open&head={urllib.parse.quote(f"{owner}:{branch}")}')
         return pulls[0] if pulls else None
+
+    def photo_pull(self, number):
+        """A pull request that adds one photo, and that photo's id. Anything else is refused."""
+        p = self.call('GET', f'/pulls/{number}')
+        ref = p['head']['ref']
+        if (p['state'] != 'open' or not ref.startswith(ATTACHMENT_BRANCH_PREFIX)
+                or (p['head'].get('repo') or {}).get('full_name') != self.repo):
+            raise QuestError(f'#{number} is not an open photo pull request in this repo.')
+        return p, ref[len(ATTACHMENT_BRANCH_PREFIX):]
+
+    def set_read_labels(self, number, add):
+        for name in (READ_AUTO, READ_CLAUDE, READ_AGENT, READING, READ_FAILED):
+            if name not in add:
+                try:
+                    self.call('DELETE', f'/issues/{number}/labels/{urllib.parse.quote(name, safe="")}')
+                except GitHubError as e:
+                    if e.status != 404:
+                        raise
+        if add:
+            self.call('POST', f'/issues/{number}/labels', {'labels': list(add)})
 
     def merge(self, into, source):
         """Merges `source` into branch `into`. True if that made a merge commit, False if already up to date."""
@@ -1205,6 +1231,122 @@ def cmd_timers(args):
     return 0
 
 
+def cmd_photos_waiting(args):
+    """Photos waiting for an agent. Prints nothing when there are none, so a scheduled job can stop there."""
+    gh = GitHub(args.repo)
+    waiting = []
+    for p in gh.call('GET', '/pulls?state=open&per_page=100'):
+        labels = {l['name'] for l in p.get('labels', [])}
+        if (READ_AGENT in labels and READING not in labels and p['head']['ref'].startswith(ATTACHMENT_BRANCH_PREFIX)
+                and (p['head'].get('repo') or {}).get('full_name') == gh.repo):
+            waiting.append({'pr': p['number'], 'id': p['head']['ref'][len(ATTACHMENT_BRANCH_PREFIX):]})
+    if args.json:
+        print(json.dumps(waiting, indent=2))
+    else:
+        for w in waiting:
+            print(f'{w["pr"]} {w["id"]}')
+    return 0
+
+
+def cmd_photo_claim(args):
+    """Marks a photo as being read and downloads it, with its sidecar, into --dir."""
+    gh = GitHub(args.repo)
+    p, photo_id = gh.photo_pull(args.pr)
+    if not args.force and any(l['name'] == READING for l in p.get('labels', [])):
+        raise QuestError(f'#{args.pr} is already being read. If that reader has died, pass --force.')
+    sha = p['head']['sha']
+    photo = None
+    for ext in ATTACHMENT_EXTENSIONS:
+        try:
+            photo = gh.call('GET', f'/contents/{ATTACHMENTS_DIR}/{photo_id}.{ext}?ref={sha}', raw=True, binary=True)
+            break
+        except GitHubError as e:
+            if e.status != 404:
+                raise
+    if photo is None:
+        raise QuestError(f'#{args.pr} has no photo for "{photo_id}".')
+    sidecar = gh.call('GET', f'/contents/{ATTACHMENTS_DIR}/{photo_id}.json?ref={sha}', raw=True)
+    gh.call('POST', f'/issues/{args.pr}/labels', {'labels': [READING]})
+    os.makedirs(args.dir, exist_ok=True)
+    photo_path = os.path.join(args.dir, f'{photo_id}.{ext}')
+    sidecar_path = os.path.join(args.dir, f'{photo_id}.json')
+    with open(photo_path, 'wb') as f:
+        f.write(photo)
+    with open(sidecar_path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(sidecar)
+    print(json.dumps({'pr': args.pr, 'id': photo_id, 'photo': photo_path, 'sidecar': sidecar_path}, indent=2))
+    return 0
+
+
+def merged_sidecar(sidecar, reading, mode, model, now, flag=False):
+    """The sidecar with `reading` as its `read` block. A confident read also fills an empty title,
+    takenOn or tags: what a person wrote stays. Nothing else can change."""
+    reading = dict(reading)
+    suggested = {k: reading.pop(k) for k in ('title', 'takenOn', 'tags') if k in reading}
+    by = {'mode': mode, **({'model': model} if model else {}), 'at': now}
+    out = {**sidecar, 'read': {**reading, 'by': by}}
+    if not flag:
+        for k, v in suggested.items():
+            if v and not out.get(k):
+                out[k] = v
+    return out
+
+
+def cmd_photo_save(args):
+    """Validates what was read and commits it to the photo's sidecar, the only file it can touch."""
+    gh = GitHub(args.repo)
+    p, photo_id = gh.photo_pull(args.pr)
+    try:
+        with open(args.read, encoding='utf-8') as f:
+            reading = json.load(f)
+    except (OSError, ValueError) as e:
+        raise QuestError(f'Cannot read {args.read}: {e}')
+    if not isinstance(reading, dict):
+        raise QuestError(f'{args.read} must hold one JSON object.')
+    path = f'{ATTACHMENTS_DIR}/{photo_id}.json'
+    sha = p['head']['sha']
+    sidecar = json.loads(gh.call('GET', f'/contents/{path}?ref={sha}', raw=True))
+    now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    merged = merged_sidecar(sidecar, reading, args.mode, args.model, now, args.flag)
+    text = json.dumps(merged, indent=2, ensure_ascii=False) + '\n'
+    registry, by_name, _ = load_registry(args.schemas)
+    issues = validate_files({path: text}, registry, by_name)
+    if issues:
+        raise QuestError('That read is not valid, so nothing was saved:\n' + '\n'.join(f'  {at}: {msg}' for _, at, msg in issues))
+    name = merged.get('title') or photo_id
+    commit = gh.commit({path: text}, f'quest: attach: read: {name}', sha, p['head']['ref'])
+    gh.set_read_labels(args.pr, [READ_AGENT] if args.flag else [READ_DONE])
+    if merged.get('title') and not sidecar.get('title'):
+        gh.call('PATCH', f'/pulls/{args.pr}', {'title': f'📷 {merged["title"]}'})
+    if args.json:
+        print(json.dumps({'pr': args.pr, 'path': path, 'sha': commit, 'flagged': args.flag}))
+    else:
+        print(f'Read #{args.pr} saved to {path}{" and flagged for an agent" if args.flag else ""}.')
+    return 0
+
+
+def cmd_photo_flag(args):
+    """Leaves a photo for an agent without saving a read, and says why on the pull request."""
+    gh = GitHub(args.repo)
+    gh.photo_pull(args.pr)
+    gh.set_read_labels(args.pr, [READ_AGENT])
+    if args.note:
+        gh.call('POST', f'/issues/{args.pr}/comments', {'body': f'Left for an agent to read: {args.note}'})
+    print(f'#{args.pr} flagged for an agent.')
+    return 0
+
+
+def cmd_photo_give_up(args):
+    """Stops agents trying a photo they can't read, and says why on the pull request."""
+    gh = GitHub(args.repo)
+    gh.photo_pull(args.pr)
+    gh.set_read_labels(args.pr, [READ_FAILED])
+    if args.note:
+        gh.call('POST', f'/issues/{args.pr}/comments', {'body': f'Couldn\'t read this photo: {args.note}'})
+    print(f'#{args.pr} marked as unreadable.')
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog='quest.py', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--schemas', help='directory with index.json and the schema files (default: bundled, repo, cache or download)')
@@ -1255,6 +1397,40 @@ def main(argv=None):
     p.add_argument('--now', metavar='ISO', help='work out the clocks at this moment instead of now, e.g. 2026-10-28T09:00:00Z')
     p.add_argument('--json', action='store_true', help='print { timers: [{ key, scope, phase, phaseSince, endsAt, … }], reviewSlots, … }')
     p.set_defaults(run=cmd_timers)
+
+    p = sub.add_parser('photos-waiting', help='photos waiting for an agent to read them; prints nothing when there are none')
+    p.add_argument('--repo', required=True)
+    p.add_argument('--json', action='store_true', help='print [{ pr, id }] instead of text')
+    p.set_defaults(run=cmd_photos_waiting)
+
+    p = sub.add_parser('photo-claim', help='mark a photo as being read and download it and its sidecar')
+    p.add_argument('--repo', required=True)
+    p.add_argument('--pr', required=True, type=int)
+    p.add_argument('--dir', default='quest-photos')
+    p.add_argument('--force', action='store_true', help='take it even though another reader has it')
+    p.set_defaults(run=cmd_photo_claim)
+
+    p = sub.add_parser('photo-save', help="validate a read and commit it to the photo's sidecar, the only file it changes")
+    p.add_argument('--repo', required=True)
+    p.add_argument('--pr', required=True, type=int)
+    p.add_argument('--read', required=True, metavar='FILE', help='JSON: kind, optional confidence, summary, text, fields, todos, and title, takenOn, tags to fill if empty')
+    p.add_argument('--model', help='the model that read it')
+    p.add_argument('--mode', choices=['agent', 'open-weight', 'claude'], default='agent')
+    p.add_argument('--flag', action='store_true', help='save it, but leave the photo waiting for an agent')
+    p.add_argument('--json', action='store_true', help='print { pr, path, sha, flagged } instead of text')
+    p.set_defaults(run=cmd_photo_save)
+
+    p = sub.add_parser('photo-flag', help='leave a photo for an agent without saving a read')
+    p.add_argument('--repo', required=True)
+    p.add_argument('--pr', required=True, type=int)
+    p.add_argument('--note', help='why, posted on the pull request')
+    p.set_defaults(run=cmd_photo_flag)
+
+    p = sub.add_parser('photo-give-up', help="stop agents trying a photo that can't be read")
+    p.add_argument('--repo', required=True)
+    p.add_argument('--pr', required=True, type=int)
+    p.add_argument('--note', help='why, posted on the pull request')
+    p.set_defaults(run=cmd_photo_give_up)
 
     p = sub.add_parser('schemas', help='show where schemas are loaded from')
     p.add_argument('--refresh', action='store_true')

@@ -1,7 +1,8 @@
 import type { Workspace } from './model';
-import type { AttachmentSidecar, AttachmentTarget } from './types.gen';
+import type { AttachmentKind, AttachmentRead, AttachmentSidecar, AttachmentTarget, Automation } from './types.gen';
 
-export type { AttachmentSidecar, AttachmentTarget };
+export type { AttachmentKind, AttachmentRead, AttachmentSidecar, AttachmentTarget };
+export type PhotoReader = NonNullable<NonNullable<Automation['photos']>['reader']>;
 export type AttachmentVia = AttachmentSidecar['via'];
 
 /**
@@ -68,4 +69,44 @@ export function attachmentTargetLabel(ws: Workspace | undefined, t: AttachmentTa
 /** Tags typed as "receipt, boiler service": trimmed, de-duplicated, empties dropped. */
 export function parseTags(text: string): string[] {
   return [...new Set(text.split(',').map((t) => t.trim()).filter(Boolean))];
+}
+
+export const ATTACHMENT_KIND_LABEL: Record<AttachmentKind, string> = {
+  receipt: 'Receipt',
+  'quote-invoice': 'Quote or invoice',
+  'letter-bill': 'Letter or bill',
+  booking: 'Booking',
+  'product-label': 'Product label',
+  handwritten: 'Handwritten note',
+  screenshot: 'Screenshot',
+  page: 'Page',
+  'plan-measure': 'Plan or measurements',
+  scene: 'Photo',
+};
+
+/** A read's facts as label and text, in reading order. Items and dimensions come as one line each. */
+export function readFieldRows(fields: AttachmentRead['fields']): [string, string][] {
+  if (!fields) return [];
+  const money = (v: string | undefined) => (v === undefined ? undefined : fields.currency ? `${v} ${fields.currency}` : v);
+  const rows: [string, string | undefined][] = [
+    ['From', fields.from],
+    ['Date', fields.date],
+    ['Time', fields.time],
+    ['Where', fields.where],
+    ['Due', fields.dueOn],
+    ['Reference', fields.reference],
+    ['Total', money(fields.total)],
+    ['Tax', money(fields.tax)],
+    ['Paid with', fields.paymentMethod],
+    ['Brand', fields.brand],
+    ['Model', fields.model],
+    ['Serial', fields.serial],
+    ['Spec', fields.spec],
+    ['Source', fields.source],
+    ['Link', fields.url],
+    ['Caption', fields.caption],
+    ...(fields.items ?? []).map((i): [string, string] => ['Item', [i.qty !== undefined && `${i.qty} ×`, i.name, i.price !== undefined && `· ${money(i.price)}`].filter(Boolean).join(' ')]),
+    ...(fields.dimensions ?? []).map((d): [string, string] => [d.label ?? 'Measure', `${d.value} ${d.unit}`]),
+  ];
+  return rows.filter((r): r is [string, string] => r[1] !== undefined);
 }

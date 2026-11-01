@@ -220,7 +220,7 @@ describe('quest.py validate', () => {
       ).map((i) => `${i.file}${i.path}: ${i.message}`);
 
     it('accepts paired attachments with both validators, without reading the files', async () => {
-      const tree = { ...good(), [SIDECAR]: sc(), 'data/attachments/receipt-1.jpg': JPEG_BYTES, 'data/attachments/scan.json': sc({ id: 'scan', via: 'paste', takenOn: '2026-10-27', tags: ['receipt'], attachedTo: { project: 'p', world: 'w', level: 'lvl', item: 'a' }, capturedWith: { device: 'Laptop', kind: 'desktop', os: 'macOS', browser: 'Chrome 141', installed: false, app: 'abc1234' }, original: { name: 'IMG_1.HEIC', type: 'image/heic', bytes: 10, width: 4, height: 3 } }), 'data/attachments/scan.heic': JPEG_BYTES };
+      const tree = { ...good(), [SIDECAR]: sc(), 'data/attachments/receipt-1.jpg': JPEG_BYTES, 'data/attachments/scan.json': sc({ id: 'scan', via: 'paste', takenOn: '2026-10-27', tags: ['receipt'], attachedTo: { project: 'p', world: 'w', level: 'lvl', item: 'a' }, capturedWith: { device: 'Laptop', kind: 'desktop', os: 'macOS', browser: 'Chrome 141', installed: false, app: 'abc1234' }, original: { name: 'IMG_1.HEIC', type: 'image/heic', bytes: 10, width: 4, height: 3 }, read: { kind: 'receipt', by: { mode: 'agent', model: 'claude', at: '2026-11-01T10:00:00Z' }, confidence: 'high', summary: 'Tiles', text: 'TOPPS TILES', fields: { from: 'Topps Tiles', date: '2026-10-30', time: '14:05', total: '184.20', tax: '30.70', currency: 'GBP', items: [{ name: 'Tile', qty: 12, price: '184.20' }], dimensions: [{ label: 'Wall', value: 2400, unit: 'mm' }], url: 'https://example.com' }, todos: ['Book the tiler'] } }), 'data/attachments/scan.heic': JPEG_BYTES };
       expect(appIssues(tree)).toEqual([]);
       for (const env of ENGINES) {
         const r = await run(['validate', writeTree(tree)], env);
@@ -237,6 +237,10 @@ describe('quest.py validate', () => {
       ['unknown via', { [SIDECAR]: sc({ via: 'email' as never }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /receipt-1\.json\/via/],
       ['sidecar without addedAt', { [SIDECAR]: sc({ addedAt: undefined }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /addedAt/],
       ['unexpected sidecar property', { [SIDECAR]: JSON.stringify({ ...sidecar(), extracted: {} }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /extracted/],
+      ['read of an unknown kind', { [SIDECAR]: sc({ read: { kind: 'menu', by: { mode: 'agent', at: '2026-11-01T10:00:00Z' } } as never }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /read\/kind/],
+      ['read without who read it', { [SIDECAR]: sc({ read: { kind: 'receipt' } as never }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /read/],
+      ['read total that is not a plain amount', { [SIDECAR]: sc({ read: { kind: 'receipt', by: { mode: 'agent', at: '2026-11-01T10:00:00Z' }, fields: { total: '£12.50' } } as never }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /read\/fields\/total/],
+      ['read with an unknown field', { [SIDECAR]: sc({ read: { kind: 'receipt', by: { mode: 'agent', at: '2026-11-01T10:00:00Z' }, fields: { cardNumber: '4111' } } as never }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /cardNumber/],
       ['link to an item without its level', { [SIDECAR]: sc({ attachedTo: { project: 'p', world: 'w', item: 'a' } }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /attachedTo/],
       ['tag with a comma', { [SIDECAR]: sc({ tags: ['a,b'] }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /tags/],
       ['takenOn not a day', { [SIDECAR]: sc({ takenOn: '27/10/2026' }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /takenOn/],
@@ -273,7 +277,7 @@ class MockGitHub {
   trees = new Map<string, Record<string, string>>();
   commits = new Map<string, { tree: string; parents: string[]; message: string }>();
   refs = new Map<string, string>();
-  pulls: { title: string; head: string; base: string }[] = [];
+  pulls: { title: string; head: string; base: string; labels?: string[]; comments?: string[]; state?: string; forkOf?: string }[] = [];
   server!: Server;
   url = '';
 
@@ -398,9 +402,44 @@ class MockGitHub {
         this.refs.set(body.ref.replace('refs/heads/', ''), body.sha);
         return send(201, {});
       }
+      const pullJson = (p: MockGitHub['pulls'][number], i: number) => ({
+        number: i + 1,
+        title: p.title,
+        state: p.state ?? 'open',
+        labels: (p.labels ?? []).map((name) => ({ name })),
+        head: { ref: p.head, sha: this.refs.get(p.head), repo: { full_name: p.forkOf ?? 'o/r' } },
+        base: { ref: p.base },
+      });
       if (path === '/pulls' && req.method === 'GET') {
         const head = url.searchParams.get('head')?.replace(/^o:/, '');
-        return send(200, this.pulls.flatMap((p, i) => (p.head === head ? [{ number: i + 1, head: { ref: p.head }, base: { ref: p.base } }] : [])));
+        return send(200, this.pulls.flatMap((p, i) => (!head || p.head === head ? [pullJson(p, i)] : [])));
+      }
+      if ((m = /^\/pulls\/(\d+)$/.exec(path))) {
+        const p = this.pulls[Number(m[1]) - 1];
+        if (!p) return send(404, { message: 'Not Found' });
+        if (req.method === 'PATCH') Object.assign(p, body);
+        return send(200, pullJson(p, Number(m[1]) - 1));
+      }
+      if ((m = /^\/issues\/(\d+)\/labels$/.exec(path)) && req.method === 'POST') {
+        const p = this.pulls[Number(m[1]) - 1];
+        p.labels = [...new Set([...(p.labels ?? []), ...body.labels])];
+        return send(200, []);
+      }
+      if ((m = /^\/issues\/(\d+)\/labels\/(.+)$/.exec(path)) && req.method === 'DELETE') {
+        const p = this.pulls[Number(m[1]) - 1];
+        const name = decodeURIComponent(m[2]);
+        if (!p.labels?.includes(name)) return send(404, { message: 'Label does not exist' });
+        p.labels = p.labels.filter((l) => l !== name);
+        return send(200, []);
+      }
+      if ((m = /^\/issues\/(\d+)\/comments$/.exec(path)) && req.method === 'POST') {
+        (this.pulls[Number(m[1]) - 1].comments ??= []).push(body.body);
+        return send(201, {});
+      }
+      if ((m = /^\/contents\/(.+)$/.exec(path)) && req.method === 'GET') {
+        const tree = this.trees.get(this.commits.get(url.searchParams.get('ref')!)!.tree)!;
+        const sha = tree[decodeURIComponent(m[1])];
+        return sha ? send(200, this.blobs.get(sha), true) : send(404, { message: 'Not Found' });
       }
       if (path === '/merges' && req.method === 'POST') return this.merge(body.base, body.head, send);
       if (path === '/pulls' && req.method === 'POST') {
@@ -675,6 +714,149 @@ describe('quest.py GitHub sync', () => {
     expect(r.code).toBe(2);
     expect(r.out).toMatch(/conflicts with main/);
     expect(gh.refs.get(branch)).toBe(head);
+  });
+});
+
+describe('quest.py photos', () => {
+  const id = 'photo-20261101-084100-k3x9';
+  const sidecarPath = `data/attachments/${id}.json`;
+  const sidecar = { id, addedAt: '2026-11-01T08:41:00Z', via: 'button', takenOn: '2026-10-30', capturedWith: { kind: 'phone' } };
+  let gh: MockGitHub;
+  let env: Record<string, string>;
+  let dir: string;
+  /** A photo pull request, numbered from 1 in the order they're added. */
+  const addPhoto = (photoId: string, labels: string[], extra: Partial<MockGitHub['pulls'][number]> = {}) => {
+    const head = `quest/attach/${photoId}`;
+    gh.refs.set(head, gh.refs.get('main')!);
+    gh.commitFiles(head, {
+      ...gh.filesAt('main'),
+      [`data/attachments/${photoId}.jpg`]: 'JPEGBYTES',
+      [`data/attachments/${photoId}.json`]: JSON.stringify({ ...sidecar, id: photoId }, null, 2) + '\n',
+    });
+    gh.pulls.push({ title: '📷 New photo', head, base: 'main', labels, ...extra });
+    return gh.pulls.length;
+  };
+  const saveRead = (pr: number, read: object, ...args: string[]) => {
+    const file = join(dir, `read-${pr}.json`);
+    writeFileSync(file, JSON.stringify(read));
+    return run(['photo-save', '--repo', 'o/r', '--pr', String(pr), '--read', file, ...args], env);
+  };
+  const read = { kind: 'receipt', confidence: 'high', summary: 'Tiles', fields: { from: 'Topps Tiles', total: '184.20', currency: 'GBP' } };
+
+  beforeAll(async () => {
+    gh = new MockGitHub();
+    await gh.start();
+    env = { QUEST_GITHUB_API: gh.url, GITHUB_TOKEN: 'test-token' };
+    gh.commitFiles('main', { 'README.md': '# data\n', ...toFiles(workspace()) });
+    dir = mkdtempSync(join(tmpdir(), 'quest-photos-'));
+  });
+  afterAll(() => {
+    gh.server.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('lists only photos waiting for an agent, and prints nothing when there are none', async () => {
+    const r0 = await run(['photos-waiting', '--repo', 'o/r'], env);
+    expect(r0).toMatchObject({ code: 0, out: '' });
+    const waiting = addPhoto('photo-a', ['quest:attachment', 'quest:read-agent']);
+    addPhoto('photo-b', ['quest:attachment', 'quest:read-auto']);
+    addPhoto('photo-c', ['quest:attachment', 'quest:read-agent', 'quest:reading']);
+    addPhoto('photo-d', ['quest:attachment', 'quest:read-agent'], { forkOf: 'someone/fork' });
+    const r = await run(['photos-waiting', '--repo', 'o/r', '--json'], env);
+    expect(JSON.parse(r.out)).toEqual([{ pr: waiting, id: 'photo-a' }]);
+  });
+
+  it('claims a photo: downloads it and its sidecar, and marks it as being read', async () => {
+    const pr = addPhoto(id, ['quest:attachment', 'quest:read-agent']);
+    const r = await run(['photo-claim', '--repo', 'o/r', '--pr', String(pr), '--dir', dir], env);
+    expect(r.code, r.out).toBe(0);
+    const got = JSON.parse(r.out);
+    expect(readFileSync(got.photo, 'utf8')).toBe('JPEGBYTES');
+    expect(JSON.parse(readFileSync(got.sidecar, 'utf8'))).toMatchObject({ id });
+    expect(gh.pulls[pr - 1].labels).toContain('quest:reading');
+    const again = await run(['photo-claim', '--repo', 'o/r', '--pr', String(pr), '--dir', dir], env);
+    expect(again.code).toBe(2);
+    expect(again.out).toMatch(/already being read/);
+    expect((await run(['photo-claim', '--repo', 'o/r', '--pr', String(pr), '--dir', dir, '--force'], env)).code).toBe(0);
+  });
+
+  it('saves a read to the sidecar only, fills what is empty, and swaps the labels', async () => {
+    const pr = addPhoto('photo-save', ['quest:attachment', 'quest:read-agent', 'quest:reading']);
+    const before = gh.filesAt(gh.pulls[pr - 1].head);
+    const r = await saveRead(pr, { ...read, title: 'Tile receipt', takenOn: '2020-01-01', tags: ['receipt'] }, '--model', 'claude');
+    expect(r.code, r.out).toBe(0);
+    const after = gh.filesAt(gh.pulls[pr - 1].head);
+    const changed = Object.keys(after).filter((p) => after[p] !== before[p]);
+    expect(changed).toEqual(['data/attachments/photo-save.json']);
+    const saved = JSON.parse(after['data/attachments/photo-save.json']);
+    expect(saved.read).toMatchObject({ kind: 'receipt', summary: 'Tiles', by: { mode: 'agent', model: 'claude' } });
+    expect(saved).toMatchObject({ title: 'Tile receipt', tags: ['receipt'], takenOn: '2026-10-30', capturedWith: { kind: 'phone' } });
+    expect(saved.read.title).toBeUndefined();
+    expect(gh.pulls[pr - 1].labels).toEqual(['quest:attachment', 'quest:read-done']);
+    expect(gh.pulls[pr - 1].title).toBe('📷 Tile receipt');
+  });
+
+  it('refuses a read the schema refuses, and changes nothing', async () => {
+    const pr = addPhoto('photo-bad', ['quest:attachment', 'quest:read-agent']);
+    const before = gh.refs.get(gh.pulls[pr - 1].head);
+    const bad = [{ ...read, kind: 'nonsense' }, { ...read, fields: { total: '12,50' } }, { ...read, fields: { password: 'x' } }, { ...read, id: 'other-photo' }];
+    for (const b of bad) {
+      const r = await saveRead(pr, b);
+      expect(r.code, JSON.stringify(b)).toBe(2);
+      expect(r.out).toMatch(/not valid/);
+    }
+    expect(gh.refs.get(gh.pulls[pr - 1].head)).toBe(before);
+    expect(gh.pulls[pr - 1].labels).toContain('quest:read-agent');
+  });
+
+  it('a flagged read is kept for an agent and fills nothing in', async () => {
+    const pr = addPhoto('photo-flag', ['quest:attachment', 'quest:read-auto']);
+    const r = await saveRead(pr, { ...read, confidence: 'low', title: 'Maybe' }, '--mode', 'open-weight', '--model', 'paddleocr', '--flag');
+    expect(r.code, r.out).toBe(0);
+    const saved = JSON.parse(gh.filesAt(gh.pulls[pr - 1].head)['data/attachments/photo-flag.json']);
+    expect(saved.read.by).toMatchObject({ mode: 'open-weight', model: 'paddleocr' });
+    expect(saved.title).toBeUndefined();
+    expect(gh.pulls[pr - 1].labels).toEqual(['quest:attachment', 'quest:read-agent']);
+  });
+
+  it('saves a Claude read and takes the label off', async () => {
+    const pr = addPhoto('photo-claude', ['quest:attachment', 'quest:read-claude']);
+    const r = await saveRead(pr, read, '--mode', 'claude', '--model', 'claude-opus-5-5');
+    expect(r.code, r.out).toBe(0);
+    const saved = JSON.parse(gh.filesAt(gh.pulls[pr - 1].head)['data/attachments/photo-claude.json']);
+    expect(saved.read.by).toMatchObject({ mode: 'claude', model: 'claude-opus-5-5' });
+    expect(gh.pulls[pr - 1].labels).toEqual(['quest:attachment', 'quest:read-done']);
+  });
+
+  it('only works on open photo pull requests in this repo', async () => {
+    gh.refs.set('feature', gh.refs.get('main')!);
+    gh.pulls.push({ title: 'Other', head: 'feature', base: 'main' });
+    const other = gh.pulls.length;
+    const closed = addPhoto('photo-closed', [], { state: 'closed' });
+    const fork = addPhoto('photo-fork', [], { forkOf: 'someone/fork' });
+    for (const pr of [other, closed, fork]) {
+      const r = await saveRead(pr, read);
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/not an open photo pull request/);
+    }
+  });
+
+  it('hands a photo to an agent without a read, and can report the new commit', async () => {
+    const pr = addPhoto('photo-pass', ['quest:attachment', 'quest:read-auto']);
+    const r = await run(['photo-flag', '--repo', 'o/r', '--pr', String(pr), '--note', 'the models failed'], env);
+    expect(r.code, r.out).toBe(0);
+    expect(gh.pulls[pr - 1].labels).toEqual(['quest:attachment', 'quest:read-agent']);
+    expect(gh.pulls[pr - 1].comments?.[0]).toMatch(/the models failed/);
+    const saved = await saveRead(pr, read, '--json');
+    expect(JSON.parse(saved.out)).toEqual({ pr, path: 'data/attachments/photo-pass.json', sha: gh.refs.get(gh.pulls[pr - 1].head), flagged: false });
+  });
+
+  it('gives up on a photo, says why, and it stops waiting', async () => {
+    const pr = addPhoto('photo-blurry', ['quest:attachment', 'quest:read-agent', 'quest:reading']);
+    const r = await run(['photo-give-up', '--repo', 'o/r', '--pr', String(pr), '--note', 'too blurry'], env);
+    expect(r.code, r.out).toBe(0);
+    expect(gh.pulls[pr - 1].labels).toEqual(['quest:attachment', 'quest:read-failed']);
+    expect(gh.pulls[pr - 1].comments?.[0]).toMatch(/too blurry/);
   });
 });
 

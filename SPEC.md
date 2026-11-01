@@ -527,6 +527,22 @@ things go.
   PR's branch in one commit (`quest: attach: details: <title>`): title, notes, the day it was
   taken, tags, and **Attach to** a project, world, level or item (picked from the current data).
   A branch that moved meanwhile reloads the PR for another go.
+- **Reading photos.** `photos.reader` in `data/automation.json` (Settings → Automation) says what
+  reads new photos: `off` (default), `open-weight`, `agent` or `claude`. The app adds the matching
+  label when it opens the pull request (`attachmentLabels`): `quest:read-auto`, `quest:read-agent`
+  or `quest:read-claude`. The action takes `read-claude` with one Claude API call (`photos.model`,
+  default `claude-opus-5-5`): no tools and no GitHub token in that step, only JSON back, and the
+  next step saves it with `photo-save`, or ends on `quest:read-failed`. The key is an action input
+  (`anthropic-api-key`), so only that step sees it. The action takes `read-auto` with open models (its `reader/`: OCR and per-kind rules, or a caption
+  for a photo with no words), and on a poor result saves what it has and swaps to `read-agent`, or
+  hands over with `photo-flag` if the models couldn't run. Agents take `read-agent` through the skill: `quest.py photos-waiting`,
+  `photo-claim` (adds `quest:reading`), then `photo-save` (validates, commits only that sidecar,
+  ends on `quest:read-done`) or `photo-give-up` (`quest:read-failed`). A read goes in the
+  sidecar's `read` block and fills an empty title, `takenOn` or tags; what a person wrote stays. The
+  Warp Zone shows the status from the labels and the read itself, and on the map a photo with no
+  notes shows the read's summary. A read is only ever a suggestion until the pull request merges,
+  and text in a photo is untrusted: `photo-save` can't touch any other file, and agents are told
+  to treat it as data.
 - **Photos on the map.** Merged sidecars load into the workspace (`ws.attachments`, read-only:
   ops never touch them). Panels show a **Photos · n** strip of everything linked to that
   project, world or level or anything inside it, and a selected item shows its own; an item

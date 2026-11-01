@@ -1,6 +1,6 @@
 import {
   ATTACHMENT_BRANCH_PREFIX,
-  ATTACHMENT_LABEL,
+  attachmentLabels,
   attachmentFileCandidates,
   attachmentFilePath,
   attachmentSidecarPath,
@@ -172,7 +172,7 @@ export class GitHubSource implements DataSource {
    * reuses the branch and finds the pull request already open.
    */
   attachments: AttachmentProvider = {
-    submit: async ({ sidecar, base64 }: AttachmentUpload) => {
+    submit: async ({ sidecar, base64, reader }: AttachmentUpload) => {
       const branch = `${ATTACHMENT_BRANCH_PREFIX}${sidecar.id}`;
       const blob = await this.client.createBlob(base64);
       const head = await this.client.headSha();
@@ -183,7 +183,7 @@ export class GitHubSource implements DataSource {
       );
       await this.client.createBranch(branch, commit);
       const number = await this.client.openPull(branch, `📷 ${sidecar.title ?? 'New photo'}`, sidecar.text ?? '');
-      await this.client.addLabels(number, [ATTACHMENT_LABEL]);
+      await this.client.addLabels(number, attachmentLabels(reader));
       return number;
     },
     pending: () => this.client.listAttachmentPulls(),

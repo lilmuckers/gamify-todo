@@ -76,6 +76,14 @@ describe('data/automation.json', () => {
 });
 
 describe('automation ops', () => {
+  it('updateAutomation sets, undoes and clears the photo reader', () => {
+    const ws = workspace();
+    const on = apply(ws, { kind: 'updateAutomation', patch: { photos: { reader: 'agent' } } });
+    expect(on.automation?.photos).toEqual({ reader: 'agent' });
+    const off = apply(on, { kind: 'updateAutomation', patch: { photos: { reader: undefined } } });
+    expect(off.automation?.photos).toBeUndefined();
+  });
+
   it('updateAutomation patches field by field, keeps devices, and drops emptied blocks', () => {
     const ws = withAutomation();
     const next = apply(ws, { kind: 'updateAutomation', patch: { channel: 'beta', schedule: { every: '1h' }, notify: { enabled: false } } });
@@ -195,9 +203,9 @@ describe('renderStub', () => {
   const schedule = (text: string) => /^ {2}schedule: \[\{ cron: '([^']+)' \}\]$/m.exec(text)?.[1] ?? null;
 
   it('matches the stub verified live on the spike repo, plus its config line', () => {
-    // .github/workflows/quest.yml on lilmuckers/quest-log-spike (quest-stub: 1), on the stable channel.
+    // .github/workflows/quest.yml on lilmuckers/quest-log-spike (quest-stub: 1), on the stable channel, plus the Claude key input of quest-stub: 2.
     const spike = [
-      '# quest-stub: 1  (written by Quest Log — change it in Settings → Automation)',
+      '# quest-stub: 2  (written by Quest Log — change it in Settings → Automation)',
       'name: Quest Log',
       'on:',
       '  pull_request: { types: [opened, synchronize, reopened, labeled] }',
@@ -213,6 +221,8 @@ describe('renderStub', () => {
       '    timeout-minutes: 15',
       '    steps:',
       '      - uses: lilmuckers/quest-log-actions@v1',
+      '        with:',
+      '          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}',
       '        env:',
       '          QUEST_VAPID_PRIVATE_KEY: ${{ secrets.QUEST_VAPID_PRIVATE_KEY }}',
       '',
@@ -265,11 +275,13 @@ describe('renderStub', () => {
     expect(() => renderStub(undefined, '${{ secrets.X }}')).toThrow();
   });
 
-  it('names every secret as step env, never toJSON(secrets), and passes no inputs', () => {
+  it('names every secret, never toJSON(secrets), and gives the Claude key only as an input', () => {
     const { text } = renderStub(config());
-    for (const name of SECRET_NAMES) expect(text).toContain(`          ${name}: \${{ secrets.${name} }}\n`);
+    for (const name of SECRET_NAMES) expect(text).toContain(`\${{ secrets.${name} }}\n`);
     expect(text).not.toMatch(/toJSON/);
-    expect(text).not.toMatch(/^\s+with:/m);
+    expect(text).toContain('        with:\n          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}\n        env:\n');
+    // Step env reaches every step in the action, so the key must never go there.
+    expect(text).not.toMatch(/^\s+ANTHROPIC_API_KEY:/m);
     // ${{ }} only in block style: a flow mapping's `}}` would end the mapping.
     for (const line of text.split('\n')) if (line.includes('${{')) expect(line, line).not.toMatch(/^\s*[\w-]+: \{/);
   });
@@ -292,16 +304,16 @@ describe('renderStub', () => {
     const sample = stubSample();
     expect(schedule(sample)).toBe('17 */3 * * *');
     expect(sample).toContain('@v1\n');
-    expect(parseStub(sample)).toEqual({ kind: 'stub', version: 1, configHash: renderStub(config()).configHash });
+    expect(parseStub(sample)).toEqual({ kind: 'stub', version: 2, configHash: renderStub(config()).configHash });
   });
 });
 
 describe('parseStub', () => {
   it('reads the version and config hash of a stub', () => {
     const { text, configHash } = renderStub(undefined);
-    expect(parseStub(text)).toEqual({ kind: 'stub', version: 1, configHash });
+    expect(parseStub(text)).toEqual({ kind: 'stub', version: 2, configHash });
     // The hand-committed spike stub has no config line: the app sees drift and offers a re-write.
-    expect(parseStub(text.replace(/^# quest-config.*\n/m, ''))).toEqual({ kind: 'stub', version: 1 });
+    expect(parseStub(text.replace(/^# quest-config.*\n/m, ''))).toEqual({ kind: 'stub', version: 2 });
   });
 
   it('spots the legacy copy-paste workflow and anything else', () => {

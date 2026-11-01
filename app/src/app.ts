@@ -197,6 +197,7 @@ export class App {
             app: import.meta.env.VITE_BUILD || 'dev',
           };
         },
+        reader: () => store.state?.automation?.photos?.reader,
       }));
       void queue.start();
       window.addEventListener('online', () => void queue.flush());

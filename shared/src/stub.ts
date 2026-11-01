@@ -6,14 +6,20 @@ export const STUB_PATH = '.github/workflows/quest.yml';
 export const ACTION_REPO = 'lilmuckers/quest-log-actions';
 
 /** Goes up whenever the template changes, including a new name in SECRET_NAMES. */
-export const STUB_VERSION = 1;
+export const STUB_VERSION = 2;
 
 /**
- * Every secret the action can use, passed one by one as step `env:`. Never
- * `toJSON(secrets)`: GitHub holds such a workflow for approval after every edit (D12).
- * Unset ones arrive empty and are ignored, so only a new name changes the stub.
+ * Every secret the action can use, passed one by one. Never `toJSON(secrets)`: GitHub holds such a
+ * workflow for approval after every edit (D12). Unset ones arrive empty and are ignored, so only a
+ * new name changes the stub.
  */
-export const SECRET_NAMES = ['QUEST_VAPID_PRIVATE_KEY'] as const;
+export const SECRET_NAMES = ['QUEST_VAPID_PRIVATE_KEY', 'ANTHROPIC_API_KEY'] as const;
+
+/**
+ * Secrets passed as action inputs rather than `env:`. Step `env:` reaches every step inside the
+ * action, including third-party ones; an input reaches only the step that asks for it.
+ */
+const SECRET_INPUTS: Partial<Record<(typeof SECRET_NAMES)[number], string>> = { ANTHROPIC_API_KEY: 'anthropic-api-key' };
 
 /** UTC crons, off the top of the hour when Actions is busiest. */
 export const CRONS: Record<Exclude<ScheduleEvery, 'off'>, string> = {
@@ -78,8 +84,10 @@ export function renderStub(automation: AutomationConfig | undefined, defaultBran
     '    timeout-minutes: 15',
     '    steps:',
     `      - uses: ${ACTION_REPO}@${inputs.ref}`,
+    '        with:',
+    ...SECRET_NAMES.filter((name) => SECRET_INPUTS[name]).map((name) => `          ${SECRET_INPUTS[name]}: \${{ secrets.${name} }}`),
     '        env:',
-    ...SECRET_NAMES.map((name) => `          ${name}: \${{ secrets.${name} }}`),
+    ...SECRET_NAMES.filter((name) => !SECRET_INPUTS[name]).map((name) => `          ${name}: \${{ secrets.${name} }}`),
   ];
   return { text: lines.join('\n') + '\n', configHash };
 }

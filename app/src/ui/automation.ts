@@ -6,6 +6,7 @@ import {
   SECRET_NAMES,
   STUB_PATH,
   type AutomationPatch,
+  type PhotoReader,
   type ScheduleEvery,
   type StubState,
 } from '@quest/shared';
@@ -22,6 +23,19 @@ export function minutesPerMonth(every: ScheduleEvery): number {
   if (every === 'off') return 0;
   return Math.round((30 * 24) / Number.parseInt(every, 10));
 }
+
+const READER_NOTE: Record<PhotoReader, string> = {
+  off: 'Photos wait in the Warp Zone for you to describe them.',
+  'open-weight': 'The workflow reads each new photo with open models on GitHub’s runners, which uses Actions minutes. What it can’t read well is flagged for an agent or for you.',
+  agent: 'No models run in the workflow. Each new photo waits for an agent you run on your own account, such as Claude Code. It sends the photo to that agent’s provider. See the README for how to set one up.',
+  claude: 'The workflow sends each new photo to Anthropic’s Claude API, which charges your API key per photo (about $0.07 on Opus, $0.04 on Sonnet and under a cent on Haiku). Add the key below as ANTHROPIC_API_KEY, and set a spend limit in the Anthropic Console. A photo it can’t read is marked as failed.',
+};
+
+const CLAUDE_MODELS: [string, string][] = [
+  ['claude-opus-5-5', 'Claude Opus 5.5'],
+  ['claude-sonnet-5-5', 'Claude Sonnet 5.5'],
+  ['claude-haiku-5-5', 'Claude Haiku 5.5'],
+];
 
 const STATE_TEXT: Record<StubState, { note: string; tone: 'win' | 'warn' | 'alert' | ''; button?: string }> = {
   missing: { note: 'The workflow isn’t installed yet. Your settings are saved, but nothing runs until it is.', tone: '', button: 'Install workflow' },
@@ -185,6 +199,21 @@ export function automationSection(app: App, onAttention?: (on: boolean) => void)
             ? 'Off: time-box and review notifications won’t be sent.'
             : `Runs at ${CRONS[every].split(' ')[0]} minutes past the hour (UTC). On private repos that’s about ${minutesPerMonth(every)} Actions minutes a month. GitHub often starts scheduled runs late, sometimes by an hour, so reminders can arrive late too.`,
       ),
+      select(
+        'Read photos with',
+        a?.photos?.reader ?? 'off',
+        [
+          ['off', 'Nothing'],
+          ['open-weight', 'Open models first, then flag for an agent'],
+          ['agent', 'An agent only'],
+          ['claude', 'Claude, with your API key'],
+        ],
+        (reader) => change({ photos: { reader: reader === 'off' ? undefined : reader, ...(reader !== 'claude' && { model: undefined }) } }),
+      ),
+      a?.photos?.reader === 'claude'
+        ? select('Claude model', a.photos.model ?? CLAUDE_MODELS[0][0], CLAUDE_MODELS, (model) => change({ photos: { model: model === CLAUDE_MODELS[0][0] ? undefined : model } }))
+        : '',
+      h('small', { class: 'muted reader-note' }, READER_NOTE[a?.photos?.reader ?? 'off']),
       secrets && stub && stub !== 'missing' && stub !== 'foreign'
         ? h(
             'div',

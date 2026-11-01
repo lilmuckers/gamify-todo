@@ -41,7 +41,7 @@ describe('GitHubSource.commit', () => {
   });
 
   it('leaves a missing, foreign or newer workflow alone', async () => {
-    for (const workflow of [undefined, 'name: CI\non: push\n', renderStub(undefined).text.replace('quest-stub: 1', 'quest-stub: 99')]) {
+    for (const workflow of [undefined, 'name: CI\non: push\n', renderStub(undefined).text.replace(/quest-stub: \d+/, 'quest-stub: 99')]) {
       const { src, paths } = source(workflow);
       await src.commit({ [CONFIG]: beta }, 'msg', 'head');
       expect(paths()).toEqual([[CONFIG]]);

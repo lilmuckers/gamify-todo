@@ -1,4 +1,4 @@
-import type { AttachmentPull, AttachmentSidecar, AttachmentVia } from '@quest/shared';
+import type { AttachmentPull, AttachmentSidecar, AttachmentVia, PhotoReader } from '@quest/shared';
 import { track } from '../analytics';
 import { exifDate, originalFacts, type CapturedWith, type Original } from './capture';
 import type { AttachmentProvider } from './source';
@@ -8,7 +8,7 @@ import type { KV } from './store';
  * Photos on their way into the repo (plans G6, D14). Each is shrunk to a JPEG of at most
  * 1600px on its long edge (which also drops EXIF and GPS), kept in IndexedDB so a share made
  * offline survives, then uploaded as its own `quest/attach/<id>` pull request once online.
- * Nothing reads them yet: the pull requests wait in the Warp Zone.
+ * The pull requests wait in the Warp Zone, labelled for whatever reads the repo's photos.
  */
 
 /** Longest edge of an uploaded photo, in pixels. */
@@ -54,6 +54,8 @@ export interface QueueDeps {
   compress(file: Blob): Promise<Compressed>;
   /** The device a photo is added on: kind, OS, browser, push name, app build. */
   device(): CapturedWith;
+  /** What reads this repo's photos, as of the upload (`photos.reader`). */
+  reader(): PhotoReader | undefined;
   now(): Date;
   random(): number;
 }
@@ -120,7 +122,7 @@ export class AttachmentQueue {
     private onChange: () => void,
     deps: Partial<QueueDeps> = {},
   ) {
-    this.deps = { online: () => navigator.onLine, compress: compressPhoto, device: () => ({}), now: () => new Date(), random: Math.random, ...deps };
+    this.deps = { online: () => navigator.onLine, compress: compressPhoto, device: () => ({}), reader: () => undefined, now: () => new Date(), random: Math.random, ...deps };
     this.ready = this.kv.get<QueuedPhoto[]>(this.key).then((saved) => {
       this.items = saved ?? [];
     });
@@ -187,7 +189,7 @@ export class AttachmentQueue {
         try {
           const { blob: _, error: __, ...fields } = item;
           const sidecar: AttachmentSidecar = fields;
-          await this.provider.submit({ sidecar, base64: await toBase64(item.blob) });
+          await this.provider.submit({ sidecar, base64: await toBase64(item.blob), reader: this.deps.reader() });
           this.items = this.items.filter((i) => i.id !== item.id);
         } catch (err) {
           item.error = (err as Error).message;

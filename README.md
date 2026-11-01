@@ -384,6 +384,38 @@ above), and each is sent once per device. Pull request ones come straight from t
     reach it.
   - *No run sent it:* the run's **Last run** line shows what notify did and why.
 
+### Reading photos
+
+Quest Log can read each photo you add: what kind of thing it is (receipt, quote, letter, booking,
+product label, handwritten note, screenshot, page, plan, or just a photo), the words in it, and
+facts like the date, total and line items. You check what it found in the Warp Zone before
+merging. Choose how in **Settings → Automation → Read photos with**:
+
+| Option | What happens | Costs and privacy |
+|---|---|---|
+| **Nothing** (default) | Photos wait for you to describe them. | |
+| **Open models first** | The workflow runs open-weight models on GitHub's runners: OCR with rules for each kind, and a caption for a photo with no words. Anything they can't read well is flagged for an agent, or for you. | Uses Actions minutes: about 1 per photo with words, 3 without. The photo stays on GitHub unless an agent picks it up. |
+| **An agent only** | No models run in the workflow. Each photo waits for an agent you run. | Uses your own agent account. The photo goes to that agent's provider. |
+| **Claude, with your API key** | The workflow sends each photo to the Claude API and saves what comes back. A photo it can't read is marked as failed, for you to describe. | Your `ANTHROPIC_API_KEY` is charged per photo, separately from any Claude subscription: about $0.07 on Opus 5.5, $0.04 on Sonnet 5.5 and $0.002 on Haiku 5.5 for a long receipt (estimates). The photo goes to Anthropic. Set a spend limit in the Anthropic Console. |
+
+For Claude, add your key in **Settings → Automation → Secrets** as `ANTHROPIC_API_KEY`, then update
+the workflow if the app asks. The key is sealed in your browser and stored as an Actions secret. Only
+the one step that calls Claude can see it, and that step has no GitHub token, no tools and can only
+return JSON, so words in a photo can't make it do anything.
+
+To run an agent, install the [Quest Log skill](#writing-data-with-other-tools-and-llms) wherever
+your agent runs. For example, on an always-on machine with Claude Code signed in and a clone of the
+skill, a cron job checks for free and only starts Claude when a photo is waiting:
+
+```bash
+*/15 * * * * cd ~/quest-log-skill && [ -n "$(python3 scripts/quest.py photos-waiting --repo OWNER/REPO)" ] && claude -p "Use the quest-log skill to read the waiting photos in OWNER/REPO" --allowedTools "Read,Write,Bash(python3 scripts/quest.py photo*)"
+```
+
+Give the job a fine-grained `GITHUB_TOKEN` for the data repo only, with Contents and Pull requests
+read & write. Text in a photo could try to trick an agent, so keep its token and tools this narrow:
+`quest.py photo-save` can only change that photo's sidecar, and nothing merges without you. Claude
+desktop's scheduled tasks and ChatGPT or Codex can follow the same steps from the skill.
+
 Automation needs a GitHub repo, so it's hidden in the demo, the read-only site and the local
 editor. The GitHub App asks for Workflows (read & write), Secrets (read & write) and Actions (read)
 for it; a pasted token needs the same.
