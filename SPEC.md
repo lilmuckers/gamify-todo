@@ -1237,11 +1237,6 @@ See `CLAUDE.md` for the file-by-file layout and the architectural rules.
   - #83 fantasy beat-'em-up
 
 **Onboarding and access:**
-- #62 Move the demo data to a public repo (`quest-log-demo`). Read it anonymously: tree via
-  API, files via `raw.githubusercontent.com`, ETags. Keep a bundled fallback, and make it a
-  template repo.
-- #30 Sign in with GitHub: a GitHub App plus a tiny token-exchange Worker, a template repo and a
-  repo picker, with the PAT kept as a fallback.
 - #36 Plan with AI in-app: export a prompt, paste back JSON, validate, preview the diff, apply.
 
 **Play and delight:**

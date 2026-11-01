@@ -174,5 +174,5 @@ data/     eight example projects: five in play (customer-portal, home-maintenanc
 ## Roadmap pointers
 
 Open issues are the backlog. The big one is **#76**: modularise the game into a `GameStyle` so
-other retro styles (#77–#83) can be added. Others: #62 (demo data repo), #57 (secret sandbox
-cartridge), #30 (Sign in with GitHub), #36 (Plan with AI). See `SPEC.md` §16.
+other retro styles (#77–#83) can be added. Others: #57 (secret sandbox cartridge) and #36 (Plan
+with AI). See `SPEC.md` §16.
