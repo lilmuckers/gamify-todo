@@ -234,6 +234,7 @@ describe('reading photos', () => {
     expect(attachmentLabels('off')).toEqual(['quest:attachment']);
     expect(attachmentLabels('open-weight')).toEqual(['quest:attachment', 'quest:read-auto']);
     expect(attachmentLabels('agent')).toEqual(['quest:attachment', 'quest:read-agent']);
+    expect(attachmentLabels('claude')).toEqual(['quest:attachment', 'quest:read-claude']);
   });
 
   it('a read’s facts come out as label and text, leaving out what it doesn’t have', () => {

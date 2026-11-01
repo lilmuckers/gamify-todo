@@ -819,6 +819,15 @@ describe('quest.py photos', () => {
     expect(gh.pulls[pr - 1].labels).toEqual(['quest:attachment', 'quest:read-agent']);
   });
 
+  it('saves a Claude read and takes the label off', async () => {
+    const pr = addPhoto('photo-claude', ['quest:attachment', 'quest:read-claude']);
+    const r = await saveRead(pr, read, '--mode', 'claude', '--model', 'claude-opus-5-5');
+    expect(r.code, r.out).toBe(0);
+    const saved = JSON.parse(gh.filesAt(gh.pulls[pr - 1].head)['data/attachments/photo-claude.json']);
+    expect(saved.read.by).toMatchObject({ mode: 'claude', model: 'claude-opus-5-5' });
+    expect(gh.pulls[pr - 1].labels).toEqual(['quest:attachment', 'quest:read-done']);
+  });
+
   it('only works on open photo pull requests in this repo', async () => {
     gh.refs.set('feature', gh.refs.get('main')!);
     gh.pulls.push({ title: 'Other', head: 'feature', base: 'main' });

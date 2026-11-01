@@ -528,9 +528,12 @@ things go.
   taken, tags, and **Attach to** a project, world, level or item (picked from the current data).
   A branch that moved meanwhile reloads the PR for another go.
 - **Reading photos.** `photos.reader` in `data/automation.json` (Settings → Automation) says what
-  reads new photos: `off` (default), `open-weight` or `agent`. The app adds the matching label
-  when it opens the pull request (`attachmentLabels`): `quest:read-auto` or `quest:read-agent`. The
-  action takes `read-auto` with open models (its `reader/`: OCR and per-kind rules, or a caption
+  reads new photos: `off` (default), `open-weight`, `agent` or `claude`. The app adds the matching
+  label when it opens the pull request (`attachmentLabels`): `quest:read-auto`, `quest:read-agent`
+  or `quest:read-claude`. The action takes `read-claude` with one Claude API call (`photos.model`,
+  default `claude-opus-5-5`): no tools and no GitHub token in that step, only JSON back, and the
+  next step saves it with `photo-save`, or ends on `quest:read-failed`. The key is an action input
+  (`anthropic-api-key`), so only that step sees it. The action takes `read-auto` with open models (its `reader/`: OCR and per-kind rules, or a caption
   for a photo with no words), and on a poor result saves what it has and swaps to `read-agent`, or
   hands over with `photo-flag` if the models couldn't run. Agents take `read-agent` through the skill: `quest.py photos-waiting`,
   `photo-claim` (adds `quest:reading`), then `photo-save` (validates, commits only that sidecar,

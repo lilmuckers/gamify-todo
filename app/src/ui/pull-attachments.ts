@@ -100,18 +100,20 @@ function readStatus(labels: string[]) {
     ? '🔎 Being read now'
     : labels.includes(READ_LABELS.failed)
       ? '⚠️ It couldn’t be read. Fill in the details by hand.'
-      : labels.includes(READ_LABELS.agent)
-        ? '🔎 Waiting for an agent to read it'
-        : labels.includes(READ_LABELS.auto)
-          ? '🔎 Waiting for the open models to read it'
-          : undefined;
+      : labels.includes(READ_LABELS.claude)
+        ? '🔎 Waiting for Claude to read it'
+        : labels.includes(READ_LABELS.agent)
+          ? '🔎 Waiting for an agent to read it'
+          : labels.includes(READ_LABELS.auto)
+            ? '🔎 Waiting for the open models to read it'
+            : undefined;
   return text ? h('small', { class: 'pr-read-status' }, text) : null;
 }
 
 /** What a reader found: its kind and summary, the facts, any suggested actions and all the words. */
 function readBlock(read: AttachmentRead) {
   const rows = readFieldRows(read.fields);
-  const who = read.by.model ?? (read.by.mode === 'agent' ? 'an agent' : 'open models');
+  const who = read.by.model ?? (read.by.mode === 'agent' ? 'an agent' : read.by.mode === 'claude' ? 'Claude' : 'open models');
   return h(
     'div',
     { class: 'pr-read' },

@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 17**
+**Skill version: 18**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -555,7 +555,8 @@ workflow file**: tell the user to change it in Settings → Automation.
 | `schedule.every` | `6h`, `3h` (default), `1h` or `off`; only used while a device wants time-box or review pushes |
 | `validate.enabled`, `validate.comment` | check pull requests and pushes, and comment on problems (both default `true`) |
 | `notify.enabled`, `notify.vapidPublicKey`, `notify.devices` | app-managed: device ids are unique, `timezone` is an IANA name like `Europe/London` |
-| `photos.reader` | what reads new photos: `off` (default), `open-weight` or `agent`; see "Reading photos" |
+| `photos.reader` | what reads new photos: `off` (default), `open-weight`, `agent` or `claude`; see "Reading photos" |
+| `photos.model` | the Claude model when `photos.reader` is `claude`; default `claude-opus-5-5` |
 
 ### Attachments (`data/attachments/`, app-managed)
 

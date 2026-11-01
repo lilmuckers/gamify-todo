@@ -1080,6 +1080,10 @@
         {
           "const": "agent",
           "description": "No models run in the action: every photo waits for an agent (such as Claude Code or ChatGPT on the user's own account) to read it."
+        },
+        {
+          "const": "claude",
+          "description": "The Quest Log action sends each photo to the Claude API, using the repo's ANTHROPIC_API_KEY secret. A photo it can't read is marked as failed."
         }
       ]
     },
@@ -1155,6 +1159,12 @@
             "reader": {
               "$ref": "#/$defs/PhotoReader",
               "description": "What reads them. Default off."
+            },
+            "model": {
+              "type": "string",
+              "pattern": "^claude-[a-z0-9-]+$",
+              "maxLength": 60,
+              "description": "The Claude model the action uses when reader is claude, e.g. claude-haiku-5-5. Default claude-opus-5-5."
             }
           }
         }
@@ -1426,9 +1436,10 @@
               "type": "string",
               "enum": [
                 "open-weight",
-                "agent"
+                "agent",
+                "claude"
               ],
-              "description": "open-weight: models in the action. agent: an agent on the user's own account."
+              "description": "open-weight: models in the action. agent: an agent on the user's own account. claude: the Claude API, called by the action."
             },
             "model": {
               "type": "string",

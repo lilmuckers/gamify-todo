@@ -396,6 +396,12 @@ merging. Choose how in **Settings → Automation → Read photos with**:
 | **Nothing** (default) | Photos wait for you to describe them. | |
 | **Open models first** | The workflow runs open-weight models on GitHub's runners: OCR with rules for each kind, and a caption for a photo with no words. Anything they can't read well is flagged for an agent, or for you. | Uses Actions minutes: about 1 per photo with words, 3 without. The photo stays on GitHub unless an agent picks it up. |
 | **An agent only** | No models run in the workflow. Each photo waits for an agent you run. | Uses your own agent account. The photo goes to that agent's provider. |
+| **Claude, with your API key** | The workflow sends each photo to the Claude API and saves what comes back. A photo it can't read is marked as failed, for you to describe. | Your `ANTHROPIC_API_KEY` is charged per photo, separately from any Claude subscription: about $0.07 on Opus 5.5, $0.04 on Sonnet 5.5 and $0.002 on Haiku 5.5 for a long receipt (estimates). The photo goes to Anthropic. Set a spend limit in the Anthropic Console. |
+
+For Claude, add your key in **Settings → Automation → Secrets** as `ANTHROPIC_API_KEY`, then update
+the workflow if the app asks. The key is sealed in your browser and stored as an Actions secret. Only
+the one step that calls Claude can see it, and that step has no GitHub token, no tools and can only
+return JSON, so words in a photo can't make it do anything.
 
 To run an agent, install the [Quest Log skill](#writing-data-with-other-tools-and-llms) wherever
 your agent runs. For example, on an always-on machine with Claude Code signed in and a clone of the

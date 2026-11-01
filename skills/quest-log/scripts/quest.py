@@ -32,7 +32,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 17
+SKILL_VERSION = 18
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -52,8 +52,8 @@ SIDECAR_RE = re.compile(rf'^{ATTACHMENTS_DIR}/({SLUG})\.json$')
 ATTACHMENT_FILE_RE = re.compile(rf'^{ATTACHMENTS_DIR}/({SLUG})\.(?:{"|".join(ATTACHMENT_EXTENSIONS)})$')
 # Pull requests for one photo each, and the labels saying where it is on its way to being read.
 ATTACHMENT_BRANCH_PREFIX = 'quest/attach/'
-READ_AUTO, READ_AGENT, READING, READ_DONE, READ_FAILED = (
-    'quest:read-auto', 'quest:read-agent', 'quest:reading', 'quest:read-done', 'quest:read-failed')
+READ_AUTO, READ_CLAUDE, READ_AGENT, READING, READ_DONE, READ_FAILED = (
+    'quest:read-auto', 'quest:read-claude', 'quest:read-agent', 'quest:reading', 'quest:read-done', 'quest:read-failed')
 # Data files that aren't part of a project tree.
 NOT_PROJECT = ('settings', 'inbox', 'automation', 'attachment')
 
@@ -692,7 +692,7 @@ class GitHub:
         return p, ref[len(ATTACHMENT_BRANCH_PREFIX):]
 
     def set_read_labels(self, number, add):
-        for name in (READ_AUTO, READ_AGENT, READING, READ_FAILED):
+        for name in (READ_AUTO, READ_CLAUDE, READ_AGENT, READING, READ_FAILED):
             if name not in add:
                 try:
                     self.call('DELETE', f'/issues/{number}/labels/{urllib.parse.quote(name, safe="")}')
@@ -1415,7 +1415,7 @@ def main(argv=None):
     p.add_argument('--pr', required=True, type=int)
     p.add_argument('--read', required=True, metavar='FILE', help='JSON: kind, optional confidence, summary, text, fields, todos, and title, takenOn, tags to fill if empty')
     p.add_argument('--model', help='the model that read it')
-    p.add_argument('--mode', choices=['agent', 'open-weight'], default='agent')
+    p.add_argument('--mode', choices=['agent', 'open-weight', 'claude'], default='agent')
     p.add_argument('--flag', action='store_true', help='save it, but leave the photo waiting for an agent')
     p.add_argument('--json', action='store_true', help='print { pr, path, sha, flagged } instead of text')
     p.set_defaults(run=cmd_photo_save)

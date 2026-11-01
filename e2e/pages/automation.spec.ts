@@ -97,6 +97,11 @@ test('chooses what reads new photos, without changing the workflow', async ({ pa
   await section.getByLabel('Read photos with').selectOption('agent');
   await expect(section.locator('.reader-note')).toContainText('No models run in the workflow');
   await expect.poll(() => repo.files()[CONFIG] && JSON.parse(repo.files()[CONFIG]).photos).toEqual({ reader: 'agent' });
+  await section.getByLabel('Read photos with').selectOption('claude');
+  await expect(section.locator('.reader-note')).toContainText('charges your API key');
+  await section.getByLabel('Claude model').selectOption('claude-haiku-5-5');
+  await expect.poll(() => JSON.parse(repo.files()[CONFIG]).photos).toEqual({ reader: 'claude', model: 'claude-haiku-5-5' });
+  await section.getByLabel('Read photos with').selectOption('agent');
   await section.getByLabel('Read photos with').selectOption('off');
   // Nothing else was set, so the file goes back to not being there.
   await expect.poll(() => repo.files()[CONFIG]).toBeUndefined();

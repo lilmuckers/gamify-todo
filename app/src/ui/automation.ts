@@ -28,7 +28,14 @@ const READER_NOTE: Record<PhotoReader, string> = {
   off: 'Photos wait in the Warp Zone for you to describe them.',
   'open-weight': 'The workflow reads each new photo with open models on GitHub’s runners, which uses Actions minutes. What it can’t read well is flagged for an agent or for you.',
   agent: 'No models run in the workflow. Each new photo waits for an agent you run on your own account, such as Claude Code. It sends the photo to that agent’s provider. See the README for how to set one up.',
+  claude: 'The workflow sends each new photo to Anthropic’s Claude API, which charges your API key per photo (about $0.07 on Opus, $0.04 on Sonnet and under a cent on Haiku). Add the key below as ANTHROPIC_API_KEY, and set a spend limit in the Anthropic Console. A photo it can’t read is marked as failed.',
 };
+
+const CLAUDE_MODELS: [string, string][] = [
+  ['claude-opus-5-5', 'Claude Opus 5.5'],
+  ['claude-sonnet-5-5', 'Claude Sonnet 5.5'],
+  ['claude-haiku-5-5', 'Claude Haiku 5.5'],
+];
 
 const STATE_TEXT: Record<StubState, { note: string; tone: 'win' | 'warn' | 'alert' | ''; button?: string }> = {
   missing: { note: 'The workflow isn’t installed yet. Your settings are saved, but nothing runs until it is.', tone: '', button: 'Install workflow' },
@@ -199,9 +206,13 @@ export function automationSection(app: App, onAttention?: (on: boolean) => void)
           ['off', 'Nothing'],
           ['open-weight', 'Open models first, then flag for an agent'],
           ['agent', 'An agent only'],
+          ['claude', 'Claude, with your API key'],
         ],
-        (reader) => change({ photos: { reader: reader === 'off' ? undefined : reader } }),
+        (reader) => change({ photos: { reader: reader === 'off' ? undefined : reader, ...(reader !== 'claude' && { model: undefined }) } }),
       ),
+      a?.photos?.reader === 'claude'
+        ? select('Claude model', a.photos.model ?? CLAUDE_MODELS[0][0], CLAUDE_MODELS, (model) => change({ photos: { model: model === CLAUDE_MODELS[0][0] ? undefined : model } }))
+        : '',
       h('small', { class: 'muted reader-note' }, READER_NOTE[a?.photos?.reader ?? 'off']),
       secrets && stub && stub !== 'missing' && stub !== 'foreign'
         ? h(

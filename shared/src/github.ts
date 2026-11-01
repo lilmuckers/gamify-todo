@@ -117,6 +117,8 @@ export const READ_LABELS = {
   auto: 'quest:read-auto',
   /** Waiting for an agent: chosen in Settings, or flagged by the action. */
   agent: 'quest:read-agent',
+  /** Waiting for the action to send it to the Claude API. */
+  claude: 'quest:read-claude',
   /** A reader has it now. */
   reading: 'quest:reading',
   done: 'quest:read-done',
@@ -126,7 +128,8 @@ export const READ_LABELS = {
 
 /** The labels a new photo's pull request starts with. */
 export function attachmentLabels(reader: PhotoReader | undefined): string[] {
-  return [ATTACHMENT_LABEL, ...(reader === 'open-weight' ? [READ_LABELS.auto] : reader === 'agent' ? [READ_LABELS.agent] : [])];
+  const read = reader === 'open-weight' ? READ_LABELS.auto : reader === 'agent' ? READ_LABELS.agent : reader === 'claude' ? READ_LABELS.claude : undefined;
+  return [ATTACHMENT_LABEL, ...(read ? [read] : [])];
 }
 
 /** A file in a commit: text, an existing blob by sha (binaries), or null to delete it. */

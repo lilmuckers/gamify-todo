@@ -489,7 +489,11 @@ export interface Automation {
     /**
      * What reads them. Default off.
      */
-    reader?: "off" | "open-weight" | "agent";
+    reader?: "off" | "open-weight" | "agent" | "claude";
+    /**
+     * The Claude model the action uses when reader is claude, e.g. claude-haiku-5-5. Default claude-opus-5-5.
+     */
+    model?: string;
   };
 }
 /**
@@ -675,9 +679,9 @@ export interface AttachmentRead {
    */
   by: {
     /**
-     * open-weight: models in the action. agent: an agent on the user's own account.
+     * open-weight: models in the action. agent: an agent on the user's own account. claude: the Claude API, called by the action.
      */
-    mode: "open-weight" | "agent";
+    mode: "open-weight" | "agent" | "claude";
     /**
      * The model or models used, e.g. "paddleocr+florence-2".
      */

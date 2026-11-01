@@ -61,7 +61,7 @@ Checked by `npm run validate`, the app, and CI:
   `YYYY-MM-DD` day to `completions` (in date order, one per day) and moves the item's `spent` into
   that entry, so each occurrence has its own budget. Repeating items are never MVP.
 - `data/automation.json` configures the Quest Log GitHub Action (`channel`, `schedule.every`,
-  `validate`, `notify`, and `photos.reader`: `off`, `open-weight` or `agent`). Every block is optional; a missing file means validation on and
+  `validate`, `notify`, and `photos.reader`: `off`, `open-weight`, `agent` or `claude`, and `photos.model` for `claude`). Every block is optional; a missing file means validation on and
   everything else off. Push device ids are unique and each `timezone` is an IANA name. The app
   writes this file in the same commit as `.github/workflows/quest.yml`, which it renders from it
   (`shared/src/stub.ts`); the workflow only has a `schedule:` while some device wants a time-box
