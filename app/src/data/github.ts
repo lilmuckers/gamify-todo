@@ -1,6 +1,7 @@
 import {
   ATTACHMENT_BRANCH_PREFIX,
   ATTACHMENT_LABEL,
+  attachmentFileCandidates,
   attachmentFilePath,
   attachmentSidecarPath,
   AUTOMATION_PATH,
@@ -18,6 +19,7 @@ import {
   toFiles,
   WorkflowPermissionError,
   type AttachmentPull,
+  type AttachmentSidecar,
   type PullDetail,
   type RepoRef,
   type TokenProvider,
@@ -196,6 +198,17 @@ export class GitHubSource implements DataSource {
     return this.client.dataChangesPage(range);
   }
 
+  /** A merged attachment's file on the branch: the app writes .jpg, so that's tried first. */
+  async readAttachment(id: string): Promise<Blob | undefined> {
+    for (const path of attachmentFileCandidates(id)) {
+      try {
+        return await this.client.readRaw(path, this.client.repo.branch);
+      } catch (err) {
+        if (!(err instanceof GitHubError && err.status === 404)) throw err;
+      }
+    }
+  }
+
   pulls = {
     list: () => this.client.listDataPulls(),
     load: async (n: number): Promise<PullData> => {
@@ -211,5 +224,15 @@ export class GitHubSource implements DataSource {
     review: (n: number, event: Parameters<GitHubClient['review']>[1], body: string) =>
       this.client.review(n, event, body),
     file: (detail: PullDetail, path: string) => this.client.readRaw(path, detail.headSha, detail.headRepo || undefined),
+    canEditSidecars: (detail: PullDetail) =>
+      this.caps.canEdit && (!detail.headRepo || detail.headRepo === `${this.client.repo.owner}/${this.client.repo.repo}`),
+    saveSidecar: async (detail: PullDetail, sidecar: AttachmentSidecar) => {
+      await this.client.commitFiles(
+        { [attachmentSidecarPath(sidecar.id)]: sidecarText(sidecar) },
+        `quest: attach: details: ${sidecar.title ?? sidecar.id}`,
+        detail.headSha,
+        detail.headRef,
+      );
+    },
   };
 }

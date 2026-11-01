@@ -67,7 +67,9 @@ Checked by `npm run validate`, the app, and CI:
   (`shared/src/stub.ts`); the workflow only has a `schedule:` while some device wants a time-box
   or review notification. Tools must leave `notify.devices` and the workflow to the app.
 - `data/attachments/` holds photos and documents: each file `<id>.<jpg|jpeg|png|webp|heic>` has a
-  sidecar `<id>.json` (`id`, `addedAt`, `via`, optional `title` and `text`), and each sidecar a
+  sidecar `<id>.json` (`id`, `addedAt`, `via`, optional `title`, `text`, `takenOn`, `tags` and
+  `attachedTo`: `{ project, world?, level?, item? }`, where `item` needs `level` and `level` needs
+  `world`; a target that's gone is ignored), and each sidecar a
   file. An unpaired file or sidecar, two files for one id, or another file type is an error. The
   files are binary: validators list them and never read them, and the Warp Zone shows the
   photos (JPEG, PNG, WebP; HEIC by name) with their sidecar's words. A project can't be called `attachments`. The app writes this folder; tools leave it alone.

@@ -517,7 +517,15 @@ things go.
   "saved here, not sent yet" while queued (with the error if an upload failed; it's retried on
   reconnect and at boot), then a link to its pull request in the Warp Zone, which shows the
   photo from the PR's head with its sidecar's text and how it came in (`ui/pull-attachments.ts`;
-  a click opens it full size). Thumbnails of photos
+  a click opens it full size). On a PR in this repo, **Edit details** rewrites the sidecar on the
+  PR's branch in one commit (`quest: attach: details: <title>`): title, notes, the day it was
+  taken, tags, and **Attach to** a project, world, level or item (picked from the current data).
+  A branch that moved meanwhile reloads the PR for another go.
+- **Photos on the map.** Merged sidecars load into the workspace (`ws.attachments`, read-only:
+  ops never touch them). Panels show a **Photos · n** strip of everything linked to that
+  project, world or level or anything inside it, and a selected item shows its own; an item
+  card gets a `📷 n` tag. Each snapshot opens full size. Files are read from the branch (GitHub)
+  or the site (Pages), trying `.jpg` first since sidecars don't record the extension. Thumbnails of photos
   sent from elsewhere are fetched from the branch once and kept in IndexedDB. Nothing reads the
   photos yet, so they wait there until merged or closed. Analytics: `attachment_add { via }`
   (share, button or paste; never ids, text or sizes).

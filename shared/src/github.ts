@@ -339,15 +339,19 @@ export class GitHubClient {
     return files;
   }
 
-  /** One atomic commit on the branch. Throws ConflictError if the branch moved. */
+  /**
+   * One atomic commit on the branch (or `branch`, e.g. an attachment PR's head). Throws
+   * ConflictError if the branch moved.
+   */
   async commitFiles(
     changes: Record<string, CommitEntry>,
     message: string,
     parentSha: string,
+    branch = this.repo.branch,
   ): Promise<string> {
     const commit = { sha: await this.makeCommit(changes, message, parentSha) };
     try {
-      await this.request('PATCH', `/git/refs/heads/${encodeURIComponent(this.repo.branch)}`, {
+      await this.request('PATCH', `/git/refs/heads/${branch.split('/').map(encodeURIComponent).join('/')}`, {
         sha: commit.sha,
         force: false,
       });

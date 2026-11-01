@@ -554,4 +554,36 @@ export interface AttachmentSidecar {
    */
   text?: string;
   via: AttachmentVia;
+  /**
+   * Optional day the photo was taken or the document is dated (a receipt's date), YYYY-MM-DD. Set by hand in the app.
+   */
+  takenOn?: string;
+  /**
+   * Optional short free-text labels for finding attachments later, e.g. ["receipt", "boiler"]. Unique, at most 20.
+   *
+   * @maxItems 20
+   */
+  tags?: string[];
+  attachedTo?: AttachmentTarget;
+}
+/**
+ * What an attachment belongs to: a project, a world in it, a level in that world, or an item in that level. Give the ids down to the thing it belongs to (an item needs its level, world and project). The app shows the attachment there. A target that no longer exists is ignored, not an error.
+ */
+export interface AttachmentTarget {
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  project: string;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  world?: string;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  level?: string;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  item?: string;
 }

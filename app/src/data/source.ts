@@ -53,6 +53,10 @@ export interface PullProvider {
   review(number: number, event: ReviewEvent, body: string): Promise<void>;
   /** A file's bytes as the pull request leaves it: how the Warp Zone shows attached photos. */
   file?(detail: PullDetail, path: string): Promise<Blob>;
+  /** Whether `saveSidecar` can write to this PR's branch (it's in this repo, not a fork). */
+  canEditSidecars?(detail: PullDetail): boolean;
+  /** Commits a new sidecar onto the PR's branch. Throws ConflictError if the branch moved. */
+  saveSidecar?(detail: PullDetail, sidecar: AttachmentSidecar): Promise<void>;
 }
 
 /** The `quest-status` artifact every run uploads (quest-log-actions src/status.ts, plans D13). */
@@ -140,6 +144,8 @@ export interface DataSource {
   /** Writes (string) / deletes (null) files in one commit on top of `baseVersion`. Throws ConflictError. */
   commit?(changes: Record<string, string | null>, message: string, baseVersion: string): Promise<string>;
   pulls?: PullProvider;
+  /** A merged attachment's file, by id (tries each allowed extension); undefined when it has none. */
+  readAttachment?(id: string): Promise<Blob | undefined>;
   automation?: AutomationProvider;
   /** Photo uploads; present only where they can land (GitHub, and a pretend one in the demo). */
   attachments?: AttachmentProvider;

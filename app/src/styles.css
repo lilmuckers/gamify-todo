@@ -425,6 +425,62 @@ p {
 .tag.repeat {
   background: var(--purple);
 }
+.tag.photos {
+  background: var(--line);
+}
+
+/* Merged photos linked to a project, world, level or item: snapshots that open full size. */
+.photo-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.photo-strip li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+}
+.photo-strip small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.photo-snap {
+  display: block;
+  aspect-ratio: 1;
+  border: 3px solid #fff;
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.photo-snap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-snap.missing {
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  opacity: 0.6;
+}
+.photo-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.photo-text {
+  white-space: normal !important;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
 
 .pill.todo {
   background: var(--line);
@@ -502,6 +558,39 @@ p {
 }
 .pr-photo-text {
   white-space: pre-wrap;
+}
+.pr-attach-details {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.pr-attach-details > summary {
+  cursor: pointer;
+  color: var(--accent, #ffd23f);
+}
+.pr-attach-edit {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.pr-attach-field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.pr-attach-field > span {
+  opacity: 0.75;
+}
+.pr-attach-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+}
+.pr-attach-target {
+  display: grid;
+  gap: 4px;
+}
+.pr-attach-edit .btn {
+  justify-self: start;
 }
 
 .fielddiff del {

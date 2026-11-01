@@ -110,3 +110,57 @@ test('pasting a photo into the scribble line uploads it too', async ({ page }) =
   expect(JSON.parse(repo.files(repo.branches.get(repo.pulls[0].head)!)[attachmentSidecarPath(id)])).toMatchObject({ via: 'paste' });
   await expect(page.getByRole('textbox', { name: 'New idea' })).toHaveValue('');
 });
+
+test('a photo’s details are edited on its pull request, then it shows on the item it’s attached to once merged', async ({ page }) => {
+  const gh = new FakeGitHub({ repos: [{ owner: 'player', name: 'quests' }] });
+  const repo = gh.repo(REPO);
+  await openInbox(page, gh);
+  await page.locator('.pad-capture input[type=file]').setInputFiles(photo);
+  await page.locator('.pad-photos .pad-line.photo').getByRole('link', { name: /#1$/ }).click();
+
+  const shown = page.locator('.pr-attachment');
+  await shown.getByText('Edit details').click();
+  await shown.getByLabel('Title').fill('Tile receipt');
+  await shown.getByLabel('Notes').fill('Splashback tiles, 4 boxes');
+  await shown.getByLabel('Taken on').fill('2026-10-27');
+  await shown.getByLabel('Tags (comma between)').fill('receipt, tiles, receipt');
+  await shown.getByRole('combobox', { name: 'Project' }).selectOption({ label: 'Kitchen Renovation' });
+  await shown.getByRole('combobox', { name: 'World' }).selectOption({ label: 'Fit-out' });
+  await shown.getByRole('combobox', { name: 'Level' }).selectOption({ label: 'Splashback and floor' });
+  await shown.getByRole('combobox', { name: 'Item' }).selectOption({ label: 'Choose the splashback tiles' });
+  await shown.getByRole('button', { name: 'Save to the pull request' }).click();
+
+  // One commit on the PR's branch rewrites the sidecar; main is untouched.
+  await expect(shown.locator('figcaption strong')).toHaveText('Tile receipt');
+  await expect(shown.locator('.pr-photo-link')).toHaveText('📎 Kitchen Renovation › Fit-out › Splashback and floor › Choose the splashback tiles');
+  await expect(shown.locator('figcaption')).toContainText('taken 2026-10-27 · #receipt #tiles');
+  const [pull] = repo.pulls;
+  const id = pull.head.replace('quest/attach/', '');
+  const head = repo.commits.get(repo.branches.get(pull.head)!)!;
+  expect(head.message).toBe('quest: attach: details: Tile receipt');
+  expect(repo.changed(head)).toEqual([attachmentSidecarPath(id)]);
+  expect(JSON.parse(repo.files(repo.branches.get(pull.head)!)[attachmentSidecarPath(id)])).toMatchObject({
+    id,
+    via: 'button',
+    title: 'Tile receipt',
+    text: 'Splashback tiles, 4 boxes',
+    takenOn: '2026-10-27',
+    tags: ['receipt', 'tiles'],
+    attachedTo: { project: 'kitchen-renovation', world: 'fit', level: 'tiling', item: 'choose-the-splashback-tiles' },
+  });
+
+  // Merged, it hangs off the item, its level, world and project.
+  repo.merge(pull.number);
+  await page.goto('./#/p/kitchen-renovation/fit/tiling');
+  await page.reload();
+  const card = page.locator('#item-choose-the-splashback-tiles');
+  await expect(card.locator('.tag.photos')).toHaveText('📷 1');
+  await card.locator('.item-title').click();
+  const strip = card.locator('.photo-strip li');
+  await expect(strip).toHaveCount(1);
+  await expect(strip.locator('.photo-title')).toHaveText('Tile receipt');
+  await expect.poll(() => strip.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2);
+  await expect(page.getByText('Photos · 1')).toBeVisible();
+  await page.goto('./#/p/kitchen-renovation/fit');
+  await expect(page.locator('.photo-strip li small').first()).toHaveText('Splashback and floor › Choose the splashback tiles');
+});

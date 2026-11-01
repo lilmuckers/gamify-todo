@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest';
 import {
   attachmentFilePath,
   attachmentNames,
+  attachmentsIn,
+  attachmentTargetLabel,
+  parseTags,
   attachmentSidecarPath,
   changedFiles,
   classifyPath,
@@ -49,12 +52,49 @@ describe('attachment paths', () => {
     expect(classifyPath('data/attachments/Receipt.json')).toBeUndefined();
   });
 
-  it('keeps sidecars out of the workspace, so app saves never touch them', () => {
+  it('reads sidecars into the workspace, but app saves never write or delete them', () => {
     const { files } = tree();
     const ws = fromFiles(files);
-    expect(ws).toEqual(fromFiles(toFiles(workspace())));
+    expect(ws.attachments).toEqual([sidecar()]);
+    expect({ ...ws, attachments: undefined }).toEqual({ ...fromFiles(toFiles(workspace())), attachments: undefined });
     expect(Object.keys(toFiles(ws)).some((p) => p.startsWith('data/attachments/'))).toBe(false);
+    expect(changedFiles(ws, { ...ws, attachments: [] })).toEqual({});
     expect(changedFiles(ws, { ...ws, settings: { hero: 'goth' } })).toEqual({ 'data/settings.json': expect.any(String) });
+  });
+
+  it('skips a sidecar whose id doesn’t match its name, or that isn’t JSON', () => {
+    const { files } = tree();
+    expect(fromFiles({ ...files, 'data/attachments/receipt-1.json': json(sidecar({ id: 'other' })) }).attachments).toBeUndefined();
+    expect(fromFiles({ ...files, 'data/attachments/receipt-1.json': '{' }).attachments).toBeUndefined();
+  });
+
+  it('finds what is attached to a thing or anything inside it, newest first', () => {
+    const list = [
+      sidecar({ id: 'proj', attachedTo: { project: 'p' } }),
+      sidecar({ id: 'world', attachedTo: { project: 'p', world: 'w' }, addedAt: '2026-10-01T00:00:00Z' }),
+      sidecar({ id: 'item', attachedTo: { project: 'p', world: 'w', level: 'lvl', item: 'a' }, takenOn: '2026-10-30' }),
+      sidecar({ id: 'level', attachedTo: { project: 'p', world: 'w', level: 'lvl' } }),
+      sidecar({ id: 'elsewhere', attachedTo: { project: 'q', world: 'w' } }),
+      sidecar({ id: 'loose' }),
+    ];
+    const ids = (t: Parameters<typeof attachmentsIn>[1]) => attachmentsIn(list, t).map((a) => a.id);
+    expect(ids({ project: 'p', world: 'w', level: 'lvl', item: 'a' })).toEqual(['item']);
+    expect(ids({ project: 'p', world: 'w', level: 'lvl' })).toEqual(['item', 'level']);
+    expect(ids({ project: 'p', world: 'w' })).toEqual(['item', 'level', 'world']);
+    expect(ids({ project: 'p' })).toEqual(['item', 'level', 'proj', 'world']);
+    expect(ids({ project: 'p', world: 'gone' })).toEqual([]);
+  });
+
+  it('names a link by what it points at, falling back to ids for things that are gone', () => {
+    const ws = workspace();
+    expect(attachmentTargetLabel(ws, { project: 'p', world: 'w', level: 'lvl', item: 'a' })).toBe('T › W › Level › A');
+    expect(attachmentTargetLabel(ws, { project: 'p' })).toBe('T');
+    expect(attachmentTargetLabel(ws, { project: 'p', world: 'w', level: 'lvl', item: 'gone' })).toBe('T › W › Level › gone');
+  });
+
+  it('reads typed tags: trimmed, de-duplicated, empties dropped', () => {
+    expect(parseTags(' receipt, boiler service ,, receipt ')).toEqual(['receipt', 'boiler service']);
+    expect(parseTags('')).toEqual([]);
   });
 
   it('names attachments for the Warp Zone by file name only', () => {
@@ -101,6 +141,18 @@ describe('attachment validation', () => {
     expect(at({ extracted: {} })).toMatch(/extracted/);
     expect(at({ addedAt: 'yesterday' })).toMatch(/^\/addedAt /m);
     expect(at({ title: '' })).toMatch(/^\/title /m);
+  });
+
+  it('accepts a day, tags and a link, and rejects a link that skips a level', () => {
+    const { files, paths } = tree();
+    const edit = (patch: object) => validateFiles({ ...files, 'data/attachments/receipt-1.json': json({ ...sidecar(), ...patch }) }, paths).map((i) => `${i.path} ${i.message}`);
+    expect(edit({ takenOn: '2026-10-27', tags: ['receipt', 'boiler service'], attachedTo: { project: 'p', world: 'w', level: 'lvl', item: 'a' } })).toEqual([]);
+    expect(edit({ attachedTo: { project: 'p' } })).toEqual([]);
+    expect(edit({ attachedTo: { project: 'p', world: 'w', item: 'a' } }).join('\n')).toMatch(/attachedTo/);
+    expect(edit({ attachedTo: { world: 'w' } }).join('\n')).toMatch(/attachedTo/);
+    expect(edit({ takenOn: '27/10/2026' }).join('\n')).toMatch(/takenOn/);
+    expect(edit({ tags: ['a,b'] }).join('\n')).toMatch(/tags/);
+    expect(edit({ tags: ['x', 'x'] }).join('\n')).toMatch(/tags/);
   });
 
   it('only pairs when the caller lists the files', () => {

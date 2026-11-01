@@ -139,6 +139,14 @@ class FakeRepo {
     return c.startsWith(BLOB) ? this.blobs.get(c.slice(BLOB.length))! : Buffer.from(c);
   }
 
+  /** Merges an open pull request's branch into main (fast-forwarding, as the fake has no merges). */
+  merge(number: number) {
+    const p = this.pulls.find((x) => x.number === number)!;
+    const head = this.files(this.resolve(p.head)!);
+    this.push(Object.fromEntries(Object.entries(head).filter(([path, c]) => this.files()[path] !== c)), `Merge pull request #${number}`);
+    this.pulls = this.pulls.filter((x) => x !== p);
+  }
+
   /** Commits made by the app, oldest first. */
   appCommits() {
     const out: Commit[] = [];
@@ -322,8 +330,9 @@ export class FakeGitHub {
       const p = repo.pulls.find((x) => x.number === Number(pr![1]));
       if (!p) return json(404, { message: 'Not Found' });
       if (!pr[2]) return json(200, pullJson(p));
+      // The whole branch against main, as GitHub lists a PR's files.
       const head = repo.commits.get(repo.resolve(p.head)!)!;
-      return json(200, repo.changed(head).map((filename) => ({ filename, status: 'added' })));
+      return json(200, repo.changed({ ...head, parent: repo.head }).map((filename) => ({ filename, status: 'added' })));
     }
     if (/^\/commits\/\w+\/check-runs$/.test(rest)) return json(200, { total_count: 0, check_runs: [] });
     if (rest.startsWith('/contents/') && (req.headers().accept ?? '').includes('raw')) {
@@ -444,6 +453,14 @@ export class FakeGitHub {
       if (!p) return json(404, { message: 'Not Found' });
       p.labels = [...new Set([...p.labels, ...(body.labels as string[])])];
       return json(200, p.labels.map((name) => ({ name })));
+    }
+    const moved = /^\/git\/refs\/heads\/(.+)$/.exec(rest);
+    if (moved && method === 'PATCH' && moved[1] !== 'main') {
+      const name = decodeURIComponent(moved[1]);
+      if (!repo.branches.has(name)) return json(422, { message: 'Reference does not exist' });
+      if (repo.commits.get(body.sha)?.parent !== repo.branches.get(name)) return json(422, { message: 'Update is not a fast forward' });
+      repo.branches.set(name, body.sha);
+      return json(200, { object: { sha: body.sha } });
     }
     if (rest === '/git/refs/heads/main' && method === 'PATCH') {
       if (repo.commits.get(body.sha)?.parent !== repo.head) return json(422, { message: 'Update is not a fast forward' });

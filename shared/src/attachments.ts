@@ -1,6 +1,7 @@
-import type { AttachmentSidecar } from './types.gen';
+import type { Workspace } from './model';
+import type { AttachmentSidecar, AttachmentTarget } from './types.gen';
 
-export type { AttachmentSidecar };
+export type { AttachmentSidecar, AttachmentTarget };
 export type AttachmentVia = AttachmentSidecar['via'];
 
 /**
@@ -34,4 +35,37 @@ export function attachmentNames(paths: string[]): string[] {
     .filter(isAttachmentPath)
     .map((p) => p.slice(ATTACHMENTS_DIR.length + 1))
     .sort();
+}
+
+/**
+ * Attachments linked to `target` or anything inside it (a world's include its levels' and
+ * items'), newest first by the day taken, else when added. Links to things that are gone match
+ * nothing, so they're simply not shown.
+ */
+export function attachmentsIn(list: readonly AttachmentSidecar[] | undefined, target: AttachmentTarget): AttachmentSidecar[] {
+  const keys = (['project', 'world', 'level', 'item'] as const).filter((k) => target[k] !== undefined);
+  const when = (a: AttachmentSidecar) => a.takenOn ?? a.addedAt;
+  return (list ?? []).filter((a) => a.attachedTo && keys.every((k) => a.attachedTo![k] === target[k])).sort((a, b) => when(b).localeCompare(when(a)) || a.id.localeCompare(b.id));
+}
+
+/**
+ * Where an attachment's file may be, most likely first. Sidecars don't record the extension and
+ * the app reads only JSON from the tree, so readers try these in turn (the app writes .jpg).
+ */
+export const attachmentFileCandidates = (id: string) => ATTACHMENT_EXTENSIONS.map((ext) => attachmentFilePath(id, ext));
+
+/** "Kitchen › Fit › Tiling › Grout", from whatever of the link still exists in `ws`. */
+export function attachmentTargetLabel(ws: Workspace | undefined, t: AttachmentTarget): string {
+  const state = ws?.projects[t.project];
+  const world = t.world ? state?.worlds[t.world] : undefined;
+  const level = t.level ? world?.levels.find((l) => l.id === t.level) : undefined;
+  const item = t.item ? level?.items.find((i) => i.id === t.item) : undefined;
+  return [state?.overworld.title ?? t.project, t.world && (world?.name ?? t.world), t.level && (level?.name ?? t.level), t.item && (item?.title ?? t.item)]
+    .filter(Boolean)
+    .join(' › ');
+}
+
+/** Tags typed as "receipt, boiler service": trimmed, de-duplicated, empties dropped. */
+export function parseTags(text: string): string[] {
+  return [...new Set(text.split(',').map((t) => t.trim()).filter(Boolean))];
 }
