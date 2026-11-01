@@ -465,6 +465,45 @@ p {
   font-size: 12px;
 }
 
+/* Photos a pull request attaches (Warp Zone): what a reviewer is about to merge. */
+.pr-attachments {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+.pr-attachment {
+  margin: 0;
+}
+.pr-photo {
+  display: block;
+  border: 2px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+}
+.pr-photo img {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  min-height: 60px;
+  object-fit: contain;
+}
+.pr-photo.missing {
+  padding: 18px 8px;
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.7;
+}
+.pr-attachment figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.pr-photo-text {
+  white-space: pre-wrap;
+}
+
 .fielddiff del {
   color: #f6757a;
 }

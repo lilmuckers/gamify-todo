@@ -18,6 +18,7 @@ import {
   toFiles,
   WorkflowPermissionError,
   type AttachmentPull,
+  type PullDetail,
   type RepoRef,
   type TokenProvider,
 } from '@quest/shared';
@@ -209,5 +210,6 @@ export class GitHubSource implements DataSource {
     merge: (n: number, method: Parameters<GitHubClient['merge']>[1], sha: string) => this.client.merge(n, method, sha),
     review: (n: number, event: Parameters<GitHubClient['review']>[1], body: string) =>
       this.client.review(n, event, body),
+    file: (detail: PullDetail, path: string) => this.client.readRaw(path, detail.headSha, detail.headRepo || undefined),
   };
 }

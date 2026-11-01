@@ -49,6 +49,7 @@ import { href } from '../router';
 import { NODE_SPRITE } from '../sprites/pixels';
 import { fmtDuration, h, icon, relTime, stars } from './dom';
 import { criterionForm, goalForm, itemForm, levelForm, projectForm, STATUS_LABEL, TYPE_INFO, worldForm } from './forms';
+import { pullAttachments } from './pull-attachments';
 import { mergeDialog, reviewDialog } from './review';
 import { filterChips } from './search';
 
@@ -797,7 +798,7 @@ export function pullPanel(app: App, n: number) {
   const projectOf = find.project;
   const worldName = (pid: string, wid: string) => find.world(pid, wid)?.name ?? wid;
   const levelName = (pid: string, wid: string, lid: string) => find.level({ projectId: pid, worldId: wid, levelId: lid })?.name ?? lid;
-  // Attachments are binary: the PR's file list names them, and nothing reads them.
+  // Attachments are binary: shown as pictures from the PR's head, never parsed as data.
   const attachments = attachmentNames(detail.dataFiles);
   return wrap(
     h('h2', null, `#${detail.number} ${detail.title}`),
@@ -868,7 +869,7 @@ export function pullPanel(app: App, n: number) {
             'li',
             null,
             h('div', { class: 'row' }, h('strong', null, 'Attachments')),
-            h('ul', { class: 'fielddiff' }, attachments.map((name) => h('li', null, h('code', null, name)))),
+            pullAttachments(app, detail) ?? h('ul', { class: 'fielddiff' }, attachments.map((name) => h('li', null, h('code', null, name)))),
           ),
       ),
     ),

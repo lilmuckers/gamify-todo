@@ -515,7 +515,9 @@ things go.
   sidecar (`data/attachments/`, schema README), label `quest:attachment`. Photos aren't ops and
   never touch the main branch. A **📷 waiting** list under the ideas shows each with a thumbnail:
   "saved here, not sent yet" while queued (with the error if an upload failed; it's retried on
-  reconnect and at boot), then a link to its pull request in the Warp Zone. Thumbnails of photos
+  reconnect and at boot), then a link to its pull request in the Warp Zone, which shows the
+  photo from the PR's head with its sidecar's text and how it came in (`ui/pull-attachments.ts`;
+  a click opens it full size). Thumbnails of photos
   sent from elsewhere are fetched from the branch once and kept in IndexedDB. Nothing reads the
   photos yet, so they wait there until merged or closed. Analytics: `attachment_add { via }`
   (share, button or paste; never ids, text or sizes).

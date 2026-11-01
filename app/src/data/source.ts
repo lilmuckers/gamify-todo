@@ -51,6 +51,8 @@ export interface PullProvider {
   load(number: number): Promise<PullData>;
   merge(number: number, method: MergeMethod, sha: string): Promise<void>;
   review(number: number, event: ReviewEvent, body: string): Promise<void>;
+  /** A file's bytes as the pull request leaves it: how the Warp Zone shows attached photos. */
+  file?(detail: PullDetail, path: string): Promise<Blob>;
 }
 
 /** The `quest-status` artifact every run uploads (quest-log-actions src/status.ts, plans D13). */

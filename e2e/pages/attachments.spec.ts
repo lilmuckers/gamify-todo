@@ -68,7 +68,13 @@ test('📷 uploads a photo as its own labelled pull request, shown waiting and i
   await row.getByRole('link').click();
   await expect(page.getByRole('heading', { name: '#1 📷 New photo' })).toBeVisible();
   await expect(page.getByText('Attachments')).toBeVisible();
-  await expect(page.locator('.fielddiff code')).toHaveText([`${id}.jpg`, `${id}.json`]);
+  // The photo itself shows, loaded from the PR's branch, with its sidecar's words.
+  const shown = page.locator(`.pr-attachment[data-attachment="${id}"]`);
+  await expect(shown.locator('figcaption code')).toHaveText(`${id}.jpg`);
+  await expect(shown.locator('figcaption')).toContainText('added with 📷');
+  await expect(shown.locator('img')).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => shown.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2);
+  await expect(shown.locator('a.pr-photo')).toHaveAttribute('href', /^blob:/);
 });
 
 test('a photo added offline waits here, then uploads once back online', async ({ page }) => {
