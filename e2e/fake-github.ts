@@ -44,6 +44,20 @@ interface Commit {
   auth?: string;
 }
 
+/** A pull request opened through the API (attachments open these). */
+export interface FakePull {
+  number: number;
+  title: string;
+  body: string;
+  head: string;
+  base: string;
+  labels: string[];
+  created_at: string;
+}
+
+/** Tree entries for binary blobs hold this marker and the blob's sha; the bytes live in `blobs`. */
+const BLOB = '\u0000blob:';
+
 export interface FakeRun {
   id: number;
   event: string;
@@ -68,6 +82,11 @@ class FakeRepo {
   public = false;
   /** The repo's sealed-box key pair for Actions secrets. */
   secretsKey?: { publicKey: Uint8Array; privateKey: Uint8Array };
+  /** Binary blobs posted as base64, by sha. */
+  blobs = new Map<string, Buffer>();
+  /** Branches other than main, by name. */
+  branches = new Map<string, string>();
+  pulls: FakePull[] = [];
 
   constructor(
     public owner: string,
@@ -106,6 +125,18 @@ class FakeRepo {
     const before = c.parent ? this.trees.get(this.commits.get(c.parent)!.tree)! : {};
     const after = this.trees.get(c.tree)!;
     return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((p) => before[p] !== after[p]).sort();
+  }
+
+  /** The commit a branch name or sha points at. */
+  resolve(ref: string) {
+    return ref === 'main' ? this.head : (this.branches.get(ref) ?? (this.commits.has(ref) ? ref : undefined));
+  }
+
+  /** A file's bytes at `sha`: a binary blob's, or the text's. */
+  bytes(path: string, sha = this.head) {
+    const c = this.files(sha)[path];
+    if (c === undefined) return undefined;
+    return c.startsWith(BLOB) ? this.blobs.get(c.slice(BLOB.length))! : Buffer.from(c);
   }
 
   /** Commits made by the app, oldest first. */
@@ -267,12 +298,38 @@ export class FakeGitHub {
 
     if (rest === '') return json(200, { default_branch: 'main', permissions: { push: true }, private: !repo.public });
     if (rest === '/commits') return json(200, [{ sha: repo.head }]);
-    if (rest === '/pulls') return json(200, []);
+    const pullJson = (p: FakePull) => ({
+      number: p.number,
+      title: p.title,
+      body: p.body,
+      html_url: `https://github.com/${m![1]}/pull/${p.number}`,
+      user: { login: 'player' },
+      draft: false,
+      created_at: p.created_at,
+      updated_at: p.created_at,
+      labels: p.labels.map((name) => ({ name })),
+      head: { ref: p.head, sha: repo.resolve(p.head), repo: { full_name: m![1] } },
+      base: { ref: p.base, sha: repo.head, repo: { full_name: m![1] } },
+      mergeable: true,
+      mergeable_state: 'clean',
+    });
+    if (rest === '/pulls' && method === 'GET') {
+      const head = url.searchParams.get('head')?.split(':')[1];
+      return json(200, repo.pulls.filter((p) => !head || p.head === head).map(pullJson).reverse());
+    }
+    let pr = /^\/pulls\/(\d+)(\/files)?$/.exec(rest);
+    if (pr) {
+      const p = repo.pulls.find((x) => x.number === Number(pr![1]));
+      if (!p) return json(404, { message: 'Not Found' });
+      if (!pr[2]) return json(200, pullJson(p));
+      const head = repo.commits.get(repo.resolve(p.head)!)!;
+      return json(200, repo.changed(head).map((filename) => ({ filename, status: 'added' })));
+    }
+    if (/^\/commits\/\w+\/check-runs$/.test(rest)) return json(200, { total_count: 0, check_runs: [] });
     if (rest.startsWith('/contents/') && (req.headers().accept ?? '').includes('raw')) {
       const ref = url.searchParams.get('ref');
-      const files = repo.files(ref && repo.commits.has(ref) ? ref : repo.head);
-      const text = files[decodeURIComponent(rest.slice('/contents/'.length))];
-      return text === undefined ? json(404, { message: 'Not Found' }) : route.fulfill({ status: 200, contentType: 'application/vnd.github.raw+json', body: text });
+      const body = repo.bytes(decodeURIComponent(rest.slice('/contents/'.length)), (ref && repo.resolve(ref)) || repo.head);
+      return body === undefined ? json(404, { message: 'Not Found' }) : route.fulfill({ status: 200, contentType: 'application/vnd.github.raw+json', body });
     }
     if (rest === '/actions/workflows/quest.yml/runs') {
       if (!repo.files()['.github/workflows/quest.yml']) return json(404, { message: 'Not Found' });
@@ -325,7 +382,11 @@ export class FakeGitHub {
       }
       return names.size ? json(200, [...names].map(([name, type]) => ({ name, type }))) : json(404, { message: 'Not Found' });
     }
-    if (rest === '/git/ref/heads/main') return json(200, { object: { sha: repo.head } });
+    const branch = /^\/git\/ref\/heads\/(.+)$/.exec(rest);
+    if (branch) {
+      const sha = repo.resolve(decodeURIComponent(branch[1]));
+      return sha ? json(200, { object: { sha } }) : json(404, { message: 'Not Found' });
+    }
     if (rest.startsWith('/compare/')) return json(200, { status: 'behind' });
     let g = /^\/git\/trees\/(\w+)$/.exec(rest);
     if (g && method === 'GET') {
@@ -346,8 +407,9 @@ export class FakeGitHub {
     const body = JSON.parse(req.postData() ?? '{}');
     if (rest === '/git/trees' && method === 'POST') {
       const files = { ...repo.trees.get(body.base_tree) };
-      for (const e of body.tree as { path: string; content?: string; sha?: null }[]) {
+      for (const e of body.tree as { path: string; content?: string; sha?: string | null }[]) {
         if (e.sha === null) delete files[e.path];
+        else if (e.sha) files[e.path] = `${BLOB}${e.sha}`;
         else files[e.path] = e.content!;
       }
       return json(201, { sha: repo.addTree(files) });
@@ -356,6 +418,32 @@ export class FakeGitHub {
       const sha = sha1(`${body.tree}:${body.parents[0]}:${body.message}`);
       repo.commits.set(sha, { tree: body.tree, message: body.message, parent: body.parents[0], auth });
       return json(201, { sha });
+    }
+    if (rest === '/git/blobs' && method === 'POST') {
+      const bytes = Buffer.from(body.content, 'base64');
+      const sha = createHash('sha1').update(bytes).digest('hex');
+      repo.blobs.set(sha, bytes);
+      return json(201, { sha });
+    }
+    if (rest === '/git/refs' && method === 'POST') {
+      const name = String(body.ref).replace(/^refs\/heads\//, '');
+      if (name === 'main' || repo.branches.has(name)) return json(422, { message: 'Reference already exists' });
+      repo.branches.set(name, body.sha);
+      return json(201, { ref: body.ref, object: { sha: body.sha } });
+    }
+    if (rest === '/pulls' && method === 'POST') {
+      if (!repo.branches.has(body.head)) return json(422, { message: 'Validation Failed' });
+      if (repo.pulls.some((p) => p.head === body.head)) return json(422, { message: 'A pull request already exists' });
+      const p: FakePull = { number: repo.pulls.length + 1, title: body.title, body: body.body ?? '', head: body.head, base: body.base, labels: [], created_at: new Date().toISOString() };
+      repo.pulls.push(p);
+      return json(201, pullJson(p));
+    }
+    pr = /^\/issues\/(\d+)\/labels$/.exec(rest);
+    if (pr && method === 'POST') {
+      const p = repo.pulls.find((x) => x.number === Number(pr![1]));
+      if (!p) return json(404, { message: 'Not Found' });
+      p.labels = [...new Set([...p.labels, ...(body.labels as string[])])];
+      return json(200, p.labels.map((name) => ({ name })));
     }
     if (rest === '/git/refs/heads/main' && method === 'PATCH') {
       if (repo.commits.get(body.sha)?.parent !== repo.head) return json(422, { message: 'Update is not a fast forward' });

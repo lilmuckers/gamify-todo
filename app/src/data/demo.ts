@@ -1,7 +1,7 @@
-import { fromFiles, type CommitChanges } from '@quest/shared';
+import { fromFiles, type AttachmentPull, type CommitChanges } from '@quest/shared';
 import { demoCommits, demoHistory } from './demo-history';
 import { TARGET } from '../config';
-import type { DataSource, HistoryRange, Loaded } from './source';
+import type { AttachmentProvider, DataSource, HistoryRange, Loaded } from './source';
 import { StaticSource } from './static';
 import type { KV } from './store';
 
@@ -49,6 +49,20 @@ export class DemoSource implements DataSource {
     const commits = inRange.slice(0, range.limit);
     return { commits, more: inRange.length > range.limit, oldest: commits.at(-1)?.date };
   }
+
+  /** Photos go nowhere either: each becomes a pretend pull request that lasts until reload. */
+  private photos: { pull: AttachmentPull; blob: Blob }[] = [];
+  attachments: AttachmentProvider = {
+    submit: async ({ sidecar, base64 }) => {
+      const number = 900 + this.photos.length + 1;
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const pull = { id: sidecar.id, number, title: `📷 ${sidecar.title ?? 'New photo'}`, url: '#/~inbox', headSha: 'demo', createdAt: sidecar.addedAt };
+      this.photos.unshift({ pull, blob: new Blob([bytes], { type: 'image/jpeg' }) });
+      return number;
+    },
+    pending: async () => this.photos.map((p) => p.pull),
+    file: async (pull) => this.photos.find((p) => p.pull.id === pull.id)?.blob ?? new Blob(),
+  };
 
   async commit(changes: Record<string, string | null>, _message: string, _base: string): Promise<string> {
     const files = { ...(this.files ?? (await this.seed.loadFiles())) };

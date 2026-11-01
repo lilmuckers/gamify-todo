@@ -506,6 +506,19 @@ things go.
   (`inboxPlace`).
 - **Android share target:** sharing text or a link to the installed PWA drops it in the inbox.
   iOS doesn't support this.
+- **Photos** (plans G6, D14; GitHub only, with edit rights). They come in three ways: shared to
+  the installed PWA (Android), picked with the pad's 📷 button (iOS and everywhere), or pasted or
+  dropped on the scribble line (desktop). Text shared with photos goes in their sidecar rather
+  than the scribble line. Each photo is redrawn as a JPEG of at most 1600px on its long edge
+  (which drops EXIF and GPS), queued in IndexedDB (`app/src/data/attachment-queue.ts`), and
+  uploaded once online as its own pull request: branch `quest/attach/<id>`, the file plus its
+  sidecar (`data/attachments/`, schema README), label `quest:attachment`. Photos aren't ops and
+  never touch the main branch. A **📷 waiting** list under the ideas shows each with a thumbnail:
+  "saved here, not sent yet" while queued (with the error if an upload failed; it's retried on
+  reconnect and at boot), then a link to its pull request in the Warp Zone. Thumbnails of photos
+  sent from elsewhere are fetched from the branch once and kept in IndexedDB. Nothing reads the
+  photos yet, so they wait there until merged or closed. Analytics: `attachment_add { via }`
+  (share, button or paste; never ids, text or sizes).
 - The HUD INBOX button shows a count.
 
 **Weekly review** (`w`, REVIEW button). Built by `shared/src/review.ts`. The REVIEW button (with
@@ -1149,7 +1162,11 @@ Security:
 ## 13. PWA and performance
 
 - `vite-plugin-pwa` (auto-update) provides the manifest, icons, Android share target and
-  standalone display, plus the push add-on (`push-sw.js`, §5.16). Workbox precaches the app
+  standalone display, plus two add-ons loaded with `importScripts` (plans D16): push
+  (`push-sw.js`, §5.16) and the share target (`share-target.js`). The share target is a
+  multipart POST to the app's scope: the worker stashes any shared photos in the `quest-share`
+  Cache and redirects (303) to `?share-title=…&share-text=…&share-files=N#/~inbox`, where
+  `main.ts` picks them up and queues them (§5.6). Workbox precaches the app
   shell, and data/schema JSON is `NetworkFirst` with a 4 s timeout.
 - The cached app expires after 3 hours while online (`app/src/pwa.ts`). `main.ts` registers the
   service worker and asks for a new build at boot, on focus, on reconnect and every 15 minutes

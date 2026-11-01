@@ -93,6 +93,23 @@ export interface ChecksSummary {
   runs: { name: string; status: string; conclusion: string | null; url: string }[];
 }
 
+/** An open attachment pull request (`quest/attach/<id>`): one photo waiting in the Warp Zone. */
+export interface AttachmentPull {
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+  headSha: string;
+  createdAt: string;
+}
+
+/** Branch prefix and label for attachment pull requests (plans D14). */
+export const ATTACHMENT_BRANCH_PREFIX = 'quest/attach/';
+export const ATTACHMENT_LABEL = 'quest:attachment';
+
+/** A file in a commit: text, an existing blob by sha (binaries), or null to delete it. */
+export type CommitEntry = string | null | { sha: string };
+
 export type MergeMethod = 'merge' | 'squash' | 'rebase';
 export type ReviewEvent = 'APPROVE' | 'COMMENT' | 'REQUEST_CHANGES';
 
@@ -324,27 +341,11 @@ export class GitHubClient {
 
   /** One atomic commit on the branch. Throws ConflictError if the branch moved. */
   async commitFiles(
-    changes: Record<string, string | null>,
+    changes: Record<string, CommitEntry>,
     message: string,
     parentSha: string,
   ): Promise<string> {
-    // The app only ever writes data/ and its own workflow (plans §3.1).
-    const stray = Object.keys(changes).find((p) => !isDataPath(p) && p !== STUB_PATH);
-    if (stray) throw new Error(`Quest Log doesn't write ${stray}`);
-    const parent = await this.request<{ tree: { sha: string } }>('GET', `/git/commits/${parentSha}`);
-    const tree = await this.request<{ sha: string }>('POST', '/git/trees', {
-      base_tree: parent.tree.sha,
-      tree: Object.entries(changes).map(([path, content]) =>
-        content === null
-          ? { path, mode: '100644', type: 'blob', sha: null }
-          : { path, mode: '100644', type: 'blob', content },
-      ),
-    });
-    const commit = await this.request<{ sha: string }>('POST', '/git/commits', {
-      message,
-      tree: tree.sha,
-      parents: [parentSha],
-    });
+    const commit = { sha: await this.makeCommit(changes, message, parentSha) };
     try {
       await this.request('PATCH', `/git/refs/heads/${encodeURIComponent(this.repo.branch)}`, {
         sha: commit.sha,
@@ -358,6 +359,83 @@ export class GitHubClient {
       throw err;
     }
     return commit.sha;
+  }
+
+  /** A commit on `parentSha` that no branch points at yet. */
+  async makeCommit(changes: Record<string, CommitEntry>, message: string, parentSha: string): Promise<string> {
+    // The app only ever writes data/, attachments and its own workflow (plans §3.1).
+    const stray = Object.keys(changes).find((p) => !isDataPath(p) && !isAttachmentPath(p) && p !== STUB_PATH);
+    if (stray) throw new Error(`Quest Log doesn't write ${stray}`);
+    const parent = await this.request<{ tree: { sha: string } }>('GET', `/git/commits/${parentSha}`);
+    const tree = await this.request<{ sha: string }>('POST', '/git/trees', {
+      base_tree: parent.tree.sha,
+      tree: Object.entries(changes).map(([path, content]) =>
+        content === null
+          ? { path, mode: '100644', type: 'blob', sha: null }
+          : typeof content === 'string'
+            ? { path, mode: '100644', type: 'blob', content }
+            : { path, mode: '100644', type: 'blob', sha: content.sha },
+      ),
+    });
+    const commit = await this.request<{ sha: string }>('POST', '/git/commits', { message, tree: tree.sha, parents: [parentSha] });
+    return commit.sha;
+  }
+
+  /** Stores binary content (base64) in the repo; returns the blob's sha for a commit. */
+  async createBlob(base64: string): Promise<string> {
+    return (await this.request<{ sha: string }>('POST', '/git/blobs', { content: base64, encoding: 'base64' })).sha;
+  }
+
+  /** Points a new branch at `sha`. False when the branch is already there. */
+  async createBranch(name: string, sha: string): Promise<boolean> {
+    try {
+      await this.request('POST', '/git/refs', { ref: `refs/heads/${name}`, sha });
+      return true;
+    } catch (err) {
+      if (err instanceof GitHubError && err.status === 422) return false;
+      throw err;
+    }
+  }
+
+  /** Opens a pull request from `head` into the branch, or finds the open one from it. Returns its number. */
+  async openPull(head: string, title: string, body: string): Promise<number> {
+    try {
+      return (await this.request<{ number: number }>('POST', '/pulls', { title, head, base: this.repo.branch, body })).number;
+    } catch (err) {
+      if (!(err instanceof GitHubError && err.status === 422)) throw err;
+      const q = new URLSearchParams({ state: 'open', head: `${this.repo.owner}:${head}` });
+      const [open] = await this.request<{ number: number }[]>('GET', `/pulls?${q}`);
+      if (!open) throw err;
+      return open.number;
+    }
+  }
+
+  async addLabels(number: number, labels: string[]): Promise<void> {
+    await this.request('POST', `/issues/${number}/labels`, { labels });
+  }
+
+  /** Open attachment pull requests into the branch, newest first. */
+  async listAttachmentPulls(): Promise<AttachmentPull[]> {
+    const q = new URLSearchParams({ state: 'open', base: this.repo.branch, per_page: '100', sort: 'created', direction: 'desc' });
+    const pulls = await this.request<any[]>('GET', `/pulls?${q}`);
+    const full = `${this.repo.owner}/${this.repo.repo}`;
+    return pulls
+      .filter((p) => typeof p.head?.ref === 'string' && p.head.ref.startsWith(ATTACHMENT_BRANCH_PREFIX) && (p.head.repo?.full_name ?? full) === full)
+      .map((p) => ({
+        id: p.head.ref.slice(ATTACHMENT_BRANCH_PREFIX.length),
+        number: p.number,
+        title: p.title,
+        url: p.html_url,
+        headSha: p.head.sha,
+        createdAt: p.created_at,
+      }));
+  }
+
+  /** A file's bytes at `ref`, e.g. an attachment on its pull request's branch. Private repos work through the token. */
+  async readRaw(path: string, ref: string): Promise<Blob> {
+    const enc = path.split('/').map(encodeURIComponent).join('/');
+    const res = await this.send('GET', `/contents/${enc}?ref=${encodeURIComponent(ref)}`, undefined, 'application/vnd.github.raw+json');
+    return res.blob();
   }
 
   /** A file's text at `ref` (default: the branch), or undefined when it isn't there. */
@@ -513,7 +591,7 @@ function permissionFor(url: string): string | undefined {
   if (url.includes('/actions/secrets')) return 'Secrets: read & write';
   if (url.includes('/actions/')) return 'Actions: read';
   if (url.includes('/check-runs')) return 'Checks: read';
-  if (url.includes('/pulls')) return 'Pull requests: read & write';
+  if (url.includes('/pulls') || url.includes('/issues/')) return 'Pull requests: read & write';
   if (/\/(git|contents|commits)\b/.test(url)) return 'Contents: read & write';
   return undefined;
 }

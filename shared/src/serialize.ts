@@ -1,4 +1,4 @@
-import { isAttachmentPath, sidecarId } from './attachments';
+import { isAttachmentPath, sidecarId, type AttachmentSidecar } from './attachments';
 import type { Automation, GameState, InboxItem, Level, Project, Settings, World, WorldFile, Workspace } from './model';
 
 export const DATA_ROOT = 'data';
@@ -131,6 +131,9 @@ export function stringify(value: unknown): string {
 }
 
 const schemaRef = (kind: DataFile['kind']) => `${SCHEMA_BASE}${kind}.schema.json`;
+
+/** An attachment's sidecar file, in the canonical format with its `$schema`. */
+export const sidecarText = (sidecar: AttachmentSidecar) => stringify({ $schema: schemaRef('attachment'), ...sidecar });
 
 /** Files for one project. */
 export function projectFiles(projectId: string, state: GameState): Record<string, string> {

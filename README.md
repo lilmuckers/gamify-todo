@@ -36,6 +36,13 @@ world map, or **Add to this level** on a level. On Android, sharing a link or te
 installed app drops it straight in the inbox (iOS doesn't let web apps receive shares). Ideas live
 in `data/inbox.json` until they're placed.
 
+With a GitHub repo you can add photos too: share them to the installed app on Android, press 📷 on
+the inbox page (iOS and everywhere), or paste or drop one on the scribble line. Each is shrunk to a
+JPEG of at most 1600px (which strips its location and camera details) and sent as its own pull
+request labelled `quest:attachment`, with the photo and a small JSON sidecar under
+`data/attachments/`. Offline, photos wait in the browser and go once you're back. The inbox lists
+them under **📷 waiting**, with a link to each pull request in the Warp Zone.
+
 **Search** (`/`, the FIND button, or Find on phones) finds anything by name or notes: projects,
 worlds, levels, items, steps inside dependencies and inbox ideas. Filter by type, status,
 blocking, overdue levels or over budget, with or without words. Enter jumps straight there with

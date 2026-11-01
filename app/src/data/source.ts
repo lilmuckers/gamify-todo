@@ -1,5 +1,7 @@
 import {
   findLevelAt,
+  type AttachmentPull,
+  type AttachmentSidecar,
   type LevelAt,
   type Workspace,
   type HistoryCommit,
@@ -90,6 +92,25 @@ export interface AutomationProvider {
   latestRun(): Promise<LatestRun | undefined>;
 }
 
+/** One photo ready to upload: a JPEG (base64) and its sidecar. */
+export interface AttachmentUpload {
+  sidecar: AttachmentSidecar;
+  base64: string;
+}
+
+/**
+ * Photos as attachment pull requests (plans G6): one `quest/attach/<id>` PR per photo, with the
+ * file and its sidecar, labelled `quest:attachment`. Nothing reads them yet; they wait.
+ */
+export interface AttachmentProvider {
+  /** Uploads one photo as its own pull request. Safe to repeat after a failure. Returns the PR number. */
+  submit(upload: AttachmentUpload): Promise<number>;
+  /** Open attachment pull requests, newest first. */
+  pending(): Promise<AttachmentPull[]>;
+  /** The photo on a waiting pull request's branch. */
+  file(pull: AttachmentPull): Promise<Blob>;
+}
+
 /** A slice of history to read: commits after `since` and up to `until` (both ISO). */
 export interface HistoryRange {
   since?: string;
@@ -118,6 +139,8 @@ export interface DataSource {
   commit?(changes: Record<string, string | null>, message: string, baseVersion: string): Promise<string>;
   pulls?: PullProvider;
   automation?: AutomationProvider;
+  /** Photo uploads; present only where they can land (GitHub, and a pretend one in the demo). */
+  attachments?: AttachmentProvider;
   publish?(): Promise<string>;
   /** Commits that touched data/, newest first; only newer than `since` (ISO) when given. */
   history?(since?: string): Promise<HistoryCommit[]>;

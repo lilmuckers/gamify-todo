@@ -168,11 +168,13 @@ export default defineConfig({
         description: 'A project tracker you play. Ship good enough, then move on.',
         start_url: '.',
         scope: '.',
-        // Share a link or text to the installed app (Android) and it lands in the inbox.
+        // Share a link, text or photos to the installed app (Android) and it lands in the inbox.
+        // A POST, so photos can come too: public/share-target.js turns it back into share-* params.
         share_target: {
           action: './',
-          method: 'GET',
-          params: { title: 'share-title', text: 'share-text', url: 'share-url' },
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: { title: 'title', text: 'text', url: 'url', files: [{ name: 'photos', accept: ['image/*'] }] },
         },
         display: 'standalone',
         orientation: 'any',
@@ -192,8 +194,8 @@ export default defineConfig({
         // closed. AppFreshness (src/pwa.ts) picks a safe moment to reload once it activates.
         skipWaiting: true,
         clientsClaim: true,
-        // Service-worker add-ons from app/public (plans D16): push notifications.
-        importScripts: ['push-sw.js'],
+        // Service-worker add-ons from app/public (plans D16): push notifications and shared photos.
+        importScripts: ['push-sw.js', 'share-target.js'],
         // Opening a schema, data, skill or core pointer file in a tab must show the file, not the app shell.
         navigateFallbackDenylist: [/^\/api\//, /\/(data|schema|skills|core)\//],
         runtimeCaching: [

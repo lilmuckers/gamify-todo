@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ConflictError, GitHubClient, GitHubError, parseRepo, STUB_PATH, WorkflowPermissionError } from '../src/index';
+import { ConflictError, GitHubClient, GitHubError, parseRepo, sidecarText, STUB_PATH, validateFiles, WorkflowPermissionError } from '../src/index';
 
 type Route = (url: string, init: RequestInit) => { status?: number; json?: unknown; text?: string; bytes?: Uint8Array } | undefined;
 
@@ -21,6 +21,7 @@ function fakeFetch(route: Route) {
       },
       text: async () => r.text ?? (r.json === undefined ? '' : JSON.stringify(r.json)),
       arrayBuffer: async () => (r.bytes ?? new Uint8Array()).slice().buffer,
+      blob: async () => new Blob([(r.bytes ?? new Uint8Array()).slice()]),
     } as Response;
   }) as typeof fetch;
   return { fn, calls };
@@ -242,5 +243,66 @@ describe('GitHubClient', () => {
     expect(parseRepo('https://github.com/a/b')).toMatchObject({ owner: 'a', repo: 'b' });
     expect(parseRepo('a/b', 'dev')).toEqual({ owner: 'a', repo: 'b', branch: 'dev' });
     expect(parseRepo('nonsense')).toBeUndefined();
+  });
+});
+
+describe('attachment pull requests', () => {
+  it('commits a binary by blob sha beside its sidecar, without moving the branch', async () => {
+    const { fn, calls } = fakeFetch((url, init) => {
+      if (url.endsWith('/git/blobs') && init.method === 'POST') return { status: 201, json: { sha: 'blob1' } };
+      if (url.endsWith('/git/commits/head')) return { json: { tree: { sha: 'tree0' } } };
+      if (url.endsWith('/git/trees')) return { status: 201, json: { sha: 'tree1' } };
+      if (url.endsWith('/git/commits') && init.method === 'POST') return { status: 201, json: { sha: 'c1' } };
+    });
+    const gh = new GitHubClient('tok', repo, fn);
+    expect(await gh.createBlob('AAAA')).toBe('blob1');
+    const sha = await gh.makeCommit({ 'data/attachments/p-1.jpg': { sha: 'blob1' }, 'data/attachments/p-1.json': '{}\n' }, 'quest: attach: p-1', 'head');
+    expect(sha).toBe('c1');
+    expect(calls.find((c) => c.url.endsWith('/git/blobs'))!.body).toEqual({ content: 'AAAA', encoding: 'base64' });
+    expect(calls.find((c) => c.url.endsWith('/git/trees'))!.body.tree).toEqual([
+      { path: 'data/attachments/p-1.jpg', mode: '100644', type: 'blob', sha: 'blob1' },
+      { path: 'data/attachments/p-1.json', mode: '100644', type: 'blob', content: '{}\n' },
+    ]);
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+    await expect(gh.makeCommit({ 'src/evil.ts': 'x' }, 'm', 'head')).rejects.toThrow(/doesn't write src\/evil.ts/);
+  });
+
+  it('reuses a branch and an open pull request left by an earlier try, and labels it', async () => {
+    const { fn, calls } = fakeFetch((url, init) => {
+      if (url.endsWith('/git/refs') && init.method === 'POST') return { status: 422, json: { message: 'Reference already exists' } };
+      if (url.endsWith('/pulls') && init.method === 'POST') return { status: 422, json: { message: 'A pull request already exists' } };
+      if (url.includes('/pulls?state=open&head=o%3Aquest%2Fattach%2Fp-1')) return { json: [{ number: 7 }] };
+      if (url.endsWith('/issues/7/labels')) return { json: [] };
+    });
+    const gh = new GitHubClient('tok', repo, fn);
+    expect(await gh.createBranch('quest/attach/p-1', 'c1')).toBe(false);
+    expect(await gh.openPull('quest/attach/p-1', '📷 Photo', 'shared text')).toBe(7);
+    await gh.addLabels(7, ['quest:attachment']);
+    expect(calls.find((c) => c.url.endsWith('/git/refs'))!.body).toEqual({ ref: 'refs/heads/quest/attach/p-1', sha: 'c1' });
+    expect(calls.find((c) => c.url.endsWith('/pulls') && c.method === 'POST')!.body).toEqual({ title: '📷 Photo', head: 'quest/attach/p-1', base: 'main', body: 'shared text' });
+    expect(calls.at(-1)!.body).toEqual({ labels: ['quest:attachment'] });
+  });
+
+  it('lists only open attachment pull requests from this repo', async () => {
+    const pull = (number: number, ref: string, from = 'o/r') => ({ number, title: `#${number}`, html_url: `u${number}`, created_at: '2026-11-01T08:00:00Z', head: { ref, sha: `s${number}`, repo: { full_name: from } } });
+    const { fn } = fakeFetch((url) => {
+      if (url.includes('/pulls?state=open&base=main')) return { json: [pull(1, 'quest/attach/p-1'), pull(2, 'feature'), pull(3, 'quest/attach/p-3', 'fork/r')] };
+    });
+    expect(await new GitHubClient('tok', repo, fn).listAttachmentPulls()).toEqual([
+      { id: 'p-1', number: 1, title: '#1', url: 'u1', headSha: 's1', createdAt: '2026-11-01T08:00:00Z' },
+    ]);
+  });
+
+  it('reads the bytes of a photo on its branch', async () => {
+    const { fn, calls } = fakeFetch((url) => (url.includes('/contents/data/attachments/p-1.jpg?ref=s1') ? { bytes: new Uint8Array([1, 2, 3]) } : undefined));
+    const blob = await new GitHubClient('tok', repo, fn).readRaw('data/attachments/p-1.jpg', 's1');
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+    expect(calls[0].url).toContain('/contents/data/attachments/p-1.jpg');
+  });
+
+  it('writes a sidecar that validates', () => {
+    const text = sidecarText({ id: 'p-1', addedAt: '2026-11-01T08:00:00.000Z', via: 'share', text: 'Boiler receipt' });
+    expect(JSON.parse(text).$schema).toBe('https://tasks.patrick-mckinley.com/schema/attachment.schema.json');
+    expect(validateFiles({ 'data/attachments/p-1.json': text }, ['data/attachments/p-1.json', 'data/attachments/p-1.jpg'])).toEqual([]);
   });
 });
