@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 16**
+**Skill version: 17**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 

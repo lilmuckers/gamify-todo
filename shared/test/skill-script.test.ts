@@ -832,6 +832,16 @@ describe('quest.py photos', () => {
     }
   });
 
+  it('hands a photo to an agent without a read, and can report the new commit', async () => {
+    const pr = addPhoto('photo-pass', ['quest:attachment', 'quest:read-auto']);
+    const r = await run(['photo-flag', '--repo', 'o/r', '--pr', String(pr), '--note', 'the models failed'], env);
+    expect(r.code, r.out).toBe(0);
+    expect(gh.pulls[pr - 1].labels).toEqual(['quest:attachment', 'quest:read-agent']);
+    expect(gh.pulls[pr - 1].comments?.[0]).toMatch(/the models failed/);
+    const saved = await saveRead(pr, read, '--json');
+    expect(JSON.parse(saved.out)).toEqual({ pr, path: 'data/attachments/photo-pass.json', sha: gh.refs.get(gh.pulls[pr - 1].head), flagged: false });
+  });
+
   it('gives up on a photo, says why, and it stops waiting', async () => {
     const pr = addPhoto('photo-blurry', ['quest:attachment', 'quest:read-agent', 'quest:reading']);
     const r = await run(['photo-give-up', '--repo', 'o/r', '--pr', String(pr), '--note', 'too blurry'], env);

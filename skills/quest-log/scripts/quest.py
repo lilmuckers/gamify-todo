@@ -32,7 +32,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 16
+SKILL_VERSION = 17
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -1314,11 +1314,25 @@ def cmd_photo_save(args):
     if issues:
         raise QuestError('That read is not valid, so nothing was saved:\n' + '\n'.join(f'  {at}: {msg}' for _, at, msg in issues))
     name = merged.get('title') or photo_id
-    gh.commit({path: text}, f'quest: attach: read: {name}', sha, p['head']['ref'])
+    commit = gh.commit({path: text}, f'quest: attach: read: {name}', sha, p['head']['ref'])
     gh.set_read_labels(args.pr, [READ_AGENT] if args.flag else [READ_DONE])
     if merged.get('title') and not sidecar.get('title'):
         gh.call('PATCH', f'/pulls/{args.pr}', {'title': f'📷 {merged["title"]}'})
-    print(f'Read #{args.pr} saved to {path}{" and flagged for an agent" if args.flag else ""}.')
+    if args.json:
+        print(json.dumps({'pr': args.pr, 'path': path, 'sha': commit, 'flagged': args.flag}))
+    else:
+        print(f'Read #{args.pr} saved to {path}{" and flagged for an agent" if args.flag else ""}.')
+    return 0
+
+
+def cmd_photo_flag(args):
+    """Leaves a photo for an agent without saving a read, and says why on the pull request."""
+    gh = GitHub(args.repo)
+    gh.photo_pull(args.pr)
+    gh.set_read_labels(args.pr, [READ_AGENT])
+    if args.note:
+        gh.call('POST', f'/issues/{args.pr}/comments', {'body': f'Left for an agent to read: {args.note}'})
+    print(f'#{args.pr} flagged for an agent.')
     return 0
 
 
@@ -1403,7 +1417,14 @@ def main(argv=None):
     p.add_argument('--model', help='the model that read it')
     p.add_argument('--mode', choices=['agent', 'open-weight'], default='agent')
     p.add_argument('--flag', action='store_true', help='save it, but leave the photo waiting for an agent')
+    p.add_argument('--json', action='store_true', help='print { pr, path, sha, flagged } instead of text')
     p.set_defaults(run=cmd_photo_save)
+
+    p = sub.add_parser('photo-flag', help='leave a photo for an agent without saving a read')
+    p.add_argument('--repo', required=True)
+    p.add_argument('--pr', required=True, type=int)
+    p.add_argument('--note', help='why, posted on the pull request')
+    p.set_defaults(run=cmd_photo_flag)
 
     p = sub.add_parser('photo-give-up', help="stop agents trying a photo that can't be read")
     p.add_argument('--repo', required=True)
