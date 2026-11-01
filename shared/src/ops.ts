@@ -97,7 +97,7 @@ export type OpBody =
   | { kind: 'removeDevice'; id: string };
 
 type AutomationFile = NonNullable<Workspace['automation']>;
-type Block<K extends 'schedule' | 'validate' | 'notify'> = NonNullable<AutomationFile[K]>;
+type Block<K extends 'schedule' | 'validate' | 'notify' | 'photos'> = NonNullable<AutomationFile[K]>;
 
 /**
  * Fields to change in automation.json, block by block, so a patch to one field never
@@ -108,6 +108,7 @@ export interface AutomationPatch {
   schedule?: Partial<Block<'schedule'>>;
   validate?: Partial<Block<'validate'>>;
   notify?: Partial<Omit<Block<'notify'>, 'devices'>>;
+  photos?: Partial<Block<'photos'>>;
 }
 
 /** Most push devices one repo can hold (the schema's maxItems). */
@@ -379,7 +380,7 @@ function applyAutomationOp(ws: Workspace, op: Extract<Op, { kind: 'updateAutomat
   if (op.kind === 'updateAutomation') {
     const { channel, ...blocks } = op.patch;
     if ('channel' in op.patch) a.channel = channel;
-    for (const k of ['schedule', 'validate', 'notify'] as const) {
+    for (const k of ['schedule', 'validate', 'notify', 'photos'] as const) {
       const patch = blocks[k] as Record<string, unknown> | undefined;
       if (!patch) continue;
       const { devices: _, ...fields } = patch;
@@ -623,7 +624,7 @@ export function inverseOp(op: OpBody, before: Workspace): OpBody | undefined {
   if (op.kind === 'updateAutomation') {
     const patch: AutomationPatch = {};
     if ('channel' in op.patch) patch.channel = automation.channel;
-    for (const k of ['schedule', 'validate', 'notify'] as const) {
+    for (const k of ['schedule', 'validate', 'notify', 'photos'] as const) {
       const fields = op.patch[k];
       const prev = (automation[k] ?? {}) as Record<string, unknown>;
       if (fields) (patch as Record<string, unknown>)[k] = Object.fromEntries(Object.keys(fields).map((f) => [f, clone(prev[f])]));

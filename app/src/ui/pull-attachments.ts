@@ -1,4 +1,5 @@
 import {
+  ATTACHMENT_KIND_LABEL,
   attachmentFileId,
   attachmentSidecarPath,
   attachmentTargetLabel,
@@ -7,8 +8,11 @@ import {
   orderedProjects,
   orderedWorlds,
   parseTags,
+  READ_LABELS,
+  readFieldRows,
   sidecarText,
   validateFiles,
+  type AttachmentRead,
   type AttachmentSidecar,
   type AttachmentTarget,
   type PullDetail,
@@ -74,6 +78,8 @@ export function pullAttachments(app: App, detail: PullDetail, head: Workspace): 
           null,
           sidecar?.title && h('strong', null, sidecar.title),
           sidecar?.text && h('span', { class: 'pr-photo-text' }, sidecar.text),
+          readStatus(detail.labels),
+          sidecar?.read && readBlock(sidecar.read),
           sidecar?.attachedTo && h('span', { class: 'pr-photo-link' }, '📎 ', attachmentTargetLabel(app.workspace ?? head, sidecar.attachedTo)),
           !!(sidecar?.takenOn || sidecar?.tags?.length) &&
             h('small', null, [sidecar!.takenOn && `taken ${sidecar!.takenOn}`, sidecar!.tags?.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')),
@@ -85,6 +91,36 @@ export function pullAttachments(app: App, detail: PullDetail, head: Workspace): 
         editable && sidecar && editForm(app, detail, sidecar),
       );
     }),
+  );
+}
+
+/** Where the photo is on its way to being read, from the pull request's labels. */
+function readStatus(labels: string[]) {
+  const text = labels.includes(READ_LABELS.reading)
+    ? '🔎 Being read now'
+    : labels.includes(READ_LABELS.failed)
+      ? '⚠️ It couldn’t be read. Fill in the details by hand.'
+      : labels.includes(READ_LABELS.agent)
+        ? '🔎 Waiting for an agent to read it'
+        : labels.includes(READ_LABELS.auto)
+          ? '🔎 Waiting for the open models to read it'
+          : undefined;
+  return text ? h('small', { class: 'pr-read-status' }, text) : null;
+}
+
+/** What a reader found: its kind and summary, the facts, any suggested actions and all the words. */
+function readBlock(read: AttachmentRead) {
+  const rows = readFieldRows(read.fields);
+  const who = read.by.model ?? (read.by.mode === 'agent' ? 'an agent' : 'open models');
+  return h(
+    'div',
+    { class: 'pr-read' },
+    h('strong', null, ATTACHMENT_KIND_LABEL[read.kind]),
+    read.summary && h('span', null, read.summary),
+    !!rows.length && h('dl', null, rows.flatMap(([label, value]) => [h('dt', null, label), h('dd', null, value)])),
+    !!read.todos?.length && h('ul', { class: 'pr-read-todos' }, read.todos.map((t) => h('li', null, t))),
+    read.text && h('details', null, h('summary', null, 'All the words'), h('pre', null, read.text)),
+    h('small', { class: 'muted' }, [`read by ${who}`, read.confidence && `${read.confidence} confidence`, relTime(read.by.at)].filter(Boolean).join(' · ')),
   );
 }
 

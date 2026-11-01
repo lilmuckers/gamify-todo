@@ -61,7 +61,7 @@ Checked by `npm run validate`, the app, and CI:
   `YYYY-MM-DD` day to `completions` (in date order, one per day) and moves the item's `spent` into
   that entry, so each occurrence has its own budget. Repeating items are never MVP.
 - `data/automation.json` configures the Quest Log GitHub Action (`channel`, `schedule.every`,
-  `validate`, `notify`). Every block is optional; a missing file means validation on and
+  `validate`, `notify`, and `photos.reader`: `off`, `open-weight` or `agent`). Every block is optional; a missing file means validation on and
   everything else off. Push device ids are unique and each `timezone` is an IANA name. The app
   writes this file in the same commit as `.github/workflows/quest.yml`, which it renders from it
   (`shared/src/stub.ts`); the workflow only has a `schedule:` while some device wants a time-box
@@ -71,10 +71,13 @@ Checked by `npm run validate`, the app, and CI:
   `attachedTo`: `{ project, world?, level?, item? }`, where `item` needs `level` and `level` needs
   `world`; a target that's gone is ignored, plus the app-recorded `capturedWith` `{ device?, kind?,
   os?, browser?, installed?, app? }` and `original` `{ name?, type?, bytes?, width?, height? }`;
-  no location or network address is ever stored), and each sidecar a
+  no location or network address is ever stored; and `read`, what a reader found: `{ kind, by:
+  { mode, model?, at }, confidence?, summary?, text?, fields?, todos? }`, with `kind` one of
+  `receipt`, `quote-invoice`, `letter-bill`, `booking`, `product-label`, `handwritten`,
+  `screenshot`, `page`, `plan-measure` or `scene`), and each sidecar a
   file. An unpaired file or sidecar, two files for one id, or another file type is an error. The
   files are binary: validators list them and never read them, and the Warp Zone shows the
-  photos (JPEG, PNG, WebP; HEIC by name) with their sidecar's words. A project can't be called `attachments`. The app writes this folder; tools leave it alone.
+  photos (JPEG, PNG, WebP; HEIC by name) with their sidecar's words. A project can't be called `attachments`. The app writes this folder; tools leave it alone, except that `quest.py photo-save` sets `read`.
 
 ## Generating data with an LLM
 

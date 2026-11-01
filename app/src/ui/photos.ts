@@ -43,7 +43,7 @@ export function photoStrip(app: App, target: AttachmentTarget): HTMLElement | nu
         snapshot(app, a),
         h('span', { class: 'photo-title' }, a.title ?? a.takenOn ?? 'Photo'),
         deeper && h('small', { class: 'muted' }, attachmentTargetLabel(app.workspace, a.attachedTo!).split(' › ').slice(depth(target) + 1).join(' › ')),
-        a.text && h('small', { class: 'photo-text' }, a.text),
+        (a.text ?? a.read?.summary) && h('small', { class: 'photo-text' }, a.text ?? a.read!.summary!),
         !!(a.takenOn || a.tags?.length) && h('small', { class: 'muted' }, [a.takenOn, a.tags?.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')),
       );
     }),

@@ -2,7 +2,7 @@ import { classifyPath } from './serialize';
 import type { HistoryCommit } from './history';
 import type { CommitChanges, HistoryPage } from './scan';
 import { isDataPath } from './serialize';
-import { isAttachmentPath } from './attachments';
+import { isAttachmentPath, type PhotoReader } from './attachments';
 import { STUB_PATH } from './stub';
 
 export interface RepoRef {
@@ -79,6 +79,7 @@ export interface PullSummary {
   headRepo: string;
   baseRef: string;
   dataFiles: string[];
+  labels: string[];
 }
 
 export interface PullDetail extends PullSummary {
@@ -106,6 +107,27 @@ export interface AttachmentPull {
 /** Branch prefix and label for attachment pull requests (plans D14). */
 export const ATTACHMENT_BRANCH_PREFIX = 'quest/attach/';
 export const ATTACHMENT_LABEL = 'quest:attachment';
+
+/**
+ * Where a photo is on its way to being read. The app labels a new photo's pull request by the
+ * repo's `photos.reader`; the action takes `read-auto`, agents take `read-agent`.
+ */
+export const READ_LABELS = {
+  /** Waiting for the open-weight models in the action. */
+  auto: 'quest:read-auto',
+  /** Waiting for an agent: chosen in Settings, or flagged by the action. */
+  agent: 'quest:read-agent',
+  /** A reader has it now. */
+  reading: 'quest:reading',
+  done: 'quest:read-done',
+  /** A reader gave up on it. */
+  failed: 'quest:read-failed',
+} as const;
+
+/** The labels a new photo's pull request starts with. */
+export function attachmentLabels(reader: PhotoReader | undefined): string[] {
+  return [ATTACHMENT_LABEL, ...(reader === 'open-weight' ? [READ_LABELS.auto] : reader === 'agent' ? [READ_LABELS.agent] : [])];
+}
 
 /** A file in a commit: text, an existing blob by sha (binaries), or null to delete it. */
 export type CommitEntry = string | null | { sha: string };
@@ -591,6 +613,7 @@ function summarize(p: any): Omit<PullSummary, 'dataFiles'> {
     headRef: p.head.ref,
     headRepo: p.head.repo?.full_name ?? '',
     baseRef: p.base.ref,
+    labels: (p.labels ?? []).map((l: { name?: string }) => l.name ?? '').filter(Boolean),
   };
 }
 

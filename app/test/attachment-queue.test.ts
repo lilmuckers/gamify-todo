@@ -148,4 +148,16 @@ describe('AttachmentQueue', () => {
     await expect(q.add([photo()], { via: 'button' })).rejects.toThrow(/Couldn’t read that image/);
     expect(q.items).toEqual([]);
   });
+
+  it('uploads each photo for whatever reads the repo’s photos at that moment', async () => {
+    const fake = provider();
+    let reader: 'agent' | undefined;
+    const queue = new AttachmentQueue(fake, memory(), 'r', () => {}, deps({ reader: () => reader }));
+    await queue.add([new Blob([new Uint8Array([1])], { type: 'image/png' })], { via: 'button' });
+    await queue.flush();
+    reader = 'agent';
+    await queue.add([new Blob([new Uint8Array([1])], { type: 'image/png' })], { via: 'button' });
+    await queue.flush();
+    expect(fake.sent.map((u) => u.reader)).toEqual([undefined, 'agent']);
+  });
 });

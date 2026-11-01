@@ -3,6 +3,7 @@ import {
   type AttachmentPull,
   type AttachmentSidecar,
   type LevelAt,
+  type PhotoReader,
   type Workspace,
   type HistoryCommit,
   type HistoryPage,
@@ -102,11 +103,13 @@ export interface AutomationProvider {
 export interface AttachmentUpload {
   sidecar: AttachmentSidecar;
   base64: string;
+  /** What reads it, from the repo's `photos.reader`. */
+  reader?: PhotoReader;
 }
 
 /**
  * Photos as attachment pull requests (plans G6): one `quest/attach/<id>` PR per photo, with the
- * file and its sidecar, labelled `quest:attachment`. Nothing reads them yet; they wait.
+ * file and its sidecar, labelled `quest:attachment`, plus a read label when the repo has a reader.
  */
 export interface AttachmentProvider {
   /** Uploads one photo as its own pull request. Safe to repeat after a failure. Returns the PR number. */

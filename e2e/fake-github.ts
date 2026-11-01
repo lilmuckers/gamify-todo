@@ -120,6 +120,15 @@ class FakeRepo {
     this.head = sha;
   }
 
+  /** Replaces files on a pull request's branch, as an agent pushing to it would. */
+  pushTo(branch: string, files: Record<string, string>, message = 'Push from elsewhere') {
+    const parent = this.branches.get(branch)!;
+    const next = { ...this.files(parent), ...files };
+    const sha = sha1(`${parent}:${message}:${JSON.stringify(next)}`);
+    this.commits.set(sha, { tree: this.addTree(next), message, parent });
+    this.branches.set(branch, sha);
+  }
+
   /** Paths a commit changed against its parent. */
   changed(c: Commit) {
     const before = c.parent ? this.trees.get(this.commits.get(c.parent)!.tree)! : {};

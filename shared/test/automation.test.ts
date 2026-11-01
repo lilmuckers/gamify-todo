@@ -76,6 +76,14 @@ describe('data/automation.json', () => {
 });
 
 describe('automation ops', () => {
+  it('updateAutomation sets, undoes and clears the photo reader', () => {
+    const ws = workspace();
+    const on = apply(ws, { kind: 'updateAutomation', patch: { photos: { reader: 'agent' } } });
+    expect(on.automation?.photos).toEqual({ reader: 'agent' });
+    const off = apply(on, { kind: 'updateAutomation', patch: { photos: { reader: undefined } } });
+    expect(off.automation?.photos).toBeUndefined();
+  });
+
   it('updateAutomation patches field by field, keeps devices, and drops emptied blocks', () => {
     const ws = withAutomation();
     const next = apply(ws, { kind: 'updateAutomation', patch: { channel: 'beta', schedule: { every: '1h' }, notify: { enabled: false } } });

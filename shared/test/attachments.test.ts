@@ -6,7 +6,9 @@ import {
   attachmentFilePath,
   attachmentNames,
   attachmentsIn,
+  attachmentLabels,
   attachmentTargetLabel,
+  readFieldRows,
   parseTags,
   attachmentSidecarPath,
   changedFiles,
@@ -225,3 +227,33 @@ describe('attachment files are listed, never read', () => {
     expect((await gh.pull(7)).dataFiles).toEqual(['data/attachments/receipt-1.jpg', 'data/attachments/receipt-1.json']);
   });
 });
+
+describe('reading photos', () => {
+  it('a new photo is labelled for whatever reads this repo’s photos', () => {
+    expect(attachmentLabels(undefined)).toEqual(['quest:attachment']);
+    expect(attachmentLabels('off')).toEqual(['quest:attachment']);
+    expect(attachmentLabels('open-weight')).toEqual(['quest:attachment', 'quest:read-auto']);
+    expect(attachmentLabels('agent')).toEqual(['quest:attachment', 'quest:read-agent']);
+  });
+
+  it('a read’s facts come out as label and text, leaving out what it doesn’t have', () => {
+    expect(readFieldRows(undefined)).toEqual([]);
+    expect(
+      readFieldRows({
+        from: 'Topps Tiles',
+        total: '184.20',
+        currency: 'GBP',
+        items: [{ name: 'Tile', qty: 12, price: '184.20' }, { name: 'Grout' }],
+        dimensions: [{ label: 'Wall', value: 2400, unit: 'mm' }, { value: 3, unit: 'm' }],
+      }),
+    ).toEqual([
+      ['From', 'Topps Tiles'],
+      ['Total', '184.20 GBP'],
+      ['Item', '12 × Tile · 184.20 GBP'],
+      ['Item', 'Grout'],
+      ['Wall', '2400 mm'],
+      ['Measure', '3 m'],
+    ]);
+  });
+});
+

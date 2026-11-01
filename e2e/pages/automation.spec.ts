@@ -89,6 +89,19 @@ test('installs the workflow and automation.json in one commit, then edits re-ren
   await expect(section.locator('.stub-state')).toHaveAttribute('data-state', 'current');
 });
 
+test('chooses what reads new photos, without changing the workflow', async ({ page }) => {
+  const gh = new FakeGitHub({ repos: [{ owner: 'player', name: 'quests' }] });
+  const repo = gh.repo(REPO);
+  const section = await openAutomation(page, gh);
+  await expect(section.locator('.reader-note')).toContainText('wait in the Warp Zone');
+  await section.getByLabel('Read photos with').selectOption('agent');
+  await expect(section.locator('.reader-note')).toContainText('No models run in the workflow');
+  await expect.poll(() => repo.files()[CONFIG] && JSON.parse(repo.files()[CONFIG]).photos).toEqual({ reader: 'agent' });
+  await section.getByLabel('Read photos with').selectOption('off');
+  // Nothing else was set, so the file goes back to not being there.
+  await expect.poll(() => repo.files()[CONFIG]).toBeUndefined();
+});
+
 test('the schedule re-renders the cron, and drops it when nothing scheduled is on', async ({ page }) => {
   const gh = new FakeGitHub({ repos: [{ owner: 'player', name: 'quests' }] });
   const repo = gh.repo(REPO);

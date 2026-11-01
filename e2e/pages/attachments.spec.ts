@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ATTACHMENT_LABEL, attachmentFilePath, attachmentSidecarPath } from '../../shared/src';
+import { ATTACHMENT_LABEL, attachmentFilePath, attachmentSidecarPath, READ_LABELS } from '../../shared/src';
 import { validateFiles } from '../../shared/src/validate';
 import { FakeGitHub } from '../fake-github';
 import { inScene, skipWelcome } from '../helpers';
@@ -174,4 +174,54 @@ test('a photo’s details are edited on its pull request, then it shows on the i
   await expect(page.getByText('Photos · 1')).toBeVisible();
   await page.goto('./#/p/kitchen-renovation/fit');
   await expect(page.locator('.photo-strip li small').first()).toHaveText('Splashback and floor › Choose the splashback tiles');
+});
+
+test('a photo goes to the repo’s reader, and the Warp Zone shows what it found', async ({ page }) => {
+  const gh = new FakeGitHub({ repos: [{ owner: 'player', name: 'quests' }] });
+  const repo = gh.repo(REPO);
+  repo.push({ 'data/automation.json': JSON.stringify({ photos: { reader: 'agent' } }) });
+  await openInbox(page, gh);
+
+  await page.locator('.pad-capture input[type=file]').setInputFiles(photo);
+  await page.locator('.pad-photos .pad-line.photo').getByRole('link', { name: /#1$/ }).click();
+  const [pull] = repo.pulls;
+  expect(pull.labels).toEqual([ATTACHMENT_LABEL, READ_LABELS.agent]);
+  const path = attachmentSidecarPath(pull.head.replace('quest/attach/', ''));
+
+  const shown = page.locator('.pr-attachment');
+  await expect(shown.locator('.pr-read-status')).toHaveText('🔎 Waiting for an agent to read it');
+  await expect(shown.locator('.pr-read')).toHaveCount(0);
+
+  // An agent reads it, as `quest.py photo-save` would.
+  const sidecar = JSON.parse(repo.files(repo.branches.get(pull.head)!)[path]);
+  repo.pushTo(pull.head, {
+    [path]: JSON.stringify({
+      ...sidecar,
+      read: {
+        kind: 'receipt',
+        by: { mode: 'agent', model: 'claude', at: '2026-11-01T10:00:00Z' },
+        confidence: 'high',
+        summary: 'Topps Tiles, 12 boxes of tile',
+        text: 'TOPPS TILES\nTOTAL 184.20',
+        fields: { from: 'Topps Tiles', total: '184.20', currency: 'GBP', items: [{ name: 'Tile', qty: 12, price: '184.20' }] },
+        todos: ['Book the tiler'],
+      },
+    }),
+  });
+  pull.labels = [ATTACHMENT_LABEL, READ_LABELS.done];
+  await page.reload();
+
+  const read = page.locator('.pr-attachment .pr-read');
+  await expect(page.locator('.pr-attachment .pr-read-status')).toHaveCount(0);
+  await expect(read.locator('strong')).toHaveText('Receipt');
+  await expect(read).toContainText('Topps Tiles, 12 boxes of tile');
+  await expect(read.locator('dd').nth(1)).toHaveText('184.20 GBP');
+  await expect(read.locator('.pr-read-todos li')).toHaveText('Book the tiler');
+  await expect(read).toContainText('read by claude · high confidence');
+  // Editing the details leaves what was read alone.
+  await page.locator('.pr-attachment').getByText('Edit details').click();
+  await page.locator('.pr-attachment').getByLabel('Title').fill('Tile receipt');
+  await page.locator('.pr-attachment').getByRole('button', { name: 'Save to the pull request' }).click();
+  await expect(page.locator('.pr-attachment figcaption > strong')).toHaveText('Tile receipt');
+  expect(JSON.parse(repo.files(repo.branches.get(pull.head)!)[path]).read.summary).toBe('Topps Tiles, 12 boxes of tile');
 });
