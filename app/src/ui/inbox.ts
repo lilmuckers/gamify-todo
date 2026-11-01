@@ -99,7 +99,11 @@ export function inboxSheet(app: App): (Node | null | false | undefined)[] {
   const addPhotos = (files: Blob[], via: 'button' | 'paste' | 'share') => {
     if (!photos || !files.length) return;
     photos.add(files, { via }).then(
-      (n) => n && toast(n === 1 ? 'Photo saved. It goes up as a pull request when online.' : `${n} photos saved. They go up as pull requests when online.`, 'win'),
+      (n) => {
+        if (!n) return;
+        const what = n === 1 ? 'Photo saved.' : `${n} photos saved.`;
+        toast(navigator.onLine ? `${what} Sending ${n === 1 ? 'it' : 'them'} as ${n === 1 ? 'a pull request' : 'pull requests'}…` : `${what} ${n === 1 ? 'It goes' : 'They go'} up once you’re back online.`, 'win');
+      },
       (err: Error) => toast(err.message, 'warn', 6000),
     );
   };
@@ -281,8 +285,8 @@ export function inboxSheet(app: App): (Node | null | false | undefined)[] {
     items.length
       ? h('ul', { class: 'pad-list' }, items.map(line))
       : h('p', { class: 'pad-empty' }, edit ? 'Nothing here. Jot ideas down as they come; sort them later.' : 'Empty.'),
-    bar,
     photos && waitingPhotos(app),
+    bar,
   ];
 }
 
@@ -302,7 +306,7 @@ function waitingPhotos(app: App) {
       'ul',
       { class: 'pad-list', 'aria-live': 'polite' },
       rows.map((row) => {
-        const img = h('img', { class: 'pad-thumb', alt: '', width: 48, height: 48 });
+        const img = h('img', { class: 'pad-photo', alt: '', width: 52, height: 52 });
         void queue.thumb(row).then((src) => src && (img.src = src));
         const status = row.local ? (row.error ? `not sent yet: ${row.error}` : 'saved here, not sent yet') : `waiting · ${relTime(row.addedAt)}`;
         const label = row.pull
@@ -310,7 +314,7 @@ function waitingPhotos(app: App) {
             ? h('a', { class: 'pad-link', href: `#/pr/${row.pull.number}` }, `${row.title} #${row.pull.number}`)
             : h('span', { class: 'pad-link' }, row.title)
           : h('span', { class: 'pad-link' }, row.title);
-        return h('li', { class: `pad-line photo${row.error ? ' late' : ''}`, 'data-photo': row.id }, img, label, h('span', { class: 'pad-where' }, status));
+        return h('li', { class: `pad-line photo${row.error ? ' late' : ''}`, 'data-photo': row.id }, img, h('span', { class: 'pad-photo-text' }, label, h('span', { class: 'pad-where' }, status)));
       }),
     ),
   );

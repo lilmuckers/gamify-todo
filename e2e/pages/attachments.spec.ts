@@ -46,7 +46,7 @@ test('📷 uploads a photo as its own labelled pull request, shown waiting and i
   await expect(row).toHaveCount(1);
   await expect(row.getByRole('link', { name: /#1$/ })).toBeVisible();
   await expect(row.locator('.pad-where')).toContainText('waiting');
-  await expect(row.locator('img.pad-thumb')).toHaveAttribute('src', /^blob:/);
+  await expect(row.locator('img.pad-photo')).toHaveAttribute('src', /^blob:/);
 
   // One branch, one pull request with the photo and its sidecar, labelled; main untouched.
   expect(repo.head).toBe(before);
