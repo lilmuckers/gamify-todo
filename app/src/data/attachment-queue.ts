@@ -1,5 +1,6 @@
 import type { AttachmentPull, AttachmentSidecar, AttachmentVia } from '@quest/shared';
 import { track } from '../analytics';
+import { exifDate, originalFacts, type CapturedWith, type Original } from './capture';
 import type { AttachmentProvider } from './source';
 import type { KV } from './store';
 
@@ -20,6 +21,10 @@ export interface QueuedPhoto {
   via: AttachmentVia;
   title?: string;
   text?: string;
+  /** The day the photo says it was taken (EXIF), when it says. */
+  takenOn?: string;
+  capturedWith?: CapturedWith;
+  original?: Original;
   /** The compressed JPEG. */
   blob: Blob;
   /** Why the last upload failed; it's tried again later. */
@@ -37,9 +42,18 @@ export interface WaitingRow {
   pull?: AttachmentPull;
 }
 
+/** A shrunk photo, with the original's pixel size. */
+export interface Compressed {
+  blob: Blob;
+  width: number;
+  height: number;
+}
+
 export interface QueueDeps {
   online(): boolean;
-  compress(file: Blob): Promise<Blob>;
+  compress(file: Blob): Promise<Compressed>;
+  /** The device a photo is added on: kind, OS, browser, push name, app build. */
+  device(): CapturedWith;
   now(): Date;
   random(): number;
 }
@@ -51,7 +65,7 @@ export function fitWithin(width: number, height: number, max = MAX_EDGE): { widt
 }
 
 /** Redraws a photo as a JPEG within MAX_EDGE. Drawing to a canvas keeps only the pixels, so EXIF and GPS go. */
-export async function compressPhoto(file: Blob): Promise<Blob> {
+export async function compressPhoto(file: Blob): Promise<Compressed> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -67,8 +81,10 @@ export async function compressPhoto(file: Blob): Promise<Blob> {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(bitmap, 0, 0, width, height);
+  const original = { width: bitmap.width, height: bitmap.height };
   bitmap.close();
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Couldn’t shrink that image.'))), 'image/jpeg', QUALITY));
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Couldn’t shrink that image.'))), 'image/jpeg', QUALITY));
+  return { blob, ...original };
 }
 
 /** A new attachment id: `photo-20261101-084100-k3x9`, unique enough per repo and a valid slug. */
@@ -104,7 +120,7 @@ export class AttachmentQueue {
     private onChange: () => void,
     deps: Partial<QueueDeps> = {},
   ) {
-    this.deps = { online: () => navigator.onLine, compress: compressPhoto, now: () => new Date(), random: Math.random, ...deps };
+    this.deps = { online: () => navigator.onLine, compress: compressPhoto, device: () => ({}), now: () => new Date(), random: Math.random, ...deps };
     this.ready = this.kv.get<QueuedPhoto[]>(this.key).then((saved) => {
       this.items = saved ?? [];
     });
@@ -127,9 +143,21 @@ export class AttachmentQueue {
     await this.ready;
     let added = 0;
     for (const file of files) {
-      const blob = await this.deps.compress(file);
+      const { blob, width, height } = await this.deps.compress(file);
+      // Read before it's gone: the redrawn JPEG keeps no EXIF.
+      const takenOn = file.type === 'image/jpeg' ? exifDate(await file.slice(0, 256 * 1024).arrayBuffer()) : undefined;
+      const capturedWith = this.deps.device();
       const id = photoId(this.deps.now(), this.deps.random);
-      this.items.push({ id, addedAt: this.deps.now().toISOString(), via: meta.via, ...(meta.text ? { text: meta.text } : {}), blob });
+      this.items.push({
+        id,
+        addedAt: this.deps.now().toISOString(),
+        via: meta.via,
+        ...(meta.text ? { text: meta.text } : {}),
+        ...(takenOn && { takenOn }),
+        ...(Object.keys(capturedWith).length && { capturedWith }),
+        original: originalFacts(file, { width, height }),
+        blob,
+      });
       track('attachment_add', { via: meta.via });
       added++;
     }
@@ -157,7 +185,8 @@ export class AttachmentQueue {
     try {
       for (const item of [...this.items]) {
         try {
-          const sidecar: AttachmentSidecar = { id: item.id, addedAt: item.addedAt, via: item.via, ...(item.title ? { title: item.title } : {}), ...(item.text ? { text: item.text } : {}) };
+          const { blob: _, error: __, ...fields } = item;
+          const sidecar: AttachmentSidecar = fields;
           await this.provider.submit({ sidecar, base64: await toBase64(item.blob) });
           this.items = this.items.filter((i) => i.id !== item.id);
         } catch (err) {

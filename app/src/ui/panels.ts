@@ -49,6 +49,8 @@ import { href } from '../router';
 import { NODE_SPRITE } from '../sprites/pixels';
 import { fmtDuration, h, icon, relTime, stars } from './dom';
 import { criterionForm, goalForm, itemForm, levelForm, projectForm, STATUS_LABEL, TYPE_INFO, worldForm } from './forms';
+import { photoCount, photoStrip } from './photos';
+import { pullAttachments } from './pull-attachments';
 import { mergeDialog, reviewDialog } from './review';
 import { filterChips } from './search';
 
@@ -294,10 +296,17 @@ function overworldPanel(app: App) {
         }),
       ),
     ),
+    photoSection(app, { project: pid }),
     app.caps.canReviewPRs &&
       warpZoneButton(),
     syncFooter(app),
   );
+}
+
+/** "Photos · n" with the strip, when anything here or inside has photos attached. */
+function photoSection(app: App, target: Parameters<typeof photoStrip>[1]) {
+  const strip = photoStrip(app, target);
+  return strip && section(`Photos · ${photoCount(app, target)}`, null, strip);
 }
 
 function move(app: App, worldId: string, delta: number) {
@@ -362,6 +371,7 @@ function worldPanel(app: App, worldId: string) {
         }),
       ),
     ),
+    photoSection(app, { project: pid, world: w.id }),
   );
 }
 
@@ -481,6 +491,9 @@ function levelPanel(app: App) {
     const every = repeatSummary(item);
     const cash = itemCost(item);
     const saved = cur.budgets && cash.settled ? savedLabel(cash, cur.budgets.currency) : undefined;
+    // Photos hang off top-level items only: a warp pipe's steps live in another file.
+    const photoAt = !cur.sub && r.view !== 'pr-level' ? { project: projectId, world: world.id, level: level.id, item: item.id } : undefined;
+    const photos = photoAt ? photoCount(app, photoAt) : 0;
     const quick = (status: Item['status'], label: string) =>
       item.status !== status &&
       smallBtn(label, () => app.dispatch({ kind: 'setItemStatus', ...itemAt, itemId: item.id, status }), status === 'done' ? 'go' : '');
@@ -501,6 +514,7 @@ function levelPanel(app: App) {
         h('span', { class: 'item-title' }, item.title),
         heroAt === item.id && h('span', { class: 'tag hero', title: 'The hero is waiting here' }, 'NEXT'),
         item.repeat && h('span', { class: 'tag repeat', title: every }, cadenceLabel(item.repeat)),
+        photos > 0 && h('span', { class: 'tag photos', title: `${photos} photo${photos === 1 ? '' : 's'} attached` }, `📷 ${photos}`),
         badge(d?.change),
       ),
       h(
@@ -518,6 +532,7 @@ function levelPanel(app: App) {
           'div',
           { class: 'detail' },
           item.notes && h('p', { class: 'notes' }, item.notes),
+          photoAt && photoStrip(app, photoAt),
           every && h('small', null, every),
           saved && h('small', { class: cash.saved > 0 ? 'win-text' : 'warn-text' }, cash.saved > 0 ? `💰 ${saved} on this one` : `💰 ${saved} budget`),
           item.dependsOn?.length &&
@@ -672,6 +687,7 @@ function levelPanel(app: App) {
       filter.el,
       h('ul', { class: 'list items' }, filter.shown.map(itemCard)),
     ),
+    r.view !== 'pr-level' && photoSection(app, { project: projectId, world: world.id, level: level.id }),
   );
 }
 
@@ -797,7 +813,7 @@ export function pullPanel(app: App, n: number) {
   const projectOf = find.project;
   const worldName = (pid: string, wid: string) => find.world(pid, wid)?.name ?? wid;
   const levelName = (pid: string, wid: string, lid: string) => find.level({ projectId: pid, worldId: wid, levelId: lid })?.name ?? lid;
-  // Attachments are binary: the PR's file list names them, and nothing reads them.
+  // Attachments are binary: shown as pictures from the PR's head, never parsed as data.
   const attachments = attachmentNames(detail.dataFiles);
   return wrap(
     h('h2', null, `#${detail.number} ${detail.title}`),
@@ -868,7 +884,7 @@ export function pullPanel(app: App, n: number) {
             'li',
             null,
             h('div', { class: 'row' }, h('strong', null, 'Attachments')),
-            h('ul', { class: 'fielddiff' }, attachments.map((name) => h('li', null, h('code', null, name)))),
+            pullAttachments(app, detail, v.data.head) ?? h('ul', { class: 'fielddiff' }, attachments.map((name) => h('li', null, h('code', null, name)))),
           ),
       ),
     ),

@@ -33,7 +33,8 @@ import {
 import { pageView, track, type Params } from './analytics';
 import { eventsForOp } from './analytics-events';
 import { play as sfx } from './audio';
-import { followReviewDay } from './push/push';
+import { followReviewDay, thisDevice } from './push/push';
+import { describeDevice } from './data/capture';
 import { heroStore, patchUiPrefs, reviewStore, uiPrefs, type ReviewPrefs } from './config';
 import { AttachmentQueue } from './data/attachment-queue';
 import { pullLookup, type PullData } from './data/source';
@@ -183,7 +184,20 @@ export class App {
     void this.progress.init();
     const photos = store.source.attachments;
     if (photos) {
-      const queue = (this.attachments = new AttachmentQueue(photos, kv, store.source.id, () => this.emit()));
+      const queue = (this.attachments = new AttachmentQueue(photos, kv, store.source.id, () => this.emit(), {
+        device: () => {
+          const label = thisDevice(this)?.label;
+          return {
+            ...(label && { device: label }),
+            ...describeDevice({
+              userAgent: navigator.userAgent,
+              touchPoints: navigator.maxTouchPoints,
+              standalone: matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true,
+            }),
+            app: import.meta.env.VITE_BUILD || 'dev',
+          };
+        },
+      }));
       void queue.start();
       window.addEventListener('online', () => void queue.flush());
     }

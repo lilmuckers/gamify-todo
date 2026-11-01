@@ -220,7 +220,7 @@ describe('quest.py validate', () => {
       ).map((i) => `${i.file}${i.path}: ${i.message}`);
 
     it('accepts paired attachments with both validators, without reading the files', async () => {
-      const tree = { ...good(), [SIDECAR]: sc(), 'data/attachments/receipt-1.jpg': JPEG_BYTES, 'data/attachments/scan.json': sc({ id: 'scan', via: 'paste' }), 'data/attachments/scan.heic': JPEG_BYTES };
+      const tree = { ...good(), [SIDECAR]: sc(), 'data/attachments/receipt-1.jpg': JPEG_BYTES, 'data/attachments/scan.json': sc({ id: 'scan', via: 'paste', takenOn: '2026-10-27', tags: ['receipt'], attachedTo: { project: 'p', world: 'w', level: 'lvl', item: 'a' }, capturedWith: { device: 'Laptop', kind: 'desktop', os: 'macOS', browser: 'Chrome 141', installed: false, app: 'abc1234' }, original: { name: 'IMG_1.HEIC', type: 'image/heic', bytes: 10, width: 4, height: 3 } }), 'data/attachments/scan.heic': JPEG_BYTES };
       expect(appIssues(tree)).toEqual([]);
       for (const env of ENGINES) {
         const r = await run(['validate', writeTree(tree)], env);
@@ -237,6 +237,11 @@ describe('quest.py validate', () => {
       ['unknown via', { [SIDECAR]: sc({ via: 'email' as never }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /receipt-1\.json\/via/],
       ['sidecar without addedAt', { [SIDECAR]: sc({ addedAt: undefined }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /addedAt/],
       ['unexpected sidecar property', { [SIDECAR]: JSON.stringify({ ...sidecar(), extracted: {} }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /extracted/],
+      ['link to an item without its level', { [SIDECAR]: sc({ attachedTo: { project: 'p', world: 'w', item: 'a' } }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /attachedTo/],
+      ['tag with a comma', { [SIDECAR]: sc({ tags: ['a,b'] }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /tags/],
+      ['takenOn not a day', { [SIDECAR]: sc({ takenOn: '27/10/2026' }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /takenOn/],
+      ['a network address in capturedWith', { [SIDECAR]: JSON.stringify({ ...sidecar(), capturedWith: { kind: 'phone', ip: '203.0.113.7' } }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /capturedWith/],
+      ['a fractional original size', { [SIDECAR]: sc({ original: { bytes: 1.5 } }), 'data/attachments/receipt-1.jpg': JPEG_BYTES }, /original\/bytes/],
     ];
     for (const [name, extra, pattern] of attachmentCases)
       it(`rejects: ${name} (agrees with the app)`, async () => {

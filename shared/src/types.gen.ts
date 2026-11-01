@@ -554,4 +554,90 @@ export interface AttachmentSidecar {
    */
   text?: string;
   via: AttachmentVia;
+  /**
+   * Optional day the photo was taken or the document is dated (a receipt's date), YYYY-MM-DD. The app fills it from the photo's own capture date when it has one; it can be changed by hand.
+   */
+  takenOn?: string;
+  /**
+   * Optional short free-text labels for finding attachments later, e.g. ["receipt", "boiler"]. Unique, at most 20.
+   *
+   * @maxItems 20
+   */
+  tags?: string[];
+  attachedTo?: AttachmentTarget;
+  /**
+   * Where the attachment came from, filled in by the app when it was added and never edited: the device as its browser described itself. No location or network address is ever kept.
+   */
+  capturedWith?: {
+    /**
+     * The name this browser has as a push notification device (e.g. "Laptop"), when it is one.
+     */
+    device?: string;
+    /**
+     * phone, tablet or desktop, from the browser's user agent.
+     */
+    kind?: "phone" | "tablet" | "desktop";
+    /**
+     * Operating system and major version as the browser reports it, e.g. "Android 15", "iOS 18.1", "macOS".
+     */
+    os?: string;
+    /**
+     * Browser and major version, e.g. "Chrome 141", "Safari 18.1".
+     */
+    browser?: string;
+    /**
+     * True when it came through the installed app (PWA), false from a browser tab.
+     */
+    installed?: boolean;
+    /**
+     * The Quest Log build that added it (a short commit sha, or "dev").
+     */
+    app?: string;
+  };
+  /**
+   * Facts about the file as it came in, before the app shrank it to a JPEG of at most 1600px. Filled in by the app and never edited.
+   */
+  original?: {
+    /**
+     * The original file name, e.g. "IMG_1234.HEIC".
+     */
+    name?: string;
+    /**
+     * The original media type, e.g. "image/heic".
+     */
+    type?: string;
+    /**
+     * The original size in bytes.
+     */
+    bytes?: number;
+    /**
+     * The original width in pixels, after applying its orientation.
+     */
+    width?: number;
+    /**
+     * The original height in pixels, after applying its orientation.
+     */
+    height?: number;
+  };
+}
+/**
+ * What an attachment belongs to: a project, a world in it, a level in that world, or an item in that level. Give the ids down to the thing it belongs to (an item needs its level, world and project). The app shows the attachment there. A target that no longer exists is ignored, not an error.
+ */
+export interface AttachmentTarget {
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  project: string;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  world?: string;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  level?: string;
+  /**
+   * Stable identifier in lowercase kebab-case (letters, digits, single hyphens). Also used as folder/file names. Unique within its scope: projects across the repo, worlds within a project, levels within a world, items and criteria within a level. Never reuse or rename once created.
+   */
+  item?: string;
 }

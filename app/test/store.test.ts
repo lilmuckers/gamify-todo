@@ -355,6 +355,16 @@ describe('keepUnchanged', () => {
     expect(keepUnchanged(prev, { ...structuredClone(prev), settings: { hero: 'classic' } })).not.toBe(prev);
     expect(keepUnchanged({ ...prev, inbox: [{ id: 'i', type: 'task' as const, title: 'Idea' }] }, structuredClone(prev)).inbox).toBeUndefined();
   });
+
+  it('notices a merged or edited attachment sidecar, and keeps the same list when it matches', () => {
+    const photo = { id: 'p-1', addedAt: '2026-11-01T08:00:00Z', via: 'share' as const };
+    const prev = { ...two(), attachments: [photo] };
+    expect(keepUnchanged(prev, structuredClone(prev))).toBe(prev);
+    const linked = keepUnchanged(prev, { ...structuredClone(prev), attachments: [{ ...photo, attachedTo: { project: 'p' } }] });
+    expect(linked).not.toBe(prev);
+    expect(linked.projects.p).toBe(prev.projects.p);
+    expect(keepUnchanged(two(), structuredClone(prev)).attachments).toEqual([photo]);
+  });
 });
 
 describe('Store.isStale', () => {

@@ -1,4 +1,4 @@
-import { fromFiles } from '@quest/shared';
+import { attachmentFileCandidates, fromFiles } from '@quest/shared';
 import { BASE_URL, fetchText } from '../config';
 import type { DataSource, Loaded } from './source';
 
@@ -29,6 +29,13 @@ export class StaticSource implements DataSource {
     const files: Record<string, string> = {};
     await Promise.all(index.files.map(async (p) => (files[p] = await this.get(p))));
     return files;
+  }
+
+  async readAttachment(id: string): Promise<Blob | undefined> {
+    for (const path of attachmentFileCandidates(id)) {
+      const res = await fetch(`${BASE_URL}${this.prefix}${path}`).catch(() => undefined);
+      if (res?.ok) return res.blob();
+    }
   }
 
   async load(): Promise<Loaded> {

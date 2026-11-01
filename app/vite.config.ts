@@ -20,6 +20,16 @@ function detectRepo(): string | undefined {
 }
 
 const repo = process.env.VITE_GH_REPO ?? detectRepo();
+
+/** The build's short commit sha (CI's, else the checkout's), recorded on photos it adds. */
+function buildId(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+  try {
+    return execSync('git rev-parse --short=7 HEAD', { cwd: repoRoot }).toString().trim();
+  } catch {
+    return 'dev';
+  }
+}
 // Google Analytics: on for the Pages build, off for Docker/local unless set explicitly.
 const gaId = process.env.VITE_GA_ID ?? (target === 'pages' ? 'G-5D7YVR6VN6' : '');
 const GOOGLE = 'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com';
@@ -135,6 +145,7 @@ export default defineConfig({
   base,
   define: {
     'import.meta.env.VITE_TARGET': JSON.stringify(target),
+    'import.meta.env.VITE_BUILD': JSON.stringify(buildId()),
     'import.meta.env.VITE_GH_REPO': JSON.stringify(repo ?? ''),
     'import.meta.env.VITE_GA_ID': JSON.stringify(gaId),
     'import.meta.env.VITE_AUTH_URL': JSON.stringify(signIn.authUrl),

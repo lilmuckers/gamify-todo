@@ -339,15 +339,19 @@ export class GitHubClient {
     return files;
   }
 
-  /** One atomic commit on the branch. Throws ConflictError if the branch moved. */
+  /**
+   * One atomic commit on the branch (or `branch`, e.g. an attachment PR's head). Throws
+   * ConflictError if the branch moved.
+   */
   async commitFiles(
     changes: Record<string, CommitEntry>,
     message: string,
     parentSha: string,
+    branch = this.repo.branch,
   ): Promise<string> {
     const commit = { sha: await this.makeCommit(changes, message, parentSha) };
     try {
-      await this.request('PATCH', `/git/refs/heads/${encodeURIComponent(this.repo.branch)}`, {
+      await this.request('PATCH', `/git/refs/heads/${branch.split('/').map(encodeURIComponent).join('/')}`, {
         sha: commit.sha,
         force: false,
       });
@@ -431,10 +435,14 @@ export class GitHubClient {
       }));
   }
 
-  /** A file's bytes at `ref`, e.g. an attachment on its pull request's branch. Private repos work through the token. */
-  async readRaw(path: string, ref: string): Promise<Blob> {
+  /**
+   * A file's bytes at `ref`, e.g. an attachment on its pull request's branch. Private repos work
+   * through the token; `repoFullName` reads a fork's head instead.
+   */
+  async readRaw(path: string, ref: string, repoFullName?: string): Promise<Blob> {
+    const base = repoFullName ? `https://api.github.com/repos/${repoFullName}` : '';
     const enc = path.split('/').map(encodeURIComponent).join('/');
-    const res = await this.send('GET', `/contents/${enc}?ref=${encodeURIComponent(ref)}`, undefined, 'application/vnd.github.raw+json');
+    const res = await this.send('GET', `${base}/contents/${enc}?ref=${encodeURIComponent(ref)}`, undefined, 'application/vnd.github.raw+json');
     return res.blob();
   }
 

@@ -32,7 +32,7 @@ import urllib.parse
 import urllib.request
 
 # The skill version this script ships with; must match SKILL.md (`npm run skill:version`).
-SKILL_VERSION = 13
+SKILL_VERSION = 15
 
 SITE = os.environ.get('QUEST_SITE', 'https://tasks.patrick-mckinley.com/')
 API = os.environ.get('QUEST_GITHUB_API', 'https://api.github.com').rstrip('/')
@@ -170,6 +170,9 @@ class MiniValidator:
             for k in schema.get('required', []):
                 if k not in inst:
                     out.append((path, f"missing required property '{k}'"))
+            for k, needs in schema.get('dependentRequired', {}).items():
+                if k in inst:
+                    out += [(path, f"property '{k}' needs '{d}'") for d in needs if d not in inst]
             props = schema.get('properties', {})
             for k, v in inst.items():
                 p = f'{path.rstrip("/")}/{k}'

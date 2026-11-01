@@ -300,6 +300,12 @@ describe('attachment pull requests', () => {
     expect(calls[0].url).toContain('/contents/data/attachments/p-1.jpg');
   });
 
+  it('reads a photo from a fork’s head', async () => {
+    const { fn, calls } = fakeFetch(() => ({ bytes: new Uint8Array([4]) }));
+    await new GitHubClient('tok', repo, fn).readRaw('data/attachments/p-1.jpg', 's1', 'friend/quests');
+    expect(calls[0].url).toBe('https://api.github.com/repos/friend/quests/contents/data/attachments/p-1.jpg?ref=s1');
+  });
+
   it('writes a sidecar that validates', () => {
     const text = sidecarText({ id: 'p-1', addedAt: '2026-11-01T08:00:00.000Z', via: 'share', text: 'Boiler receipt' });
     expect(JSON.parse(text).$schema).toBe('https://tasks.patrick-mckinley.com/schema/attachment.schema.json');

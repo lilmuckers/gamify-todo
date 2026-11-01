@@ -1181,6 +1181,141 @@
         },
         "via": {
           "$ref": "#/$defs/AttachmentVia"
+        },
+        "takenOn": {
+          "$ref": "#/$defs/LocalDate",
+          "description": "Optional day the photo was taken or the document is dated (a receipt's date), YYYY-MM-DD. The app fills it from the photo's own capture date when it has one; it can be changed by hand."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Optional short free-text labels for finding attachments later, e.g. [\"receipt\", \"boiler\"]. Unique, at most 20.",
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "^[^,\\s](?:[^,]*[^,\\s])?$",
+            "description": "One tag: no commas, no leading or trailing spaces."
+          }
+        },
+        "attachedTo": {
+          "$ref": "#/$defs/AttachmentTarget"
+        },
+        "capturedWith": {
+          "type": "object",
+          "description": "Where the attachment came from, filled in by the app when it was added and never edited: the device as its browser described itself. No location or network address is ever kept.",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60,
+              "description": "The name this browser has as a push notification device (e.g. \"Laptop\"), when it is one."
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "phone",
+                "tablet",
+                "desktop"
+              ],
+              "description": "phone, tablet or desktop, from the browser's user agent."
+            },
+            "os": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "description": "Operating system and major version as the browser reports it, e.g. \"Android 15\", \"iOS 18.1\", \"macOS\"."
+            },
+            "browser": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "description": "Browser and major version, e.g. \"Chrome 141\", \"Safari 18.1\"."
+            },
+            "installed": {
+              "type": "boolean",
+              "description": "True when it came through the installed app (PWA), false from a browser tab."
+            },
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "description": "The Quest Log build that added it (a short commit sha, or \"dev\")."
+            }
+          }
+        },
+        "original": {
+          "type": "object",
+          "description": "Facts about the file as it came in, before the app shrank it to a JPEG of at most 1600px. Filled in by the app and never edited.",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "The original file name, e.g. \"IMG_1234.HEIC\"."
+            },
+            "type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "The original media type, e.g. \"image/heic\"."
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The original size in bytes."
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The original width in pixels, after applying its orientation."
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The original height in pixels, after applying its orientation."
+            }
+          }
+        }
+      }
+    },
+    "AttachmentTarget": {
+      "type": "object",
+      "description": "What an attachment belongs to: a project, a world in it, a level in that world, or an item in that level. Give the ids down to the thing it belongs to (an item needs its level, world and project). The app shows the attachment there. A target that no longer exists is ignored, not an error.",
+      "additionalProperties": false,
+      "required": [
+        "project"
+      ],
+      "dependentRequired": {
+        "world": [
+          "project"
+        ],
+        "level": [
+          "world"
+        ],
+        "item": [
+          "level"
+        ]
+      },
+      "properties": {
+        "project": {
+          "$ref": "#/$defs/Id",
+          "description": "Project id (its folder under data/)."
+        },
+        "world": {
+          "$ref": "#/$defs/Id",
+          "description": "World id within the project."
+        },
+        "level": {
+          "$ref": "#/$defs/Id",
+          "description": "Level id within the world. Needs world."
+        },
+        "item": {
+          "$ref": "#/$defs/Id",
+          "description": "Item (task, bug, idea...) id within the level. Needs level."
         }
       }
     }

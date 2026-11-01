@@ -510,12 +510,28 @@ things go.
   the installed PWA (Android), picked with the pad's 📷 button (iOS and everywhere), or pasted or
   dropped on the scribble line (desktop). Text shared with photos goes in their sidecar rather
   than the scribble line. Each photo is redrawn as a JPEG of at most 1600px on its long edge
-  (which drops EXIF and GPS), queued in IndexedDB (`app/src/data/attachment-queue.ts`), and
-  uploaded once online as its own pull request: branch `quest/attach/<id>`, the file plus its
+  (which drops EXIF and GPS). Before that the app records, in the sidecar (`data/capture.ts`):
+  `takenOn` from the JPEG's EXIF capture date (only the date tags are read), `capturedWith` (this
+  browser's push device name if it has one, phone/tablet/desktop, OS and browser with major
+  versions from the user agent, whether it's the installed app, and the build's short sha) and
+  `original` (file name, type, bytes, pixel size). No location or IP: a browser can't see its
+  public address without a third-party lookup, and the repo may be public. The photo is then
+  queued in IndexedDB (`app/src/data/attachment-queue.ts`) and uploaded once online as its own pull request: branch `quest/attach/<id>`, the file plus its
   sidecar (`data/attachments/`, schema README), label `quest:attachment`. Photos aren't ops and
   never touch the main branch. A **📷 waiting** list under the ideas shows each with a thumbnail:
   "saved here, not sent yet" while queued (with the error if an upload failed; it's retried on
-  reconnect and at boot), then a link to its pull request in the Warp Zone. Thumbnails of photos
+  reconnect and at boot), then a link to its pull request in the Warp Zone, which shows the
+  photo from the PR's head with its sidecar's text, how it came in, the device and the original
+  file (`ui/pull-attachments.ts`;
+  a click opens it full size). On a PR in this repo, **Edit details** rewrites the sidecar on the
+  PR's branch in one commit (`quest: attach: details: <title>`): title, notes, the day it was
+  taken, tags, and **Attach to** a project, world, level or item (picked from the current data).
+  A branch that moved meanwhile reloads the PR for another go.
+- **Photos on the map.** Merged sidecars load into the workspace (`ws.attachments`, read-only:
+  ops never touch them). Panels show a **Photos · n** strip of everything linked to that
+  project, world or level or anything inside it, and a selected item shows its own; an item
+  card gets a `📷 n` tag. Each snapshot opens full size. Files are read from the branch (GitHub)
+  or the site (Pages), trying `.jpg` first since sidecars don't record the extension. Thumbnails of photos
   sent from elsewhere are fetched from the branch once and kept in IndexedDB. Nothing reads the
   photos yet, so they wait there until merged or closed. Analytics: `attachment_add { via }`
   (share, button or paste; never ids, text or sizes).

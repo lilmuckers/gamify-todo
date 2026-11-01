@@ -207,12 +207,16 @@ export function fromFiles(files: Record<string, string>): Workspace {
   let settings: Workspace['settings'];
   let inbox: InboxItem[] | undefined;
   let automation: Workspace['automation'];
+  const attachments: AttachmentSidecar[] = [];
   const worldFiles = table<Record<string, WorldFile>>();
   const levels = table<Record<string, Record<string, Level>>>();
   for (const path of Object.keys(files)) {
     const f = classifyPath(path);
-    if (!f || f.kind === 'attachment') continue;
-    if (f.kind === 'inbox') {
+    if (!f) continue;
+    if (f.kind === 'attachment') {
+      const a = parse<AttachmentSidecar>(path);
+      if (a && typeof a === 'object' && a.id === f.id) attachments.push(strip(a));
+    } else if (f.kind === 'inbox') {
       const b = parse<{ items?: InboxItem[] }>(path);
       if (b && Array.isArray(b.items) && b.items.length) inbox = b.items;
     } else if (f.kind === 'settings') {
@@ -248,5 +252,11 @@ export function fromFiles(files: Record<string, string>): Workspace {
     const unlisted = Object.keys(state.worlds).filter((w) => !listed.includes(w)).sort();
     if (unlisted.length) state.overworld = { ...state.overworld, worldOrder: [...listed, ...unlisted] };
   }
-  return { projects, ...(settings ? { settings } : {}), ...(inbox ? { inbox } : {}), ...(automation ? { automation } : {}) };
+  return {
+    projects,
+    ...(settings ? { settings } : {}),
+    ...(inbox ? { inbox } : {}),
+    ...(automation ? { automation } : {}),
+    ...(attachments.length ? { attachments: attachments.sort((a, b) => a.id.localeCompare(b.id)) } : {}),
+  };
 }

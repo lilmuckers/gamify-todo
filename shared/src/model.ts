@@ -1,4 +1,4 @@
-import type { Project, World as WorldFile, Level, Item, Criterion, Goal, Subtask, Settings, InboxItem, Automation, PushDevice } from './types.gen';
+import type { Project, World as WorldFile, Level, Item, Criterion, Goal, Subtask, Settings, InboxItem, Automation, PushDevice, AttachmentSidecar } from './types.gen';
 
 export type { Project, WorldFile, Level, Item, Criterion, Goal, Subtask, Settings, InboxItem, Automation, PushDevice };
 export type HeroId = NonNullable<Settings['hero']>;
@@ -26,6 +26,11 @@ export interface Workspace {
   inbox?: InboxItem[];
   /** data/automation.json: the GitHub Action's settings, when the repo has them. */
   automation?: Omit<Automation, '$schema'>;
+  /**
+   * data/attachments/*.json sidecars, read-only: ops never change them and toFiles never writes
+   * them (they're edited on their pull request's branch, in the Warp Zone).
+   */
+  attachments?: AttachmentSidecar[];
 }
 
 export const HERO_IDS: HeroId[] = [
