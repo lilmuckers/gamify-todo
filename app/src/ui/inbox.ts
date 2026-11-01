@@ -10,7 +10,7 @@ import {
 } from '@quest/shared';
 import type { App } from '../app';
 import { go, withPad, type Route } from '../router';
-import { h, icon } from './dom';
+import { h, icon, relTime } from './dom';
 import { field, requireFilled, select, text, TYPE_INFO, trimOrUndef } from './forms';
 import { openModal } from './modal';
 import { toast } from './toast';
@@ -95,6 +95,23 @@ export function inboxSheet(app: App): (Node | null | false | undefined)[] {
     return r.ok;
   };
 
+  const photos = edit ? app.attachments : undefined;
+  const addPhotos = (files: Blob[], via: 'button' | 'paste' | 'share') => {
+    if (!photos || !files.length) return;
+    photos.add(files, { via }).then(
+      (n) => n && toast(n === 1 ? 'Photo saved. It goes up as a pull request when online.' : `${n} photos saved. They go up as pull requests when online.`, 'win'),
+      (err: Error) => toast(err.message, 'warn', 6000),
+    );
+  };
+  const imagesIn = (list?: FileList | DataTransferItemList | null): File[] => {
+    const out: File[] = [];
+    for (const f of Array.from((list ?? []) as ArrayLike<File | DataTransferItem>)) {
+      const file = f instanceof File ? f : f.kind === 'file' ? f.getAsFile() : null;
+      if (file && file.type.startsWith('image/')) out.push(file);
+    }
+    return out;
+  };
+
   const scribble = (() => {
     if (!edit) return null;
     const title = h('input', {
@@ -114,10 +131,38 @@ export function inboxSheet(app: App): (Node | null | false | undefined)[] {
       { class: 'pad-type', 'aria-label': 'Type', 'data-keep': 'inbox-type' },
       typeOptions.map((o) => h('option', { value: o.value }, o.label)),
     );
+    const camera =
+      photos &&
+      (() => {
+        // iOS offers the camera or the photo library; desktops a file picker.
+        const input = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true, 'aria-hidden': 'true' });
+        input.addEventListener('change', () => {
+          addPhotos(imagesIn(input.files), 'button');
+          input.value = '';
+        });
+        return [input, h('button', { class: 'pad-pen pad-camera', type: 'button', title: 'Add a photo', 'aria-label': 'Add a photo', onclick: () => input.click() }, '📷')];
+      })();
     return h(
       'form',
       {
         class: 'pad-capture',
+        ...(photos && {
+          onpaste: (e: ClipboardEvent) => {
+            const files = imagesIn(e.clipboardData?.items);
+            if (!files.length) return;
+            e.preventDefault();
+            addPhotos(files, 'paste');
+          },
+          ondragover: (e: DragEvent) => {
+            if ([...(e.dataTransfer?.types ?? [])].includes('Files')) e.preventDefault();
+          },
+          ondrop: (e: DragEvent) => {
+            const files = imagesIn(e.dataTransfer?.files);
+            if (!files.length) return;
+            e.preventDefault();
+            addPhotos(files, 'paste');
+          },
+        }),
         onsubmit: (e: Event) => {
           e.preventDefault();
           const t = title.value.trim();
@@ -128,6 +173,7 @@ export function inboxSheet(app: App): (Node | null | false | undefined)[] {
       title,
       type,
       h('button', { class: 'pad-pen', type: 'submit', title: 'Add to inbox' }, '+'),
+      camera,
       ui.link &&
         h(
           'div',
@@ -236,7 +282,38 @@ export function inboxSheet(app: App): (Node | null | false | undefined)[] {
       ? h('ul', { class: 'pad-list' }, items.map(line))
       : h('p', { class: 'pad-empty' }, edit ? 'Nothing here. Jot ideas down as they come; sort them later.' : 'Empty.'),
     bar,
+    photos && waitingPhotos(app),
   ];
+}
+
+/**
+ * Photos waiting as pull requests (plans G6): still uploading from here, or open in the repo.
+ * Nothing reads them yet, so they stay until their pull request is closed.
+ */
+function waitingPhotos(app: App) {
+  const queue = app.attachments!;
+  const rows = queue.rows();
+  if (!rows.length) return null;
+  return h(
+    'section',
+    { class: 'pad-photos', 'aria-label': 'Photos waiting' },
+    h('div', { class: 'pad-sub' }, '📷 waiting', queue.uploading ? ' · uploading…' : ''),
+    h(
+      'ul',
+      { class: 'pad-list', 'aria-live': 'polite' },
+      rows.map((row) => {
+        const img = h('img', { class: 'pad-thumb', alt: '', width: 48, height: 48 });
+        void queue.thumb(row).then((src) => src && (img.src = src));
+        const status = row.local ? (row.error ? `not sent yet: ${row.error}` : 'saved here, not sent yet') : `waiting · ${relTime(row.addedAt)}`;
+        const label = row.pull
+          ? app.caps.canReviewPRs
+            ? h('a', { class: 'pad-link', href: `#/pr/${row.pull.number}` }, `${row.title} #${row.pull.number}`)
+            : h('span', { class: 'pad-link' }, row.title)
+          : h('span', { class: 'pad-link' }, row.title);
+        return h('li', { class: `pad-line photo${row.error ? ' late' : ''}`, 'data-photo': row.id }, img, label, h('span', { class: 'pad-where' }, status));
+      }),
+    ),
+  );
 }
 
 function tickBox(on: boolean) {

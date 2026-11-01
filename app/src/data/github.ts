@@ -1,4 +1,8 @@
 import {
+  ATTACHMENT_BRANCH_PREFIX,
+  ATTACHMENT_LABEL,
+  attachmentFilePath,
+  attachmentSidecarPath,
   AUTOMATION_PATH,
   ConflictError,
   fromFiles,
@@ -6,17 +10,19 @@ import {
   GitHubError,
   parseStub,
   renderStub,
+  sidecarText,
   starterAutomation,
   STUB_PATH,
   STUB_VERSION,
   stubState,
   toFiles,
   WorkflowPermissionError,
+  type AttachmentPull,
   type RepoRef,
   type TokenProvider,
 } from '@quest/shared';
 import { unzipFile } from '../ui/zip';
-import type { AutomationProvider, DataSource, HistoryRange, LatestRun, Loaded, PullData, QuestStatus } from './source';
+import type { AttachmentProvider, AttachmentUpload, AutomationProvider, DataSource, HistoryRange, LatestRun, Loaded, PullData, QuestStatus } from './source';
 
 /**
  * Browser-only GitHub mode: a token from localStorage (pasted, or a refreshing sign-in), reads and atomic commits
@@ -155,6 +161,30 @@ export class GitHubSource implements DataSource {
         return { run, statusMissing: `Couldn’t read the run’s status: ${(err as Error).message}` };
       }
     },
+  };
+
+  /**
+   * Each photo: its blob, then a commit on the branch head with the file and sidecar, a
+   * `quest/attach/<id>` branch at it, a pull request and the label. A retry after a failure
+   * reuses the branch and finds the pull request already open.
+   */
+  attachments: AttachmentProvider = {
+    submit: async ({ sidecar, base64 }: AttachmentUpload) => {
+      const branch = `${ATTACHMENT_BRANCH_PREFIX}${sidecar.id}`;
+      const blob = await this.client.createBlob(base64);
+      const head = await this.client.headSha();
+      const commit = await this.client.makeCommit(
+        { [attachmentFilePath(sidecar.id, 'jpg')]: { sha: blob }, [attachmentSidecarPath(sidecar.id)]: sidecarText(sidecar) },
+        `quest: attach: ${sidecar.title ?? sidecar.id}`,
+        head,
+      );
+      await this.client.createBranch(branch, commit);
+      const number = await this.client.openPull(branch, `📷 ${sidecar.title ?? 'New photo'}`, sidecar.text ?? '');
+      await this.client.addLabels(number, [ATTACHMENT_LABEL]);
+      return number;
+    },
+    pending: () => this.client.listAttachmentPulls(),
+    file: (pull: AttachmentPull) => this.client.readRaw(attachmentFilePath(pull.id, 'jpg'), pull.headSha),
   };
 
   history(since?: string) {

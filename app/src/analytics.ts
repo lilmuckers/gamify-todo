@@ -76,6 +76,7 @@ export const EVENT_PARAMS: Record<string, readonly string[]> = {
   automation_install: ['from'],
   push_enable: ['first_key', 'standalone'],
   push_disable: ['this_device', 'expired'],
+  attachment_add: ['via'],
 };
 
 export const USER_PROPS = ['app_mode', 'layout', 'display', 'hero'] as const;

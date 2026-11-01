@@ -60,6 +60,10 @@ describe('sanitize', () => {
     ).toEqual({ first_key: true, standalone: false });
     expect(sanitize(EVENT_PARAMS.push_disable, { this_device: false, expired: true, id: 'web-1234' })).toEqual({ this_device: false, expired: true });
   });
+
+  it('sends only how a photo came in, never its id, text or size', () => {
+    expect(sanitize(EVENT_PARAMS.attachment_add, { via: 'share', id: 'photo-1', text: 'Boiler receipt', bytes: 1234 })).toEqual({ via: 'share' });
+  });
 });
 
 describe('routeType', () => {

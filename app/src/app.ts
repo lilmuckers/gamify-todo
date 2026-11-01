@@ -35,6 +35,7 @@ import { eventsForOp } from './analytics-events';
 import { play as sfx } from './audio';
 import { followReviewDay } from './push/push';
 import { heroStore, patchUiPrefs, reviewStore, uiPrefs, type ReviewPrefs } from './config';
+import { AttachmentQueue } from './data/attachment-queue';
 import { pullLookup, type PullData } from './data/source';
 import type { DispatchResult, Store } from './data/store';
 import { ProgressHistory } from './data/history';
@@ -171,6 +172,8 @@ export class App {
   progress: ProgressHistory;
   /** The detailed stats' history, built a page at a time in the background from the first visit. */
   history: HistoryBuilder;
+  /** Photos shared, snapped or pasted in, on their way to the repo as pull requests (where the source takes them). */
+  attachments?: AttachmentQueue;
 
   constructor(public store: Store) {
     store.subscribe(() => this.emit(this.storeChange()));
@@ -178,6 +181,12 @@ export class App {
     const kv = store.source.id === 'demo' ? memoryKV() : browserKV();
     this.progress = new ProgressHistory(store.source, kv, () => this.emit());
     void this.progress.init();
+    const photos = store.source.attachments;
+    if (photos) {
+      const queue = (this.attachments = new AttachmentQueue(photos, kv, store.source.id, () => this.emit()));
+      void queue.start();
+      window.addEventListener('online', () => void queue.flush());
+    }
     // Busy: playing, or the store loading or saving. The builder waits until it isn't.
     const busy = () => this.playing || ['loading', 'syncing', 'pending'].includes(this.store.status);
     this.history = new HistoryBuilder(store.source, kv, workClient(), browserEnv(busy), () => this.emit('history'));

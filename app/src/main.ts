@@ -52,6 +52,25 @@ function dismissBoot() {
   setTimeout(() => boot.remove(), 250);
 }
 
+/** Photos the share sheet left in the share-target worker's cache: queue them as attachments, then clear it. */
+async function takeSharedPhotos(app: App, text: string) {
+  if (!('caches' in window)) return;
+  const cache = await caches.open('quest-share');
+  const keys = await cache.keys();
+  const files: Blob[] = [];
+  for (const key of keys) {
+    const res = await cache.match(key);
+    if (res) files.push(await res.blob());
+    await cache.delete(key);
+  }
+  if (!files.length) return;
+  if (!app.attachments || !app.caps.canEdit) return toast('Photos need a GitHub repo you can write to. Connect one in Settings.', 'warn', 6000);
+  await app.attachments.add(files, { via: 'share', ...(text ? { text } : {}) }).then(
+    (n) => toast(n === 1 ? 'Photo saved. It goes up as a pull request when online.' : `${n} photos saved. They go up as pull requests when online.`, 'win'),
+    (err: Error) => toast(err.message, 'warn', 6000),
+  );
+}
+
 async function main() {
   // GitHub's sign-in callback comes off the URL before anything else can see it.
   const callback = takeCallback();
@@ -65,11 +84,14 @@ async function main() {
   const mobile = useMobile();
   // Something shared to the installed app lands in the inbox, ready to save.
   const shared = new URLSearchParams(location.search);
-  const sharedTitle = shared.get('share-title') || shared.get('share-text');
-  const sharedUrl = shared.get('share-url') || (shared.get('share-text')?.match(/https?:\/\/\S+/)?.[0] ?? '');
-  if (sharedTitle || sharedUrl) {
-    prefillCapture((sharedTitle ?? sharedUrl).replace(sharedUrl, '').trim() || sharedUrl, sharedUrl || undefined);
-    for (const k of ['share-title', 'share-text', 'share-url']) shared.delete(k);
+  // Shared photos wait in the share-target worker's cache; any text goes with them, not on the pad.
+  const sharedFiles = Number(shared.get('share-files')) || 0;
+  const sharedText = [shared.get('share-title'), shared.get('share-text'), shared.get('share-url')].filter(Boolean).join('\n');
+  const sharedTitle = sharedFiles ? null : shared.get('share-title') || shared.get('share-text');
+  const sharedUrl = sharedFiles ? '' : shared.get('share-url') || (shared.get('share-text')?.match(/https?:\/\/\S+/)?.[0] ?? '');
+  if (sharedTitle || sharedUrl || sharedFiles) {
+    if (sharedTitle || sharedUrl) prefillCapture((sharedTitle ?? sharedUrl).replace(sharedUrl, '').trim() || sharedUrl, sharedUrl || undefined);
+    for (const k of ['share-title', 'share-text', 'share-url', 'share-files']) shared.delete(k);
     const query = shared.toString();
     history.replaceState(history.state, '', `${location.pathname}${query ? `?${query}` : ''}#/~inbox`);
   }
@@ -92,6 +114,7 @@ async function main() {
   const tour = uiPrefs();
   if (typeof tour.tourStep === 'number' && tour.tourStep >= 0 && HERO_IDS.includes(tour.tourGuide as HeroId)) app.heroOverride = tour.tourGuide as HeroId;
   if (sharedTitle || sharedUrl) app.focusCapture = true;
+  if (sharedFiles) void takeSharedPhotos(app, sharedText);
   const userProps = () => ({
     app_mode: source.id === 'demo' ? 'demo' : urlMode().tour ? 'tour' : TARGET === 'local' ? 'local' : store.caps.canEdit ? 'github' : 'readonly',
     layout: mobile ? 'mobile' : 'desktop',

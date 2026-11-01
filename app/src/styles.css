@@ -2097,6 +2097,17 @@ a:focus-visible {
   margin: 0;
   padding: 0;
 }
+.pad-photos {
+  margin-top: var(--line);
+}
+.pad-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  vertical-align: middle;
+  border: 1px solid currentColor;
+  background: rgba(0, 0, 0, 0.06);
+}
 .pad-line.inbox .pad-link {
   /* A button is an atomic box: leave room for the icon so it stays on the first line. */
   max-width: calc(100% - 24px);
