@@ -16,6 +16,7 @@ import {
 } from '@quest/shared';
 import type { App } from '../app';
 import { h, relTime } from './dom';
+import { deviceLine, originalLine } from '../data/capture';
 import { toast } from './toast';
 
 /** Formats browsers draw in an <img>; HEIC is listed by name only. */
@@ -77,6 +78,8 @@ export function pullAttachments(app: App, detail: PullDetail, head: Workspace): 
           !!(sidecar?.takenOn || sidecar?.tags?.length) &&
             h('small', null, [sidecar!.takenOn && `taken ${sidecar!.takenOn}`, sidecar!.tags?.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')),
           sidecar && h('small', { class: 'muted' }, `${VIA[sidecar.via] ?? sidecar.via} · ${relTime(sidecar.addedAt)}`),
+          sidecar?.capturedWith && h('small', { class: 'muted pr-photo-device' }, deviceLine(sidecar.capturedWith)),
+          sidecar?.original && h('small', { class: 'muted pr-photo-original' }, originalLine(sidecar.original)),
           h('code', null, path.split('/').pop()),
         ),
         editable && sidecar && editForm(app, detail, sidecar),
@@ -122,10 +125,10 @@ function editForm(app: App, detail: PullDetail, sidecar: AttachmentSidecar) {
       class: 'pr-attach-edit',
       onsubmit: async (e: Event) => {
         e.preventDefault();
+        // What the app recorded when it was added (device, original file) stays as it was.
+        const { title: _t, text: _x, takenOn: _d, tags: _g, attachedTo: _a, ...kept } = sidecar;
         const next: AttachmentSidecar = {
-          id,
-          addedAt: sidecar.addedAt,
-          via: sidecar.via,
+          ...kept,
           ...(title.value.trim() && { title: title.value.trim() }),
           ...(notes.value.trim() && { text: notes.value.trim() }),
           ...(takenOn.value && { takenOn: takenOn.value }),

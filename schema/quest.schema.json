@@ -1184,7 +1184,7 @@
         },
         "takenOn": {
           "$ref": "#/$defs/LocalDate",
-          "description": "Optional day the photo was taken or the document is dated (a receipt's date), YYYY-MM-DD. Set by hand in the app."
+          "description": "Optional day the photo was taken or the document is dated (a receipt's date), YYYY-MM-DD. The app fills it from the photo's own capture date when it has one; it can be changed by hand."
         },
         "tags": {
           "type": "array",
@@ -1201,6 +1201,84 @@
         },
         "attachedTo": {
           "$ref": "#/$defs/AttachmentTarget"
+        },
+        "capturedWith": {
+          "type": "object",
+          "description": "Where the attachment came from, filled in by the app when it was added and never edited: the device as its browser described itself. No location or network address is ever kept.",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60,
+              "description": "The name this browser has as a push notification device (e.g. \"Laptop\"), when it is one."
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "phone",
+                "tablet",
+                "desktop"
+              ],
+              "description": "phone, tablet or desktop, from the browser's user agent."
+            },
+            "os": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "description": "Operating system and major version as the browser reports it, e.g. \"Android 15\", \"iOS 18.1\", \"macOS\"."
+            },
+            "browser": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "description": "Browser and major version, e.g. \"Chrome 141\", \"Safari 18.1\"."
+            },
+            "installed": {
+              "type": "boolean",
+              "description": "True when it came through the installed app (PWA), false from a browser tab."
+            },
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "description": "The Quest Log build that added it (a short commit sha, or \"dev\")."
+            }
+          }
+        },
+        "original": {
+          "type": "object",
+          "description": "Facts about the file as it came in, before the app shrank it to a JPEG of at most 1600px. Filled in by the app and never edited.",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "The original file name, e.g. \"IMG_1234.HEIC\"."
+            },
+            "type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "The original media type, e.g. \"image/heic\"."
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The original size in bytes."
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The original width in pixels, after applying its orientation."
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The original height in pixels, after applying its orientation."
+            }
+          }
         }
       }
     },

@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   readonly VITE_GITHUB_APP_CLIENT_ID?: string;
   /** The GitHub App's slug, for its install page (github.com/apps/<slug>). */
   readonly VITE_GITHUB_APP_SLUG?: string;
+  /** Short commit sha of the build, recorded on photos it adds. */
+  readonly VITE_BUILD?: string;
   /** Set for end-to-end test builds: exposes the game to the tests. */
   readonly VITE_E2E?: string;
 }

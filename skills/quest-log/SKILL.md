@@ -11,7 +11,7 @@ folder. The web app (https://tasks.patrick-mckinley.com) reads and writes those 
 
 Follow this document exactly. Files that break the rules are rejected by the app and by CI.
 
-**Skill version: 14**
+**Skill version: 15**
 
 Four rules apply to every request, whatever route you use. Each has its own section below.
 
@@ -561,7 +561,8 @@ workflow file**: tell the user to change it in Settings → Automation.
 Photos and documents shared or snapped into the app. Each one is a file
 `data/attachments/<id>.<jpg|jpeg|png|webp|heic>` plus a sidecar `data/attachments/<id>.json`
 (`id`, `addedAt`, `via`: `button`, `share` or `paste`, and optional `title`, `text`,
-`takenOn` (YYYY-MM-DD), `tags` and `attachedTo`). `attachedTo` says what it belongs to:
+`takenOn` (YYYY-MM-DD), `tags`, `attachedTo`, and the app-recorded `capturedWith` (device name,
+kind, OS, browser, installed, app build) and `original` (file name, type, bytes, width, height)). `attachedTo` says what it belongs to:
 `{ "project": "…" }`, plus `world`, `level` and `item` ids down to the thing itself (an `item`
 needs its `level`, and a `level` its `world`). The app shows the photo there; a target that's
 gone is ignored. Validation fails if a file has no sidecar, a sidecar has no file, or a file has

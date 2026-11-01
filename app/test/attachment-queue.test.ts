@@ -3,6 +3,7 @@ import type { AttachmentPull } from '@quest/shared';
 import { AttachmentQueue, fitWithin, photoId, toBase64, type QueueDeps } from '../src/data/attachment-queue';
 import type { AttachmentProvider, AttachmentUpload } from '../src/data/source';
 import type { KV } from '../src/data/store';
+import { jpegTakenOn } from './exif-fixture';
 
 function memory(): KV & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>();
@@ -35,7 +36,8 @@ function deps(over: Partial<QueueDeps> = {}): Partial<QueueDeps> {
   let r = 0;
   return {
     online: () => true,
-    compress: async (b) => b,
+    compress: async (blob) => ({ blob, width: 4032, height: 3024 }),
+    device: () => ({ device: 'Laptop', kind: 'desktop', os: 'macOS', browser: 'Chrome 141', installed: false, app: 'abc1234' }),
     now: () => new Date((t += 1000)),
     random: () => (r = (r + 0.37) % 1),
     ...over,
@@ -63,6 +65,15 @@ describe('attachment queue helpers', () => {
 });
 
 describe('AttachmentQueue', () => {
+  it('takes the day a JPEG says it was taken, and the original file’s name', async () => {
+    const p = provider();
+    const q = new AttachmentQueue(p, memory(), 'gh:o/r', () => undefined, deps());
+    await q.start();
+    await q.add([new File([jpegTakenOn('2026:10:27 18:04:11')], 'IMG_1234.JPG', { type: 'image/jpeg' })], { via: 'button' });
+    await q.flush();
+    expect(p.sent[0].sidecar).toMatchObject({ takenOn: '2026-10-27', original: { name: 'IMG_1234.JPG', type: 'image/jpeg' } });
+  });
+
   it('uploads each photo as its own pull request, with how it came in and any shared text', async () => {
     const p = provider();
     const q = new AttachmentQueue(p, memory(), 'gh:o/r', () => undefined, deps());
@@ -70,7 +81,14 @@ describe('AttachmentQueue', () => {
     expect(await q.add([photo(), photo()], { via: 'share', text: 'Boiler receipt' })).toBe(2);
     await q.flush();
     expect(p.sent).toHaveLength(2);
-    expect(p.sent[0].sidecar).toEqual({ id: expect.stringMatching(/^photo-/), addedAt: expect.any(String), via: 'share', text: 'Boiler receipt' });
+    expect(p.sent[0].sidecar).toEqual({
+      id: expect.stringMatching(/^photo-/),
+      addedAt: expect.any(String),
+      via: 'share',
+      text: 'Boiler receipt',
+      capturedWith: { device: 'Laptop', kind: 'desktop', os: 'macOS', browser: 'Chrome 141', installed: false, app: 'abc1234' },
+      original: { type: 'image/jpeg', bytes: 3, width: 4032, height: 3024 },
+    });
     expect(p.sent[0].base64).toBe('AQID');
     expect(q.items).toEqual([]);
     expect(q.rows().map((r) => [r.local, r.pull?.number])).toEqual([

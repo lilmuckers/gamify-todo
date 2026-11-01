@@ -69,7 +69,9 @@ Checked by `npm run validate`, the app, and CI:
 - `data/attachments/` holds photos and documents: each file `<id>.<jpg|jpeg|png|webp|heic>` has a
   sidecar `<id>.json` (`id`, `addedAt`, `via`, optional `title`, `text`, `takenOn`, `tags` and
   `attachedTo`: `{ project, world?, level?, item? }`, where `item` needs `level` and `level` needs
-  `world`; a target that's gone is ignored), and each sidecar a
+  `world`; a target that's gone is ignored, plus the app-recorded `capturedWith` `{ device?, kind?,
+  os?, browser?, installed?, app? }` and `original` `{ name?, type?, bytes?, width?, height? }`;
+  no location or network address is ever stored), and each sidecar a
   file. An unpaired file or sidecar, two files for one id, or another file type is an error. The
   files are binary: validators list them and never read them, and the Warp Zone shows the
   photos (JPEG, PNG, WebP; HEIC by name) with their sidecar's words. A project can't be called `attachments`. The app writes this folder; tools leave it alone.

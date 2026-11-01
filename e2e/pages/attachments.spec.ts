@@ -60,7 +60,13 @@ test('📷 uploads a photo as its own labelled pull request, shown waiting and i
   const jpg = repo.bytes(attachmentFilePath(id, 'jpg'), sha)!;
   expect([...jpg.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
   const sidecar = JSON.parse(files[attachmentSidecarPath(id)]);
-  expect(sidecar).toMatchObject({ id, via: 'button' });
+  expect(sidecar).toMatchObject({
+    id,
+    via: 'button',
+    capturedWith: { kind: 'desktop', browser: expect.stringMatching(/^Chrome \d+$/), installed: false, app: expect.any(String) },
+    original: { name: 'receipt.png', type: 'image/png', bytes: PNG.length, width: 2, height: 2 },
+  });
+  expect(sidecar.capturedWith).not.toHaveProperty('device');
   expect(repo.changed(repo.commits.get(sha)!)).toEqual([attachmentFilePath(id, 'jpg'), attachmentSidecarPath(id)]);
   expect(validateFiles({ ...files, [attachmentFilePath(id, 'jpg')]: '' }, [attachmentSidecarPath(id), attachmentFilePath(id, 'jpg')])).toEqual([]);
 
@@ -72,6 +78,8 @@ test('📷 uploads a photo as its own labelled pull request, shown waiting and i
   const shown = page.locator(`.pr-attachment[data-attachment="${id}"]`);
   await expect(shown.locator('figcaption code')).toHaveText(`${id}.jpg`);
   await expect(shown.locator('figcaption')).toContainText('added with 📷');
+  await expect(shown.locator('.pr-photo-device')).toContainText(/desktop · Chrome \d+ · build /);
+  await expect(shown.locator('.pr-photo-original')).toHaveText(`original · receipt.png · 2×2 · 1 KB`);
   await expect(shown.locator('img')).toHaveAttribute('src', /^blob:/);
   await expect.poll(() => shown.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2);
   await expect(shown.locator('a.pr-photo')).toHaveAttribute('href', /^blob:/);
@@ -147,6 +155,9 @@ test('a photo’s details are edited on its pull request, then it shows on the i
     takenOn: '2026-10-27',
     tags: ['receipt', 'tiles'],
     attachedTo: { project: 'kitchen-renovation', world: 'fit', level: 'tiling', item: 'choose-the-splashback-tiles' },
+    // What the app recorded when it was added survives the edit.
+    capturedWith: { kind: 'desktop' },
+    original: { name: 'receipt.png', width: 2, height: 2 },
   });
 
   // Merged, it hangs off the item, its level, world and project.

@@ -155,6 +155,18 @@ describe('attachment validation', () => {
     expect(edit({ tags: ['x', 'x'] }).join('\n')).toMatch(/tags/);
   });
 
+  it('accepts what the app records about the device and original file, and nothing else there', () => {
+    const { files, paths } = tree();
+    const edit = (patch: object) => validateFiles({ ...files, 'data/attachments/receipt-1.json': json({ ...sidecar(), ...patch }) }, paths).map((i) => `${i.path} ${i.message}`);
+    const capturedWith = { device: 'Laptop', kind: 'phone', os: 'Android 15', browser: 'Chrome 141', installed: true, app: 'abc1234' };
+    const original = { name: 'IMG_1234.HEIC', type: 'image/heic', bytes: 3140000, width: 4032, height: 3024 };
+    expect(edit({ capturedWith, original })).toEqual([]);
+    expect(edit({ capturedWith: { ...capturedWith, ip: '203.0.113.7' } }).join('\n')).toMatch(/capturedWith/);
+    expect(edit({ capturedWith: { kind: 'watch' } }).join('\n')).toMatch(/capturedWith\/kind/);
+    expect(edit({ original: { ...original, gps: '51.5,-0.1' } }).join('\n')).toMatch(/original/);
+    expect(edit({ original: { bytes: -1 } }).join('\n')).toMatch(/original\/bytes/);
+  });
+
   it('only pairs when the caller lists the files', () => {
     expect(validateFiles(tree({ 'receipt-1': null }).files)).toEqual([]);
   });
