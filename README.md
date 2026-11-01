@@ -394,7 +394,7 @@ merging. Choose how in **Settings → Automation → Read photos with**:
 | Option | What happens | Costs and privacy |
 |---|---|---|
 | **Nothing** (default) | Photos wait for you to describe them. | |
-| **Open models first** | The workflow runs open-weight models on GitHub's runners. Anything they can't read well is flagged for an agent, or for you. | Uses Actions minutes. The photo stays on GitHub unless an agent picks it up. |
+| **Open models first** | The workflow runs open-weight models on GitHub's runners: OCR with rules for each kind, and a caption for a photo with no words. Anything they can't read well is flagged for an agent, or for you. | Uses Actions minutes: about 1 per photo with words, 3 without. The photo stays on GitHub unless an agent picks it up. |
 | **An agent only** | No models run in the workflow. Each photo waits for an agent you run. | Uses your own agent account. The photo goes to that agent's provider. |
 
 To run an agent, install the [Quest Log skill](#writing-data-with-other-tools-and-llms) wherever

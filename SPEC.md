@@ -530,8 +530,9 @@ things go.
 - **Reading photos.** `photos.reader` in `data/automation.json` (Settings → Automation) says what
   reads new photos: `off` (default), `open-weight` or `agent`. The app adds the matching label
   when it opens the pull request (`attachmentLabels`): `quest:read-auto` or `quest:read-agent`. The
-  action takes `read-auto` with open models, and on a poor result saves what it has and swaps to
-  `read-agent`. Agents take `read-agent` through the skill: `quest.py photos-waiting`,
+  action takes `read-auto` with open models (its `reader/`: OCR and per-kind rules, or a caption
+  for a photo with no words), and on a poor result saves what it has and swaps to `read-agent`, or
+  hands over with `photo-flag` if the models couldn't run. Agents take `read-agent` through the skill: `quest.py photos-waiting`,
   `photo-claim` (adds `quest:reading`), then `photo-save` (validates, commits only that sidecar,
   ends on `quest:read-done`) or `photo-give-up` (`quest:read-failed`). A read goes in the
   sidecar's `read` block and fills an empty title, `takenOn` or tags; what a person wrote stays. The
